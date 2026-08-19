@@ -1,0 +1,173 @@
+// Presentational form (design §4, node `XcaXd`): React Hook Form + Zod,
+// reusing the SAME `createProgramInputSchema` the main-process handler
+// validates against.
+//
+// The grading scheme is chosen here and only here: it decides whether the
+// program has an average at all, and every subject under it has to agree, so
+// there is no "change it later" affordance to build.
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { Calculator } from 'lucide-react'
+import { createProgramInputSchema, type CreateProgramInput } from '../../../shared/ipc/carreras'
+import { Button } from '../../shared/components/ui/button'
+import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogOverlay } from '../../shared/components/ui/dialog'
+import { Input } from '../../shared/components/ui/input'
+import { Label } from '../../shared/components/ui/label'
+import { Select } from '../../shared/components/ui/select'
+import { cn } from '../../shared/lib/cn'
+import { interactiveChip } from '../../shared/lib/interactive'
+import { ColorSwatchPicker, SUBJECT_COLORS } from '../../shared/components/ColorSwatchPicker'
+
+interface NuevaCarreraModalProps {
+  onSubmit: (input: CreateProgramInput) => void
+  onClose: () => void
+}
+
+// The scale is the TOP of the range, not a fixed 1-10 — see
+// carreras/domain/program.ts. These are the common ones; the field stays a
+// number so an institution outside the list is a data change, not a code one.
+const SCALES = [
+  { value: 10, label: '1 a 10' },
+  { value: 20, label: '1 a 20' },
+  { value: 100, label: '1 a 100' }
+]
+
+export function NuevaCarreraModal({ onSubmit, onClose }: NuevaCarreraModalProps): React.JSX.Element {
+  // No explicit useForm<T> generic: `institution` is a zod preprocess field,
+  // so the resolver's input type diverges from CreateProgramInput (the
+  // post-parse output) — same reasoning as NuevaMateriaModal.
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors }
+  } = useForm({
+    resolver: zodResolver(createProgramInputSchema),
+    defaultValues: {
+      name: '',
+      institution: '',
+      color: SUBJECT_COLORS[0],
+      gradingScheme: 'numerico' as const,
+      gradeScale: 10 as number | null
+    }
+  })
+
+  const gradingScheme = watch('gradingScheme')
+  const color = watch('color')
+
+  // Scheme and scale move together: a pass/fail program must carry NO scale
+  // (the schema rejects one), so switching clears it instead of leaving a
+  // stale 10 behind that would fail validation on submit.
+  const selectScheme = (scheme: 'numerico' | 'binario'): void => {
+    setValue('gradingScheme', scheme)
+    setValue('gradeScale', scheme === 'binario' ? null : 10)
+  }
+
+  return (
+    <DialogOverlay>
+      <DialogContent role="dialog" aria-label="Nueva carrera">
+        <DialogHeader onClose={onClose}>
+          <h2 className="font-display text-title font-bold text-foreground">Nueva carrera o curso</h2>
+          <p className="text-body-sm text-muted-foreground">
+            Una carrera, un curso con fecha de fin o clases que no terminan: todo entra acá
+          </p>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="contents">
+          <DialogBody>
+            <Label>
+              Nombre
+              <Input type="text" {...register('name')} />
+            </Label>
+            {errors.name && <p className="text-body-lg text-destructive">{errors.name.message}</p>}
+
+            <Label>
+              Institución
+              <Input type="text" {...register('institution')} />
+            </Label>
+
+            <fieldset className="flex flex-col gap-2">
+              <legend className="text-label font-semibold text-secondary-foreground">COLOR</legend>
+              <ColorSwatchPicker value={color} onChange={(next) => setValue('color', next)} />
+            </fieldset>
+
+            <span aria-hidden="true" className="h-px w-full bg-border" />
+
+            <fieldset className="flex flex-col gap-2">
+              <legend className="text-label font-semibold text-secondary-foreground">MÉTODO DE EVALUACIÓN</legend>
+              <div className="flex w-fit items-center gap-1 rounded-lg border border-border bg-background p-1">
+                {(
+                  [
+                    ['numerico', 'Numérico'],
+                    ['binario', 'Aprobado / Desaprobado']
+                  ] as const
+                ).map(([scheme, label]) => (
+                  <button
+                    key={scheme}
+                    type="button"
+                    aria-pressed={gradingScheme === scheme}
+                    onClick={() => selectScheme(scheme)}
+                    className={cn(
+                      gradingScheme === scheme
+                        ? 'rounded-md bg-primary px-4 py-2 text-body-sm font-semibold text-primary-foreground'
+                        : 'rounded-md px-4 py-2 text-body-sm font-semibold text-secondary-foreground',
+                      interactiveChip
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            {gradingScheme === 'numerico' && (
+              <div className="flex items-end gap-4">
+                <Label className="w-[170px] shrink-0">
+                  Escala
+                  <Select {...register('gradeScale', { valueAsNumber: true })}>
+                    {SCALES.map((scale) => (
+                      <option key={scale.value} value={scale.value}>
+                        {scale.label}
+                      </option>
+                    ))}
+                  </Select>
+                </Label>
+                <p className="pb-3 text-caption text-muted-foreground">
+                  Se fija al crear la carrera. 1 a 10, 1 a 100 o la que use tu institución.
+                </p>
+              </div>
+            )}
+            {errors.gradeScale && <p className="text-body-lg text-destructive">{errors.gradeScale.message}</p>}
+
+            <div className="flex items-start gap-3 rounded-lg border border-primary bg-sidebar-accent px-4 py-3">
+              <Calculator className="mt-px h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
+              <div className="flex flex-col gap-1">
+                <strong className="text-body-sm font-semibold text-foreground">
+                  {gradingScheme === 'numerico'
+                    ? 'Con evaluación numérica la carrera tiene promedio'
+                    : 'Sin notas ni promedio'}
+                </strong>
+                <p className="text-caption leading-relaxed text-secondary-foreground">
+                  {gradingScheme === 'numerico'
+                    ? 'Cada materia lleva nota y vas a ver el promedio con y sin aplazos.'
+                    : 'Las materias sólo quedan aprobadas o desaprobadas — es lo típico de un curso con certificado.'}
+                </p>
+              </div>
+            </div>
+          </DialogBody>
+
+          <DialogFooter>
+            <p className="text-caption text-muted-foreground">Los períodos y las materias se cargan después</p>
+            <div className="flex items-center gap-3">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancelar
+              </Button>
+              <Button type="submit">Crear carrera</Button>
+            </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </DialogOverlay>
+  )
+}

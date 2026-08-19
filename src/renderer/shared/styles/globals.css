@@ -1,0 +1,297 @@
+/*
+ * Dark theme tokens (design/course-companion.pen, recorded in
+ * sdd/course-companion/ui-design obs #93 — this file is the single source
+ * of truth for the values, do not hand-copy hex codes into components).
+ *
+ * Tailwind v4 is CSS-first: `@theme` both declares the CSS custom
+ * properties AND generates matching utility classes (e.g. `--color-primary`
+ * gives `bg-primary`/`text-primary`/`border-primary`). Shadcn/ui's
+ * hand-built primitives in `shared/components/ui/` consume the SEMANTIC
+ * names below (background/foreground/card/border/primary/...), which is why
+ * the raw Pencil token names are mapped onto shadcn's own vocabulary
+ * instead of being used as literal class names.
+ */
+@import 'tailwindcss';
+
+@theme {
+  /* Raw Pencil tokens, kept for direct use where the semantic mapping below
+     does not apply (e.g. subject color chips). */
+  --color-canvas: #0b0b0e;
+  --color-surface: #141419;
+  --color-surface-sunken: #1c1c23;
+  --color-hairline: #272730;
+  --color-ink: #f4f4f7;
+  --color-ink-secondary: #9e9eac;
+  /* Was #7e7e8f, which cleared 4.5:1 on `surface` and on NOTHING below it —
+     4.25 on `surface-sunken`, 4.08 on `violet-soft`, 3.88 on `ok-soft`. It is
+     the most-used ink in the app (row captions, dates, "Finalizado" badges),
+     so it was also the largest single block of failing text. Lightened to the
+     minimum that clears AA on all seven surfaces (worst case 4.66 on
+     `ok-soft`) while keeping 18 steps of separation from `ink-secondary`, so
+     the muted/secondary hierarchy still reads. */
+  --color-ink-muted: #8c8c9b;
+  --color-violet: #7f5af0;
+  --color-violet-soft: #221b3d;
+  /* The SAME brand violet, one step lighter, for violet used as TEXT (pen
+     token `accent-text`). `--color-violet` stays exactly as it is because it
+     is a FILL: white on it clears AA at 4.54, and lightening it would break
+     that. As ink, though, it cleared nothing — 4.04 on `surface`, 3.58 on its
+     own `violet-soft` backing. Fill and ink are two jobs, so they are two
+     tokens. */
+  --color-violet-ink: #997bf3;
+  --color-urgent: #ff6b5b;
+  --color-urgent-soft: #2e1815;
+  /* Foregrounds for the two solid action fills. They are NOT the same ink,
+     and that is the point: the foreground follows the fill's luminance, and
+     coral is a LIGHT colour while violet is a dark one. White on coral was
+     2.80:1 — the worst contrast in the app, on its most destructive button.
+     Near-black on coral is 7.03:1. */
+  --color-on-accent: #ffffff;
+  --color-on-urgent: #0b0b0e;
+  /* Subject-outcome tokens (design: the ESTADO badges on nodes `gs3CM` /
+     `U02xK`). `ok` reads a passed subject, `warn` an unclosed one — neither
+     maps onto the existing accent/urgent pair, which already mean "active"
+     and "destructive". */
+  --color-ok: #2dd4a7;
+  --color-ok-soft: #10291f;
+  --color-warn: #f5b14c;
+  --color-warn-soft: #2c220f;
+  --color-subject-1: #4c8dff;
+  --color-subject-2: #a78bfa;
+  --color-subject-3: #fb923c;
+  --color-subject-4: #2dd4a7;
+  --color-subject-5: #f472b6;
+
+  /* Shadcn/ui semantic tokens — every hand-built primitive in
+     shared/components/ui/ references these, never the raw names above. */
+  --color-background: var(--color-canvas);
+  --color-foreground: var(--color-ink);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-ink);
+  --color-border: var(--color-hairline);
+  --color-input: var(--color-hairline);
+  --color-ring: var(--color-violet);
+  --color-primary: var(--color-violet);
+  /* Was `--color-ink`, which contradicted both the design and this app's own
+     Button comment ("$accent fill with white text"): #f4f4f7 on violet is
+     4.14:1, white is 4.54:1. The design was right. */
+  --color-primary-foreground: var(--color-on-accent);
+  /* Violet as INK — the active/selected state's text and icons (status
+     badges, the current filter chip, the active nav row). Distinct from
+     `--color-primary`, which is the same hue used as a FILL; `border-primary`
+     keeps using that one, since a 1px border only owes 3:1. */
+  --color-primary-ink: var(--color-violet-ink);
+  --color-secondary: var(--color-surface-sunken);
+  --color-secondary-foreground: var(--color-ink-secondary);
+  --color-muted: var(--color-surface-sunken);
+  --color-muted-foreground: var(--color-ink-muted);
+  --color-accent: var(--color-surface-sunken);
+  --color-accent-foreground: var(--color-ink);
+  --color-destructive: var(--color-urgent);
+  --color-destructive-foreground: var(--color-on-urgent);
+
+  /* Sidebar (design's reusable 232px Sidebar component). */
+  --color-sidebar: var(--color-surface);
+  --color-sidebar-foreground: var(--color-ink);
+  --color-sidebar-border: var(--color-hairline);
+  --color-sidebar-primary: var(--color-violet);
+  --color-sidebar-primary-foreground: var(--color-ink);
+  /* Active nav row background (design: descendant override `fill: $accent-soft`
+     on the active item, node `LczWA` instance in e.g. `dw1W7`/Materias) — was
+     wrongly mapped onto `--color-surface-sunken` (the neutral hover/muted
+     tone) before this corrective pass, which made the active item invisible
+     against the sidebar background. */
+  --color-sidebar-accent: var(--color-violet-soft);
+  /* Violet-on-violet-soft was 3.58:1 — the current page's own label was the
+     least readable text in the navigation. The ink variant takes it to 5.02. */
+  --color-sidebar-accent-foreground: var(--color-violet-ink);
+
+  --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+
+  /*
+   * Type scale. Nine integer sizes, taken from the normalized design (the
+   * "Sistema de diseño" group in the .pen). Letter-spacing is baked into each
+   * step because it is a property of the step, not a per-call-site decision:
+   * a heading is 20px AND -0.5px tracking or it is not a heading.
+   *
+   * Line-height is deliberately declared ONLY on the two display steps, which
+   * are the only ones the design pins. Every other step inherits the font's
+   * natural line-height, exactly as the design does — declaring one here would
+   * silently re-flow every dense row in the app.
+   *
+   * `label` and `caption` share a size on purpose: same 11px, different
+   * tracking. `label` is the uppercase field label, `caption` the metadata
+   * that sits under a value. Weight stays at the call site (`font-semibold`),
+   * since 13px body text is set at both 400 and 600.
+   */
+  --text-display-xl: 40px;
+  --text-display-xl--line-height: 1.05;
+  --text-display-xl--letter-spacing: -1.6px;
+  --text-display-lg: 30px;
+  --text-display-lg--line-height: 1.1;
+  --text-display-lg--letter-spacing: -1.2px;
+  --text-heading: 20px;
+  --text-heading--letter-spacing: -0.5px;
+  --text-title: 16px;
+  --text-title--letter-spacing: -0.3px;
+  --text-body-lg: 14px;
+  --text-body-lg--letter-spacing: -0.1px;
+  --text-body: 13px;
+  --text-body--letter-spacing: 0px;
+  --text-body-sm: 12px;
+  --text-body-sm--letter-spacing: 0px;
+  --text-label: 11px;
+  --text-label--letter-spacing: 0.3px;
+  --text-caption: 11px;
+  --text-caption--letter-spacing: 0px;
+  --text-overline: 10px;
+  --text-overline--letter-spacing: 0.9px;
+  /*
+   * `micro` and `overline` share 10px the same way `label` and `caption`
+   * share 11px: same size, different tracking, different job. Tracking is
+   * what makes an uppercase COLUMN HEADING readable at 10px, and it is
+   * exactly what ruins a dense numeric label — a timeline tick, an hour in
+   * the schedule gutter, a weekday initial. Those are set solid.
+   *
+   * The design has used this step in 113 places from the start; the scale
+   * just never had a name for it, so call sites reached for `overline` and
+   * silently added 0.9px of tracking the design never asked for.
+   */
+  --text-micro: 10px;
+  --text-micro--letter-spacing: 0px;
+
+  /*
+   * Design's modal pattern: 8px input/card radius. The four steps below are
+   * the design's full radius set (4 / 6 / 8 / 12); the pill and avatar shapes
+   * use `rounded-full`.
+   */
+  --radius: 0.5rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/*
+ * Modal scrim (design: `#05050899` over the dimmed list) — not expressible
+ * as a Tailwind theme color because it needs its own alpha, kept as a plain
+ * custom property consumed via `bg-(--color-scrim)`.
+ */
+:root {
+  --color-scrim: #05050899;
+  /* Tells the engine this is a dark UI, so anything it paints itself (native
+     form controls, the flash before the first paint) starts dark instead of
+     white. */
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-ui);
+}
+
+/*
+ * Interaction base layer — the cursor half of the design system's behaviour
+ * (the hover/active/focus half lives in `shared/lib/interactive.ts`).
+ *
+ * Tailwind v3's preflight gave `<button>` a `cursor: pointer`; v4's preflight
+ * does not (it only sets `appearance: button`), so every button in the app
+ * silently fell back to the UA default arrow. Restoring it here rather than
+ * as a `cursor-pointer` class on each call site is deliberate: an element is
+ * clickable or it is not, that is a fact about the ELEMENT, and a rule that
+ * lives in one place cannot be forgotten by the next component someone adds.
+ */
+@layer base {
+  button:not(:disabled),
+  select:not(:disabled),
+  summary,
+  [role='button']:not([aria-disabled='true']),
+  input:where([type='checkbox'], [type='radio'], [type='color'], [type='range']):not(:disabled),
+  /* A wrapping label is part of its control's hit target, so it has to carry
+     the same cursor — otherwise the pointer flickers between arrow and hand
+     as it crosses the text. */
+  label:has(> input:where([type='checkbox'], [type='radio']):not(:disabled)) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  select:disabled,
+  textarea:disabled,
+  input:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+
+  /* Kills the ~300ms tap delay if a window ever takes touch input, without
+     disabling pinch-zoom the way `touch-action: none` would. */
+  button,
+  select,
+  summary,
+  label,
+  [role='button'] {
+    touch-action: manipulation;
+  }
+}
+
+/*
+ * Scrollbars (design: "Sistema de diseño" §04, bloque SCROLLBARS).
+ *
+ * Chromium's default scrollbar is 15px of light chrome with a visible track —
+ * on a #0B0B0E canvas it reads as a bright seam down the side of the app.
+ * This is the design's version: 8px, no arrows, TRANSPARENT track (the bar
+ * should not carve a gutter into the surface it sits on) and a thumb painted
+ * from the same ink tokens as the text, so it dims and brightens with the
+ * rest of the UI instead of being its own colour.
+ *
+ * Written with the `::-webkit-scrollbar-*` pseudo-elements rather than the
+ * standard `scrollbar-width`/`scrollbar-color` pair on purpose: the standard
+ * properties have NO hover or active state, and the design specifies three
+ * (reposo / hover / arrastrando). The renderer is Chromium and only Chromium,
+ * so the trade is free — and the two syntaxes cannot be combined anyway,
+ * since Chromium ignores these rules as soon as `scrollbar-color` is set.
+ */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--color-hairline);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-ink-muted);
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background-color: var(--color-violet);
+  }
+}
+
+/*
+ * Motion opt-out, declared once so no component has to guard its own
+ * transition. Durations are near-zero rather than `none` on purpose: a 0.01ms
+ * transition still FIRES its `transitionend`, so anything waiting on that
+ * event keeps working instead of hanging.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

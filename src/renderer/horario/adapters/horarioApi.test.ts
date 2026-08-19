@@ -1,0 +1,76 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { horarioApi } from './horarioApi'
+
+const sampleSubject = {
+  id: 1,
+  name: 'Sistemas Operativos',
+  code: 'SO-101',
+  color: '#4c8dff',
+  docente: null,
+  contacto: null,
+  campusUrl: null,
+  notas: null,
+  attendanceMinPercent: null,
+  periodId: null,
+  outcome: null,
+  grade: null,
+  slots: [{ id: 1, subjectId: 1, dayOfWeek: 1, startMinutes: 480, endMinutes: 570, location: 'Aula 204' }]
+}
+
+describe('horarioApi', () => {
+  beforeEach(() => {
+    // @ts-expect-error -- test-only global bridge stub, no full Electron preload context
+    globalThis.window = {
+      api: {
+        horario: { week: vi.fn() },
+        hoy: { dashboard: vi.fn() },
+        carreras: {
+          create: vi.fn(),
+          list: vi.fn(),
+          detail: vi.fn(),
+          update: vi.fn(),
+          createPeriod: vi.fn(),
+          updatePeriod: vi.fn(),
+          deletePeriod: vi.fn(),
+          delete: vi.fn()
+        },
+        materias: {
+          create: vi.fn(),
+          list: vi.fn(),
+          detail: vi.fn(),
+          updateSchedule: vi.fn(),
+          delete: vi.fn(),
+          setOutcome: vi.fn()
+        },
+        finales: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+        entregas: { create: vi.fn(), list: vi.fn(), update: vi.fn(), setDone: vi.fn(), delete: vi.fn() },
+        adjuntos: { list: vi.fn(), add: vi.fn(), open: vi.fn(), remove: vi.fn() },
+        app: { openExternal: vi.fn(), exportJson: vi.fn(), onExportRequested: vi.fn() },
+        ask: {
+          question: vi.fn(),
+          cancel: vi.fn(),
+          listConversations: vi.fn(),
+          getConversation: vi.fn(),
+          deleteConversation: vi.fn()
+        },
+        cli: { status: vi.fn(), setOverride: vi.fn(), models: vi.fn() }
+      }
+    }
+  })
+
+  it('week() parses and returns the data array on a successful envelope', async () => {
+    window.api.horario.week = vi.fn().mockResolvedValue({ ok: true, data: [sampleSubject] })
+
+    const result = await horarioApi.week()
+
+    expect(result).toEqual([sampleSubject])
+  })
+
+  it('week() throws with the envelope error message when ok is false', async () => {
+    window.api.horario.week = vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: { code: 'WEEK_FAILED', message: 'database is locked' } })
+
+    await expect(horarioApi.week()).rejects.toThrow('database is locked')
+  })
+})

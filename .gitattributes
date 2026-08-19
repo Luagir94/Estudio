@@ -1,0 +1,9 @@
+# Check out every text file with LF, whatever the clone's core.autocrlf says.
+# Prettier defaults to endOfLine "lf", so without this `npm run format:check`
+# fails on the files Git happened to convert to CRLF — a result that depends on
+# the developer's machine rather than on the committed content.
+* text=auto eol=lf
+
+# Pencil design files are encrypted; never normalise line endings or diff them
+design/course-companion binary
+*.pen binary

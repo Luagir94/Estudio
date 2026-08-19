@@ -1,0 +1,23 @@
+# Local tooling state — contains absolute machine paths, not project content
+.atl/
+
+# Node / build output
+node_modules/
+out/
+dist/
+dist-electron/
+release/
+*.tsbuildinfo
+
+# Editor / OS
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local SQLite databases (userData path; never committed)
+*.db
+*.db.bak-*
+
+# Playwright artifacts
+test-results/
+playwright-report/

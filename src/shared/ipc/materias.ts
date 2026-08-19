@@ -1,0 +1,335 @@
+// Shared IPC contract for the `materias:*` channels (design §2). Imported
+// by BOTH main (parses incoming payloads before executing) and renderer
+// (parses responses before caching) — "one validation story, no new
+// dependency" per the design's decisions table.
+import { z } from 'zod'
+import { deadlineRecordSchema } from './deadlines'
+
+// --- materias:create request -----------------------------------------
+
+// Slots have no independent lifecycle (design §2, §4): they only ever move
+// as part of a `materias:create`/`materias:updateSchedule` payload.
+export const scheduleSlotInputSchema = z
+  .object({
+    dayOfWeek: z.number().int().min(0).max(6),
+    startMinutes: z.number().int().min(0).max(1439),
+    endMinutes: z.number().int().min(0).max(1439),
+    location: z.string().trim().min(1).max(200).nullable().default(null)
+  })
+  .refine((slot) => slot.endMinutes > slot.startMinutes, {
+    message: 'endMinutes must be after startMinutes',
+    path: ['endMinutes']
+  })
+
+export type ScheduleSlotInput = z.infer<typeof scheduleSlotInputSchema>
+
+// An empty string is treated the same as "not provided" — HTML text
+// inputs emit '' rather than undefined when left blank, and the spec's
+// "Create subject with only required fields" scenario must succeed when
+// docente/contacto are left blank in the form.
+const optionalTextField = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  // 2000 comfortably fits docente/contacto AND a campusUrl (URLs are the
+  // longest thing this field carries); the cap only bounds a runaway blob.
+  z.string().trim().min(1).max(2000).nullable().optional()
+)
+
+// docente/contacto are captured at creation time; campusUrl/notas are
+// edit-form-only (spec: "Subject Field Set") and are not part of this
+// command's payload — they land with the slice 2b update command.
+// HTML selects emit strings; an empty option means "no period yet", which is
+// a legitimate state (a subject can exist before its period is defined).
+//
+// `.optional()` rather than `.default(null)`: a default would make the field
+// REQUIRED in the inferred output type, forcing every existing caller to
+// pass it — same shape as attendanceMinPercent above.
+const optionalPeriodId = z.preprocess((value) => {
+  if (value === '' || value === null) {
+    return null
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isNaN(parsed) ? value : parsed
+  }
+  return value
+}, z.number().int().positive().nullable().optional())
+
+// REQUIRED on creation, unlike everywhere else this field appears.
+//
+// A subject with no period is a half-subject: it belongs to no carrera, its
+// status can never leave "cursando" (there is no end date to pass), it can
+// carry no grade, and no average counts it. Letting one be born that way
+// would be shipping a trap that looks like a normal row.
+//
+// The COLUMN stays nullable, because a subject can legitimately BECOME
+// orphaned later — deleting a period sets it null rather than destroying the
+// work recorded under it. Being born without one and being widowed are
+// different things, and only the first is forbidden.
+const requiredPeriodId = z.preprocess(
+  (value) => (typeof value === 'string' && value !== '' ? Number(value) : value),
+  z.number({ error: 'periodId is required' }).int().positive()
+)
+
+export const createSubjectInputSchema = z.object({
+  name: z.string().trim().min(1, 'name is required').max(200, 'name is too long'),
+  code: z.string().trim().min(1, 'code is required').max(200, 'code is too long'),
+  color: z.string().trim().min(1, 'color is required').max(200, 'color is too long'),
+  docente: optionalTextField,
+  contacto: optionalTextField,
+  periodId: requiredPeriodId,
+  slots: z.array(scheduleSlotInputSchema).min(1, 'at least one schedule slot is required')
+})
+
+export type CreateSubjectInput = z.infer<typeof createSubjectInputSchema>
+
+// --- materias:updateSchedule request -----------------------------------
+
+// campusUrl/notas are edit-form-only (spec: "Subject Field Set" — "accrue
+// later"), so they only appear here, never in createSubjectInputSchema.
+// Same empty-string-as-not-provided treatment as docente/contacto (HTML
+// inputs/textareas emit '' rather than undefined when left blank).
+const optionalNotesField = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  // Notas is the app's one long-form field, so its cap is generous (20k
+  // chars) — enough for real notes, bounded against an unbounded write.
+  z.string().max(20000).nullable().optional()
+)
+
+// HTML number inputs emit a string ('' when empty). Convert '' to null and
+// numeric strings to actual numbers BEFORE validation — z.coerce.number()
+// alone would coerce null itself into 0 (Number(null) === 0), so the empty
+// check must happen first, in this preprocess.
+const optionalAttendanceMinPercent = z.preprocess((value) => {
+  if (value === '' || value === null || value === undefined) {
+    return null
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isNaN(parsed) ? value : parsed
+  }
+  return value
+}, z.number().min(0).max(100).nullable().optional())
+
+// No separate "update general fields" command exists in this slice's task
+// list (only materias:create and materias:updateSchedule are scoped) — the
+// "Editar materia" modal's 2 tabs (General + Horario) submit as ONE atomic
+// write of the whole aggregate: general fields AND a full slot-set replace,
+// matching "Subject remains the AGGREGATE ROOT" (see apply-progress
+// Deviations for the explicit rationale).
+export const updateSubjectScheduleInputSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string().trim().min(1, 'name is required').max(200, 'name is too long'),
+  code: z.string().trim().min(1, 'code is required').max(200, 'code is too long'),
+  color: z.string().trim().min(1, 'color is required').max(200, 'color is too long'),
+  docente: optionalTextField,
+  contacto: optionalTextField,
+  campusUrl: optionalTextField,
+  notas: optionalNotesField,
+  attendanceMinPercent: optionalAttendanceMinPercent,
+  periodId: optionalPeriodId,
+  slots: z.array(scheduleSlotInputSchema).min(1, 'at least one schedule slot is required')
+})
+
+export type UpdateSubjectScheduleInput = z.infer<typeof updateSubjectScheduleInputSchema>
+
+// --- materias:detail / materias:delete requests -------------------------
+
+export const subjectIdInputSchema = z.object({ id: z.number().int().positive() })
+
+export type SubjectIdInput = z.infer<typeof subjectIdInputSchema>
+
+// --- shared record shapes (materias:create response, materias:list) ----
+
+export const scheduleSlotRecordSchema = z.object({
+  id: z.number().int(),
+  subjectId: z.number().int(),
+  dayOfWeek: z.number().int(),
+  startMinutes: z.number().int(),
+  endMinutes: z.number().int(),
+  location: z.string().nullable()
+})
+
+export type ScheduleSlotRecord = z.infer<typeof scheduleSlotRecordSchema>
+
+export const subjectOutcomeSchema = z.enum(['aprobada', 'reprobada', 'finalPendiente'])
+
+export type SubjectOutcome = z.infer<typeof subjectOutcomeSchema>
+
+export const subjectRecordSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  code: z.string(),
+  color: z.string(),
+  docente: z.string().nullable(),
+  contacto: z.string().nullable(),
+  campusUrl: z.string().nullable(),
+  notas: z.string().nullable(),
+  attendanceMinPercent: z.number().nullable(),
+  /** `null` for subjects that predate periods, or whose period was deleted. */
+  periodId: z.number().int().nullable(),
+  /** What the student decided. `null` = not decided yet. */
+  outcome: subjectOutcomeSchema.nullable(),
+  /** Only meaningful under a `numerico` program. */
+  grade: z.number().nullable()
+})
+
+export type SubjectRecord = z.infer<typeof subjectRecordSchema>
+
+export const subjectWithSlotsSchema = subjectRecordSchema.extend({
+  slots: z.array(scheduleSlotRecordSchema)
+})
+
+export type SubjectWithSlots = z.infer<typeof subjectWithSlotsSchema>
+
+// --- materias:delete result -----------------------------------------------
+
+// The confirmation dialog's deadline count comes from the already-fetched
+// materias:detail payload (deadlines.length) — no separate "count" IPC
+// round-trip is needed. This result exists to confirm what was actually
+// destroyed (spec: "Confirming deletion removes slots and deadlines
+// everywhere").
+export const deleteSubjectResultSchema = z.object({
+  deletedSlots: z.number().int(),
+  deletedDeadlines: z.number().int()
+})
+
+export type DeleteSubjectResult = z.infer<typeof deleteSubjectResultSchema>
+
+// --- materias:list result ----------------------------------------------
+
+// A PROJECTION of the period, not carreras' `periodRecordSchema`: importing
+// that here would close a cycle (carreras.ts already imports this module's
+// result envelope), and the Materias screen only needs the label plus the
+// two dates its status depends on.
+export const subjectPeriodSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  startsOn: z.string(),
+  /** `null` = open-ended. */
+  endsOn: z.string().nullable()
+})
+
+export type SubjectPeriod = z.infer<typeof subjectPeriodSchema>
+
+export const finalExamResultSchema = z.enum(['pendiente', 'aprobado', 'reprobado'])
+
+export type FinalExamResult = z.infer<typeof finalExamResultSchema>
+
+// Declared HERE rather than in `shared/ipc/finales.ts` even though the
+// `finales:*` commands own its lifecycle: the subject detail payload needs
+// it, and finales.ts already imports this module's result envelope — putting
+// it there would close an import cycle.
+export const finalExamRecordSchema = z.object({
+  id: z.number().int(),
+  subjectId: z.number().int(),
+  label: z.string(),
+  /** `null` on purpose — you can record a mesa before its date is published. */
+  takenOn: z.string().nullable(),
+  result: finalExamResultSchema
+})
+
+export type FinalExamRecord = z.infer<typeof finalExamRecordSchema>
+
+// Everything `resolveSubjectStatus` needs, and nothing more. The status
+// itself is NOT computed here: it depends on "today", which is a
+// rendering-time concern (same rule as the deadline buckets — baking it into
+// a cached payload would go stale between renders).
+// Reached THROUGH the period. It rides along because closing a subject has
+// to know whether its program grades at all — asking for a nota under a
+// pass/fail program is a question with no valid answer.
+export const subjectProgramSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  gradingScheme: z.enum(['numerico', 'binario']),
+  gradeScale: z.number().int().nullable()
+})
+
+export type SubjectProgram = z.infer<typeof subjectProgramSchema>
+
+export const subjectWithStatusSchema = subjectWithSlotsSchema.extend({
+  period: subjectPeriodSchema.nullable(),
+  program: subjectProgramSchema.nullable(),
+  finals: z.array(z.object({ result: finalExamResultSchema })),
+  /**
+   * Open (not done) deadlines. A COUNT rather than the rows: the list only
+   * ever shows the number, and shipping every deadline of every subject to
+   * render one integer would be paying for data nobody reads.
+   *
+   * Unlike the status, this needs no "now" — a deadline is open or done,
+   * regardless of the date — so main can safely compute it.
+   */
+  pendingDeadlines: z.number().int()
+})
+
+export type SubjectWithStatus = z.infer<typeof subjectWithStatusSchema>
+
+export const listSubjectsResultSchema = z.array(subjectWithStatusSchema)
+
+// --- materias:detail result ----------------------------------------------
+
+// Declared AFTER the period/program/final schemas it composes: these are
+// plain `const`s, so referencing one before its initialiser runs would throw
+// at module load, not fail at compile time.
+//
+// Aggregates subject + slots + deadlines + period + program + finals.
+// Deriving próxima clase / progreso / estado from this happens in the pure
+// renderer domain layer at render time, never baked into this payload —
+// "now" is a rendering-time concern and would go stale in the TanStack Query
+// cache between renders.
+export const subjectDetailSchema = subjectWithSlotsSchema.extend({
+  deadlines: z.array(deadlineRecordSchema),
+  period: subjectPeriodSchema.nullable(),
+  program: subjectProgramSchema.nullable(),
+  // FULL records here, unlike the list's `{ result }` projection: the detail
+  // screen edits these rows, so it needs their ids, labels and dates.
+  finals: z.array(finalExamRecordSchema)
+})
+
+export type SubjectDetailResult = z.infer<typeof subjectDetailSchema>
+
+// --- materias:setOutcome request ------------------------------------------
+
+// Closing a subject is its own command rather than part of
+// `materias:updateSchedule`: that one is the aggregate-root write for the
+// subject's *definition*, while this records an OUTCOME, which the student
+// may set long after the definition stopped changing.
+//
+// `grade` is validated against the owning program's scheme in main
+// (shared/domain/grading.ts) — the payload alone cannot know the scheme.
+export const setSubjectOutcomeInputSchema = z.object({
+  id: z.number().int().positive(),
+  outcome: subjectOutcomeSchema.nullable(),
+  grade: z.preprocess((value) => {
+    if (value === '' || value === undefined || value === null) {
+      return null
+    }
+    if (typeof value === 'string') {
+      const parsed = Number(value)
+      return Number.isNaN(parsed) ? value : parsed
+    }
+    return value
+  }, z.number().nullable().default(null))
+})
+
+export type SetSubjectOutcomeInput = z.infer<typeof setSubjectOutcomeInputSchema>
+
+// --- result envelope -----------------------------------------------------
+
+// `ipcRenderer.invoke(channel, payload) → { ok: true, data } | { ok: false,
+// error }`. No throws across the bridge (design §2).
+export const ipcErrorSchema = z.object({
+  code: z.string(),
+  message: z.string()
+})
+
+export type IpcError = z.infer<typeof ipcErrorSchema>
+
+export type IpcResult<T> = { ok: true; data: T } | { ok: false; error: IpcError }
+
+export function ipcOk<T>(data: T): IpcResult<T> {
+  return { ok: true, data }
+}
+
+export function ipcErr(code: string, message: string): IpcResult<never> {
+  return { ok: false, error: { code, message } }
+}

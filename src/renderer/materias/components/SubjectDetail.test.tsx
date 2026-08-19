@@ -1,0 +1,320 @@
+// @vitest-environment jsdom
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import type { SubjectDetailResult } from '../../../shared/ipc/materias'
+import { SubjectDetail } from './SubjectDetail'
+
+const baseSubject: SubjectDetailResult = {
+  id: 1,
+  name: 'Algoritmos',
+  code: 'ALG-101',
+  color: '#7c3aed',
+  docente: 'Dra. Pérez',
+  contacto: null,
+  campusUrl: 'https://campus.uni.edu/course/1',
+  notas: 'Trae **calculadora**',
+  attendanceMinPercent: 75,
+  periodId: null,
+  outcome: null,
+  grade: null,
+  slots: [
+    { id: 1, subjectId: 1, dayOfWeek: 0, startMinutes: 600, endMinutes: 660, location: 'Aula 4' }, // Sunday
+    { id: 2, subjectId: 1, dayOfWeek: 3, startMinutes: 480, endMinutes: 540, location: 'Aula 1' } // Wednesday
+  ],
+  deadlines: [
+    { id: 1, subjectId: 1, title: 'TP1', type: 'tp', dueAt: '2026-04-01T23:59', done: true },
+    { id: 2, subjectId: 1, title: 'TP2', type: 'tp', dueAt: '2026-04-08T23:59', done: false },
+    { id: 3, subjectId: 1, title: 'TP3', type: 'tp', dueAt: '2026-04-15T23:59', done: false },
+    { id: 4, subjectId: 1, title: 'TP4', type: 'tp', dueAt: '2026-04-22T23:59', done: false }
+  ],
+  period: null,
+  program: null,
+  finals: []
+}
+
+describe('SubjectDetail (read-only)', () => {
+  /*
+   * Deadline status wording must come from the entregas domain, not from a
+   * local copy. This screen used to hand-roll its own formatter that said
+   * "Vencida" while Entregas said "N días de atraso" for the same deadline —
+   * two formatters that had already diverged once.
+   */
+  it('labels an overdue deadline with the same wording Entregas uses', () => {
+    const overdue: SubjectDetailResult = {
+      ...baseSubject,
+      deadlines: [{ id: 9, subjectId: 1, title: 'TP atrasado', type: 'tp', dueAt: '2026-04-01T23:59', done: false }]
+    }
+
+    render(
+      <SubjectDetail
+        subject={overdue}
+        nextClass={new Date('2026-04-04T09:00:00')}
+        progreso={{ done: 0, total: 1 }}
+        weeklyMinutes={120}
+        now={new Date('2026-04-04T09:00:00')}
+        onOpenCampusUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('3 días de atraso')).toBeInTheDocument()
+    expect(screen.queryByText('Vencida')).not.toBeInTheDocument()
+  })
+
+  it('uses the singular form for a deadline one day overdue', () => {
+    const overdue: SubjectDetailResult = {
+      ...baseSubject,
+      deadlines: [{ id: 9, subjectId: 1, title: 'TP atrasado', type: 'tp', dueAt: '2026-04-01T23:59', done: false }]
+    }
+
+    render(
+      <SubjectDetail
+        subject={overdue}
+        nextClass={new Date('2026-04-02T09:00:00')}
+        progreso={{ done: 0, total: 1 }}
+        weeklyMinutes={120}
+        now={new Date('2026-04-02T09:00:00')}
+        onOpenCampusUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('1 día de atraso')).toBeInTheDocument()
+  })
+
+  it('renders "Agregar entrega" in the ENTREGAS section header and calls onAddEntrega (amendment 8, design node l4Wr1F: heading left, button right)', () => {
+    const onAddEntrega = vi.fn()
+    render(
+      <SubjectDetail
+        subject={baseSubject}
+        nextClass={new Date('2026-03-06T09:00:00')}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenCampusUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={onAddEntrega}
+        onCloseSubject={vi.fn()}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar entrega' }))
+    expect(onAddEntrega).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders progreso as done/total (spec: "Progreso reflects deadline completion ratio")', () => {
+    render(
+      <SubjectDetail
+        subject={baseSubject}
+        nextClass={new Date('2026-03-06T09:00:00')}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenCampusUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+      />
+    )
+
+    // Design node `o8ro4` (right column "PROGRESO" card) spells this "N de
+    // M", not "N/M" — verified against the .pen file via the Pencil MCP
+    // tools.
+    expect(screen.getByText('1 de 4')).toBeInTheDocument()
+  })
+
+  it('renders horas/semana formatted from total minutes', () => {
+    render(
+      <SubjectDetail
+        subject={baseSubject}
+        nextClass={null}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenCampusUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+      />
+    )
+
+    // Design node `O76IVz` (right column stats block) pairs the "Horas por
+    // semana" KEY with a bare "N h" VALUE — the "/semana" suffix is already
+    // carried by the key, so the value never repeats it.
+    expect(screen.getByText('2 h')).toBeInTheDocument()
+  })
+
+  it('shows a "no classes scheduled" message when próxima clase is null', () => {
+    render(
+      <SubjectDetail
+        subject={{ ...baseSubject, slots: [] }}
+        nextClass={null}
+        progreso={{ done: 0, total: 0 }}
+        weeklyMinutes={0}
+        onOpenCampusUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('Sin clases programadas')).toBeInTheDocument()
+  })
+
+  it('renders notas as raw plain text — markdown syntax is never rendered as formatting', () => {
+    render(
+      <SubjectDetail
+        subject={baseSubject}
+        nextClass={null}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenCampusUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+      />
+    )
+
+    const notasValue = screen.getByTestId('subject-detail-notas')
+    expect(notasValue).toHaveTextContent('Trae **calculadora**')
+    expect(notasValue.querySelector('strong, b, em, i')).toBeNull()
+  })
+
+  it('renders the campusUrl affordance as a BUTTON (never a raw <a href>) and forwards the click', () => {
+    const onOpenCampusUrl = vi.fn()
+    render(
+      <SubjectDetail
+        subject={baseSubject}
+        nextClass={null}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenCampusUrl={onOpenCampusUrl}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+      />
+    )
+
+    const campusButton = screen.getByRole('button', { name: /campus/i })
+    expect(campusButton.tagName).toBe('BUTTON')
+    expect(document.querySelector('a[href]')).not.toBeInTheDocument()
+
+    fireEvent.click(campusButton)
+
+    expect(onOpenCampusUrl).toHaveBeenCalledWith('https://campus.uni.edu/course/1')
+  })
+
+  it('renders no campus link affordance when campusUrl is absent', () => {
+    render(
+      <SubjectDetail
+        subject={{ ...baseSubject, campusUrl: null }}
+        nextClass={null}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenCampusUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: /campus/i })).not.toBeInTheDocument()
+  })
+
+  it('lists slots in Monday-first order even though Sunday is stored as dayOfWeek=0', () => {
+    render(
+      <SubjectDetail
+        subject={baseSubject}
+        nextClass={null}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenCampusUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+      />
+    )
+
+    const items = screen.getAllByTestId('subject-detail-slot')
+    expect(items[0]).toHaveTextContent('Miércoles')
+    expect(items[1]).toHaveTextContent('Domingo')
+  })
+
+  it('has no editable input fields — the only write affordance is elsewhere ("Editar materia")', () => {
+    render(
+      <SubjectDetail
+        subject={baseSubject}
+        nextClass={null}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenCampusUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+      />
+    )
+
+    expect(document.querySelectorAll('input, textarea, select')).toHaveLength(0)
+  })
+
+  it('"Materias" back link calls onBack, and "Editar materia" calls onEdit (design: header owns both)', () => {
+    const onBack = vi.fn()
+    const onEdit = vi.fn()
+    render(
+      <SubjectDetail
+        subject={baseSubject}
+        nextClass={null}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenCampusUrl={vi.fn()}
+        onBack={onBack}
+        onEdit={onEdit}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Materias' }))
+    expect(onBack).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar materia' }))
+    expect(onEdit).toHaveBeenCalledTimes(1)
+  })
+
+  // The detail screen is the ONLY place a subject can be closed: the Materias
+  // list used to own that action behind a banner that appeared only once the
+  // period had ended, which made closing unreachable during the cursada and
+  // left the finales section permanently out of reach with it.
+  it('"Cerrar materia" is offered in the header regardless of the period, and calls onCloseSubject', () => {
+    const onCloseSubject = vi.fn()
+    render(
+      <SubjectDetail
+        subject={baseSubject}
+        nextClass={null}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenCampusUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={onCloseSubject}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar materia' }))
+
+    expect(onCloseSubject).toHaveBeenCalledTimes(1)
+  })
+})

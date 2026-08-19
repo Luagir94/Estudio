@@ -1,0 +1,44 @@
+appId: com.study.course-companion
+productName: Course Companion
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**/*
+  - drizzle/migrations/**/*
+  - package.json
+
+# better-sqlite3 is a native module — must be rebuilt against Electron's
+# ABI. electron-builder re-runs the rebuild at package time in addition
+# to the `postinstall` hook (design §9).
+npmRebuild: true
+
+# Electron Fuses — "magic bits" flipped into the binary at package time to
+# disable risky features app-wide. Defence in depth against a LOCAL attacker
+# who can reach the installed files: without these, `ELECTRON_RUN_AS_NODE`
+# turns the shipped binary into a general Node interpreter, and the inspect /
+# NODE_OPTIONS switches let arbitrary code attach to it.
+#   - runAsNode / node CLI inspect / NODE_OPTIONS: OFF, so the packaged app
+#     can only ever run the app, never be repurposed as a Node runtime.
+#   - enableCookieEncryption: ON, so any cookies persisted to disk are
+#     encrypted at rest.
+#   - onlyLoadAppFromAsar + enableEmbeddedAsarIntegrityValidation: bind the
+#     app to its verified app.asar so a swapped/unpacked bundle won't load.
+#     ASAR integrity is enforced on Windows for Electron >= 30 (this app is
+#     on 43), and asar integrity is left enabled (no `asar.disableIntegrity`).
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+
+win:
+  target: nsis
+  artifactName: ${productName}-${version}-setup.${ext}
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

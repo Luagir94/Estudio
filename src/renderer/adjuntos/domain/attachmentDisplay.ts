@@ -1,0 +1,64 @@
+// Pure, framework-free formatting for the ADJUNTOS section (design "Approved
+// design" — attachment row meta, the type chip's extension label, and the
+// "Alta parcial" banner copy). No electron/IPC import — same convention as
+// `entregas/domain/deadline.ts`.
+import { format, parseISO } from 'date-fns'
+import { es } from 'date-fns/locale'
+import type { AddAttachmentFailure } from '../../../shared/ipc/adjuntos'
+
+const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'])
+
+const BYTES_PER_MB = 1024 * 1024
+
+/** Uppercased extension for the type chip's label (`PDF`, `DOCX`, `JPG`). Empty when the name has none. */
+export function getFileExtension(fileName: string): string {
+  const dotIndex = fileName.lastIndexOf('.')
+  if (dotIndex <= 0 || dotIndex === fileName.length - 1) {
+    return ''
+  }
+  return fileName.slice(dotIndex + 1).toUpperCase()
+}
+
+export type AttachmentKind = 'document' | 'image'
+
+/** Everything that isn't a recognized image extension renders as a document (design: `FileText` icon default). */
+export function resolveAttachmentKind(fileName: string): AttachmentKind {
+  const extension = getFileExtension(fileName).toLowerCase()
+  return IMAGE_EXTENSIONS.has(extension) ? 'image' : 'document'
+}
+
+/** `sizeBytes` → `"2,4 MB"` — one decimal, Spanish comma separator (design meta format). */
+export function formatAttachmentSize(sizeBytes: number): string {
+  const megabytes = sizeBytes / BYTES_PER_MB
+  const rounded = Math.round(megabytes * 10) / 10
+  return `${rounded.toFixed(1).replace('.', ',')} MB`
+}
+
+/** Local-naive `createdAt` (same convention as `entregas/domain/deadline.ts`) → `"12 ago"`. */
+export function formatAttachmentDate(createdAt: string): string {
+  return format(parseISO(createdAt), 'd MMM', { locale: es })
+}
+
+/** `"2,4 MB · 12 ago"` — the row's meta line. */
+export function formatAttachmentMeta(sizeBytes: number, createdAt: string): string {
+  return `${formatAttachmentSize(sizeBytes)} · ${formatAttachmentDate(createdAt)}`
+}
+
+function pluralize(count: number, singular: string, plural: string): string {
+  return count === 1 ? singular : plural
+}
+
+/** "Alta parcial" banner's count line, e.g. `"1 de 3 archivos no se agregó"` — built from the real counts, never hardcoded. */
+export function formatAddFailureSummary(failureCount: number, attemptedCount: number): string {
+  const archivoWord = pluralize(attemptedCount, 'archivo', 'archivos')
+  const verb = pluralize(failureCount, 'no se agregó', 'no se agregaron')
+  return `${failureCount} de ${attemptedCount} ${archivoWord} ${verb}`
+}
+
+/** "Alta parcial" banner's per-file detail line, built from the real `failures` entry. */
+export function formatAddFailureDetail(failure: AddAttachmentFailure): string {
+  if (failure.code === 'FILE_TOO_LARGE') {
+    return `${failure.fileName} supera el límite de 250 MB`
+  }
+  return `${failure.fileName} no se pudo copiar`
+}

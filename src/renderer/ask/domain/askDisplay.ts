@@ -1,0 +1,251 @@
+import type { AskErrorCode, CitationSection } from '../../../shared/ipc/ask'
+import type { CliProvider, ModelSelection } from '../../../shared/ipc/cli'
+
+// Every user-facing string for the ask panel (design D7). Main sends a typed
+// CODE and, for the size gate, the offending file names — nothing else from
+// the process or the model is ever rendered as guidance. Keeping the copy
+// here rather than at the call sites is what makes "the app owns the words"
+// checkable in one place.
+//
+// Wording is the approved `design/course-companion` → `Grupo — Preguntar`
+// spec; the codes that group does not illustrate follow its voice.
+
+export interface AskErrorCopy {
+  title: string
+  detail: string
+  /** Set when the honest next step is the Ajustes screen, not retrying. */
+  action?: 'ajustes'
+}
+
+/**
+ * The panel's name, and — deliberately — the accessible name of both the
+ * floating `AskTrigger` and the panel dialog itself.
+ *
+ * "Materiales" named only half the corpus: `askService` answers from files
+ * read off disk AND from the app's own rows (`materias, horario, entregas,
+ * finales, carreras`), so the old wording promised less than the feature
+ * delivers. "Cursada" is the scope's real name and is already the app's own
+ * word for it (`Sidebar.tsx` renders "Mi Cursada"), so this adopts existing
+ * vocabulary rather than inventing any. It is "preguntar SOBRE", not
+ * "preguntar A" — you do not ask *to* your coursework.
+ *
+ * This constant and its two `cursada` siblings below (the composer
+ * placeholder and `ASK_PENDING.title`) move together or not at all: one
+ * alone contradicts the others (design #273 §2).
+ */
+export const ASK_PANEL_TITLE = 'Preguntar sobre mi cursada'
+export const ASK_MODEL_LABEL = 'Modelo'
+
+/**
+ * One row of the model menu (design `Screen — Preguntar · Modelo`).
+ *
+ * `name` is DERIVED from the model id, never stored here — see
+ * `humanizeModelId`. `detail` is empty for a model the app has measured
+ * nothing about, and empty is the correct answer: inventing a description
+ * would be worse than silence on a row the student spends their own quota
+ * from.
+ */
+export interface AskModelOption extends ModelSelection {
+  name: string
+  detail: string
+  /** Exactly one option across the whole menu carries this, or none does. */
+  recommended: boolean
+}
+
+/**
+ * The models that must ALWAYS be offerable, in menu order.
+ *
+ * This is a floor, not the menu. Discovery reads state files that belong to
+ * other programs, and on the Claude side it is partial by construction:
+ * `additionalModelOptionsCache` holds only the models beyond the defaults, and
+ * `lastModelUsage` only names what has already been run. On a machine where
+ * the CLI is freshly installed, both are empty — and a picker that could not
+ * offer Sonnet, its own default, would be broken by its own cleverness.
+ */
+export const ASK_BASELINE_MODELS: readonly ModelSelection[] = [
+  { provider: 'claude', modelId: 'claude-sonnet-5' },
+  { provider: 'claude', modelId: 'claude-opus-5' },
+  { provider: 'claude', modelId: 'claude-haiku-4-5-20251001' }
+]
+
+/**
+ * What the app has actually MEASURED, keyed by model id.
+ *
+ * Keyed rather than listed on purpose: this is knowledge about a model, not a
+ * decision to offer it. A description attaches when its model turns out to be
+ * available and stays silent when it does not, which is what lets the menu
+ * grow with the account without the app pretending to know things it does not.
+ *
+ * The details talk about USAGE, not money. The CLI's `total_cost_usd` is an
+ * API-rate equivalence, and a user authenticated with a Pro/Max subscription
+ * is not billed per question — they spend their usage limit. "Consume más de
+ * tu límite" is true under both auth modes; "más caro" is only true under one.
+ *
+ * Measured against the installed CLI on one run each: Sonnet ≈ $0.017 / 61 s,
+ * Haiku ≈ $0.04–0.08 / 4 s, Opus ≈ $0.485 / 91 s. Haiku is the FASTEST, not
+ * the cheapest — cache creation dominates the figure, so it came out costlier
+ * than Sonnet.
+ */
+export const ASK_MODEL_KNOWLEDGE: Readonly<Record<string, string>> = {
+  'claude-sonnet-5': 'Equilibrado',
+  'claude-opus-5': 'El más capaz · consume mucho más de tu límite',
+  'claude-haiku-4-5-20251001': 'El más rápido · unos 4 segundos'
+}
+
+/**
+ * The FALLBACK recommendation order, for a CLI that publishes none of its own.
+ *
+ * It is second in line on purpose. Where the vendor ranks its models the
+ * vendor wins — Codex does, and it knows its own lineup better than this app
+ * ever will. This list exists for Claude, which publishes nothing usable:
+ * `orgModelDefaultCache` is null and `modelAccessCache` is empty.
+ *
+ * Only models the app has MEASURED belong here. Recommending one it merely
+ * discovered would be inventing an opinion it cannot defend. Sonnet leads
+ * because it measured cheapest AND balanced.
+ */
+export const ASK_RECOMMENDED_MODELS: readonly string[] = [
+  'claude-sonnet-5',
+  'claude-opus-5',
+  'claude-haiku-4-5-20251001'
+]
+
+export const ASK_RECOMMENDED_LABEL = 'Recomendado'
+
+/** Label for each CLI — the heading of its section in the model menu. */
+export const ASK_PROVIDER_LABEL: Record<CliProvider, string> = {
+  claude: 'Claude Code',
+  gemini: 'Gemini CLI',
+  codex: 'Codex CLI'
+}
+
+export const ASK_COMPOSER_PLACEHOLDER = 'Preguntá sobre tu cursada…'
+export const ASK_COMPOSER_PLACEHOLDER_DEGRADED = 'Conectá el CLI para preguntar'
+/**
+ * Browsing the conversation list: no thread is on screen, so the composer has
+ * nothing to send INTO. It says what to do next rather than going silently
+ * grey, and it is deliberately its own string — borrowing the degraded copy
+ * above would send a user whose CLI is perfectly healthy to Ajustes to fix
+ * nothing.
+ */
+export const ASK_COMPOSER_PLACEHOLDER_BROWSING = 'Elegí una conversación para seguir preguntando'
+export const ASK_DISCLAIMER = 'Esta función usa tu propio uso de Claude'
+export const ASK_CITATIONS_LABEL = 'FUENTES'
+
+/**
+ * Shown on every `general` answer. This label is the ONLY thing separating an
+ * answer grounded in the student's own corpus from one the model produced on
+ * its own, so it is not decoration — remove it and the panel silently starts
+ * mixing the two.
+ */
+export const ASK_GENERAL_MARKER = 'Respuesta general · no salió de tus datos'
+
+/**
+ * Shown once per transcript, at the exact point `computeTranscriptWindow`
+ * (design D2) cut the prompt window — the same honesty standard
+ * `ASK_GENERAL_MARKER` holds: the student must never mistake "the model has
+ * this in mind" for turns that were silently left out of the prompt. Copy
+ * pinned verbatim from the approved `.pen` (obs #268 §1) — a NEUTRAL pill,
+ * never amber: this is information, not an error.
+ */
+export const ASK_MEMORY_BOUNDARY_MARKER = 'El modelo ya no ve los mensajes anteriores a esta línea'
+
+/** The "+ Conversación nueva" row atop the history list (design #268 §3, node
+ * `L0zOG`) — two spaces after the plus, pinned verbatim. */
+export const ASK_NEW_CONVERSATION_LABEL = '+  Conversación nueva'
+
+/** Section key → the word shown on a data citation chip. */
+export const ASK_SECTION_LABELS: Record<CitationSection, string> = {
+  materias: 'Materias',
+  horario: 'Horario',
+  entregas: 'Entregas',
+  finales: 'Finales',
+  carreras: 'Carreras'
+}
+export const ASK_PENDING = {
+  title: 'Buscando en tu cursada…',
+  detail: 'Puede tardar. Podés cancelar cuando quieras.'
+}
+
+/** The not-found OUTCOME is not an error — the model found nothing, and the app says so in its own words. */
+export const ASK_NOT_FOUND: AskErrorCopy = {
+  title: 'No encontré eso en tu cursada.',
+  detail: 'Probá reformular la pregunta, o revisá si eso está cargado en la app o subido como archivo.'
+}
+
+/**
+ * Shown when `askApi.question()`'s response reports `conversationId: null`
+ * (design D1/D6, visual per #268 §2): the write failed, but the answer above
+ * is still valid. A single-line AMBER pill directly under the answer — unlike
+ * the neutral boundary marker, this one IS a warning, and the asymmetry is
+ * deliberate (approved). The answer itself is never dimmed or replaced.
+ */
+export const ASK_NOT_SAVED = 'Esta respuesta no se guardó en el historial'
+
+const COPY: Record<AskErrorCode, AskErrorCopy> = {
+  VALIDATION_ERROR: {
+    title: 'Esa pregunta no se puede enviar',
+    detail: 'Tiene que tener texto y no superar los 4000 caracteres.'
+  },
+  CLI_NOT_FOUND: {
+    title: 'Conectá tu Claude CLI',
+    detail: 'Esta función necesita el CLI de Claude instalado en tu equipo.',
+    action: 'ajustes'
+  },
+  CLI_UNUSABLE: {
+    title: 'El CLI configurado no se puede usar',
+    detail: 'La ruta guardada no apunta a un ejecutable válido. Revisala en Ajustes.',
+    action: 'ajustes'
+  },
+  OVERSIZED_ATTACHMENT: {
+    title: 'Hay archivos que superan los 32 MB',
+    detail: 'Claude no puede leerlos. Sacalos o reemplazalos por versiones más chicas.'
+  },
+  BUSY: {
+    title: 'Ya hay una pregunta en curso',
+    detail: 'Esperá a que termine, o cancelala antes de mandar otra.'
+  },
+  TIMEOUT: {
+    title: 'La consulta tardó demasiado',
+    detail: 'Se cortó a los 5 minutos. Probá con una pregunta más acotada.'
+  },
+  OUTPUT_TOO_LARGE: {
+    title: 'La respuesta era demasiado larga',
+    detail: 'Se cortó para proteger la app. Probá con una pregunta más específica.'
+  },
+  MALFORMED_RESPONSE: {
+    title: 'La respuesta no vino en el formato esperado',
+    detail: 'No la muestro porque no puedo garantizar que tenga sus fuentes. Probá de nuevo.'
+  },
+  EXECUTION_FAILED: {
+    title: 'No se pudo completar la consulta',
+    // The 100-page ceiling is undetectable app-side, so it is named as a
+    // possible cause rather than pretended away.
+    detail: 'Puede ser un problema del CLI, o un PDF de más de 100 páginas, que Claude no puede leer de una vez.'
+  },
+  CANCELED: {
+    title: 'Cancelaste la consulta',
+    detail: 'No se envió ninguna respuesta.'
+  },
+  // The thread the question tried to continue no longer exists (design D1) —
+  // distinct from ASK_NOT_FOUND above, which is a model OUTCOME, not an error.
+  NOT_FOUND: {
+    title: 'Esa conversación ya no existe',
+    detail: 'Puede que la hayas borrado. Empezá una conversación nueva.'
+  }
+}
+
+/**
+ * Maps a typed error code to app-owned copy. `detail` from main is used ONLY
+ * where it carries app-computed data (the oversized file names) — never for
+ * codes whose detail is raw process text.
+ */
+export function describeAskError(code: AskErrorCode, detail?: string): AskErrorCopy {
+  const copy = COPY[code]
+
+  if (code === 'OVERSIZED_ATTACHMENT' && detail) {
+    return { ...copy, detail: `${detail} — ${copy.detail}` }
+  }
+
+  return copy
+}

@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1786754760456,
+      "tag": "0000_subjects_and_schedule_slots",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1786757278971,
+      "tag": "0001_subject_deadlines",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786815262236,
+      "tag": "0002_wakeful_golden_guardian",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1786925705773,
+      "tag": "0003_normal_winter_soldier",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1786984376151,
+      "tag": "0004_sudden_spot",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1787081371100,
+      "tag": "0005_wealthy_madripoor",
+      "breakpoints": true
+    }
+  ]
+}

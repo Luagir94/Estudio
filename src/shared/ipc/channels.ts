@@ -1,0 +1,11 @@
+// Deliberately dependency-free (no zod, no anything) — the sandboxed
+// preload process (`sandbox: true`, design §7) can only `require()` Node.js
+// builtins and whatever the bundler inlines; every OTHER `shared/ipc/*`
+// module imports `zod` at module scope, and importing a runtime VALUE
+// (not just a `type`) from one of those into preload pulls `zod` into the
+// preload bundle, where it fails with "module not found: zod" — the
+// sandboxed preload has no node_modules resolution. Preload has always
+// imported ONLY `type`s from `shared/ipc/*` (erased at compile time); this
+// file exists so a real runtime constant (the push-event channel name) can
+// be shared with preload without breaking that invariant.
+export const MENU_EXPORT_REQUESTED_CHANNEL = 'menu:export-requested'
