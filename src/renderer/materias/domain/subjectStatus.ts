@@ -1,7 +1,7 @@
 import { type PeriodInterval, periodStatus } from '../../carreras/domain/period'
 
 // Pure, framework-free domain module (design §4). MUST NOT import electron
-// or better-sqlite3 — enforced by .dependency-cruiser.cjs's
+// or better-sqlite3 — enforced by tooling/dependencyGuard.mts's
 // no-electron-or-sqlite-in-domain rule (see tooling/dependencyGuard.test.ts).
 //
 // This module is the single source of truth for "what state is this subject

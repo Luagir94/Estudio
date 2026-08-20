@@ -5,7 +5,7 @@ import type { CliProvider } from '../../shared/ipc/cli'
 // This module is deliberately pure — it imports nothing, spawns nothing, and
 // touches no filesystem. That is what lets it live outside
 // `claudeExecutableValidator.ts` without weakening the sole-spawn-site rule
-// the dependency-cruiser guard enforces: the invariant that matters is "no
+// the dependency guard enforces: the invariant that matters is "no
 // caller-supplied string reaches argv", not "the array literal is declared in
 // the same file as the spawn call". Everything below is a static constant
 // chosen by this app. The only caller-influenced value that ever joins them

@@ -2,8 +2,12 @@
   "name": "course-companion",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Local-first desktop companion for day-to-day university coursework.",
   "author": "Lucho",
+  "engines": {
+    "node": ">=22.18"
+  },
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -13,7 +17,7 @@
     "test:watch": "vitest",
     "test:e2e": "electron-vite build && playwright test",
     "test": "npm run format:check && npm run test:unit && npm run lint:deps",
-    "lint:deps": "depcruise --config .dependency-cruiser.cjs --exclude \"__fixtures__\" src",
+    "lint:deps": "node tooling/dependencyGuard.mts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "drizzle-kit generate",
@@ -39,6 +43,7 @@
   "devDependencies": {
     "@electron/rebuild": "4.2.0",
     "@playwright/test": "^1.62.1",
+    "@swc/core": "^1.16.1",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
@@ -48,7 +53,6 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^5.2.0",
-    "dependency-cruiser": "18.2.0",
     "drizzle-kit": "0.31.10",
     "electron": "43.4.0",
     "electron-builder": "26.15.3",
@@ -56,7 +60,7 @@
     "jsdom": "^30.0.1",
     "prettier": "^3.9.6",
     "tailwindcss": "^4.3.3",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vite": "^7.3.6",
     "vitest": "4.1.10"
   }

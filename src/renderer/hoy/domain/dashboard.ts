@@ -1,6 +1,6 @@
 // Pure, framework-free domain module (design §4, §3a; spec: "daily-dashboard").
 // MUST NOT import electron or better-sqlite3 — enforced by
-// .dependency-cruiser.cjs's no-electron-or-sqlite-in-domain rule. Composes
+// tooling/dependencyGuard.mts's no-electron-or-sqlite-in-domain rule. Composes
 // the Hoy read-model from EXISTING subjects/slots/deadlines data — zero new
 // persisted fields (spec: "Hoy MUST be a pure read-model introducing no new
 // persisted data"). Reuses `entregas/domain/deadline.ts`'s `classifyDeadline`

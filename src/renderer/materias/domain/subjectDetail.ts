@@ -1,7 +1,7 @@
 import { addDays, isBefore, set, startOfDay } from 'date-fns'
 
 // Pure, framework-free domain module (design §4, §3a). MUST NOT import
-// electron or better-sqlite3 — enforced by .dependency-cruiser.cjs's
+// electron or better-sqlite3 — enforced by tooling/dependencyGuard.mts's
 // no-electron-or-sqlite-in-domain rule. Computes the subject-detail read
 // model values (spec: "Computed Detail Values") from existing slot/deadline
 // data — introduces zero new persisted fields.

@@ -3,7 +3,7 @@ import { fromMondayFirstIndex, toMondayFirstIndex } from '../../shared/domain/da
 
 // Pure, framework-free domain module (design §4, §3a; spec: "Read-Only
 // Schedule Projection"). MUST NOT import electron or better-sqlite3 —
-// enforced by .dependency-cruiser.cjs's no-electron-or-sqlite-in-domain
+// enforced by tooling/dependencyGuard.mts's no-electron-or-sqlite-in-domain
 // rule. Groups/orders a subject's schedule slots for the Monday-first
 // Horario grid. Reuses `shared/domain/dayOfWeek.ts`'s
 // `toMondayFirstIndex`/`fromMondayFirstIndex` (gate-findings/slice-2a,

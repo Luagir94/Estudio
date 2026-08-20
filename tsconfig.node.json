@@ -11,16 +11,17 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
     "noEmit": true
   },
   "include": [
     "src/main/**/*",
     "src/preload/**/*",
     "src/shared/**/*",
+    "tooling/**/*",
     "electron.vite.config.ts",
     "drizzle.config.ts",
     "vitest.config.ts",
-    "vitest.setup.ts",
-    ".dependency-cruiser.cjs"
+    "vitest.setup.ts"
   ]
 }

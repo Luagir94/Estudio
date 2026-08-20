@@ -20,8 +20,8 @@ import {
 
 // Threat matrix (design D2/D3 / spec "Safe Spawn Vector", "Pre-Spawn
 // Validation"): this module is the sole `child_process` import in the
-// codebase (enforced by the dependency-cruiser rule in
-// `.dependency-cruiser.cjs`, proven in `tooling/dependencyGuard.test.ts`).
+// codebase (enforced by the dependency guard in
+// `tooling/dependencyGuard.mts`, proven in `tooling/dependencyGuard.test.ts`).
 // Unit tests never touch a real filesystem or a real process — everything
 // comes through injected `fs`/`spawnFn` doubles, mirroring
 // `campusUrlValidator.test.ts` and `executableResolver.test.ts`.

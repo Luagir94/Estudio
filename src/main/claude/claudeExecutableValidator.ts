@@ -8,9 +8,9 @@ import { PROVIDER_SPECS } from '../cli/providerSpec'
 // "Pre-Spawn Validation"). Mirrors `campusUrlValidator.ts`'s shape — a pure
 // pre-flight check gates a dangerous operation before it happens — but goes
 // further: this module is also the SOLE `child_process` import in the
-// codebase, enforced by the `child-process-only-in-claude-validator`
-// dependency-cruiser rule (`.dependency-cruiser.cjs`) and proven to fire by
-// a fixture-backed smoke test (`tooling/dependencyGuard.test.ts`).
+// codebase, enforced by the `child-process-only-in-claude-validator` rule
+// of the dependency guard (`tooling/dependencyGuard.mts`) and proven to fire
+// by a fixture-backed smoke test (`tooling/dependencyGuard.test.ts`).
 //
 // `shell: true` is FORBIDDEN here (decision #213 / CVE-2024-27980): it is
 // only safe for sanitized input, and a user-typed override path is not
