@@ -36,7 +36,8 @@ function toAttachment(record: AttachmentRecord): Attachment {
     mimeType: record.mimeType,
     sizeBytes: record.sizeBytes,
     title: record.title,
-    createdAt: record.createdAt
+    createdAt: record.createdAt,
+    indexStatus: record.indexStatus
   }
 }
 

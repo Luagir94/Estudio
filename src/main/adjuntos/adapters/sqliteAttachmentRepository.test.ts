@@ -59,6 +59,23 @@ describe('createSqliteAttachmentRepository', () => {
     expect(typeof inserted.id).toBe('number')
   })
 
+  it('a newly inserted attachment defaults to indexStatus "pending" (attachment-fts-index spec: New attachment starts pending)', () => {
+    const repository = createSqliteAttachmentRepository(db)
+
+    const inserted = repository.insert({
+      subjectId,
+      fileName: 'apuntes.pdf',
+      storedPath: path.join(String(subjectId), 'uuid-apuntes.pdf'),
+      mimeType: null,
+      sizeBytes: 1024,
+      title: null,
+      createdAt: '2026-08-16T10:00'
+    })
+
+    expect(inserted.indexStatus).toBe('pending')
+    expect(repository.get(inserted.id)?.indexStatus).toBe('pending')
+  })
+
   it('get returns the inserted row by id', () => {
     const repository = createSqliteAttachmentRepository(db)
     const inserted = repository.insert({

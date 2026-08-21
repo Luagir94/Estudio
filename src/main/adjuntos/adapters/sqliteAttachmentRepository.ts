@@ -1,6 +1,7 @@
 import { asc, eq } from 'drizzle-orm'
 import type { AppDatabase } from '../../db/connection'
 import { attachments } from '../../db/schema'
+import { InvalidIndexStatusError, isIndexStatus, type IndexStatus } from '../../indexado/domain/indexStatus'
 
 export interface AttachmentRecord {
   id: number
@@ -11,6 +12,11 @@ export interface AttachmentRecord {
   sizeBytes: number
   title: string | null
   createdAt: string
+  // Defaults to 'pending' at the column level (migration 0006,
+  // attachment-fts-index spec "New attachment starts pending") — this
+  // repository never writes it, only reads it back through `.returning()`/
+  // `.select()`, which already includes every column of the row.
+  indexStatus: IndexStatus
 }
 
 export interface CreateAttachmentInput {
@@ -33,6 +39,14 @@ export interface AttachmentRepository {
   remove(id: number): AttachmentRecord | undefined
 }
 
+/** SQLite has no enums; an unrecognised `index_status` means the row was written by something other than the validated command path (indexStatus.ts's closed set) — corruption worth failing on, same convention as `sqliteSubjectRepository.ts`'s `toOutcome`. */
+function toRecord(row: typeof attachments.$inferSelect): AttachmentRecord {
+  if (!isIndexStatus(row.indexStatus)) {
+    throw new InvalidIndexStatusError(row.indexStatus)
+  }
+  return { ...row, indexStatus: row.indexStatus }
+}
+
 /**
  * SQLite-backed implementation of the attachment-registry port (design
  * "Data Model (PR1)"). Deliberately thin — no path resolution, no fs
@@ -51,12 +65,14 @@ export function createSqliteAttachmentRepository(db: AppDatabase): AttachmentRep
         .where(eq(attachments.subjectId, subjectId))
         .orderBy(asc(attachments.createdAt))
         .all()
+        .map(toRecord)
     },
     get(id) {
-      return db.select().from(attachments).where(eq(attachments.id, id)).get() ?? null
+      const record = db.select().from(attachments).where(eq(attachments.id, id)).get()
+      return record ? toRecord(record) : null
     },
     insert(input) {
-      return db
+      const record = db
         .insert(attachments)
         .values({
           subjectId: input.subjectId,
@@ -69,6 +85,7 @@ export function createSqliteAttachmentRepository(db: AppDatabase): AttachmentRep
         })
         .returning()
         .get()
+      return toRecord(record)
     },
     remove(id) {
       const existing = db.select().from(attachments).where(eq(attachments.id, id)).get()
@@ -76,7 +93,7 @@ export function createSqliteAttachmentRepository(db: AppDatabase): AttachmentRep
         return undefined
       }
       db.delete(attachments).where(eq(attachments.id, id)).run()
-      return existing
+      return toRecord(existing)
     }
   }
 }

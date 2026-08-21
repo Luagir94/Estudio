@@ -19,7 +19,11 @@ export const attachmentSchema = z.object({
   // Reserved for a future rename/title-editing UI (spec "First-Slice
   // Non-Goals") — this slice never writes or exposes it in the renderer.
   title: z.string().nullable(),
-  createdAt: z.string()
+  createdAt: z.string(),
+  // Closed set (attachment-fts-index design "Status storage", spec "Status
+  // lifecycle") — rides on the existing `adjuntos:list` payload, one query
+  // serves the badge (slice 2c), no new channel needed.
+  indexStatus: z.enum(['pending', 'indexed', 'not-indexable'])
 })
 
 export type Attachment = z.infer<typeof attachmentSchema>
