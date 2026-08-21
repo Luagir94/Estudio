@@ -7,9 +7,11 @@ import {
   clearProvider,
   spawnPromptExecution,
   terminateSpawnedProcess,
+  validateArgvPrompt,
   validateExecutableCandidate,
   validateModelId,
   type ClearedProvider,
+  type ValidatedArgvPrompt,
   type ValidatedExecutablePath,
   type ValidatedModelId
 } from '../claude/claudeExecutableValidator'
@@ -25,8 +27,9 @@ import type { AskErrorCode, AskResult } from '../../shared/ipc/ask'
 import type { CliProvider, ModelSelection } from '../../shared/ipc/cli'
 
 // Orchestrates one question end to end (design D3/D4): override → resolve →
-// validate → manifest → pre-spawn size gate → spawn → stdin → buffered
-// stdout → typed outcome. It deliberately REPEATS the probe service's small
+// validate → manifest → pre-spawn size gate → compose prompt → argv-length
+// gate → spawn → stdin (or argv) → buffered stdout → typed outcome. It
+// deliberately REPEATS the probe service's small
 // resolve/validate chain instead of refactoring it, so Change A's files stay
 // untouched except the validator itself.
 //
@@ -147,12 +150,14 @@ export interface AskServiceDeps {
     provider: ClearedProvider,
     absPath: ValidatedExecutablePath,
     attachmentsRoot: string,
-    model: ValidatedModelId
+    model: ValidatedModelId,
+    /** The question, for an `argv`-delivery provider only; `null` when it travels on stdin. */
+    prompt: ValidatedArgvPrompt | null
   ) => ChildProcess
   /**
    * What the connection probe observed for each provider. Returning `null`
    * (the default) means nothing was observed, which clears ONLY the providers
-   * whose argv template was verified at authoring time — today, just Claude.
+   * whose argv template was verified at authoring time — today, all three.
    */
   capabilities?: (provider: CliProvider) => ProbedCapabilities | null
   terminate?: (child: ChildProcess) => void
@@ -200,7 +205,10 @@ export function createAskService({
   history,
   resolve = defaultResolve,
   validate = defaultValidate,
-  spawnPrompt = spawnPromptExecution,
+  // The real spawn takes its injected `spawnFn` before the prompt (see
+  // `spawnPromptExecution`), so `undefined` here is what keeps its default.
+  spawnPrompt = (provider, absPath, root, model, prompt) =>
+    spawnPromptExecution(provider, absPath, root, model, undefined, prompt),
   terminate = terminateSpawnedProcess,
   capabilities = () => null,
   timeoutMs = ASK_TIMEOUT_MS,
@@ -259,6 +267,16 @@ export function createAskService({
     // and which envelope the answer is read out of.
     const spec = PROVIDER_SPECS[selection.provider]
 
+    // The OPT-IN gate, enforced where it actually matters. The renderer stops
+    // offering a disconnected CLI's models, but the renderer is never the thing
+    // that decides a spawn is allowed: a drifted or stale panel could still
+    // name one, and "the app only runs the CLIs you connected" has to be true
+    // of the process boundary, not of a menu.
+    if (settings.get(spec.connectedKey) === null) {
+      logger.info(`ask: provider=${selection.provider} is not connected — no process started`)
+      return { ok: false, code: 'CLI_NOT_FOUND' }
+    }
+
     // A provider whose template was never run against a real binary cannot be
     // spawned on the strength of its documentation alone. `clearProvider`
     // returns the branded form only for a verified template or a probe that
@@ -306,10 +324,30 @@ export function createAskService({
       return { ok: false, code: 'OVERSIZED_ATTACHMENT', message: oversized.join(', ') }
     }
 
+    // Composed BEFORE the spawn, not after it, because for an `argv` provider
+    // the prompt is part of the command line the spawn is about to build.
+    const prompt = buildAskPrompt(buildAppContext(appData.read()), subjects, question, transcript)
+
+    // The argv ceiling applies to argv delivery and nowhere else: a question
+    // that travels on stdin has no command-line limit to exceed, and inflicting
+    // one on it would refuse a question the CLI would have answered. Over the
+    // ceiling the app refuses BEFORE spawning — never truncates, which would
+    // ask the model a different question than the student did.
+    let argvPrompt: ValidatedArgvPrompt | null = null
+    if (spec.promptDelivery === 'argv') {
+      argvPrompt = validateArgvPrompt(prompt)
+      if (!argvPrompt) {
+        logger.info(
+          `ask: provider=${selection.provider} prompt of ${prompt.length} chars exceeds the argv ceiling — no process started`
+        )
+        return { ok: false, code: 'PROMPT_TOO_LARGE' }
+      }
+    }
+
     const startedAt = now()
     let child: ChildProcess
     try {
-      child = spawnPrompt(cleared, validated, attachmentsRoot, model)
+      child = spawnPrompt(cleared, validated, attachmentsRoot, model, argvPrompt)
     } catch (error) {
       // The validator's root re-assertion threw: an app-invariant breach,
       // surfaced honestly and never retried against a fallback directory.
@@ -318,11 +356,9 @@ export function createAskService({
       return { ok: false, code: 'EXECUTION_FAILED', message: detail }
     }
 
-    const outcome = await runExecution(
-      child,
-      buildAskPrompt(buildAppContext(appData.read()), subjects, question, transcript),
-      slot
-    )
+    // `null` means the question already travelled on argv, so there is nothing
+    // to write: an argv provider's stdin is closed at spawn.
+    const outcome = await runExecution(child, argvPrompt === null ? prompt : null, slot)
 
     // Audit line (design D3): never the question text, never document content.
     logger.info(
@@ -399,8 +435,14 @@ export function createAskService({
     return { subjects, oversized }
   }
 
-  /** Runs one spawned execution to completion — exit, spawn error, cancel, output cap, or the hard timeout. */
-  function runExecution(child: ChildProcess, prompt: string, slot: InFlight): Promise<ExecutionOutcome> {
+  /**
+   * Runs one spawned execution to completion — exit, spawn error, cancel,
+   * output cap, or the hard timeout.
+   *
+   * `prompt` is `null` for a provider whose question already travelled on argv:
+   * its stdin was closed at spawn and there is nothing left to deliver.
+   */
+  function runExecution(child: ChildProcess, prompt: string | null, slot: InFlight): Promise<ExecutionOutcome> {
     return new Promise((resolveOutcome) => {
       let stdout = ''
       let stderr = ''
@@ -457,10 +499,12 @@ export function createAskService({
         finish({ ...base(), exitCode: code })
       })
 
-      // The question travels HERE, never on argv — the whole reason the
-      // validator's template has no caller-supplied argument slot.
-      child.stdin?.write(prompt)
-      child.stdin?.end()
+      // Where the question travels for every provider that can take it on
+      // stdin — the whole reason those templates have no argument slot at all.
+      if (prompt !== null) {
+        child.stdin?.write(prompt)
+        child.stdin?.end()
+      }
     })
   }
 
@@ -504,6 +548,19 @@ function mapOutcome(outcome: ExecutionOutcome, envelope: EnvelopeKind): MappedEx
       ok: false,
       code: 'EXECUTION_FAILED',
       message: firstLine(outcome.stderr) ?? `Exited with code ${outcome.exitCode ?? 'unknown'}`
+    }
+  }
+
+  // A clean exit with NOTHING on stdout is not an empty answer, it is a run
+  // that produced no output at all — verified for agy, whose headless mode
+  // auto-denies a tool permission it cannot prompt for and then exits 0 in
+  // silence, with the reason on stderr. Reporting that as a drifted envelope
+  // would throw away the one line that explains it.
+  if (outcome.stdout.trim() === '') {
+    return {
+      ok: false,
+      code: 'EXECUTION_FAILED',
+      message: firstLine(outcome.stderr) ?? 'the CLI exited cleanly without producing any output'
     }
   }
 

@@ -246,6 +246,7 @@ describe('askErrorCodeSchema', () => {
     'BUSY',
     'TIMEOUT',
     'OUTPUT_TOO_LARGE',
+    'PROMPT_TOO_LARGE',
     'MALFORMED_RESPONSE',
     'EXECUTION_FAILED',
     'CANCELED',

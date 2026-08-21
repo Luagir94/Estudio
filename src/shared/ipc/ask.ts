@@ -125,6 +125,12 @@ export const askErrorCodeSchema = z.enum([
   'BUSY',
   'TIMEOUT',
   'OUTPUT_TOO_LARGE',
+  // The composed prompt did not fit the command line of a CLI that takes its
+  // question as an ARGUMENT rather than on stdin. Distinct from
+  // `VALIDATION_ERROR`, whose copy is about the question the student typed:
+  // this one is about the question PLUS the course context around it, and
+  // telling someone their 30-word question is too long would be a lie.
+  'PROMPT_TOO_LARGE',
   'MALFORMED_RESPONSE',
   'EXECUTION_FAILED',
   'CANCELED',

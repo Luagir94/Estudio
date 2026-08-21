@@ -1,8 +1,10 @@
 // Execution limits for the ask-my-materials prompt-execution spawn (design
 // D3, spec "Execution Limits" / "Oversized-PDF Pre-Spawn Rejection"). A NEW
-// set of constants, deliberately NOT reusing the probe's 5000ms
-// `--version` timeout — that is probe-specific tuning
-// (`cliProbeService.ts`), and the shipped probe has no output cap today.
+// set of constants, deliberately NOT reusing `CLI_PROBE_TIMEOUT_MS` — that
+// budgets a CLI booting to print a version or a help page
+// (`cli/probeLimits.ts`), whereas these budget a model actually answering a
+// question, which is a different order of magnitude. The shipped probe also
+// has no output cap today.
 
 /** Hard timeout for prompt execution — the process is killed if exceeded. */
 export const ASK_TIMEOUT_MS = 300_000

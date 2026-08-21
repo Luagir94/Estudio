@@ -12,9 +12,6 @@ const sampleStatus = {
   capabilities: { structuredOutput: true, warmSession: true, readOnlyTools: true }
 }
 
-/** `cli:status` answers with one entry per supported provider. */
-const sampleStatuses = [sampleStatus]
-
 describe('ajustesApi', () => {
   beforeEach(() => {
     // @ts-expect-error -- test-only global bridge stub, no full Electron preload context
@@ -27,7 +24,7 @@ describe('ajustesApi', () => {
           getConversation: vi.fn(),
           deleteConversation: vi.fn()
         },
-        cli: { status: vi.fn(), setOverride: vi.fn(), models: vi.fn() },
+        cli: { probe: vi.fn(), setOverride: vi.fn(), preferences: vi.fn(), disconnect: vi.fn(), models: vi.fn() },
         materias: {
           create: vi.fn(),
           list: vi.fn(),
@@ -56,22 +53,32 @@ describe('ajustesApi', () => {
     }
   })
 
-  describe('status', () => {
+  describe('probe', () => {
     it('parses and returns the status DTO on a successful envelope', async () => {
-      window.api.cli.status = vi.fn().mockResolvedValue({ ok: true, data: sampleStatuses })
+      window.api.cli.probe = vi.fn().mockResolvedValue({ ok: true, data: sampleStatus })
 
-      const result = await ajustesApi.status()
+      const result = await ajustesApi.probe({ provider: 'claude' })
 
-      expect(result).toEqual(sampleStatuses)
-      expect(window.api.cli.status).toHaveBeenCalledWith()
+      expect(result).toEqual(sampleStatus)
+    })
+
+    // The provider crosses the bridge on every probe: main resolves the
+    // executable name and the settings key from it, so a probe that forgot to
+    // name one would be a probe of nothing in particular.
+    it('names the provider it is asking about', async () => {
+      window.api.cli.probe = vi.fn().mockResolvedValue({ ok: true, data: { ...sampleStatus, provider: 'codex' } })
+
+      await ajustesApi.probe({ provider: 'codex' })
+
+      expect(window.api.cli.probe).toHaveBeenCalledWith({ provider: 'codex' })
     })
 
     it('throws an AjustesApiError carrying the envelope code and message when ok is false', async () => {
-      window.api.cli.status = vi
+      window.api.cli.probe = vi
         .fn()
         .mockResolvedValue({ ok: false, error: { code: 'PROBE_FAILED', message: 'spawn exploded' } })
 
-      const error: unknown = await ajustesApi.status().catch((caught: unknown) => caught)
+      const error: unknown = await ajustesApi.probe({ provider: 'claude' }).catch((caught: unknown) => caught)
 
       expect(error).toBeInstanceOf(AjustesApiError)
       expect((error as AjustesApiError).code).toBe('PROBE_FAILED')
@@ -79,9 +86,9 @@ describe('ajustesApi', () => {
     })
 
     it('throws when the envelope data does not match the status schema (zod parses before react-query sees it)', async () => {
-      window.api.cli.status = vi.fn().mockResolvedValue({ ok: true, data: [{ status: 'connected', version: 123 }] })
+      window.api.cli.probe = vi.fn().mockResolvedValue({ ok: true, data: { status: 'connected', version: 123 } })
 
-      await expect(ajustesApi.status()).rejects.toThrow()
+      await expect(ajustesApi.probe({ provider: 'claude' })).rejects.toThrow()
     })
   })
 

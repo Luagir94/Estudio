@@ -8,9 +8,10 @@ import type { EnvelopeKind } from '../../cli/providerSpec'
 // `askResultSchema`.
 //
 // Only the OUTER layer differs per provider. That is the whole design: every
-// CLI is asked for the same inner contract, so a Gemini answer and a Claude
-// answer are the same typed value by the time anything downstream sees them,
-// and not one branch of `askService` or the renderer has to know which CLI ran.
+// CLI is asked for the same inner contract, so an Antigravity answer and a
+// Claude answer are the same typed value by the time anything downstream sees
+// them, and not one branch of `askService` or the renderer has to know which
+// CLI ran.
 //
 // ANY failure — drifted envelope, bad inner JSON, or zero citations on an
 // answer — is `MALFORMED_RESPONSE`; raw text is NEVER surfaced as an answer.
@@ -20,13 +21,21 @@ import type { EnvelopeKind } from '../../cli/providerSpec'
 // belong to other people's programs and WILL grow fields without warning.
 const claudeEnvelopeSchema = z.object({ result: z.string() })
 
-// `{ response, stats, error }` per the headless-mode reference. `error` is
-// what a failed Gemini run reports INSIDE a zero-exit envelope, so it has to
-// be read here — an errored run is not an answer, even when `response` is
-// also present.
-const geminiEnvelopeSchema = z.object({
+// The single completion object `agy --output-format json` prints, captured from
+// agy.exe 1.1.15. A successful run carries `status: "SUCCESS"` and NO `error`
+// key at all, and `structured_output` appears only under `--json-schema`, so
+// this schema requires neither — a shape that demanded them would reject every
+// real answer.
+//
+// `status` is read as a free string rather than an enum on purpose. The values
+// observed are SUCCESS, ERROR, CANCELED, INTERRUPTED, INVALID, WAITING and
+// RUNNING, but the set belongs to somebody else's program: an unrecognised one
+// must be treated as "not a success", never crash the parse into a shape that
+// looks like drift.
+const antigravityEnvelopeSchema = z.object({
+  status: z.string(),
   response: z.string(),
-  error: z.object({ message: z.string() }).nullish()
+  error: z.string().nullish()
 })
 
 // One `item.completed` event carrying the final assistant turn. `codex exec
@@ -77,12 +86,19 @@ function extractInnerText(rawStdout: string, envelope: EnvelopeKind): string | u
     return undefined
   }
 
-  if (envelope === 'gemini-json') {
-    const result = geminiEnvelopeSchema.safeParse(found)
-    // A reported error is a failed run wearing a successful envelope. Reading
-    // `response` past it would surface the CLI's own failure text as if the
-    // model had answered the student's question.
-    if (!result.success || (result.data.error?.message ?? '') !== '') {
+  if (envelope === 'antigravity-json') {
+    const result = antigravityEnvelopeSchema.safeParse(found)
+    if (!result.success) {
+      return undefined
+    }
+    // TWO independent failure signals, and either one disqualifies the run —
+    // both of which arrive on a ZERO exit, which is exactly why the exit code
+    // cannot be what decides this. A non-SUCCESS status is a failed run even
+    // when a response sits beside it, and a populated `error` is a failed run
+    // wearing a successful envelope: reading `response` past either would
+    // surface the CLI's own failure text as if the model had answered the
+    // student's question.
+    if (result.data.status !== 'SUCCESS' || (result.data.error ?? '') !== '') {
       return undefined
     }
     return result.data.response

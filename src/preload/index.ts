@@ -20,7 +20,14 @@ import type {
 // zod-importing shared/ipc module breaks the sandboxed preload bundle
 // ("module not found: zod"), discovered via the Playwright `_electron`
 // smoke test (task 6.8).
-import type { CliProviderStatus, DiscoveredModel, SetCliOverrideInput } from '../shared/ipc/cli'
+import type {
+  CliPreference,
+  CliProviderStatus,
+  DisconnectCliInput,
+  DiscoveredModel,
+  ProbeCliInput,
+  SetCliOverrideInput
+} from '../shared/ipc/cli'
 import type {
   CreatePeriodInput,
   CreateProgramInput,
@@ -119,9 +126,12 @@ const api = {
     remove: (id: number): Promise<IpcResult<DeleteAttachmentResult>> => ipcRenderer.invoke('adjuntos:delete', { id })
   },
   cli: {
-    status: (): Promise<IpcResult<CliProviderStatus[]>> => ipcRenderer.invoke('cli:status'),
+    probe: (input: ProbeCliInput): Promise<IpcResult<CliProviderStatus>> => ipcRenderer.invoke('cli:probe', input),
     setOverride: (input: SetCliOverrideInput): Promise<IpcResult<CliProviderStatus>> =>
       ipcRenderer.invoke('cli:setOverride', input),
+    preferences: (): Promise<IpcResult<CliPreference[]>> => ipcRenderer.invoke('cli:preferences'),
+    disconnect: (input: DisconnectCliInput): Promise<IpcResult<undefined>> =>
+      ipcRenderer.invoke('cli:disconnect', input),
     models: (): Promise<IpcResult<DiscoveredModel[]>> => ipcRenderer.invoke('cli:models')
   },
   // Invoke-only: the answer returns on the question's own promise, cancel is

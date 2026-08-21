@@ -31,24 +31,49 @@ describe('PROVIDER_SPECS', () => {
     }
   })
 
-  // Gemini is described but not offered. The list the app acts on must be a
+  // Every provider the table describes is offered today, but the direction of
+  // the relationship is what matters: the list the app acts on must stay a
   // subset of the table, never the other way round.
   it('offers only providers it has a spec for', () => {
     for (const provider of CLI_PROVIDERS) {
       expect(PROVIDER_SPECS[provider]).toBeDefined()
     }
-    expect(CLI_PROVIDERS).not.toContain('gemini')
+    expect([...ALL_SPECS]).toEqual(expect.arrayContaining([...CLI_PROVIDERS]))
   })
 
-  // The question travels on stdin. A template that carried a prompt-shaped
-  // argument would be the one way user text could reach the cmd.exe command
-  // line, which is the exact hole the sole-spawn-site boundary exists to close.
-  it.each(ALL_SPECS)('%s carries no prompt-bearing argument in its templates', (provider) => {
+  // No template may carry an interpolation slot. The one caller-supplied value
+  // that reaches argv is the question of an `argv`-delivery provider, and it is
+  // spliced at the spawn boundary as ONE element after a flag named below —
+  // never assembled into a token by a template that pretends to be static.
+  it.each(ALL_SPECS)('%s interpolates nothing into its templates', (provider) => {
     const spec = PROVIDER_SPECS[provider]
     for (const template of [spec.promptArgs, spec.streamingArgs ?? []]) {
-      expect(template).not.toContain('--prompt')
       expect(template.some((token) => token.includes('${'))).toBe(false)
     }
+  })
+
+  // The delivery discriminant, asserted as a TABLE invariant rather than per
+  // provider: whichever way a question travels, that fact is declared here and
+  // read at the spawn site, so no spawn ever branches on a provider's name.
+  it.each(ALL_SPECS)('%s declares how its question reaches the CLI', (provider) => {
+    const spec = PROVIDER_SPECS[provider]
+
+    if (spec.promptDelivery === 'stdin') {
+      // Nothing prompt-shaped in argv at all: stdin delivery is what keeps user
+      // text away from the cmd.exe command line the shim branch composes.
+      expect(spec.promptFlag).toBeNull()
+      expect(spec.promptArgs).not.toContain('--prompt')
+      return
+    }
+
+    // An argv provider must name the flag whose VALUE the question becomes, and
+    // that flag must already be in its own template — the splice happens after
+    // it, so a template that never mentions it could not be composed at all.
+    expect(spec.promptFlag).not.toBeNull()
+    expect(spec.promptArgs).toContain(spec.promptFlag)
+    // A live streaming process cannot be handed a new argv between questions,
+    // so argv delivery and a warm session are mutually exclusive by definition.
+    expect(spec.streamingArgs).toBeNull()
   })
 
   // Containment under global cross-subject scope. No template may ask any CLI
@@ -73,22 +98,44 @@ describe('PROVIDER_SPECS', () => {
     expect(PROVIDER_SPECS[provider].versionArgs).toEqual(['--version'])
   })
 
-  // Honesty about what was actually run. Claude's template was checked against
-  // the installed binary; the other two were written from documentation, and
-  // that difference is a spawn-time gate rather than a comment.
+  // Honesty about what was actually run. Every template in the table has now
+  // been executed against its real binary by a human, and that is a spawn-time
+  // gate rather than a comment: `clearProvider` refuses anything else.
   it('marks only the templates that were run against a real binary as verified', () => {
     // Claude: checked against the installed CLI. Codex: checked against
     // codex-cli 0.148.0-alpha.15, which is where --skip-git-repo-check was
-    // found. Gemini remains documentation-only until its binary exists here.
+    // found. Antigravity: checked against agy.exe 1.1.15 on Windows.
     expect(PROVIDER_SPECS.claude.verified).toBe(true)
     expect(PROVIDER_SPECS.codex.verified).toBe(true)
-    expect(PROVIDER_SPECS.gemini.verified).toBe(false)
+    expect(PROVIDER_SPECS.antigravity.verified).toBe(true)
   })
 
   // The single flag whose absence killed every codex run before it reached the
   // model. The app's cwd is the attachments directory, never a git repository.
   it('lets codex run outside a git repository', () => {
     expect(PROVIDER_SPECS.codex.promptArgs).toContain('--skip-git-repo-check')
+  })
+
+  // `--mode plan` is agy's read-only mode, and it is the ONLY thing standing
+  // between this app and an agent that can edit the student's files. The app
+  // answers questions about study material; it never writes.
+  it('asks Antigravity for its read-only planning mode', () => {
+    expect(PROVIDER_SPECS.antigravity.promptArgs).toEqual(expect.arrayContaining(['--mode', 'plan']))
+    expect(PROVIDER_SPECS.antigravity.readOnlyTools).toBe(true)
+  })
+
+  // Verified against the real binary: `--print` is a required-VALUE flag that
+  // never reads the prompt from stdin, which is why this provider alone
+  // delivers its question on argv.
+  it('carries the Antigravity question as the value of --print', () => {
+    expect(PROVIDER_SPECS.antigravity.promptDelivery).toBe('argv')
+    expect(PROVIDER_SPECS.antigravity.promptFlag).toBe('--print')
+  })
+
+  // Byte-identical delivery for the two providers that already worked: their
+  // question still travels on stdin, and nothing about this table moved it.
+  it.each(['claude', 'codex'] as const)('keeps the %s question on stdin', (provider) => {
+    expect(PROVIDER_SPECS[provider].promptDelivery).toBe('stdin')
   })
 })
 
@@ -97,17 +144,19 @@ describe('declaredCapabilities', () => {
   // which only ~4s is inference. A provider without a duplex stdin pays that
   // on every question, and the app must not pretend otherwise.
   it('grants a warm session only to the provider that has a duplex stdin', () => {
-    expect(declaredCapabilities('claude').warmSession).toBe(true)
-    expect(declaredCapabilities('gemini').warmSession).toBe(false)
-    expect(declaredCapabilities('codex').warmSession).toBe(false)
+    expect(declaredCapabilities(PROVIDER_SPECS.claude).warmSession).toBe(true)
+    expect(declaredCapabilities(PROVIDER_SPECS.antigravity).warmSession).toBe(false)
+    expect(declaredCapabilities(PROVIDER_SPECS.codex).warmSession).toBe(false)
   })
 
-  // Gemini's headless mode offers `--approval-mode` but no tool allowlist, so
-  // its containment is circumstantial rather than contractual. Reporting that
-  // honestly is the whole point of the flag.
-  it('reports Gemini as having no read-only tool allowlist', () => {
-    expect(declaredCapabilities('gemini').readOnlyTools).toBe(false)
-    expect(declaredCapabilities('claude').readOnlyTools).toBe(true)
-    expect(declaredCapabilities('codex').readOnlyTools).toBe(true)
+  // Read-only containment is a property of a provider's argv VOCABULARY, so it
+  // is read off the spec rather than decided by a name comparison. All three
+  // state it at the spawn boundary today — `--allowed-tools`, `--mode plan`,
+  // `--sandbox read-only` — and a provider that could not would say so here.
+  it('reports read-only containment from the spec, never from the provider name', () => {
+    for (const provider of ALL_SPECS) {
+      expect(declaredCapabilities(PROVIDER_SPECS[provider]).readOnlyTools).toBe(PROVIDER_SPECS[provider].readOnlyTools)
+    }
+    expect(ALL_SPECS.every((provider) => PROVIDER_SPECS[provider].readOnlyTools)).toBe(true)
   })
 })

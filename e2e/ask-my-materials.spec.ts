@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import Database from 'better-sqlite3'
 import { _electron as electron, expect, test } from '@playwright/test'
 
 // Task 5.8 — the ask panel against the REAL app: real preload bridge, real
@@ -17,6 +18,12 @@ import { _electron as electron, expect, test } from '@playwright/test'
 // quietly bills the person running it is not a suite anyone can run freely,
 // so the round trip stays a manual check.
 //
+// The OPT-IN is seeded straight into the settings table rather than clicked
+// through Ajustes, and that is the same boundary again: pressing "Conectar"
+// spawns a real `claude --version`, so seeding the row that press would have
+// written keeps this file spawning nothing while still exercising a panel the
+// student is allowed to use.
+//
 // The consequence is stated plainly: no automated test exercises a real
 // spawn. Everything below the IPC boundary is covered by unit tests with an
 // injected spawn double, and the spawn itself is verified by hand.
@@ -24,11 +31,32 @@ import { _electron as electron, expect, test } from '@playwright/test'
 test('launch -> open the ask panel from Hoy -> the shell is wired and closes cleanly', async () => {
   const projectRoot = path.join(__dirname, '..')
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'course-companion-e2e-ask-'))
+  const launch = () => electron.launch({ args: ['.', `--user-data-dir=${userDataDir}`], cwd: projectRoot })
 
-  const electronApp = await electron.launch({
-    args: ['.', `--user-data-dir=${userDataDir}`],
-    cwd: projectRoot
-  })
+  // One throwaway launch to run the forward-only migration, so there is a
+  // schema to seed the opt-in into.
+  const migrating = await launch()
+  await (await migrating.firstWindow()).waitForLoadState('domcontentloaded')
+  await migrating.close()
+  const raw = new Database(path.join(userDataDir, 'course-companion.db'))
+  try {
+    // TWO CLIs, because the menu is now bounded by the opt-in: the height
+    // assertion below is about the list OVERFLOWING, and one CLI's models no
+    // longer reach the cap. Claude and Antigravity are the two the app baseline
+    // covers, so this is exactly the menu the picker used to build for every
+    // provider — Codex reaches it through discovery alone.
+    const seed = raw.prepare('INSERT INTO app_settings (key, value) VALUES (?, ?)')
+    seed.run('claude.connected', '1')
+    seed.run('antigravity.connected', '1')
+    // Connected is not enough: the picker lists a CLI only once it has been seen
+    // to work, so a menu seeded on the opt-in alone would come up empty.
+    seed.run('claude.lastStatus', 'connected')
+    seed.run('antigravity.lastStatus', 'connected')
+  } finally {
+    raw.close()
+  }
+
+  const electronApp = await launch()
 
   try {
     const window = await electronApp.firstWindow()
@@ -58,9 +86,10 @@ test('launch -> open the ask panel from Hoy -> the shell is wired and closes cle
     await expect(window.getByRole('group', { name: 'Claude Code' })).toBeVisible()
 
     // At most ONE badge per CLI. Which model carries it depends on the machine
-    // — Codex publishes its own ranking, Claude does not — so the count is
-    // what is asserted, never the winner.
-    for (const cli of ['Claude Code', 'Codex CLI']) {
+    // — Codex publishes its own ranking, Claude does not, and Antigravity is
+    // offered from the app's baseline with nothing measured about it — so the
+    // count is what is asserted, never the winner.
+    for (const cli of ['Claude Code', 'Antigravity CLI', 'Codex CLI']) {
       const group = window.getByRole('group', { name: cli })
       if ((await group.count()) === 0) continue
       expect(await group.getByText('Recomendado').count()).toBeLessThanOrEqual(1)

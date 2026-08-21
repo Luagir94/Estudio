@@ -5,14 +5,17 @@ import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import {
   clearProvider,
+  MAX_ARGV_PROMPT_CHARS,
   spawnPromptExecution,
   spawnStreamingSession,
   spawnVersionProbe,
   terminateSpawnedProcess,
+  validateArgvPrompt,
   validateExecutableCandidate,
   validateModelId,
   type ClearedProvider,
   type SpawnFn,
+  type ValidatedArgvPrompt,
   type ValidatedExecutablePath,
   type ValidatedModelId,
   type ValidatorFsPort
@@ -516,6 +519,221 @@ describe('spawnPromptExecution', () => {
     )
 
     expect(spawnFn).toHaveBeenCalled()
+  })
+})
+
+// --- argv prompt delivery ----------------------------------------------------
+//
+// Antigravity is the one provider whose question CANNOT travel on stdin.
+// Verified against agy.exe 1.1.15: `--print` is a required-VALUE flag that
+// never reads the prompt from stdin, `--print ""` is an error, and a `--print`
+// with no value is a usage error. So the question becomes an argv element —
+// and every guarantee stdin gave away for free has to be re-established here.
+
+/** Antigravity's template was verified against agy.exe 1.1.15, so it clears statically. */
+const ANTIGRAVITY = clearProvider('antigravity', null) as ClearedProvider
+
+/** Mirrors `asModel`: mints the prompt brand through the real gate. */
+const asPrompt = (text: string): ValidatedArgvPrompt => validateArgvPrompt(text) as ValidatedArgvPrompt
+
+describe('validateArgvPrompt', () => {
+  // Windows caps a whole command line near 32767 characters, and the rest of
+  // argv — the executable path, the flags, the model id, the attachments root —
+  // has to fit alongside the question. The ceiling is deliberately well under
+  // it rather than exactly at it.
+  it('leaves room on the command line for the rest of the vector', () => {
+    expect(MAX_ARGV_PROMPT_CHARS).toBeLessThan(32767)
+  })
+
+  it('mints a brand for a prompt exactly at the ceiling', () => {
+    const atLimit = 'x'.repeat(MAX_ARGV_PROMPT_CHARS)
+
+    expect(validateArgvPrompt(atLimit)).toBe(atLimit)
+  })
+
+  // One character over is a refusal, never a truncation: a silently shortened
+  // prompt would ask the model a different question than the student did.
+  it('refuses a prompt one character over the ceiling', () => {
+    expect(validateArgvPrompt('x'.repeat(MAX_ARGV_PROMPT_CHARS + 1))).toBeNull()
+  })
+
+  // Verified against the real binary: `agy --print ""` answers with an ERROR
+  // envelope ("empty prompt") and exit 1. Spawning that is spending a process
+  // to be told what the app already knows.
+  it('refuses an empty prompt', () => {
+    expect(validateArgvPrompt('')).toBeNull()
+  })
+})
+
+describe('spawnPromptExecution — argv prompt delivery', () => {
+  const QUESTION = '¿Qué dice el apunte de la clase 3?'
+
+  /** The first spawn call, proven to have happened — the `args === undefined` guard above, reused. */
+  function firstCall(spawnFn: SpawnFn): Parameters<SpawnFn> {
+    const [call] = vi.mocked(spawnFn).mock.calls
+    if (call === undefined) throw new Error('nothing was spawned')
+    return call
+  }
+
+  it('passes the question as ONE argv element, immediately after --print', () => {
+    const spawnFn = vi.fn(() => ({}) as ChildProcess)
+
+    spawnPromptExecution(
+      ANTIGRAVITY,
+      asValidated('C:\\tools\\agy.exe'),
+      ATTACHMENTS_ROOT,
+      asModel('gemini-3.1-pro-high'),
+      spawnFn,
+      asPrompt(QUESTION)
+    )
+
+    expect(spawnFn).toHaveBeenCalledWith(
+      'C:\\tools\\agy.exe',
+      [
+        '--print',
+        QUESTION,
+        '--output-format',
+        'json',
+        '--mode',
+        'plan',
+        '--model',
+        'gemini-3.1-pro-high',
+        '--add-dir',
+        ATTACHMENTS_ROOT
+      ],
+      expect.objectContaining({ shell: false, cwd: ATTACHMENTS_ROOT })
+    )
+  })
+
+  // agy hangs on an open stdin under `--print` (known on Windows), and it has
+  // no reason to read one: the whole prompt is already on argv.
+  it('closes stdin for an argv provider instead of leaving it open', () => {
+    const spawnFn: SpawnFn = vi.fn(() => ({}) as ChildProcess)
+
+    spawnPromptExecution(
+      ANTIGRAVITY,
+      asValidated('C:\\tools\\agy.exe'),
+      ATTACHMENTS_ROOT,
+      asModel('gemini-3.1-pro-high'),
+      spawnFn,
+      asPrompt(QUESTION)
+    )
+
+    const [, , options] = firstCall(spawnFn)
+    expect(options.stdio).toEqual(['ignore', 'pipe', 'pipe'])
+  })
+
+  // The question is arbitrary user text. On argv with `shell: false` it is one
+  // opaque element and nothing parses it; the moment any shell were involved it
+  // would be an injection vector. This is the test that says so.
+  it.each([
+    ['an ampersand', '¿Qué es A & B?'],
+    ['a pipe', 'explicá a | b'],
+    ['a redirect', 'compará x > y'],
+    ['a double quote', 'definí "entropía"'],
+    ['a percent sign', '¿qué significa %PATH%?'],
+    ['a caret and a backtick', 'esto ^ y `esto`'],
+    ['a newline', 'primera línea\nsegunda línea'],
+    ['a flag-shaped opening', '--dangerously-skip-permissions ¿y esto?']
+  ])('keeps a question containing %s inside a single argv element', (_label, hostileQuestion) => {
+    const spawnFn: SpawnFn = vi.fn(() => ({}) as ChildProcess)
+
+    spawnPromptExecution(
+      ANTIGRAVITY,
+      asValidated('C:\\tools\\agy.exe'),
+      ATTACHMENTS_ROOT,
+      asModel('gemini-3.1-pro-high'),
+      spawnFn,
+      asPrompt(hostileQuestion)
+    )
+
+    const [command, args, options] = firstCall(spawnFn)
+    expect(command).toBe('C:\\tools\\agy.exe')
+    expect(options.shell).toBe(false)
+    expect(options.windowsVerbatimArguments).toBeUndefined()
+    // Exactly one element IS the question, and it is the value of `--print`.
+    expect(args.filter((token) => token === hostileQuestion)).toHaveLength(1)
+    expect(args[args.indexOf('--print') + 1]).toBe(hostileQuestion)
+  })
+
+  // The `.cmd`/`.bat` branch builds a cmd.exe COMMAND STRING. A question is
+  // untrusted text, and no quoting scheme makes user text safe inside one — so
+  // this combination is refused outright rather than escaped cleverly. agy
+  // ships as a real `.exe`, so nothing legitimate is lost.
+  it.each([
+    ['a .cmd shim', 'C:\\tools\\agy.cmd'],
+    ['a .bat shim', 'C:\\tools\\agy.bat']
+  ])('refuses to compose a shell command line for %s', (_label, shimPath) => {
+    const spawnFn: SpawnFn = vi.fn(() => ({}) as ChildProcess)
+
+    expect(() =>
+      spawnPromptExecution(
+        ANTIGRAVITY,
+        asValidated(shimPath),
+        ATTACHMENTS_ROOT,
+        asModel('gemini-3.1-pro-high'),
+        spawnFn,
+        asPrompt(QUESTION)
+      )
+    ).toThrow(/shim/i)
+    expect(spawnFn).not.toHaveBeenCalled()
+  })
+
+  // A missing prompt is an app-invariant breach, not a degraded run: an argv
+  // provider with no question would spawn `--print --output-format`, handing
+  // the CLI a flag where its prompt should be.
+  it('throws rather than spawning an argv provider with no prompt at all', () => {
+    const spawnFn: SpawnFn = vi.fn(() => ({}) as ChildProcess)
+
+    expect(() =>
+      spawnPromptExecution(
+        ANTIGRAVITY,
+        asValidated('C:\\tools\\agy.exe'),
+        ATTACHMENTS_ROOT,
+        asModel('gemini-3.1-pro-high'),
+        spawnFn
+      )
+    ).toThrow(/prompt/i)
+    expect(spawnFn).not.toHaveBeenCalled()
+  })
+
+  // The same compile-time guarantee the path and the model id carry: only what
+  // the length gate returned may reach a command line.
+  it('rejects a plain string prompt at the type level (see @ts-expect-error below)', () => {
+    const spawnFn: SpawnFn = vi.fn(() => ({}) as ChildProcess)
+
+    spawnPromptExecution(
+      ANTIGRAVITY,
+      asValidated('C:\\tools\\agy.exe'),
+      ATTACHMENTS_ROOT,
+      asModel('gemini-3.1-pro-high'),
+      spawnFn,
+      // @ts-expect-error — a plain `string` is not a `ValidatedArgvPrompt`; only
+      // `validateArgvPrompt`'s return value may be passed here.
+      'una pregunta sin validar'
+    )
+
+    expect(spawnFn).toHaveBeenCalled()
+  })
+
+  // Delivery is read off the provider's own spec, so a stdin provider handed a
+  // prompt still spawns exactly the command line it always did — the question
+  // stays on stdin and never appears in argv.
+  it('never puts the prompt on argv for a stdin provider', () => {
+    const spawnFn: SpawnFn = vi.fn(() => ({}) as ChildProcess)
+
+    spawnPromptExecution(
+      CLAUDE,
+      asValidated('C:\\tools\\claude.exe'),
+      ATTACHMENTS_ROOT,
+      asModel('claude-sonnet-5'),
+      spawnFn,
+      asPrompt(QUESTION)
+    )
+
+    const [, args, options] = firstCall(spawnFn)
+    expect(args).not.toContain(QUESTION)
+    expect(options.stdio).toEqual(['pipe', 'pipe', 'pipe'])
   })
 })
 

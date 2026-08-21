@@ -1,33 +1,41 @@
-// Presentational (design node `baO7H` "Card — Conexión", frame "Grupo —
-// Ajustes"): the connection state chip plus the Versión/Ejecutable/Origen
-// detail rows (spec "Status Display"), and, only when `unusable`, the
-// friendly Spanish message plus the one technical detail line (spec
-// "Unusable Detail Copy") — `status.detail` is rendered VERBATIM, never
-// reworded or truncated.
+// Presentational (design nodes "Card — Claude Code" / "Card — Codex CLI (no
+// funciona)", frame "Grupo — Ajustes"): one ROW per CLI, in one of two shapes.
 //
-// One card per supported CLI now, so everything that used to be Claude's by
-// assumption is read off the DTO instead. The capability rows below are new:
-// the three CLIs are not interchangeable, and a screen that hid that would
-// leave the user unable to explain why one of them is slow or refused.
+// A HEALTHY, autodetected CLI collapses to a single line: mark, name, green
+// chip, nothing else. The version, the resolved path, the origin and the three
+// capability rows are all answers to questions a working CLI does not raise —
+// showing them made the screen read like a diagnostics dump for a thing that
+// was fine.
+//
+// Every other case keeps the path field, because in every one of them a path
+// is either the fix or the subject: not found, unusable, connected-but-inert,
+// or already running from an override the user must be able to see and clear.
+// That rule is `shouldShowManualPath` and it is unchanged — the design moved,
+// not the policy.
+//
+// The green chip IS the re-probe button. Collapsing to one line would otherwise
+// have removed the only way to re-check a CLI, and a row that cannot be
+// re-checked is a row that lies the moment the user upgrades their install.
 //
 // No container, no react-query, no IPC here — this component only reads the
 // DTO it is handed.
-import { Check, FolderCog, Minus, Terminal } from 'lucide-react'
-import { useState } from 'react'
+import { RefreshCw, Unplug } from 'lucide-react'
 import type { CliProviderStatus } from '../../../shared/ipc/cli'
 import {
   capabilityRows,
+  DISCONNECT_ACTION,
   INERT_MESSAGE,
   isInertDespiteConnection,
-  MANUAL_PATH_LINK_ACTION,
-  MANUAL_PATH_LINK_HINT,
   PROVIDER_LABELS,
   resolveConnectionTone,
+  RETRY_ACTION,
   shouldShowManualPath,
   unusableFriendlyMessage,
   type ConnectionTone
 } from '../domain/connectionDisplay'
-import { ManualPathCard } from './ManualPathCard'
+import { ExecutionWarning } from './ExecutionWarning'
+import { InlinePathInput } from './InlinePathInput'
+import { ProviderMark } from './ProviderMark'
 
 // Presentational tone→Tailwind mapping (design D7's own split, left to this
 // layer — see `SubjectStatusBadge.tsx`'s `STATUS_STYLES`/`DOT_STYLES` for
@@ -46,134 +54,120 @@ const CHIP_DOT_STYLES: Record<ConnectionTone, string> = {
   urgent: 'bg-urgent'
 }
 
-// Only `connected`'s label ("Conectado") is drawn in the approved `.pen` —
-// see PR5 apply-progress. The other two are inferred, disclosed Spanish
-// labels that parallel the spec's own "Three-State Status Classification"
-// wording ("not resolvable" / "the app had something concrete and it
-// failed").
+// Only `connected`'s label ("Conectado") is drawn in the approved `.pen`.
+// The other two are inferred, disclosed Spanish labels that parallel the
+// spec's own "Three-State Status Classification" wording.
 const STATUS_LABELS: Record<CliProviderStatus['status'], string> = {
   connected: 'Conectado',
   'not-found': 'No encontrado',
   unusable: 'No funciona'
 }
 
-// `auto`'s copy is exact per the approved `.pen` ("Detección automática en
-// el PATH"); `override` has no drawn example and is an inferred, disclosed
-// parallel phrase.
-const SOURCE_LABELS: Record<CliProviderStatus['source'], string> = {
-  auto: 'Detección automática en el PATH',
-  // Not simply "Ruta manual": that is now the heading of the section directly
-  // below, and the row would read as a label for it rather than as the origin
-  // of the executable above.
-  override: 'Ruta manual configurada'
-}
-
 interface ConnectionStatusCardProps {
   status: CliProviderStatus
   /** Reports a committed override for THIS provider — `null` clears it. */
   onCommitPath: (path: string | null) => void
+  /** Re-probes THIS provider only. The screen has no "re-probe everything" control. */
+  onReprobe: () => void
+  /** Withdraws the opt-in, returning this row to idle. Connecting has to be reversible. */
+  onDisconnect: () => void
+  /** The row keeps its previous values during a re-probe, so the control is the only place to say so. */
+  isReprobing: boolean
 }
 
-export function ConnectionStatusCard({ status, onCommitPath }: ConnectionStatusCardProps): React.JSX.Element {
+export function ConnectionStatusCard({
+  status,
+  onCommitPath,
+  onReprobe,
+  onDisconnect,
+  isReprobing
+}: ConnectionStatusCardProps): React.JSX.Element {
   const tone = resolveConnectionTone(status.status)
-  const capabilities = capabilityRows(status)
-
-  // Local, and deliberately not lifted: revealing the field is a glance at an
-  // advanced control, not a decision worth persisting or sharing. It resets on
-  // remount, which is the honest behaviour — the card reverts to describing
-  // the CLI rather than to a half-finished edit.
-  const [revealed, setRevealed] = useState(false)
-  const expanded = revealed || shouldShowManualPath(status)
+  // ONE boolean drives the path field AND its execution warning, so the two can
+  // never drift apart — see `ConnectionStatusCard.test.tsx`, which asserts that
+  // the warning is present wherever the field is.
+  const showsPath = shouldShowManualPath(status)
+  // Only the caveats of capabilities the binary does NOT have. `structuredOutput`
+  // is dropped when inert because `INERT_MESSAGE` above already says it, at
+  // more length and in plainer words.
+  const caveats = capabilityRows(status)
+    .filter((row) => !row.supported && !(row.key === 'structuredOutput' && isInertDespiteConnection(status)))
+    .map((row) => row.caveat)
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card px-5 py-4">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-card px-5 py-3.5">
+      <div className="flex w-full items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Terminal className="h-[18px] w-[18px] text-secondary-foreground" aria-hidden="true" />
+          <ProviderMark provider={status.provider} className="h-[18px] w-[18px] text-secondary-foreground" />
           <h3 className="text-body-lg font-semibold text-foreground">{PROVIDER_LABELS[status.provider]}</h3>
         </div>
-        <span
-          className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-body-sm font-semibold ${CHIP_STYLES[tone]}`}
-        >
-          <span aria-hidden="true" className={`h-2 w-2 rounded-full ${CHIP_DOT_STYLES[tone]}`} />
-          {STATUS_LABELS[status.status]}
-        </span>
+
+        <div className="flex shrink-0 items-center gap-2">
+          {/* The chip is a BUTTON, not a label. On a collapsed healthy row it is
+              the only control left, and losing the ability to re-check would be
+              worse than the line it saves. */}
+          <button
+            type="button"
+            onClick={onReprobe}
+            disabled={isReprobing}
+            aria-busy={isReprobing}
+            aria-label={`${RETRY_ACTION} ${PROVIDER_LABELS[status.provider]}`}
+            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-body-sm font-semibold transition-opacity duration-150 ease-out hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-60 ${CHIP_STYLES[tone]}`}
+          >
+            {isReprobing ? (
+              <RefreshCw className="h-2.5 w-2.5 animate-spin" aria-hidden="true" />
+            ) : (
+              <span aria-hidden="true" className={`h-2 w-2 rounded-full ${CHIP_DOT_STYLES[tone]}`} />
+            )}
+            {STATUS_LABELS[status.status]}
+          </button>
+
+          {/* Connecting has to be reversible. Without this the opt-in would be
+              a one-way door: a CLI connected once would be re-probed on every
+              launch forever, with no way back to "the app runs nothing". Icon
+              only, because the row's job is to be one line — the accessible
+              name carries the words. */}
+          <button
+            type="button"
+            onClick={onDisconnect}
+            aria-label={`${DISCONNECT_ACTION} ${PROVIDER_LABELS[status.provider]}`}
+            title={DISCONNECT_ACTION}
+            className="flex items-center rounded-lg border border-border bg-muted px-2.5 py-2 text-muted-foreground transition-colors duration-150 ease-out hover:bg-muted/70 hover:text-foreground active:bg-muted/50"
+          >
+            <Unplug className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+
+          {showsPath && (
+            <InlinePathInput provider={status.provider} overridePath={status.overridePath} onCommit={onCommitPath} />
+          )}
+        </div>
       </div>
-
-      <div aria-hidden="true" className="h-px w-full bg-border" />
-
-      <div className="flex flex-col gap-2">
-        <DetailRow label="Versión" value={status.version ?? '—'} />
-        <DetailRow label="Ejecutable" value={status.resolvedPath ?? '—'} />
-        <DetailRow label="Origen" value={SOURCE_LABELS[status.source]} />
-      </div>
-
-      {capabilities.length > 0 && (
-        <>
-          <div aria-hidden="true" className="h-px w-full bg-border" />
-          <ul className="flex flex-col gap-2">
-            {capabilities.map((row) => (
-              <li key={row.label} className="flex items-start gap-3">
-                {row.supported ? (
-                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ok" aria-hidden="true" />
-                ) : (
-                  <Minus className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                )}
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="text-body-sm text-secondary-foreground">
-                    {row.label}
-                    <span className="sr-only">{row.supported ? ': disponible' : ': no disponible'}</span>
-                  </span>
-                  {!row.supported && <span className="text-caption text-muted-foreground">{row.caveat}</span>}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
 
       {/* A CLI that runs but whose installed version rejects the options this
           app needs. "Conectado" alone would be the most confusing thing the
           screen could say, so the reason is spelled out. */}
-      {isInertDespiteConnection(status) && (
-        <p className="text-body-sm font-semibold text-foreground">{INERT_MESSAGE}</p>
-      )}
+      {isInertDespiteConnection(status) && <p className="text-body-sm text-muted-foreground">{INERT_MESSAGE}</p>}
+
+      {/* The capability rows are gone, but their CAVEATS are not, and that
+          distinction is the whole point: a supported capability is silence, so
+          a fully capable CLI really does collapse to one line. A MISSING one is
+          a fact the user cannot discover any other way — that answers will be
+          three times slower, or that the app cannot confine this CLI to reading
+          — and dropping it to save a line would be hiding the only warning
+          about it that exists. */}
+      {caveats.length > 0 && <p className="text-body-sm text-muted-foreground">{caveats.join(' ')}</p>}
 
       {status.status === 'unusable' && (
-        <div className="flex flex-col gap-1">
-          <p className="text-body-sm font-semibold text-foreground">{unusableFriendlyMessage(status.provider)}</p>
-          <p className="text-caption text-muted-foreground">{status.detail}</p>
-        </div>
+        // `status.detail` is the main process's own wording, rendered VERBATIM
+        // — never reworded or truncated — after the friendlier sentence.
+        <p className="text-body-sm text-muted-foreground">
+          {unusableFriendlyMessage(status.provider)} · {status.detail}
+        </p>
       )}
 
-      <div aria-hidden="true" className="h-px w-full bg-border" />
-
-      {/* The manual-path gate lives HERE, at the card, and never inside
-          `ManualPathCard`. That block stays all-or-nothing, which is what keeps
-          its execution warning (design D9) unconditional whenever the field
-          renders — the component still takes no `status` prop. */}
-      {expanded ? (
-        <ManualPathCard provider={status.provider} overridePath={status.overridePath} onCommit={onCommitPath} />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setRevealed(true)}
-          className="flex items-center gap-2 self-start text-body-sm"
-        >
-          <FolderCog className="h-3.5 w-3.5 shrink-0 text-primary-ink" aria-hidden="true" />
-          <span className="font-semibold text-primary-ink">{MANUAL_PATH_LINK_ACTION}</span>
-          <span className="text-muted-foreground">{MANUAL_PATH_LINK_HINT}</span>
-        </button>
-      )}
-    </div>
-  )
-}
-
-function DetailRow({ label, value }: { label: string; value: string }): React.JSX.Element {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="w-[110px] shrink-0 text-body-sm font-medium text-muted-foreground">{label}</span>
-      <span className="text-body-sm text-secondary-foreground">{value}</span>
+      {/* Tied to the SAME boolean as the field above. Design D9: the app
+          EXECUTES whatever that field points at. */}
+      {showsPath && <ExecutionWarning provider={status.provider} />}
     </div>
   )
 }

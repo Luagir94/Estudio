@@ -4,9 +4,14 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AskResult, ConversationSummary, GetConversationResult } from '../../../shared/ipc/ask'
-import type { CliProviderStatus } from '../../../shared/ipc/cli'
+import { CLI_PROVIDERS, type CliPreference, type CliProvider, type CliProviderStatus } from '../../../shared/ipc/cli'
 import { AskApiError, askApi } from '../adapters/askApi'
-import { ASK_COMPOSER_PLACEHOLDER_BROWSING, ASK_COMPOSER_PLACEHOLDER_DEGRADED } from '../domain/askDisplay'
+import {
+  ASK_BASELINE_MODELS,
+  ASK_COMPOSER_PLACEHOLDER_BROWSING,
+  ASK_COMPOSER_PLACEHOLDER_DEGRADED,
+  ASK_NO_CLI_CONNECTED
+} from '../domain/askDisplay'
 import { AskPanelContainer } from './AskPanelContainer'
 
 vi.mock('../adapters/askApi', async () => {
@@ -16,7 +21,8 @@ vi.mock('../adapters/askApi', async () => {
     askApi: {
       question: vi.fn(),
       cancel: vi.fn(),
-      status: vi.fn(),
+      probe: vi.fn(),
+      preferences: vi.fn(),
       models: vi.fn(),
       listConversations: vi.fn(),
       getConversation: vi.fn(),
@@ -30,23 +36,32 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>
 }
 
-// The panel reads the status of the provider it is ASKING with, so the probe
-// answers with a LIST and this fixture returns one. Overrides still describe a
-// single provider, which keeps every existing call site readable.
-function status(overrides: Partial<CliProviderStatus> = {}): CliProviderStatus[] {
-  return [
-    {
-      provider: 'claude',
-      status: 'connected',
-      version: '2.1.29',
-      resolvedPath: 'C:\\tools\\claude.cmd',
-      source: 'auto',
-      overridePath: null,
-      detail: null,
-      capabilities: { structuredOutput: true, warmSession: true, readOnlyTools: true },
-      ...overrides
-    }
-  ]
+// The panel probes ONLY the provider it is asking with, so the fixture is a
+// single status rather than a list of three.
+function status(overrides: Partial<CliProviderStatus> = {}): CliProviderStatus {
+  return {
+    provider: 'claude',
+    status: 'connected',
+    version: '2.1.29',
+    resolvedPath: 'C:\\tools\\claude.cmd',
+    source: 'auto',
+    overridePath: null,
+    detail: null,
+    capabilities: { structuredOutput: true, warmSession: true, readOnlyTools: true },
+    ...overrides
+  }
+}
+
+/** The persisted preferences the panel reads: permission plus a saved path it never edits. */
+function prefs(connected: readonly CliProvider[]): CliPreference[] {
+  return CLI_PROVIDERS.map((provider) => ({
+    provider,
+    connected: connected.includes(provider),
+    overridePath: null,
+    // Connected AND working: the panel offers models only for CLIs it has seen
+    // answer, so these fixtures have to say so.
+    lastStatus: connected.includes(provider) ? ('connected' as const) : null
+  }))
 }
 
 function summary(overrides: Partial<ConversationSummary> & { id: number }): ConversationSummary {
@@ -95,18 +110,29 @@ async function ask(text: string): Promise<void> {
   fireEvent.submit(screen.getByRole('textbox').closest('form') as HTMLFormElement)
 }
 
+/**
+ * The baseline every block starts from: a clean slate, a healthy CLI, and every
+ * provider connected. Shared as a function rather than a nested `beforeEach` so
+ * the describes below the parent get the same footing — a block that only
+ * overrode `connected` would still be counting calls left by earlier tests.
+ */
+function resetAskMocks(): void {
+  vi.clearAllMocks()
+  window.localStorage.clear()
+  vi.mocked(askApi.probe).mockResolvedValue(status())
+  // Every CLI connected is the default: most cases are about the panel, and the
+  // permission gate has its own describe blocks.
+  vi.mocked(askApi.preferences).mockResolvedValue(prefs(CLI_PROVIDERS))
+  vi.mocked(askApi.cancel).mockResolvedValue(undefined)
+  // Nothing discovered is the DEFAULT, so every other test proves the panel
+  // works on the curated list alone.
+  vi.mocked(askApi.models).mockResolvedValue([])
+  // First-ever-run default: no conversations exist yet.
+  vi.mocked(askApi.listConversations).mockResolvedValue([])
+}
+
 describe('AskPanelContainer', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    window.localStorage.clear()
-    vi.mocked(askApi.status).mockResolvedValue(status())
-    vi.mocked(askApi.cancel).mockResolvedValue(undefined)
-    // Nothing discovered is the DEFAULT, so every other test proves the panel
-    // works on the curated list alone.
-    vi.mocked(askApi.models).mockResolvedValue([])
-    // First-ever-run default: no conversations exist yet.
-    vi.mocked(askApi.listConversations).mockResolvedValue([])
-  })
+  beforeEach(resetAskMocks)
 
   it('starts closed, showing only the trigger', () => {
     renderPanel()
@@ -190,10 +216,10 @@ describe('AskPanelContainer', () => {
     })
 
     it('ignores Enter while the CLI is degraded', async () => {
-      vi.mocked(askApi.status).mockResolvedValue(status({ status: 'not-found' }))
+      vi.mocked(askApi.probe).mockResolvedValue(status({ status: 'not-found' }))
       renderPanel()
       await openPanel()
-      await screen.findByText('Conectá tu Claude CLI')
+      await screen.findByText('No encontramos ese CLI')
 
       fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
       await flush()
@@ -208,7 +234,7 @@ describe('AskPanelContainer', () => {
       renderPanel()
       await openPanel()
 
-      fireEvent.click(screen.getByRole('button', { name: /sonnet 5/i }))
+      fireEvent.click(await screen.findByRole('button', { name: /sonnet 5/i }))
       fireEvent.click(screen.getByRole('option', { name: /opus 5/i }))
       await ask('¿Y esto?')
 
@@ -260,7 +286,7 @@ describe('AskPanelContainer', () => {
       renderPanel()
       await openPanel()
 
-      fireEvent.click(screen.getByRole('button', { name: /sonnet 5/i }))
+      fireEvent.click(await screen.findByRole('button', { name: /sonnet 5/i }))
       fireEvent.click(await screen.findByRole('option', { name: /fable 5 · 1M/i }))
       await ask('¿Y esto?')
 
@@ -276,11 +302,15 @@ describe('AskPanelContainer', () => {
       renderPanel()
       await openPanel()
 
-      fireEvent.click(screen.getByRole('button', { name: /sonnet 5/i }))
+      fireEvent.click(await screen.findByRole('button', { name: /sonnet 5/i }))
 
       // Scoped to the model list: the provider dropdown below it renders
-      // options of its own, and counting those would prove nothing.
-      expect(within(screen.getByRole('listbox', { name: 'Modelo' })).getAllByRole('option')).toHaveLength(3)
+      // options of its own, and counting those would prove nothing. Counted
+      // against the baseline itself rather than a literal, so the assertion
+      // keeps meaning "exactly the curated set, nothing more" as that set grows.
+      expect(within(screen.getByRole('listbox', { name: 'Modelo' })).getAllByRole('option')).toHaveLength(
+        ASK_BASELINE_MODELS.length
+      )
     })
 
     // Nine models across two CLIs is a list nobody scans flat. The heading
@@ -293,7 +323,7 @@ describe('AskPanelContainer', () => {
       renderPanel()
       await openPanel()
 
-      fireEvent.click(screen.getByRole('button', { name: /sonnet 5/i }))
+      fireEvent.click(await screen.findByRole('button', { name: /sonnet 5/i }))
 
       expect(await screen.findByRole('group', { name: 'Codex CLI' })).toBeInTheDocument()
       expect(
@@ -306,7 +336,7 @@ describe('AskPanelContainer', () => {
       renderPanel()
       await openPanel()
 
-      fireEvent.click(screen.getByRole('button', { name: /sonnet 5/i }))
+      fireEvent.click(await screen.findByRole('button', { name: /sonnet 5/i }))
 
       expect(screen.queryByRole('group', { name: 'Codex CLI' })).not.toBeInTheDocument()
     })
@@ -320,7 +350,7 @@ describe('AskPanelContainer', () => {
       renderPanel()
       await openPanel()
 
-      fireEvent.click(screen.getByRole('button', { name: /sonnet 5/i }))
+      fireEvent.click(await screen.findByRole('button', { name: /sonnet 5/i }))
 
       const badges = await screen.findAllByText('Recomendado')
       expect(badges).toHaveLength(1)
@@ -334,7 +364,7 @@ describe('AskPanelContainer', () => {
       renderPanel()
       await openPanel()
 
-      fireEvent.click(screen.getByRole('button', { name: /sonnet 5/i }))
+      fireEvent.click(await screen.findByRole('button', { name: /sonnet 5/i }))
 
       expect(screen.queryByRole('textbox', { name: /otro modelo/i })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Usar' })).not.toBeInTheDocument()
@@ -355,7 +385,7 @@ describe('AskPanelContainer', () => {
       renderPanel()
       await openPanel()
 
-      fireEvent.click(screen.getByRole('button', { name: /sonnet 5/i }))
+      fireEvent.click(await screen.findByRole('button', { name: /sonnet 5/i }))
 
       const list = await screen.findByRole('listbox', { name: 'Modelo' })
       expect(list.className).toContain('overflow-y-auto')
@@ -363,11 +393,16 @@ describe('AskPanelContainer', () => {
     })
 
     it('disables the picker when the CLI is degraded', async () => {
-      vi.mocked(askApi.status).mockResolvedValue(status({ status: 'not-found' }))
+      vi.mocked(askApi.probe).mockResolvedValue(status({ status: 'not-found' }))
       renderPanel()
       await openPanel()
 
-      expect(await screen.findByRole('button', { name: /sonnet 5/i })).toBeDisabled()
+      // Waits for the DEGRADED state itself, not merely for the picker to have
+      // a name: the permission read and the probe settle independently, and
+      // asserting between the two would be asserting on a half-loaded panel.
+      await screen.findByText('No encontramos ese CLI')
+
+      expect(screen.getByRole('button', { name: /sonnet 5/i })).toBeDisabled()
     })
   })
 
@@ -419,11 +454,11 @@ describe('AskPanelContainer', () => {
 
   describe('degraded CLI', () => {
     it('offers the Ajustes route and refuses to send when the CLI is missing', async () => {
-      vi.mocked(askApi.status).mockResolvedValue(status({ status: 'not-found' }))
+      vi.mocked(askApi.probe).mockResolvedValue(status({ status: 'not-found' }))
       const { onGoToAjustes } = renderPanel()
       await openPanel()
 
-      expect(await screen.findByText('Conectá tu Claude CLI')).toBeInTheDocument()
+      expect(await screen.findByText('No encontramos ese CLI')).toBeInTheDocument()
       expect(screen.getByRole('textbox')).toBeDisabled()
 
       fireEvent.click(screen.getByRole('button', { name: /ir a ajustes/i }))
@@ -432,7 +467,7 @@ describe('AskPanelContainer', () => {
     })
 
     it('treats an unusable CLI as degraded too', async () => {
-      vi.mocked(askApi.status).mockResolvedValue(status({ status: 'unusable' }))
+      vi.mocked(askApi.probe).mockResolvedValue(status({ status: 'unusable' }))
       renderPanel()
       await openPanel()
 
@@ -1004,5 +1039,88 @@ describe('AskPanelContainer', () => {
 
       await waitFor(() => expect(historyButton()).toHaveTextContent('1'))
     })
+  })
+})
+
+// The panel is bounded by PERMISSION before it is bounded by health. "No CLI
+// connected" is not an error — nothing was tried, so there is nothing to report
+// as having failed.
+describe('AskPanelContainer — no CLI connected', () => {
+  beforeEach(() => {
+    resetAskMocks()
+    vi.mocked(askApi.preferences).mockResolvedValue(prefs([]))
+  })
+
+  it('never probes when nothing is connected', async () => {
+    renderPanel()
+    await openPanel()
+
+    await screen.findByText(ASK_NO_CLI_CONNECTED.title)
+    expect(askApi.probe).not.toHaveBeenCalled()
+  })
+
+  it('says what to do rather than what went wrong', async () => {
+    renderPanel()
+    await openPanel()
+
+    expect(await screen.findByText(ASK_NO_CLI_CONNECTED.title)).toBeInTheDocument()
+    expect(screen.getByText(ASK_NO_CLI_CONNECTED.detail)).toBeInTheDocument()
+    // The CLI-missing copy is a different claim: it means the app LOOKED for
+    // the CLI the student chose and did not find it.
+    expect(screen.queryByText('No encontramos ese CLI')).not.toBeInTheDocument()
+  })
+
+  it('hands the user to Ajustes', async () => {
+    const { onGoToAjustes } = renderPanel()
+    await openPanel()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Ir a Ajustes' }))
+
+    expect(onGoToAjustes).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses to send', async () => {
+    renderPanel()
+    await openPanel()
+    await screen.findByText(ASK_NO_CLI_CONNECTED.title)
+
+    await ask('¿Qué entra en el parcial?')
+
+    expect(askApi.question).not.toHaveBeenCalled()
+  })
+})
+
+// A model the app cannot spawn must not be on the menu. Main refuses a
+// disconnected provider at the process boundary, so offering its models would
+// be offering rows that answer nothing.
+describe('AskPanelContainer — the picker follows the opt-in', () => {
+  beforeEach(resetAskMocks)
+
+  it('offers only the connected CLI models', async () => {
+    vi.mocked(askApi.preferences).mockResolvedValue(prefs(['claude']))
+    renderPanel()
+    await openPanel()
+
+    fireEvent.click(await screen.findByRole('button', { name: /sonnet 5/i }))
+
+    expect(await screen.findByRole('group', { name: 'Claude Code' })).toBeInTheDocument()
+    // Antigravity has baseline models, so its absence here is the permission
+    // filter at work rather than an empty section being dropped.
+    expect(screen.queryByRole('group', { name: 'Antigravity CLI' })).not.toBeInTheDocument()
+  })
+
+  // The choice lives in localStorage and can name a CLI disconnected since, or
+  // never connected on this machine. Pinning the panel to it would leave it
+  // unusable with a perfectly good CLI connected.
+  it('falls back to a connected CLI when the remembered one is not', async () => {
+    window.localStorage.setItem('ask.model', JSON.stringify({ provider: 'codex', modelId: 'gpt-5.5' }))
+    vi.mocked(askApi.preferences).mockResolvedValue(prefs(['claude']))
+    vi.mocked(askApi.probe).mockResolvedValue(status())
+
+    renderPanel()
+    await openPanel()
+
+    await waitFor(() => expect(askApi.probe).toHaveBeenCalledWith('claude'))
+    expect(askApi.probe).not.toHaveBeenCalledWith('codex')
   })
 })

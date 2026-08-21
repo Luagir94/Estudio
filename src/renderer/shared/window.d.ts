@@ -18,7 +18,14 @@ import type {
   GetConversationInput,
   GetConversationResult
 } from '../../shared/ipc/ask'
-import type { CliProviderStatus, DiscoveredModel, SetCliOverrideInput } from '../../shared/ipc/cli'
+import type {
+  CliPreference,
+  CliProviderStatus,
+  DisconnectCliInput,
+  DiscoveredModel,
+  ProbeCliInput,
+  SetCliOverrideInput
+} from '../../shared/ipc/cli'
 import type {
   CreatePeriodInput,
   CreateProgramInput,
@@ -103,10 +110,14 @@ declare global {
         onExportRequested: (callback: () => void) => () => void
       }
       cli: {
-        /** One status per supported provider, in menu order. */
-        status: () => Promise<IpcResult<CliProviderStatus[]>>
+        /** Probes ONE CLI, on demand. There is no bulk variant on purpose — connecting a CLI is an explicit act. */
+        probe: (input: ProbeCliInput) => Promise<IpcResult<CliProviderStatus>>
         /** Re-probes only the provider whose override changed. */
         setOverride: (input: SetCliOverrideInput) => Promise<IpcResult<CliProviderStatus>>
+        /** What the app persisted per CLI: the opt-in and the saved path. A settings read — it starts no process. */
+        preferences: () => Promise<IpcResult<CliPreference[]>>
+        /** Withdraws the opt-in. Leaves any manual path override in place. */
+        disconnect: (input: DisconnectCliInput) => Promise<IpcResult<undefined>>
         /** Models read out of the installed CLI's own state. Never errors — an empty list means nothing was discovered. */
         models: () => Promise<IpcResult<DiscoveredModel[]>>
       }

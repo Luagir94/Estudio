@@ -2,7 +2,7 @@ import { spawn as nodeSpawn, type ChildProcess, type SpawnOptions } from 'node:c
 import { constants } from 'node:fs'
 import path from 'node:path'
 import { isProviderEnabled, MODEL_ID_PATTERN, type CliProvider } from '../../shared/ipc/cli'
-import { PROVIDER_SPECS } from '../cli/providerSpec'
+import { PROVIDER_SPECS, type ProviderSpec } from '../cli/providerSpec'
 
 // Main-process trust boundary (design D2/D3, spec "Safe Spawn Vector" /
 // "Pre-Spawn Validation"). Mirrors `campusUrlValidator.ts`'s shape — a pure
@@ -142,11 +142,13 @@ export function spawnVersionProbe(absPath: ValidatedExecutablePath, spawnFn: Spa
  * stays inside the same no-user-input-in-argv rule as every other spawn here.
  * Reading a help page costs nothing: no tokens, no account, no network.
  *
- * It exists because two of the three argv templates were written from
- * published documentation and never run, and documentation has already been
- * wrong once for one of them (google-gemini/gemini-cli#9009). Asking the
- * installed binary which flags it actually lists is the difference between
- * shipping a guess and shipping an observation.
+ * It exists because an argv template written from published documentation and
+ * never run is a guess, and documentation has already been wrong once at this
+ * boundary (google-gemini/gemini-cli#9009). Every template the app ships today
+ * was run against its real binary, so this probe is what rescues the NEXT one
+ * somebody adds from a document: asking the installed binary which flags it
+ * actually lists is the difference between shipping a guess and shipping an
+ * observation.
  */
 export function spawnHelpProbe(
   provider: CliProvider,
@@ -176,11 +178,13 @@ export function spawnHelpProbe(
 // sole-spawn-site rule protects is "no caller string reaches argv", not "the
 // literal is declared in this file".
 //
-// Two caller-influenced values now exist, and each crosses a BRAND before it
+// Three caller-influenced values now exist, and each crosses a BRAND before it
 // can reach a command line:
 //   - the executable path, branded by `validateExecutableCandidate` (above);
-//   - the model id, branded by `validateModelId` (below).
-// A third brand, `ClearedProvider`, makes it a compile error to spawn a
+//   - the model id, branded by `validateModelId` (below);
+//   - the question itself, branded by `validateArgvPrompt` (below) — and only
+//     for a provider whose spec says its prompt travels on argv.
+// A fourth brand, `ClearedProvider`, makes it a compile error to spawn a
 // provider whose template was never confirmed against a real binary.
 
 /**
@@ -197,26 +201,71 @@ export type ValidatedModelId = string & { readonly [validatedModel]: true }
  *
  * That table resolved an opaque key to one of three literals written in this
  * file, which was airtight but could only ever offer what the app's authors
- * hardcoded. No CLI of the three can enumerate the models an account actually
- * has — verified: `claude` ships no `models` subcommand, and neither `gemini`
- * nor `codex` documents one — so the choice was between a list that goes stale
- * and a validated free value. This is the second, and `MODEL_ID_PATTERN` is
- * what keeps it as safe as the table was: a whitelist of characters, so
- * everything dangerous is excluded by construction rather than by enumeration.
+ * hardcoded. No CLI of the three can be asked from here for the models an
+ * account actually has — verified: `claude` ships no `models` subcommand and
+ * `codex` documents none, while `agy models` is a live network call this app
+ * does not make — so the choice was between a list that goes stale and a
+ * validated free value. This is the second, and `MODEL_ID_PATTERN` is what
+ * keeps it as safe as the table was: a whitelist of characters, so everything
+ * dangerous is excluded by construction rather than by enumeration.
  */
 export function validateModelId(candidate: string): ValidatedModelId | null {
   return MODEL_ID_PATTERN.test(candidate) ? (candidate as ValidatedModelId) : null
 }
 
 /**
+ * The ceiling on a question delivered through argv.
+ *
+ * Windows caps an entire command line near 32767 characters, and the question
+ * is only one part of the vector: the executable path, the template's own
+ * flags, the model id and the attachments root all have to fit beside it. This
+ * is deliberately well under that hard limit rather than at it — the margin is
+ * what the rest of argv lives in.
+ */
+export const MAX_ARGV_PROMPT_CHARS = 24000
+
+/**
+ * Nominal-typing brand for a question cleared to travel on argv, mirroring
+ * `ValidatedModelId`. The symbol is never exported, so only
+ * `validateArgvPrompt` can mint one.
+ */
+declare const validatedArgvPrompt: unique symbol
+export type ValidatedArgvPrompt = string & { readonly [validatedArgvPrompt]: true }
+
+/**
+ * The length gate for an argv-delivered question — `null` on refusal, in the
+ * same shape as `validateModelId`, so the caller maps it to a typed error
+ * instead of catching a throw.
+ *
+ * There is deliberately no character whitelist here, and that asymmetry with
+ * the model id is the point. A model id reaches the cmd.exe command STRING on
+ * the shim branch, where a `&` or a `%` would be interpreted; a question never
+ * does, because an argv provider REFUSES the shim branch outright and its text
+ * only ever becomes one element of an argument vector spawned with
+ * `shell: false`. Sanitising it would mean silently altering what the student
+ * asked, which is a worse outcome than the one it would prevent.
+ *
+ * Empty is refused too: verified against agy.exe 1.1.15, `--print ""` answers
+ * with an ERROR envelope, so spawning it spends a process to be told what the
+ * app already knows.
+ */
+export function validateArgvPrompt(candidate: string): ValidatedArgvPrompt | null {
+  if (candidate.length === 0 || candidate.length > MAX_ARGV_PROMPT_CHARS) {
+    return null
+  }
+  return candidate as ValidatedArgvPrompt
+}
+
+/**
  * Nominal-typing brand for a provider whose argv template is known to match
  * the binary that will receive it.
  *
- * This exists because two of the three templates were written from published
- * documentation and never run — and Gemini's documentation is known to
- * describe a flag shipped versions reject (google-gemini/gemini-cli#9009).
- * Spawning on the strength of a document is a guess, and a guess at this
- * boundary is a malformed command line aimed at the student's own account.
+ * This exists because a template written from published documentation and never
+ * run is not the same artefact as one somebody executed — the Gemini template
+ * this app used to carry described a flag shipped versions rejected
+ * (google-gemini/gemini-cli#9009). Spawning on the strength of a document is a
+ * guess, and a guess at this boundary is a malformed command line aimed at the
+ * student's own account.
  * A provider marked `verified` in its spec clears statically; every other
  * provider must be cleared by an observed capability probe, and until then it
  * cannot be passed to a spawn function at all.
@@ -247,11 +296,23 @@ export function clearProvider(
 }
 
 /**
- * Spawns a one-shot, prompt-on-stdin invocation of `provider` (design D1).
+ * Spawns a one-shot invocation of `provider` (design D1).
  *
- * The question is NEVER an argument: the caller writes the composed prompt to
- * `child.stdin` and ends it, which is what keeps arbitrary user text away from
- * the cmd.exe command string.
+ * WHERE THE QUESTION TRAVELS is read off the provider's own spec, never
+ * inferred from its name. For a `stdin` provider it is NEVER an argument: the
+ * caller writes the composed prompt to `child.stdin` and ends it, which is what
+ * keeps arbitrary user text away from the cmd.exe command string. For an `argv`
+ * provider — today only Antigravity, whose `--print` flag never reads stdin —
+ * the branded `prompt` becomes ONE element of the argument vector, stdin is
+ * closed at spawn, and the shim branch is refused outright (see
+ * `spawnWithTemplate`).
+ *
+ * `prompt` trails the injected `spawnFn` deliberately. It applies to exactly
+ * one delivery mode, and putting it earlier would have rewritten every stdin
+ * call site — including the tests that pin Claude's and Codex's exact command
+ * lines — to pass a `null` that means nothing to them. Those command lines are
+ * the thing this parameter must not disturb, so the parameter that does not
+ * apply to them is the one that moved to the end.
  *
  * `attachmentsRoot` is app-computed (`userData/attachments`), but it still
  * enters that command string on the shim branch, so it is re-asserted here
@@ -270,7 +331,8 @@ export function spawnPromptExecution(
   absPath: ValidatedExecutablePath,
   attachmentsRoot: string,
   model: ValidatedModelId,
-  spawnFn: SpawnFn = nodeSpawn
+  spawnFn: SpawnFn = nodeSpawn,
+  prompt: ValidatedArgvPrompt | null = null
 ): ChildProcess {
   return spawnWithTemplate(
     PROVIDER_SPECS[provider as CliProvider].promptArgs,
@@ -278,7 +340,8 @@ export function spawnPromptExecution(
     absPath,
     attachmentsRoot,
     model,
-    spawnFn
+    spawnFn,
+    prompt
   )
 }
 
@@ -286,11 +349,11 @@ export function spawnPromptExecution(
  * Spawns a duplex STREAMING session, so one process can serve many questions
  * instead of dying after one.
  *
- * THROWS for a provider that has no such mode. Only Claude does: Gemini's
- * headless mode and `codex exec` both read a prompt, answer, and exit. That is
- * a measured cost, not a cosmetic difference — a warm process answers in ~2s
- * where a cold spawn costs ~15.5s, nearly all of it boot — so the caller must
- * decide what to do about it rather than receive a quietly degraded session.
+ * THROWS for a provider that has no such mode. Only Claude does: `agy --print`
+ * and `codex exec` both read a prompt, answer, and exit. That is a measured
+ * cost, not a cosmetic difference — a warm process answers in ~2s where a cold
+ * spawn costs ~15.5s, nearly all of it boot — so the caller must decide what to
+ * do about it rather than receive a quietly degraded session.
  */
 export function spawnStreamingSession(
   provider: ClearedProvider,
@@ -318,18 +381,36 @@ function spawnWithTemplate(
   absPath: ValidatedExecutablePath,
   attachmentsRoot: string,
   model: ValidatedModelId,
-  spawnFn: SpawnFn
+  spawnFn: SpawnFn,
+  prompt: ValidatedArgvPrompt | null = null
 ): ChildProcess {
   if (!path.isAbsolute(attachmentsRoot) || UNSAFE_PATH_PATTERN.test(attachmentsRoot)) {
     throw new Error('invalid attachments root')
   }
 
   const spec = PROVIDER_SPECS[provider]
+  const isShim = SHELL_SHIM_EXTENSIONS.has(path.extname(absPath).toLowerCase())
+  const deliversOnArgv = spec.promptDelivery === 'argv'
+
+  if (deliversOnArgv && isShim) {
+    // The shim branch builds a cmd.exe COMMAND STRING, and a question is
+    // arbitrary user text. No quoting scheme makes user text safe inside one,
+    // so this combination is refused rather than escaped cleverly. Nothing
+    // legitimate is lost: agy ships as a real `.exe`.
+    throw new Error(`${provider} delivers its prompt on argv and cannot be spawned through a shell shim`)
+  }
+
   // Branded, so an unvalidated string cannot reach this line at all.
   const modelArgs = [spec.modelFlag, model]
-  const options: SpawnOptions = { shell: false, cwd: attachmentsRoot, stdio: ['pipe', 'pipe', 'pipe'] }
+  const options: SpawnOptions = {
+    shell: false,
+    cwd: attachmentsRoot,
+    // An argv provider's stdin is closed at spawn: the whole prompt is already
+    // in the vector, and agy hangs on an open one (verified on Windows).
+    stdio: deliversOnArgv ? ['ignore', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe']
+  }
 
-  if (SHELL_SHIM_EXTENSIONS.has(path.extname(absPath).toLowerCase())) {
+  if (isShim) {
     const comSpec = process.env.ComSpec ?? 'cmd.exe'
     // Same double-quote wrapping as the probe: `/S` strips the first and last
     // quote on the line, so the outer pair absorbs the strip and leaves both
@@ -340,7 +421,39 @@ function spawnWithTemplate(
   }
 
   const directoryArgs = spec.directoryFlag === null ? [] : [spec.directoryFlag, attachmentsRoot]
-  return spawnFn(absPath, [...template, ...modelArgs, ...directoryArgs], options)
+  return spawnFn(absPath, [...withArgvPrompt(template, spec, prompt), ...modelArgs, ...directoryArgs], options)
+}
+
+/**
+ * Splices an argv provider's question into its own template, immediately after
+ * the flag whose value it is — and leaves a stdin provider's template exactly
+ * as written.
+ *
+ * The question stays ONE element from here to the process: no join, no quoting,
+ * no shell. THROWS when an argv provider arrives without a prompt, because the
+ * alternative is spawning `--print --output-format`, handing the CLI a flag
+ * where its question should be. That is an app-invariant breach, mapped by the
+ * caller to a typed `EXECUTION_FAILED`.
+ */
+function withArgvPrompt(
+  template: readonly string[],
+  spec: ProviderSpec,
+  prompt: ValidatedArgvPrompt | null
+): readonly string[] {
+  if (spec.promptDelivery === 'stdin') {
+    return template
+  }
+
+  if (prompt === null) {
+    throw new Error('an argv-delivery provider cannot be spawned without a prompt')
+  }
+
+  const flagIndex = spec.promptFlag === null ? -1 : template.indexOf(spec.promptFlag)
+  if (flagIndex === -1) {
+    throw new Error('an argv-delivery provider must name its prompt flag inside its own template')
+  }
+
+  return [...template.slice(0, flagIndex + 1), prompt, ...template.slice(flagIndex + 1)]
 }
 
 /**

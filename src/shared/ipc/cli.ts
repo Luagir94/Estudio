@@ -18,7 +18,7 @@ export { ipcErr, ipcOk, type IpcResult }
 // template from a static table inside the spawn boundary. An open string here
 // would mean a payload could name a template that does not exist, or worse,
 // one chosen by something other than this app.
-export const cliProviderSchema = z.enum(['claude', 'gemini', 'codex'])
+export const cliProviderSchema = z.enum(['claude', 'antigravity', 'codex'])
 
 export type CliProvider = z.infer<typeof cliProviderSchema>
 
@@ -26,14 +26,22 @@ export type CliProvider = z.infer<typeof cliProviderSchema>
  * The providers the app actually offers — menu order, and the order the
  * settings screen probes them in.
  *
- * Gemini is deliberately absent. Its argv template was never run against a real
- * binary, and unlike the other two it has no tool allowlist at all: containment
- * would rest on there being nobody present to approve an action rather than on
- * anything stated at the spawn boundary. Its spec and its research are kept in
- * `providerSpec.ts` so re-enabling it is this one line plus a verification
- * pass, not a rewrite.
+ * Gemini was REMOVED rather than disabled: Google deprecated the free-tier
+ * Gemini CLI in favour of Antigravity, so keeping its spec around as
+ * documentation would have been describing a door that no longer opens.
+ * Antigravity replaces it and is ENABLED, because unlike Gemini its template
+ * was run against the real binary (agy.exe 1.1.15 on Windows, 2026-08-19) and
+ * it states its containment at the spawn boundary: `--mode plan` is a read-only
+ * mode, which is exactly what Gemini never had.
+ *
+ * Every provider the wide enum admits is enabled today. That is a fact about
+ * this table, not a reason to collapse the two — `enabledCliProviderSchema`
+ * below stays the write-side gate so the next provider added as unverified is
+ * inert until someone runs it.
+ *
+ * @see https://antigravity.google/docs/cli/headless
  */
-export const CLI_PROVIDERS: readonly CliProvider[] = ['claude', 'codex']
+export const CLI_PROVIDERS: readonly CliProvider[] = ['claude', 'antigravity', 'codex']
 
 export function isProviderEnabled(provider: CliProvider): boolean {
   return CLI_PROVIDERS.includes(provider)
@@ -58,10 +66,12 @@ export const enabledCliProviderSchema = cliProviderSchema.refine(isProviderEnabl
  * The previous design used an opaque three-key enum (`sonnet`/`opus`/`haiku`)
  * resolved to a literal inside the spawn boundary, because the resolved
  * string reaches the `cmd.exe` command line on the Windows shim branch. That
- * enum is gone: no CLI of the three can enumerate the models an account
- * actually has (verified — `claude` has no `models` subcommand, and neither
- * `gemini` nor `codex` documents one), so a fixed table could only ever
- * describe what the app's authors happened to know on the day they wrote it.
+ * enum is gone: no CLI of the three can be asked, from inside this app, for the
+ * models an account actually has (verified — `claude` has no `models`
+ * subcommand and `codex` documents none; `agy models` exists but is a live
+ * network call this app deliberately does not make), so a fixed table could
+ * only ever describe what the app's authors happened to know on the day they
+ * wrote it.
  *
  * What replaces it is this ALLOWLIST OF CHARACTERS. It is a whitelist, never
  * a blacklist: every character that could break out of the cmd.exe vector or
@@ -74,7 +84,9 @@ export const enabledCliProviderSchema = cliProviderSchema.refine(isProviderEnabl
  * The 64-character ceiling keeps a pathological id out of the command line.
  *
  * Every real id of all three providers fits: `sonnet`, `claude-opus-5`,
- * `gemini-2.5-pro`, `gpt-5-codex`, `o3`.
+ * `gemini-3.1-pro-high`, `gpt-5-codex`, `o3`. (Antigravity serves Gemini
+ * models, so its ids are legitimately named after them — that is a MODEL name,
+ * not the removed provider.)
  *
  * The trailing `(\[…\])?` group is the one concession, and it is a CLOSED
  * SHAPE rather than a widening of the character class. Anthropic distinguishes
@@ -113,12 +125,17 @@ export type ModelSelection = z.infer<typeof modelSelectionSchema>
 
 // --- provider status --------------------------------------------------------
 
+/** The three-state classification, shared by the live status and the remembered one. */
+export const cliStatusValueSchema = z.enum(['connected', 'not-found', 'unusable'])
+
+export type CliStatusValue = z.infer<typeof cliStatusValueSchema>
+
 // Same three-state classification the single-provider probe already used
 // (spec "Three-State Status Classification"), now carried per provider. The
 // renderer still never sees a raw exit code or spawn error.
 export const cliProviderStatusSchema = z.object({
   provider: cliProviderSchema,
-  status: z.enum(['connected', 'not-found', 'unusable']),
+  status: cliStatusValueSchema,
   version: z.string().nullable(),
   resolvedPath: z.string().nullable(),
   source: z.enum(['auto', 'override']),
@@ -129,10 +146,12 @@ export const cliProviderStatusSchema = z.object({
    * documentation claims. Null until a capability probe has run.
    *
    * This field is the app's answer to a problem it cannot solve at authoring
-   * time: Gemini's own docs describe an `--output-format` flag that shipped
-   * versions reject (google-gemini/gemini-cli#9009). A template written from
-   * documentation is a guess, and this app does not spawn guesses — it probes
-   * the binary in front of it and records what actually answered.
+   * time: a CLI's own documentation can describe a flag its shipped versions
+   * reject — Gemini's did, for `--output-format`
+   * (google-gemini/gemini-cli#9009), and that provider is gone precisely
+   * because documentation was all it ever had. A template written from a
+   * document is a guess, and this app does not spawn guesses — it probes the
+   * binary in front of it and records what actually answered.
    */
   capabilities: z
     .object({
@@ -148,9 +167,93 @@ export const cliProviderStatusSchema = z.object({
 
 export type CliProviderStatus = z.infer<typeof cliProviderStatusSchema>
 
-export const cliStatusResultSchema = z.array(cliProviderStatusSchema)
+// --- cli:probe --------------------------------------------------------------
 
-export type CliStatusResult = z.infer<typeof cliStatusResultSchema>
+/**
+ * The input of the ONE channel that starts a probe.
+ *
+ * A probe is per PROVIDER and always has been at the service level; what
+ * changed is that no caller may ask for "all of them" any more. There used to
+ * be a `cli:status` channel that probed every supported CLI at once, and the
+ * settings screen fired it on mount — opening Ajustes spawned up to six
+ * short-lived processes for CLIs the student may not even have installed.
+ *
+ * Connecting a CLI is now an explicit act: one button, one provider, one probe.
+ * Removing the bulk channel is what makes that guarantee structural instead of
+ * a habit the next caller can break, because there is no longer an API to
+ * break it with.
+ *
+ * The gate is the NARROW write-side enum, not the wide read-side one: this
+ * payload selects an argv template and starts a process, which is exactly the
+ * boundary `enabledCliProviderSchema` exists to guard.
+ */
+export const probeCliInputSchema = z.object({ provider: enabledCliProviderSchema })
+
+export type ProbeCliInput = z.infer<typeof probeCliInputSchema>
+
+// --- cli:preferences / cli:disconnect ---------------------------------------
+
+/**
+ * What the app has PERSISTED about one CLI, as opposed to what it has observed.
+ *
+ * Everything here is readable without starting a process, which is the whole
+ * reason it is a separate shape from `CliProviderStatus`: the settings screen
+ * and the ask panel both need to know where they stand BEFORE deciding whether
+ * to probe anything, and a screen that had to spawn to find out would be the
+ * fan-out this contract exists to prevent.
+ *
+ * The two fields are deliberately independent:
+ *
+ *  - `connected` is a PERMISSION — which CLIs this app may spawn, never which
+ *    ones work. It exists because the opt-in used to die with the process, so
+ *    the screen re-asked on every launch for a decision already made.
+ *  - `overridePath` is a CORRECTION the student typed. It survives
+ *    disconnecting, because reconnecting should not mean finding an install
+ *    location for a second time.
+ *
+ * A provider can carry a path without being connected — that is exactly the
+ * state a returning student is in after this contract landed — so a shape that
+ * folded the two together could not describe them.
+ *
+ * The WIDE read-side enum: a row persisted by an older build naming a provider
+ * this one no longer enables must still parse, so it can be shown and cleared
+ * rather than throwing on the way out of the database.
+ */
+export const cliPreferenceSchema = z.object({
+  provider: cliProviderSchema,
+  connected: z.boolean(),
+  overridePath: z.string().nullable(),
+  /**
+   * What the LAST probe saw, or `null` when this app has never looked.
+   *
+   * A memory, deliberately not a claim about right now — the binary can be
+   * uninstalled between launches and this row would not know. It is here so a
+   * surface that must not spawn (the ask panel) can still tell a CLI that works
+   * from one that is merely opted in, instead of offering models for a CLI that
+   * would answer nothing.
+   */
+  lastStatus: cliStatusValueSchema.nullable()
+})
+
+export type CliPreference = z.infer<typeof cliPreferenceSchema>
+
+/** One entry per supported provider, in menu order — including the ones with nothing saved. */
+export const cliPreferencesResultSchema = z.array(cliPreferenceSchema)
+
+export type CliPreferencesResult = z.infer<typeof cliPreferencesResultSchema>
+
+/**
+ * Withdrawing the opt-in. Deliberately gated on the WIDE enum, unlike every
+ * other write in this contract.
+ *
+ * The narrow gate exists to stop a payload from reaching a spawn. This payload
+ * REMOVES a permission to spawn, so the reasoning inverts: refusing to
+ * disconnect a provider this build no longer enables would leave the student
+ * with a standing permission they cannot withdraw.
+ */
+export const disconnectCliInputSchema = z.object({ provider: cliProviderSchema })
+
+export type DisconnectCliInput = z.infer<typeof disconnectCliInputSchema>
 
 // --- cli:setOverride --------------------------------------------------------
 

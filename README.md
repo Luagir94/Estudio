@@ -20,7 +20,7 @@ Cross-cutting:
 
 ## How the AI assistant works
 
-The ask panel shells out to a CLI you already have installed locally — Claude Code or Codex — using your own subscription. The app embeds no API key and calls no hosted API of its own. Every answer is typed: grounded in your course data with citations, general knowledge (visibly marked as such), or "not found". Your data stays on disk; only the question and relevant context go to the CLI process you installed and control.
+The ask panel shells out to a CLI you already have installed locally — Claude Code, Antigravity (`agy`) or Codex — using your own subscription. The app embeds no API key and calls no hosted API of its own. Every answer is typed: grounded in your course data with citations, general knowledge (visibly marked as such), or "not found". Your data stays on disk; only the question and relevant context go to the CLI process you installed and control.
 
 ## Quick start
 

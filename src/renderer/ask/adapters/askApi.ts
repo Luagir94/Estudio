@@ -17,7 +17,10 @@ import {
 import type { ModelSelection } from '../../../shared/ipc/cli'
 import {
   cliModelsResultSchema,
-  cliStatusResultSchema,
+  cliPreferencesResultSchema,
+  cliProviderStatusSchema,
+  type CliPreference,
+  type CliProvider,
   type CliProviderStatus,
   type DiscoveredModel
 } from '../../../shared/ipc/cli'
@@ -37,11 +40,17 @@ export class AskApiError extends Error {
 }
 
 /**
- * The SAME key Ajustes uses, so both screens share one cache entry and the
- * CLIs are probed once rather than per surface. Kept here as a constant so the
- * ask slice never imports from the ajustes slice.
+ * The SAME key Ajustes uses, per provider, so a CLI already connected there is
+ * not probed a second time here. Kept as a local function so the ask slice
+ * never imports from the ajustes slice.
+ *
+ * Per PROVIDER, because this panel only ever reads the status of the one CLI
+ * it is about to ask with. It used to fetch a list of all three to then throw
+ * two of them away — six short-lived processes to answer a question about one.
  */
-export const CLI_STATUS_QUERY_KEY = ['cli', 'status'] as const
+export function cliStatusQueryKey(provider: CliProvider): readonly [string, string, CliProvider] {
+  return ['cli', 'status', provider]
+}
 
 /**
  * Its own cache entry, and a long-lived one: the CLI writes its state file
@@ -51,6 +60,17 @@ export const CLI_STATUS_QUERY_KEY = ['cli', 'status'] as const
  */
 export const CLI_MODELS_QUERY_KEY = ['cli', 'models'] as const
 
+/**
+ * The SAME key Ajustes uses for the persisted preferences, so connecting a CLI
+ * over there is reflected here without a second read.
+ *
+ * The panel needs it for two different jobs: deciding whether it can be used at
+ * all, and deciding which CLIs' models are worth offering. Both are questions
+ * about PERMISSION, not about health, which is why neither is answered by a
+ * probe.
+ */
+export const CLI_PREFERENCES_QUERY_KEY = ['cli', 'preferences'] as const
+
 export interface AskApi {
   /** `conversationId` continues that thread; omitted starts a new one. The
    * full `AskTurnResponse` is returned, not just `result`, so the container
@@ -58,8 +78,10 @@ export interface AskApi {
   question(question: string, selection: ModelSelection, conversationId?: number): Promise<AskTurnResponse>
   /** Best-effort; never throws, because it runs on panel unmount. */
   cancel(): Promise<void>
-  /** One status per supported provider — the panel picks the one it is asking with. */
-  status(): Promise<CliProviderStatus[]>
+  /** Probes ONLY the provider the panel is about to ask with. */
+  probe(provider: CliProvider): Promise<CliProviderStatus>
+  /** The opt-in and saved path of every CLI. A settings read — it starts no process. */
+  preferences(): Promise<CliPreference[]>
   /** Models read out of the installed CLI's own state. Never throws — an empty list means nothing was found. */
   models(): Promise<DiscoveredModel[]>
   listConversations(): Promise<ConversationSummary[]>
@@ -88,12 +110,20 @@ export const askApi: AskApi = {
     await window.api.ask.cancel()
   },
 
-  async status() {
-    const result = await window.api.cli.status()
+  async preferences() {
+    const result = await window.api.cli.preferences()
     if (!result.ok) {
       throw new Error(result.error.message)
     }
-    return cliStatusResultSchema.parse(result.data)
+    return cliPreferencesResultSchema.parse(result.data)
+  },
+
+  async probe(provider) {
+    const result = await window.api.cli.probe({ provider })
+    if (!result.ok) {
+      throw new Error(result.error.message)
+    }
+    return cliProviderStatusSchema.parse(result.data)
   },
 
   async models() {

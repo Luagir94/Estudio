@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { createCliProbeService, type AppSettingsPort } from './cliProbeService'
 import type { CapabilityProbe, ProbedCapabilities } from './capabilityProbe'
 import { PROVIDER_SPECS } from './providerSpec'
+import { CLI_PROBE_TIMEOUT_MS } from './probeLimits'
+import { CLI_PROVIDERS } from '../../shared/ipc/cli'
 import type { ValidatedExecutablePath } from '../claude/claudeExecutableValidator'
 
 // Threat matrix (spec "Three-State Status Classification", "Hard Timeout",
@@ -157,6 +159,33 @@ describe('createCliProbeService — three-state classification', () => {
     expect(status.detail).toContain('5000')
   })
 
+  // The injected budget above proves the timeout PATH; this proves the budget
+  // the app actually ships with. They are different failures: a default tuned
+  // below a real CLI's startup reports a working binary as broken, and every
+  // test that injects its own `timeoutMs` is blind to it.
+  it('schedules the shared CLI probe budget when no timeout is injected', async () => {
+    const child = new FakeChildProcess()
+    let scheduledMs: number | undefined
+    const { service } = build(
+      {
+        scheduleTimeout: (_callback, ms) => {
+          scheduledMs = ms
+          return 0 as never
+        },
+        clearScheduledTimeout: () => {}
+      },
+      child
+    )
+
+    const promise = service.probe('claude')
+    await flushAsync()
+    child.stdout.emit('data', '2.1.220 (Claude Code)\n')
+    child.emit('close', 0)
+    await promise
+
+    expect(scheduledMs).toBe(CLI_PROBE_TIMEOUT_MS)
+  })
+
   // Validation gates the SPAWN, not the save: a saved-but-broken override is
   // reported honestly and never rewritten.
   it('reports a saved override that fails pre-spawn validation as unusable, without spawning', async () => {
@@ -184,21 +213,33 @@ describe('createCliProbeService — per-provider resolution', () => {
     const settings = fakeSettings()
     const { service } = build({ resolve, settings })
 
-    await service.probeAll()
+    for (const provider of CLI_PROVIDERS) {
+      await service.probe(provider)
+    }
 
-    // Gemini is disabled, so it is never looked up at all — no PATH walk, no
-    // settings read, no process.
-    expect(resolve.mock.calls.map(([name]) => name)).toEqual(['claude', 'codex'])
+    // One PATH walk and one settings read per ENABLED provider, each under the
+    // provider's own executable name and override key — never a shared one.
+    expect(resolve.mock.calls.map(([name]) => name)).toEqual(['claude', 'agy', 'codex'])
     expect(vi.mocked(settings.get).mock.calls.map(([key]) => key)).toEqual([
       'claude.executableOverride',
+      'antigravity.executableOverride',
       'codex.executableOverride'
     ])
   })
 
-  it('probes every supported provider, in menu order', async () => {
-    const { service } = build({ resolve: vi.fn(async () => null) })
+  // Connecting a CLI is an explicit, per-provider act, so probing one must
+  // leave the other two completely untouched — no PATH walk, no settings read,
+  // and above all no process. This is the RED that would catch a bulk probe
+  // reintroduced behind the single-provider entry point.
+  it('touches only the provider it was asked about', async () => {
+    const resolve = vi.fn(async (_executableName: string): Promise<string | null> => null)
+    const settings = fakeSettings()
+    const { service } = build({ resolve, settings })
 
-    expect((await service.probeAll()).map((entry) => entry.provider)).toEqual(['claude', 'codex'])
+    await service.probe('codex')
+
+    expect(resolve.mock.calls.map(([name]) => name)).toEqual(['codex'])
+    expect(vi.mocked(settings.get).mock.calls.map(([key]) => key)).toEqual(['codex.executableOverride'])
   })
 })
 

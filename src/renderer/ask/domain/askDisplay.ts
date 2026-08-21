@@ -61,11 +61,27 @@ export interface AskModelOption extends ModelSelection {
  * `lastModelUsage` only names what has already been run. On a machine where
  * the CLI is freshly installed, both are empty — and a picker that could not
  * offer Sonnet, its own default, would be broken by its own cleverness.
+ *
+ * For Antigravity it is not a floor but the ENTIRE menu, and that is the one
+ * entry here that is load-bearing rather than defensive. `buildModelGroups`
+ * drops a CLI with zero options, and agy publishes its lineup through a
+ * `models` SUBCOMMAND — a live network call, not a state file — which this app
+ * deliberately does not run. With no baseline rows its section never renders:
+ * connected in Ajustes, absent from the picker, with nothing on screen
+ * explaining the difference.
  */
 export const ASK_BASELINE_MODELS: readonly ModelSelection[] = [
   { provider: 'claude', modelId: 'claude-sonnet-5' },
   { provider: 'claude', modelId: 'claude-opus-5' },
-  { provider: 'claude', modelId: 'claude-haiku-4-5-20251001' }
+  { provider: 'claude', modelId: 'claude-haiku-4-5-20251001' },
+  // Two ids read off `agy models` against the real binary on 2026-08-19: one
+  // from the CLI's own Gemini lineage and one Claude, because the account
+  // reaches both and offering only one would hide half of what it has. They are
+  // listed with no `ASK_MODEL_KNOWLEDGE` entry on purpose — this app has
+  // measured nothing about either, and inventing a description for a row the
+  // student spends their own quota from would be worse than saying nothing.
+  { provider: 'antigravity', modelId: 'gemini-3.1-pro-high' },
+  { provider: 'antigravity', modelId: 'claude-sonnet-4-6' }
 ]
 
 /**
@@ -115,12 +131,12 @@ export const ASK_RECOMMENDED_LABEL = 'Recomendado'
 /** Label for each CLI — the heading of its section in the model menu. */
 export const ASK_PROVIDER_LABEL: Record<CliProvider, string> = {
   claude: 'Claude Code',
-  gemini: 'Gemini CLI',
+  antigravity: 'Antigravity CLI',
   codex: 'Codex CLI'
 }
 
 export const ASK_COMPOSER_PLACEHOLDER = 'Preguntá sobre tu cursada…'
-export const ASK_COMPOSER_PLACEHOLDER_DEGRADED = 'Conectá el CLI para preguntar'
+export const ASK_COMPOSER_PLACEHOLDER_DEGRADED = 'Conectá un CLI para preguntar'
 /**
  * Browsing the conversation list: no thread is on screen, so the composer has
  * nothing to send INTO. It says what to do next rather than going silently
@@ -130,6 +146,24 @@ export const ASK_COMPOSER_PLACEHOLDER_DEGRADED = 'Conectá el CLI para preguntar
  */
 export const ASK_COMPOSER_PLACEHOLDER_BROWSING = 'Elegí una conversación para seguir preguntando'
 export const ASK_DISCLAIMER = 'Esta función usa tu propio uso de Claude'
+
+/**
+ * The panel with NO CLI connected at all — not an error, and deliberately not
+ * one of the typed `AskErrorCode` shapes.
+ *
+ * Every entry in `COPY` describes something main OBSERVED while trying to
+ * answer. This describes the app never having been given permission to try, so
+ * it is the renderer's own account of its own state and stops at the bridge —
+ * the same standing `DETECTING_LABEL` has in the settings screen.
+ *
+ * It is distinct from `CLI_NOT_FOUND`, which means the app looked for the CLI
+ * the student chose and did not find it. Here nobody chose one yet.
+ */
+export const ASK_NO_CLI_CONNECTED: AskErrorCopy = {
+  title: 'Conectá un CLI para preguntar',
+  detail: 'Todavía no conectaste ninguno. Elegí el que uses en Ajustes.',
+  action: 'ajustes'
+}
 export const ASK_CITATIONS_LABEL = 'FUENTES'
 
 /**
@@ -188,8 +222,11 @@ const COPY: Record<AskErrorCode, AskErrorCopy> = {
     detail: 'Tiene que tener texto y no superar los 4000 caracteres.'
   },
   CLI_NOT_FOUND: {
-    title: 'Conectá tu Claude CLI',
-    detail: 'Esta función necesita el CLI de Claude instalado en tu equipo.',
+    // Names no CLI in particular. With three selectable providers, copy that
+    // said 'Claude' sent a student whose Codex install is the missing one off
+    // to install a CLI they were never going to use.
+    title: 'No encontramos ese CLI',
+    detail: 'El CLI que elegiste no está en tu equipo. Revisá su ruta en Ajustes.',
     action: 'ajustes'
   },
   CLI_UNUSABLE: {
@@ -212,6 +249,14 @@ const COPY: Record<AskErrorCode, AskErrorCopy> = {
   OUTPUT_TOO_LARGE: {
     title: 'La respuesta era demasiado larga',
     detail: 'Se cortó para proteger la app. Probá con una pregunta más específica.'
+  },
+  // Deliberately NOT worded like VALIDATION_ERROR: what did not fit is the
+  // question plus every piece of course context the app sends alongside it, so
+  // blaming the question alone would send the student off to shorten something
+  // that was never the problem.
+  PROMPT_TOO_LARGE: {
+    title: 'La consulta quedó demasiado grande para este CLI',
+    detail: 'Este CLI recibe la pregunta como argumento y tiene un límite. Probá acotarla, o preguntá con otro CLI.'
   },
   MALFORMED_RESPONSE: {
     title: 'La respuesta no vino en el formato esperado',

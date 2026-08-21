@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { executionWarningCopy, unusableFriendlyMessage, resolveConnectionTone } from './connectionDisplay'
 
-// Both strings now name the CLI they belong to — a Gemini card carrying a
-// Claude warning would be worse than no warning at all.
+// Both strings now name the CLI they belong to — an Antigravity card carrying
+// a Claude warning would be worse than no warning at all.
 const EXECUTION_WARNING_COPY = executionWarningCopy('claude')
 const UNUSABLE_FRIENDLY_MESSAGE = unusableFriendlyMessage('claude')
 

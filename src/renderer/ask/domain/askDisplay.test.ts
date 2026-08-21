@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { askErrorCodeSchema } from '../../../shared/ipc/ask'
+import { CLI_PROVIDERS, modelIdSchema } from '../../../shared/ipc/cli'
 import {
+  ASK_BASELINE_MODELS,
   ASK_COMPOSER_PLACEHOLDER,
   ASK_DISCLAIMER,
   ASK_MEMORY_BOUNDARY_MARKER,
@@ -9,6 +11,7 @@ import {
   ASK_NOT_SAVED,
   ASK_PANEL_TITLE,
   ASK_PENDING,
+  ASK_PROVIDER_LABEL,
   describeAskError
 } from './askDisplay'
 
@@ -118,5 +121,40 @@ describe('static copy', () => {
   // two spaces after the plus, pinned verbatim.
   it('carries the new-conversation label verbatim, two spaces after the plus', () => {
     expect(ASK_NEW_CONVERSATION_LABEL).toBe('+  Conversación nueva')
+  })
+})
+
+// The floor that keeps the picker usable on a machine where nothing has been
+// discovered — and, for Antigravity, the ONLY route into the menu at all: agy
+// publishes its models through a `models` subcommand nothing here reads.
+describe('ASK_BASELINE_MODELS', () => {
+  // A baseline the picker offers but the spawn boundary then refuses is the one
+  // failure mode worse than not offering the model at all, so every id here
+  // crosses the SAME gate `askService` re-asserts before it spawns.
+  it.each(ASK_BASELINE_MODELS)('offers $modelId in a shape the spawn gate accepts', (selection) => {
+    expect(modelIdSchema.parse(selection.modelId)).toBe(selection.modelId)
+  })
+
+  it.each(ASK_BASELINE_MODELS)('offers $modelId under a CLI this build enables', (selection) => {
+    expect(CLI_PROVIDERS).toContain(selection.provider)
+  })
+
+  // Discovery is additive everywhere else; here it is absent by design, so a
+  // missing baseline would leave the CLI connected in Ajustes and invisible in
+  // the panel.
+  it('names at least one model for the CLI that has no discovery source', () => {
+    expect(ASK_BASELINE_MODELS.filter((entry) => entry.provider === 'antigravity').length).toBeGreaterThan(0)
+  })
+})
+
+describe('ASK_PROVIDER_LABEL', () => {
+  // The menu heading for a CLI with no label would render as `undefined` over
+  // a section the student is about to spend their own quota from.
+  it.each(CLI_PROVIDERS)('names %s in the app own words', (provider) => {
+    expect(ASK_PROVIDER_LABEL[provider].length).toBeGreaterThan(0)
+  })
+
+  it('calls the new provider by its product name', () => {
+    expect(ASK_PROVIDER_LABEL.antigravity).toBe('Antigravity CLI')
   })
 })

@@ -11,7 +11,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Folder, Loader, Plug, SearchX } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { ModelSelection } from '../../../shared/ipc/cli'
-import { AskApiError, askApi, CLI_MODELS_QUERY_KEY, CLI_STATUS_QUERY_KEY } from '../adapters/askApi'
+import {
+  AskApiError,
+  askApi,
+  CLI_PREFERENCES_QUERY_KEY,
+  CLI_MODELS_QUERY_KEY,
+  cliStatusQueryKey
+} from '../adapters/askApi'
 import { readAskModel, writeAskModel } from '../adapters/modelPreference'
 import { AskHistoryList } from '../components/AskHistoryList'
 import { AskPanel } from '../components/AskPanel'
@@ -21,6 +27,7 @@ import { AskTranscript, type AskEntry, type AskEntryInput } from '../components/
 import {
   ASK_BASELINE_MODELS,
   ASK_MODEL_KNOWLEDGE,
+  ASK_NO_CLI_CONNECTED,
   ASK_NOT_FOUND,
   ASK_PENDING,
   ASK_RECOMMENDED_MODELS,
@@ -37,6 +44,9 @@ interface AskPanelContainerProps {
 }
 
 const CONVERSATIONS_QUERY_KEY = ['ask', 'conversations'] as const
+
+/** Parks the status query on a key of its own while nothing is connected, so it never collides with a real provider's entry. */
+const NO_PROVIDER_QUERY_KEY = ['cli', 'status', null] as const
 
 function conversationQueryKey(id: number | null): readonly [string, string, number | null] {
   return ['ask', 'conversation', id]
@@ -59,11 +69,49 @@ export function AskPanelContainer({ onGoToAjustes }: AskPanelContainerProps): Re
   const nextId = useRef(FIRST_LOCAL_ENTRY_SEED)
   const queryClient = useQueryClient()
 
-  const { data: statuses } = useQuery({
-    queryKey: CLI_STATUS_QUERY_KEY,
-    queryFn: askApi.status,
-    // Refetched on open: the user may have just fixed the path in Ajustes.
+  // WHICH CLIs this panel is allowed to use. A settings read, not a probe — it
+  // starts no process, so it may run on open.
+  const { data: preferences } = useQuery({
+    queryKey: CLI_PREFERENCES_QUERY_KEY,
+    queryFn: askApi.preferences,
     enabled: open
+  })
+
+  // Connected AND last seen working. The opt-in alone is not enough to offer a
+  // CLI's models: an opted-in CLI that is missing from the machine would fill
+  // the menu with rows that answer nothing.
+  //
+  // `lastStatus` is a memory, so this can lag reality — a CLI uninstalled since
+  // the last probe still looks available. Ajustes is where a fresh observation
+  // comes from, and the panel's own probe of the SELECTED provider is what
+  // catches it before a question is spent.
+  const available = preferences
+    ?.filter((entry) => entry.connected && entry.lastStatus === 'connected')
+    .map((entry) => entry.provider)
+
+  // The panel asks with whatever the student last chose, but that choice lives
+  // in localStorage and can name a CLI they have since disconnected — or never
+  // connected on this machine. Falling back to the first connected one keeps
+  // the panel usable instead of pinning it to a CLI it may not spawn.
+  const activeProvider = available?.includes(model.provider) ? model.provider : available?.[0]
+
+  // Only the CLI this panel is about to ASK with, never all three: the other
+  // two would be processes spawned to produce values this container drops on
+  // the next line. It shares Ajustes' per-provider cache entry, so a CLI
+  // already probed there is not probed again here.
+  const { data: status } = useQuery({
+    queryKey: activeProvider ? cliStatusQueryKey(activeProvider) : NO_PROVIDER_QUERY_KEY,
+    // The guard is a real check rather than a cast: `enabled` below already
+    // stops this from running without a provider, and a narrowing that depends
+    // on that staying true is a narrowing waiting to be wrong.
+    queryFn: () => {
+      if (!activeProvider) throw new Error('no connected CLI to probe')
+      return askApi.probe(activeProvider)
+    },
+    // Refetched on open: the user may have just fixed the path in Ajustes.
+    // Never enabled without a connected provider — that is the same opt-in gate
+    // the settings screen enforces, stated again on the surface that spawns.
+    enabled: open && activeProvider !== undefined
   })
 
   // What the INSTALLED CLI turned out to have, rather than what this app was
@@ -182,26 +230,33 @@ export function AskPanelContainer({ onGoToAjustes }: AskPanelContainerProps): Re
 
   useEffect(() => cancelQuietly, [])
 
-  // The panel reports on the CLI it is about to ASK, not on Claude by
-  // assumption: with three providers selectable, showing Claude's health while
-  // the user has Gemini selected would be worse than showing nothing.
-  const status = statuses?.find((entry) => entry.provider === model.provider)
-
   // Derived at render, never cached in state: the build is pure and its
   // discovered half is already cached by TanStack Query.
   const modelGroups = buildModelGroups({
     baseline: ASK_BASELINE_MODELS,
     knowledge: ASK_MODEL_KNOWLEDGE,
     recommended: ASK_RECOMMENDED_MODELS,
-    discovered: discoveredModels ?? []
+    discovered: discoveredModels ?? [],
+    // Undefined while the read is in flight: offering nothing for a moment is
+    // honest, whereas offering all three would flash CLIs the student may not
+    // have connected.
+    available: available ?? []
   })
+
+  // No CLI connected at all is its own state, not an error. Nothing was tried,
+  // so there is nothing to report as having failed — the panel says what to do
+  // rather than what went wrong.
+  const noneConnected = available !== undefined && available.length === 0
 
   // A CLI whose installed version rejects the options this app needs is
   // "connected" and still unusable, so the capability observation is part of
   // the gate rather than a footnote.
   const degraded =
-    status !== undefined && (status.status !== 'connected' || status.capabilities?.structuredOutput === false)
-  const degradedCopy = describeAskError(status?.status === 'not-found' ? 'CLI_NOT_FOUND' : 'CLI_UNUSABLE')
+    noneConnected ||
+    (status !== undefined && (status.status !== 'connected' || status.capabilities?.structuredOutput === false))
+  const degradedCopy = noneConnected
+    ? ASK_NO_CLI_CONNECTED
+    : describeAskError(status?.status === 'not-found' ? 'CLI_NOT_FOUND' : 'CLI_UNUSABLE')
 
   const handleSubmit = (): void => {
     const question = draft.trim()

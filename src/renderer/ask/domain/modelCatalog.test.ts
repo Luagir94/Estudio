@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { DiscoveredModel } from '../../../shared/ipc/cli'
+import { CLI_PROVIDERS, type DiscoveredModel } from '../../../shared/ipc/cli'
+import { ASK_BASELINE_MODELS, ASK_MODEL_KNOWLEDGE, ASK_RECOMMENDED_MODELS } from './askDisplay'
 import { buildModelGroups, humanizeModelId } from './modelCatalog'
 
 const BASELINE = [
@@ -12,8 +13,11 @@ const KNOWLEDGE = {
 }
 const RECOMMENDED = ['claude-sonnet-5', 'claude-opus-5']
 
+// Every CLI connected is the DEFAULT for these cases: this file is about how
+// models are grouped, named and ranked, and the permission filter has its own
+// cases at the bottom.
 const build = (discovered: DiscoveredModel[] = [], recommended = RECOMMENDED) =>
-  buildModelGroups({ baseline: BASELINE, knowledge: KNOWLEDGE, recommended, discovered })
+  buildModelGroups({ baseline: BASELINE, knowledge: KNOWLEDGE, recommended, discovered, available: CLI_PROVIDERS })
 
 const flatten = (discovered: DiscoveredModel[] = []) => build(discovered).flatMap((group) => group.options)
 
@@ -102,12 +106,37 @@ describe('buildModelGroups', () => {
     expect(options.filter((option) => option.modelId === 'claude-sonnet-5')).toHaveLength(2)
   })
 
+  // The bug this guards against, reported against the real app: a group with
+  // zero options is dropped, so an ENABLED CLI the app can name no model for is
+  // simply ABSENT from the picker — connected in Ajustes, invisible in the
+  // panel, with nothing on screen to explain the difference.
+  //
+  // Antigravity is the provider where that bites hardest. Claude and Codex both
+  // write model state this app can read; agy publishes its lineup through a
+  // `models` SUBCOMMAND (a live network call), which nothing here reads, so
+  // discovery contributes nothing for it and the baseline is its ONLY route
+  // into the menu.
+  it('gives Antigravity a section from the app baseline alone, with nothing discovered', () => {
+    const groups = buildModelGroups({
+      available: CLI_PROVIDERS,
+      baseline: ASK_BASELINE_MODELS,
+      knowledge: ASK_MODEL_KNOWLEDGE,
+      recommended: ASK_RECOMMENDED_MODELS,
+      discovered: []
+    })
+
+    const antigravity = groups.find((group) => group.provider === 'antigravity')
+    expect(antigravity?.label).toBe('Antigravity CLI')
+    expect(antigravity?.options.map((option) => option.modelId)).toEqual(['gemini-3.1-pro-high', 'claude-sonnet-4-6'])
+  })
+
   describe('the recommendation', () => {
     // The CLI's own ranking wins wherever it exists. It is the only ordering
     // that can speak for models this app has never measured, and using the
     // app's list instead would be inventing an opinion over the vendor's.
     it('follows the CLI own ranking when the CLI publishes one', () => {
       const groups = buildModelGroups({
+        available: CLI_PROVIDERS,
         baseline: [],
         knowledge: KNOWLEDGE,
         recommended: RECOMMENDED,
@@ -123,6 +152,7 @@ describe('buildModelGroups', () => {
 
     it('orders a ranked group the way its CLI ranked it', () => {
       const groups = buildModelGroups({
+        available: CLI_PROVIDERS,
         baseline: [],
         knowledge: KNOWLEDGE,
         recommended: RECOMMENDED,
@@ -148,6 +178,7 @@ describe('buildModelGroups', () => {
 
     it('falls through to the next measured model when the first is not available', () => {
       const groups = buildModelGroups({
+        available: CLI_PROVIDERS,
         baseline: [{ provider: 'claude', modelId: 'claude-opus-5' }],
         knowledge: KNOWLEDGE,
         recommended: RECOMMENDED,
@@ -161,6 +192,7 @@ describe('buildModelGroups', () => {
     // "better" than a Codex one, they spend different accounts entirely.
     it('recommends one model per CLI, not one overall', () => {
       const groups = buildModelGroups({
+        available: CLI_PROVIDERS,
         baseline: BASELINE,
         knowledge: KNOWLEDGE,
         recommended: RECOMMENDED,
@@ -176,6 +208,7 @@ describe('buildModelGroups', () => {
     // vendor ranking nor a measurement would be the app making it up.
     it('recommends nothing in a group that is neither ranked nor known', () => {
       const groups = buildModelGroups({
+        available: CLI_PROVIDERS,
         baseline: [],
         knowledge: KNOWLEDGE,
         recommended: RECOMMENDED,
@@ -190,5 +223,75 @@ describe('buildModelGroups', () => {
 
       expect(groups[0]?.options.find((option) => option.recommended)?.modelId).toBe('claude-opus-5')
     })
+  })
+})
+
+// The picker is bounded by PERMISSION, not by preference. The app cannot spawn
+// a CLI the student has not connected — main refuses it at the process
+// boundary — so a menu still listing its models would be offering rows that
+// answer nothing.
+describe('buildModelGroups — only available CLIs', () => {
+  const withConnected = (connected: readonly ('claude' | 'antigravity' | 'codex')[]) =>
+    buildModelGroups({
+      baseline: ASK_BASELINE_MODELS,
+      knowledge: ASK_MODEL_KNOWLEDGE,
+      recommended: ASK_RECOMMENDED_MODELS,
+      discovered: [],
+      available: connected
+    })
+
+  it('offers nothing at all when no CLI is connected', () => {
+    expect(withConnected([])).toEqual([])
+  })
+
+  // The baseline exists to keep the picker usable with zero DISCOVERIES, never
+  // to advertise a CLI the student does not have.
+  it('drops a CLI the baseline would otherwise have filled a section for', () => {
+    expect(withConnected(['claude']).map((group) => group.provider)).toEqual(['claude'])
+  })
+
+  // Antigravity rather than Codex, because the baseline covers it: being
+  // connected is what ADMITS a CLI to the menu, but having something to offer
+  // is still what fills a section. Codex reaches the picker only through
+  // discovery, and asserting it here would be testing the baseline table
+  // rather than the permission filter.
+  it('offers a section for each connected CLI that has models', () => {
+    expect(withConnected(['claude', 'antigravity']).map((group) => group.provider)).toEqual(['claude', 'antigravity'])
+  })
+
+  // Menu order is the app's, so connecting a second CLI slots it into the place
+  // it would always have had rather than appending it where it was connected.
+  it('keeps menu order regardless of the order the CLIs were connected in', () => {
+    expect(withConnected(['antigravity', 'claude']).map((group) => group.provider)).toEqual(['claude', 'antigravity'])
+  })
+
+  it('drops a discovered model whose CLI is not connected', () => {
+    const groups = buildModelGroups({
+      baseline: [],
+      knowledge: {},
+      recommended: [],
+      discovered: [{ provider: 'codex', modelId: 'gpt-5.5', origin: 'catalog', rank: 1 }],
+      available: ['claude']
+    })
+
+    expect(groups).toEqual([])
+  })
+})
+
+// Being opted in is not the same as being usable. A CLI can be connected and
+// missing from the machine — that is exactly the state a student lands in after
+// pointing the app at an executable that later moved.
+describe('buildModelGroups — an opted-in CLI that does not work', () => {
+  it('offers no section for it', () => {
+    const groups = buildModelGroups({
+      baseline: ASK_BASELINE_MODELS,
+      knowledge: ASK_MODEL_KNOWLEDGE,
+      recommended: ASK_RECOMMENDED_MODELS,
+      discovered: [],
+      // Antigravity is connected but not found, so the caller leaves it out.
+      available: ['claude']
+    })
+
+    expect(groups.map((group) => group.provider)).toEqual(['claude'])
   })
 })

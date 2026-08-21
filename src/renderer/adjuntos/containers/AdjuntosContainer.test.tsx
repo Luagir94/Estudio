@@ -74,7 +74,7 @@ beforeEach(() => {
       getConversation: vi.fn(),
       deleteConversation: vi.fn()
     },
-    cli: { status: vi.fn(), setOverride: vi.fn(), models: vi.fn() }
+    cli: { probe: vi.fn(), setOverride: vi.fn(), preferences: vi.fn(), disconnect: vi.fn(), models: vi.fn() }
   }
 })
 

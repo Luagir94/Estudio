@@ -1,24 +1,26 @@
 import type { ChildProcess } from 'node:child_process'
 import log from 'electron-log'
 import { spawnHelpProbe, type ValidatedExecutablePath } from '../claude/claudeExecutableValidator'
-import { declaredCapabilities, PROVIDER_SPECS } from './providerSpec'
+import { declaredCapabilities, PROVIDER_SPECS, type ProviderSpec } from './providerSpec'
+import { CLI_PROBE_TIMEOUT_MS } from './probeLimits'
 import type { CliProvider } from '../../shared/ipc/cli'
 
 // Asks an INSTALLED binary which flags it actually accepts, instead of
 // trusting what its documentation says.
 //
-// This module exists because of a specific, verified failure mode. Claude's
-// argv template was checked against the real CLI; the Gemini and Codex
-// templates were written from published references and never run — and
-// Gemini's own documentation describes an `--output-format` flag that shipped
-// versions reject (google-gemini/gemini-cli#9009). A template built on a
-// document is a hypothesis, and spawning a hypothesis at this boundary means
-// aiming a malformed command line at the student's own account.
+// This module exists because of a specific, verified failure mode. Every
+// template the app ships today was checked against its real binary, but that is
+// a fact about today's table: the Gemini template that used to sit beside them
+// was written from a published reference and never run, and Gemini's own
+// documentation described an `--output-format` flag that shipped versions
+// rejected (google-gemini/gemini-cli#9009). A template built on a document is a
+// hypothesis, and spawning a hypothesis at this boundary means aiming a
+// malformed command line at the student's own account.
 //
 // The probe reads a help page. That is deliberately the cheapest possible
 // observation: no tokens, no account, no network, no model. It cannot prove
 // the flags BEHAVE correctly — only a real question can do that — but it does
-// prove the binary knows them, which is exactly the failure the Gemini issue
+// prove the binary knows them, which is exactly the failure that issue
 // describes and exactly what separates "unverified" from "confirmed".
 //
 // That ceiling is not theoretical. The codex template shipped without
@@ -35,7 +37,7 @@ import type { CliProvider } from '../../shared/ipc/cli'
 // Nothing here imports `child_process`: the spawn comes from the validator,
 // the sole spawn site, as `cliProbeService` already does.
 
-const DEFAULT_TIMEOUT_MS = 5000
+const DEFAULT_TIMEOUT_MS = CLI_PROBE_TIMEOUT_MS
 
 export interface ProbedCapabilities {
   /** The provider's structured-output flags are all listed by the binary. */
@@ -51,6 +53,13 @@ export type TimeoutHandle = ReturnType<typeof setTimeout>
 export interface CapabilityProbeDeps {
   /** Starts the help probe. Defaults to the validator's real export. */
   spawn?: (provider: CliProvider, absPath: ValidatedExecutablePath) => ChildProcess
+  /**
+   * The table the templates are read from. Injected for the same reason every
+   * other effect here is: the branch this module exists for only runs for an
+   * UNVERIFIED spec, and every spec the app ships is verified — so its only
+   * remaining subject is a spec supplied as data.
+   */
+  specs?: Record<CliProvider, ProviderSpec>
   timeoutMs?: number
   scheduleTimeout?: (callback: () => void, ms: number) => TimeoutHandle
   clearScheduledTimeout?: (handle: TimeoutHandle) => void
@@ -88,14 +97,15 @@ const defaultSpawn = (provider: CliProvider, absPath: ValidatedExecutablePath): 
 
 export function createCapabilityProbe({
   spawn = defaultSpawn,
+  specs = PROVIDER_SPECS,
   timeoutMs = DEFAULT_TIMEOUT_MS,
   scheduleTimeout = (callback, ms) => setTimeout(callback, ms),
   clearScheduledTimeout = (handle) => clearTimeout(handle),
   logger = log
 }: CapabilityProbeDeps = {}): CapabilityProbe {
   async function probe(provider: CliProvider, absPath: ValidatedExecutablePath): Promise<ProbedCapabilities> {
-    const spec = PROVIDER_SPECS[provider]
-    const declared = declaredCapabilities(provider)
+    const spec = specs[provider]
+    const declared = declaredCapabilities(spec)
 
     // A verified template needs no confirmation: it was run against a real
     // binary when it was written. Probing it anyway would make the app's own
@@ -122,9 +132,9 @@ export function createCapabilityProbe({
       structuredOutput,
       warmSession,
       // Never upgraded by a probe: whether a provider can be confined to a
-      // read-only tool set is a property of its ARGV VOCABULARY, not of what
-      // its help page happens to print. Gemini has no allowlist flag at all,
-      // and no amount of probing invents one.
+      // read-only tool set is a property of its ARGV VOCABULARY, declared on
+      // its spec, not of what its help page happens to print. A CLI with no
+      // such flag has none, and no amount of probing invents one.
       readOnlyTools: declared.readOnlyTools && structuredOutput
     }
   }

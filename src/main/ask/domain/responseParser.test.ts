@@ -82,8 +82,8 @@ describe('parseAskResponse', () => {
 })
 
 // Every CLI wraps the model's answer differently, and only the OUTER layer
-// differs. These prove the inner contract is identical across all three: a
-// Gemini answer and a Claude answer are the same typed value by the time
+// differs. These prove the inner contract is identical across all three: an
+// Antigravity answer and a Claude answer are the same typed value by the time
 // anything downstream sees them.
 
 /** The inner payload every provider is asked to produce, as the model writes it. */
@@ -93,11 +93,27 @@ const INNER = JSON.stringify({
   citations: [{ kind: 'archivo', subject: 'Física', file: 'apunte-clase-3.pdf' }]
 })
 
-describe('parseAskResponse — gemini-json envelope', () => {
-  it('reads the answer out of the { response, stats } envelope', () => {
-    const rawStdout = JSON.stringify({ response: INNER, stats: { tools: { totalCalls: 0 } } })
+describe('parseAskResponse — antigravity-json envelope', () => {
+  /**
+   * The single completion object `agy --output-format json` prints — shaped
+   * exactly like the output captured from the real binary (agy 1.1.15): a
+   * successful run carries NO `error` key at all, and `structured_output`
+   * appears only under `--json-schema`. Built whole here so every case below
+   * is one field away from a real successful run.
+   */
+  const envelope = (overrides: Record<string, unknown> = {}): string =>
+    JSON.stringify({
+      conversation_id: '51872578-f09a-4d00-b68d-8943b9955aed',
+      status: 'SUCCESS',
+      response: INNER,
+      duration_seconds: 3.4500712,
+      num_turns: 1,
+      usage: { input_tokens: 18989, output_tokens: 85, thinking_tokens: 84, cache_read_tokens: 0, total_tokens: 19074 },
+      ...overrides
+    })
 
-    const parsed = parseAskResponse(rawStdout, 'gemini-json')
+  it('reads the answer out of the { status, response, usage } envelope', () => {
+    const parsed = parseAskResponse(envelope(), 'antigravity-json')
 
     expect(parsed.ok).toBe(true)
     if (parsed.ok && parsed.data.kind === 'answer') {
@@ -106,18 +122,62 @@ describe('parseAskResponse — gemini-json envelope', () => {
   })
 
   it('strips a fence the model wrapped its JSON in', () => {
-    const rawStdout = JSON.stringify({ response: '\u0060\u0060\u0060json\n' + INNER + '\n\u0060\u0060\u0060' })
+    const fenced = envelope({ response: ['```json', INNER, '```'].join('\n') })
 
-    expect(parseAskResponse(rawStdout, 'gemini-json').ok).toBe(true)
+    expect(parseAskResponse(fenced, 'antigravity-json').ok).toBe(true)
   })
 
-  // A failed Gemini run reports its error INSIDE an otherwise successful
-  // envelope. Reading `response` past it would surface the CLI's own failure
+  // The verified failure envelope, captured verbatim from the real binary: a
+  // well-formed object on stdout carrying `status: ERROR` and a populated
+  // `error`. Reading `response` past that would surface the CLI's own failure
   // text as though the model had answered the student's question.
-  it('refuses an envelope carrying an error, even with a response present', () => {
-    const rawStdout = JSON.stringify({ response: INNER, error: { message: 'quota exceeded', code: 429 } })
+  it('refuses the ERROR envelope the binary prints for an empty prompt', () => {
+    const rawStdout = JSON.stringify({
+      conversation_id: '',
+      status: 'ERROR',
+      response: '',
+      error: 'Error: empty prompt. Usage: agy --print "your prompt here"',
+      duration_seconds: 0,
+      num_turns: 0,
+      usage: { input_tokens: 0, output_tokens: 0, thinking_tokens: 0, cache_read_tokens: 0, total_tokens: 0 }
+    })
 
-    const parsed = parseAskResponse(rawStdout, 'gemini-json')
+    const parsed = parseAskResponse(rawStdout, 'antigravity-json')
+
+    expect(parsed.ok).toBe(false)
+    if (!parsed.ok) expect(parsed.code).toBe('MALFORMED_RESPONSE')
+  })
+
+  // Two independent failure signals, and EITHER one is disqualifying: a run
+  // that reports an error is a failed run even when it also carries a response,
+  // and a non-SUCCESS status is a failed run even when it reports no error.
+  it('refuses an envelope carrying an error even when a response is present', () => {
+    expect(parseAskResponse(envelope({ error: 'quota exceeded' }), 'antigravity-json').ok).toBe(false)
+  })
+
+  it.each(['ERROR', 'CANCELED', 'INTERRUPTED', 'INVALID', 'WAITING', 'RUNNING'])(
+    'refuses the %s status even with a complete response beside it',
+    (status) => {
+      expect(parseAskResponse(envelope({ status }), 'antigravity-json').ok).toBe(false)
+    }
+  )
+
+  // An empty `error` string is not an error. The binary omits the key entirely
+  // on success, but a future build that always emitted it must not turn every
+  // good answer into a failure.
+  it('still accepts a run that reports an empty error string', () => {
+    expect(parseAskResponse(envelope({ error: '' }), 'antigravity-json').ok).toBe(true)
+  })
+
+  // The THIRD failure mode, and the nastiest: exit 0 with nothing at all on
+  // stdout, because a tool needed a permission headless mode cannot prompt for.
+  // Nothing is not an answer — and it must never become an empty one.
+  it.each([
+    ['completely empty stdout', ''],
+    ['whitespace only', '   \n  \n'],
+    ['stdout that is not JSON at all', 'jetski: no output produced — a tool required a permission']
+  ])('refuses %s rather than reporting an empty success', (_label, rawStdout) => {
+    const parsed = parseAskResponse(rawStdout, 'antigravity-json')
 
     expect(parsed.ok).toBe(false)
     if (!parsed.ok) expect(parsed.code).toBe('MALFORMED_RESPONSE')
@@ -126,7 +186,15 @@ describe('parseAskResponse — gemini-json envelope', () => {
   // Claude's envelope names the field `result`. Accepting it here would mean
   // the parser was not actually checking which CLI it was reading.
   it('does not accept the Claude envelope', () => {
-    expect(parseAskResponse(JSON.stringify({ result: INNER }), 'gemini-json').ok).toBe(false)
+    expect(parseAskResponse(JSON.stringify({ result: INNER }), 'antigravity-json').ok).toBe(false)
+  })
+
+  // The citation floor is the app's, not the provider's: an answer without a
+  // source is refused no matter which CLI produced it.
+  it('still enforces the citation floor on an answer from this provider', () => {
+    const noCitations = JSON.stringify({ kind: 'answer', answer: 'Un anillo es…', citations: [] })
+
+    expect(parseAskResponse(envelope({ response: noCitations }), 'antigravity-json').ok).toBe(false)
   })
 })
 

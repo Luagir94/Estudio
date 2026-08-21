@@ -47,38 +47,58 @@ const statusFor = (provider: CliProviderStatus['provider']): CliProviderStatus =
 describe('registerCliHandlers', () => {
   let probeService: CliProbeService
   let settingsRepository: { set: (key: string, value: string | null) => void }
+  let settings: { get: (key: string) => string | null }
   let modelCatalog: ModelCatalog
 
   beforeEach(() => {
     ipcMainMock.handlers.clear()
     vi.clearAllMocks()
     probeService = {
-      probeAll: vi.fn(async () => [statusFor('claude'), statusFor('codex')]),
       probe: vi.fn(async (provider) => statusFor(provider)),
-      capabilities: vi.fn(() => null)
+      capabilities: vi.fn(() => null),
+      forget: vi.fn()
     }
     settingsRepository = { set: vi.fn() }
+    settings = { get: vi.fn(() => null) }
     modelCatalog = {
       discover: vi.fn(async () => [
         { provider: 'claude' as const, modelId: 'claude-fable-5[1m]', origin: 'catalog' as const, rank: null }
       ])
     }
-    registerCliHandlers({ probeService, settingsRepository, modelCatalog })
+    registerCliHandlers({ probeService, settings, settingsRepository, modelCatalog })
   })
 
-  describe('cli:status', () => {
-    it('returns one status per supported provider in the ok envelope', async () => {
-      const result = await invoke('cli:status')
+  describe('cli:probe', () => {
+    it('probes the named provider and returns its status in the ok envelope', async () => {
+      const result = await invoke('cli:probe', { provider: 'codex' })
 
-      expect(result).toEqual({ ok: true, data: [statusFor('claude'), statusFor('codex')] })
+      expect(result).toEqual({ ok: true, data: statusFor('codex') })
+      expect(probeService.probe).toHaveBeenCalledTimes(1)
+      expect(probeService.probe).toHaveBeenCalledWith('codex')
+    })
+
+    it.each([
+      ['an empty payload', {}],
+      ['no payload at all', undefined],
+      ['a provider this app has never heard of', { provider: 'ollama' }],
+      // Same standing-in fixture id `cli:setOverride` uses: the write-side gate
+      // is what keeps an unenabled provider from reaching a spawn, and every
+      // provider the contract admits today happens to be enabled.
+      ['a provider the enabled gate refuses', { provider: 'fixture-cli' }]
+    ])('rejects %s without starting a process', async (_label, payload) => {
+      const result = (await invoke('cli:probe', payload)) as { ok: boolean; error: { code: string } }
+
+      expect(result.ok).toBe(false)
+      expect(result.error.code).toBe('VALIDATION_ERROR')
+      expect(probeService.probe).not.toHaveBeenCalled()
     })
 
     it('never throws across the bridge when the probe service rejects', async () => {
-      probeService.probeAll = vi.fn(async () => {
+      probeService.probe = vi.fn(async () => {
         throw new Error('probe exploded')
       })
 
-      const result = (await invoke('cli:status')) as { ok: boolean; error: { code: string } }
+      const result = (await invoke('cli:probe', { provider: 'claude' })) as { ok: boolean; error: { code: string } }
 
       expect(result.ok).toBe(false)
       expect(result.error.code).toBe('PROBE_FAILED')
@@ -91,10 +111,14 @@ describe('registerCliHandlers', () => {
       ['a payload missing the path key', { provider: 'claude' }],
       ['an empty-string path', { provider: 'claude', path: '' }],
       ['a non-string, non-null path', { provider: 'claude', path: 42 }],
-      ['a provider this app does not support', { provider: 'ollama', path: 'C:\\tools\\ollama.exe' }],
-      // Disabled, not unknown: the spec still exists, but the write-side schema
-      // refuses it so it can never reach a settings key or a spawn.
-      ['a provider that is disabled in this build', { provider: 'gemini', path: 'C:\\tools\\gemini.cmd' }]
+      ['a provider this app has never heard of', { provider: 'ollama', path: 'C:\\tools\\ollama.exe' }],
+      // A provider name the write-side gate refuses, so it can never reach a
+      // settings key or a spawn. Gemini used to be the real instance of this —
+      // described in the table, absent from the enabled list — and every
+      // provider the contract now admits is enabled, so the case is carried by
+      // a fixture id standing exactly where a disabled one would. The gate
+      // itself keeps its own coverage in `shared/ipc/cli.test.ts`.
+      ['a provider the enabled gate refuses', { provider: 'fixture-cli', path: 'C:\\tools\\fixture-cli.exe' }]
     ])('rejects %s without persisting or re-probing', async (_label, payload) => {
       const result = (await invoke('cli:setOverride', payload)) as { ok: boolean; error: { code: string } }
 
@@ -127,7 +151,6 @@ describe('registerCliHandlers', () => {
 
       expect(probeService.probe).toHaveBeenCalledTimes(1)
       expect(probeService.probe).toHaveBeenCalledWith('codex')
-      expect(probeService.probeAll).not.toHaveBeenCalled()
     })
 
     it('never throws across the bridge when persisting the override fails', async () => {
@@ -194,6 +217,147 @@ describe('registerCliHandlers', () => {
         ok: true,
         data: [{ provider: 'claude', modelId: 'claude-sonnet-5', origin: 'used', rank: null }]
       })
+    })
+  })
+
+  // The opt-in is a PERMISSION the app persists, distinct from the probe result:
+  // it says which CLIs may be spawned, never which ones work.
+  describe('registerCliHandlers — the opt-in', () => {
+    it('records the opt-in when a probe is requested, before the probe runs', async () => {
+      await invoke('cli:probe', { provider: 'codex' })
+
+      expect(settingsRepository.set).toHaveBeenCalledWith('codex.connected', '1')
+    })
+
+    // The decision is just as real when the binary turns out to be missing — the
+    // row is what makes the screen re-check next launch instead of re-asking.
+    it('records it even when the probe answers not-found', async () => {
+      probeService.probe = vi.fn(async (provider) => ({ ...statusFor(provider), status: 'not-found' as const }))
+
+      await invoke('cli:probe', { provider: 'claude' })
+
+      expect(settingsRepository.set).toHaveBeenCalledWith('claude.connected', '1')
+    })
+
+    // Typing a path is how a student connects a CLI that PATH autodetection
+    // cannot find, so it must persist the same way pressing Conectar does.
+    it('records it when a manual path is committed', async () => {
+      await invoke('cli:setOverride', { provider: 'codex', path: 'C:\tools\codex.cmd' })
+
+      expect(settingsRepository.set).toHaveBeenCalledWith('codex.connected', '1')
+    })
+
+    it('reports the opt-in and the saved path of every provider', async () => {
+      settings.get = vi.fn((key: string) =>
+        key === 'claude.connected' ? '1' : key === 'antigravity.executableOverride' ? 'C:\agy\agy.exe' : null
+      )
+
+      await expect(invoke('cli:preferences')).resolves.toEqual({
+        ok: true,
+        data: [
+          { provider: 'claude', connected: true, overridePath: null, lastStatus: null },
+          // A saved path WITHOUT the opt-in: exactly the state a returning
+          // student is in, and the reason these two fields cannot be folded
+          // into one.
+          { provider: 'antigravity', connected: false, overridePath: 'C:\agy\agy.exe', lastStatus: null },
+          { provider: 'codex', connected: false, overridePath: null, lastStatus: null }
+        ]
+      })
+    })
+
+    it('reports every provider as unconnected and unconfigured on a fresh install', async () => {
+      await expect(invoke('cli:preferences')).resolves.toEqual({
+        ok: true,
+        data: [
+          { provider: 'claude', connected: false, overridePath: null, lastStatus: null },
+          { provider: 'antigravity', connected: false, overridePath: null, lastStatus: null },
+          { provider: 'codex', connected: false, overridePath: null, lastStatus: null }
+        ]
+      })
+    })
+
+    describe('cli:disconnect', () => {
+      it('clears the opt-in row', async () => {
+        await expect(invoke('cli:disconnect', { provider: 'codex' })).resolves.toEqual({ ok: true, data: undefined })
+        expect(settingsRepository.set).toHaveBeenCalledWith('codex.connected', null)
+      })
+
+      // `askService` reads the capability cache to decide whether a provider may
+      // be spawned, so a stale clearance would let a disconnected CLI answer one
+      // more question.
+      it('drops whatever the probe had observed', async () => {
+        await invoke('cli:disconnect', { provider: 'codex' })
+
+        expect(probeService.forget).toHaveBeenCalledWith('codex')
+      })
+
+      // The path is a correction the student typed, not a permission. Discarding
+      // it would make reconnecting mean re-finding an install location.
+      it('leaves the manual path override in place', async () => {
+        await invoke('cli:disconnect', { provider: 'codex' })
+
+        expect(settingsRepository.set).not.toHaveBeenCalledWith('codex.executableOverride', null)
+      })
+
+      // The narrow write-side gate exists to stop a payload reaching a spawn.
+      // This payload REMOVES a permission to spawn, so refusing a provider this
+      // build no longer enables would strand a standing permission.
+      it('accepts any provider the contract has ever known', async () => {
+        const result = (await invoke('cli:disconnect', { provider: 'antigravity' })) as { ok: boolean }
+
+        expect(result.ok).toBe(true)
+      })
+
+      it.each([
+        ['an empty payload', {}],
+        ['a provider this app has never heard of', { provider: 'ollama' }]
+      ])('rejects %s', async (_label, payload) => {
+        const result = (await invoke('cli:disconnect', payload)) as { ok: boolean; error: { code: string } }
+
+        expect(result.ok).toBe(false)
+        expect(result.error.code).toBe('VALIDATION_ERROR')
+        expect(settingsRepository.set).not.toHaveBeenCalled()
+      })
+    })
+
+    // A surface that must not spawn still has to tell a working CLI from one
+    // that is merely opted in, so what the probe saw is remembered.
+    it('remembers what the probe saw', async () => {
+      probeService.probe = vi.fn(async (provider) => ({ ...statusFor(provider), status: 'not-found' as const }))
+
+      await invoke('cli:probe', { provider: 'codex' })
+
+      expect(settingsRepository.set).toHaveBeenCalledWith('codex.lastStatus', 'not-found')
+    })
+
+    it('remembers it after a manual path is committed too', async () => {
+      await invoke('cli:setOverride', { provider: 'codex', path: 'C:\tools\codex.cmd' })
+
+      expect(settingsRepository.set).toHaveBeenCalledWith('codex.lastStatus', 'connected')
+    })
+
+    it('reports the remembered outcome', async () => {
+      settings.get = vi.fn((key: string) => (key === 'claude.lastStatus' ? 'unusable' : null))
+
+      const result = (await invoke('cli:preferences')) as { data: { provider: string; lastStatus: string | null }[] }
+
+      expect(result.data[0]).toMatchObject({ provider: 'claude', lastStatus: 'unusable' })
+    })
+
+    // A value this build does not recognise is not a status. Passing it through
+    // would put a string the renderer cannot map into a typed field.
+    it('reports null for a remembered value it does not recognise', async () => {
+      settings.get = vi.fn((key: string) => (key === 'claude.lastStatus' ? 'sideways' : null))
+
+      const result = (await invoke('cli:preferences')) as { data: { lastStatus: string | null }[] }
+
+      expect(result.data[0].lastStatus).toBeNull()
+    })
+
+    it('forgets the remembered outcome when the CLI is disconnected', async () => {
+      await invoke('cli:disconnect', { provider: 'codex' })
+
+      expect(settingsRepository.set).toHaveBeenCalledWith('codex.lastStatus', null)
     })
   })
 })

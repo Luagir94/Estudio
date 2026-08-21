@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AskResult, ConversationSummary, GetConversationResult } from '../../../shared/ipc/ask'
 import type { CliProviderStatus } from '../../../shared/ipc/cli'
-import { AskApiError, askApi, CLI_STATUS_QUERY_KEY } from './askApi'
+import { AskApiError, askApi, cliStatusQueryKey } from './askApi'
 
 const answer: AskResult = {
   kind: 'answer',
@@ -21,9 +21,6 @@ const connected: CliProviderStatus = {
   capabilities: { structuredOutput: true, warmSession: true, readOnlyTools: true }
 }
 
-/** The channel answers with one entry per supported provider. */
-const allConnected: CliProviderStatus[] = [connected]
-
 describe('askApi', () => {
   beforeEach(() => {
     // @ts-expect-error test-only global stub
@@ -35,7 +32,7 @@ describe('askApi', () => {
         getConversation: vi.fn(),
         deleteConversation: vi.fn()
       },
-      cli: { status: vi.fn(), setOverride: vi.fn(), models: vi.fn() }
+      cli: { probe: vi.fn(), setOverride: vi.fn(), preferences: vi.fn(), disconnect: vi.fn(), models: vi.fn() }
     }
   })
 
@@ -146,17 +143,26 @@ describe('askApi', () => {
     })
   })
 
-  describe('status', () => {
-    it('parses the shared CLI status payload', async () => {
-      vi.mocked(window.api.cli.status).mockResolvedValue({ ok: true, data: allConnected })
+  describe('probe', () => {
+    it('parses the CLI status payload', async () => {
+      vi.mocked(window.api.cli.probe).mockResolvedValue({ ok: true, data: connected })
 
-      expect(await askApi.status()).toEqual(allConnected)
+      expect(await askApi.probe('claude')).toEqual(connected)
     })
 
-    // Same key as Ajustes so the two screens share one cache entry instead of
-    // probing the CLI twice.
-    it('shares the claude status query key', () => {
-      expect(CLI_STATUS_QUERY_KEY).toEqual(['cli', 'status'])
+    // The panel asks about ONE CLI — the one it is about to spend a question
+    // on. Probing the other two would spawn processes for answers it discards.
+    it('probes only the provider it was given', async () => {
+      vi.mocked(window.api.cli.probe).mockResolvedValue({ ok: true, data: { ...connected, provider: 'codex' } })
+
+      await askApi.probe('codex')
+
+      expect(window.api.cli.probe).toHaveBeenCalledWith({ provider: 'codex' })
+    })
+
+    // Same key as Ajustes so a CLI connected there is not probed again here.
+    it('shares the per-provider status query key with Ajustes', () => {
+      expect(cliStatusQueryKey('codex')).toEqual(['cli', 'status', 'codex'])
     })
   })
 

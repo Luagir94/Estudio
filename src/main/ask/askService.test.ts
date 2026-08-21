@@ -3,7 +3,7 @@ import type { ChildProcess } from 'node:child_process'
 import { describe, expect, it, vi } from 'vitest'
 import { createAskService, type AskHistoryPort, type AskHistoryTurn, type AskServiceDeps } from './askService'
 import { ASK_MAX_FILE_BYTES } from './domain/limits'
-import type { ValidatedExecutablePath } from '../claude/claudeExecutableValidator'
+import { MAX_ARGV_PROMPT_CHARS, type ValidatedExecutablePath } from '../claude/claudeExecutableValidator'
 
 // Orchestration for `ask:question` (design D3/D4). Mirrors
 // `claudeProbeService.test.ts`: every external effect — resolver, settings,
@@ -127,7 +127,10 @@ function buildService(overrides: Partial<AskServiceDeps> = {}): {
   const logs: string[] = []
 
   const service = createAskService({
-    settings: { get: () => null },
+    // Connected by DEFAULT: these cases are about spawning, not about
+    // permission, and the opt-in gate has its own block below. Any other key
+    // (the manual path override) stays absent, which is autodetection.
+    settings: { get: (key: string) => (key.endsWith('.connected') ? '1' : null) },
     attachmentsRoot: ATTACHMENTS_ROOT,
     appData: { read: () => ({ subjects: [], deadlines: [], finals: [], periods: [] }) },
     ...defaultRepos(),
@@ -278,7 +281,9 @@ describe('createAskService — spawn and stdin', () => {
 
     await service.ask('¿Qué es un anillo?', SELECTION)
 
-    expect(spawnPrompt).toHaveBeenCalledWith('claude', VALIDATED, ATTACHMENTS_ROOT, 'claude-sonnet-5')
+    // The trailing `null` IS the assertion that the question stayed off argv:
+    // it is the argv-prompt slot, and a stdin provider must never fill it.
+    expect(spawnPrompt).toHaveBeenCalledWith('claude', VALIDATED, ATTACHMENTS_ROOT, 'claude-sonnet-5', null)
     expect(last().writes.join('')).toContain('¿Qué es un anillo?')
     expect(last().isEnded()).toBe(true)
   })
@@ -617,5 +622,161 @@ describe('createAskService — conversation continuation and persistence', () =>
     const outcome = await service.ask('¿Qué es un anillo?', SELECTION, 7)
 
     expect(outcome).toEqual({ ok: false, code: 'MALFORMED_RESPONSE' })
+  })
+})
+
+// Antigravity is the one provider whose question cannot travel on stdin:
+// verified against agy.exe 1.1.15, `--print` is a required-VALUE flag and the
+// binary never reads a prompt from stdin. The service is what decides which
+// delivery a provider gets, and it reads that off the provider's own spec.
+describe('createAskService — argv prompt delivery', () => {
+  const ANTIGRAVITY = { provider: 'antigravity', modelId: 'gemini-3.1-pro-high' } as const
+
+  /** The argv-prompt slot of the first spawn call — `null` whenever the question travelled on stdin. */
+  function argvPromptOf(spawnPrompt: AskServiceDeps['spawnPrompt']): string | null {
+    const [call] = vi.mocked(spawnPrompt as NonNullable<AskServiceDeps['spawnPrompt']>).mock.calls
+    if (call === undefined) throw new Error('the service never spawned')
+    return call[4]
+  }
+
+  /** A spawn double scripting the single completion envelope `agy --output-format json` prints. */
+  function respondWithAgy(payload: unknown): { spawnPrompt: AskServiceDeps['spawnPrompt']; last: () => FakeChild } {
+    let last: FakeChild | undefined
+    const spawnPrompt = vi.fn(() => {
+      const fake = createFakeChild()
+      last = fake
+      queueMicrotask(() => {
+        fake.stdout.emit(
+          'data',
+          JSON.stringify({
+            conversation_id: '51872578-f09a-4d00-b68d-8943b9955aed',
+            status: 'SUCCESS',
+            response: JSON.stringify(payload),
+            duration_seconds: 3.45,
+            num_turns: 1,
+            usage: { input_tokens: 18989, output_tokens: 85, total_tokens: 19074 }
+          })
+        )
+        fake.child.emit('close', 0)
+      })
+      return fake.child
+    })
+    return { spawnPrompt, last: () => last as FakeChild }
+  }
+
+  it('hands the composed prompt to the spawn and writes nothing to stdin', async () => {
+    const { spawnPrompt, last } = respondWithAgy({ kind: 'general', answer: 'José Hernández, en 1872.' })
+    const { service } = buildService({ spawnPrompt })
+
+    const outcome = await service.ask('¿Quién escribió el Martín Fierro?', ANTIGRAVITY)
+
+    expect(outcome).toMatchObject({ ok: true, data: { kind: 'general' } })
+    expect(argvPromptOf(spawnPrompt)).toContain('¿Quién escribió el Martín Fierro?')
+    // Nothing on stdin: agy hangs on an open one and has no reason to read it.
+    expect(last().writes).toEqual([])
+  })
+
+  // Windows caps a whole command line near 32767 characters. Over the ceiling
+  // the app refuses BEFORE spawning rather than truncating the prompt, which
+  // would ask the model a different question than the student did.
+  it('refuses a prompt past the argv ceiling without spawning anything', async () => {
+    const { service, spawnPrompt } = buildService()
+
+    const outcome = await service.ask('x'.repeat(MAX_ARGV_PROMPT_CHARS + 1), ANTIGRAVITY)
+
+    expect(outcome).toMatchObject({ ok: false, code: 'PROMPT_TOO_LARGE' })
+    expect(spawnPrompt).not.toHaveBeenCalled()
+  })
+
+  // The ceiling belongs to the command line, not to the app: a provider whose
+  // question travels on stdin has no such limit and must not inherit one.
+  it('applies the ceiling only to the provider that delivers on argv', async () => {
+    const { spawnPrompt, last } = respondWith({ kind: 'general', answer: 'ok' })
+    const { service } = buildService({ spawnPrompt })
+
+    const outcome = await service.ask('x'.repeat(MAX_ARGV_PROMPT_CHARS + 1), SELECTION)
+
+    expect(outcome).toMatchObject({ ok: true })
+    // Nothing on argv for a stdin provider — the question went where it always did.
+    expect(argvPromptOf(spawnPrompt)).toBeNull()
+    expect(last().writes.join('')).toContain('x'.repeat(MAX_ARGV_PROMPT_CHARS + 1))
+  })
+
+  // The third failure mode of the real binary, and the nastiest: exit 0, empty
+  // stdout, and the reason only on stderr because a tool needed a permission
+  // headless mode cannot prompt for. Silence is not an answer — and reporting
+  // it as a drifted envelope would hide the one line that explains it.
+  it('reports a run that exits cleanly with no output at all, carrying the stderr reason', async () => {
+    const spawnPrompt = vi.fn(() => {
+      const fake = createFakeChild()
+      queueMicrotask(() => {
+        fake.stderr.emit('data', 'jetski: no output produced — a tool required the "command" permission\n')
+        fake.child.emit('close', 0)
+      })
+      return fake.child
+    })
+    const { service } = buildService({ spawnPrompt })
+
+    const outcome = await service.ask('¿Qué es un anillo?', ANTIGRAVITY)
+
+    expect(outcome).toMatchObject({ ok: false, code: 'EXECUTION_FAILED' })
+    if (!outcome.ok) expect(outcome.message).toContain('no output produced')
+  })
+
+  // A failed run wearing a zero exit: the envelope is well-formed, the status
+  // says ERROR, and reading `response` past that would put the CLI's own
+  // failure text on screen as though the model had answered.
+  it('refuses an ERROR envelope printed with a zero exit', async () => {
+    const spawnPrompt = vi.fn(() => {
+      const fake = createFakeChild()
+      queueMicrotask(() => {
+        fake.stdout.emit(
+          'data',
+          JSON.stringify({ conversation_id: '', status: 'ERROR', response: '', error: 'Error: empty prompt.' })
+        )
+        fake.child.emit('close', 0)
+      })
+      return fake.child
+    })
+    const { service } = buildService({ spawnPrompt })
+
+    const outcome = await service.ask('¿Qué es un anillo?', ANTIGRAVITY)
+
+    expect(outcome).toEqual({ ok: false, code: 'MALFORMED_RESPONSE' })
+  })
+})
+
+// The opt-in enforced where it actually matters. The renderer stops offering
+// a disconnected CLI's models, but the renderer is never the thing that
+// decides a spawn is allowed: a drifted or stale panel could still name one,
+// and "the app only runs the CLIs you connected" has to be true of the
+// PROCESS boundary, not of a menu.
+describe('the opt-in gate', () => {
+  const disconnected = { settings: { get: () => null } }
+
+  it('refuses to spawn a CLI the student never connected', async () => {
+    const { service, spawnPrompt } = buildService(disconnected)
+
+    const outcome = await service.ask('¿Y esto?', SELECTION)
+
+    expect(outcome).toEqual({ ok: false, code: 'CLI_NOT_FOUND' })
+    expect(spawnPrompt).not.toHaveBeenCalled()
+  })
+
+  it('does not even resolve an executable for it', async () => {
+    const resolve = vi.fn(async () => VALIDATED as string)
+    const { service } = buildService({ ...disconnected, resolve })
+
+    await service.ask('¿Y esto?', SELECTION)
+
+    expect(resolve).not.toHaveBeenCalled()
+  })
+
+  it('audits the refusal, so the log explains a question that answered nothing', async () => {
+    const { service, logs } = buildService(disconnected)
+
+    await service.ask('¿Y esto?', SELECTION)
+
+    expect(logs.some((line) => line.includes('is not connected') && line.includes('no process started'))).toBe(true)
   })
 })

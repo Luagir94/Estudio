@@ -9,7 +9,8 @@ import {
 } from '../claude/claudeExecutableValidator'
 import { createCapabilityProbe, type CapabilityProbe, type ProbedCapabilities } from './capabilityProbe'
 import { PROVIDER_SPECS } from './providerSpec'
-import { CLI_PROVIDERS, type CliProvider, type CliProviderStatus } from '../../shared/ipc/cli'
+import { CLI_PROBE_TIMEOUT_MS } from './probeLimits'
+import type { CliProvider, CliProviderStatus } from '../../shared/ipc/cli'
 
 // Orchestrates the three-state probe (spec "Three-State Status
 // Classification", "Hard Timeout", "Probe Audit Log") for EVERY supported CLI
@@ -32,7 +33,7 @@ import { CLI_PROVIDERS, type CliProvider, type CliProviderStatus } from '../../s
 // real filesystem, a real process, or a real wait. Nothing here imports
 // `child_process` — only the validator may.
 
-const DEFAULT_TIMEOUT_MS = 5000
+const DEFAULT_TIMEOUT_MS = CLI_PROBE_TIMEOUT_MS
 const VERSION_PATTERN = /\d+\.\d+\.\d+/
 
 /**
@@ -64,8 +65,12 @@ export interface CliProbeServiceDeps {
 }
 
 export interface CliProbeService {
-  /** Probes every supported provider, in menu order. */
-  probeAll(): Promise<CliProviderStatus[]>
+  /**
+   * Probes ONE provider. There is deliberately no "probe them all" sibling:
+   * connecting a CLI is an explicit per-provider act now (see
+   * `probeCliInputSchema`), and a bulk entry point would be the one call able
+   * to spawn processes for CLIs the student never asked about.
+   */
   probe(provider: CliProvider): Promise<CliProviderStatus>
   /**
    * The most recent capability observation for `provider`, or `null` when it
@@ -73,6 +78,15 @@ export interface CliProbeService {
    * whether an unverified provider may be cleared for a spawn.
    */
   capabilities(provider: CliProvider): ProbedCapabilities | null
+  /**
+   * Drops whatever was last observed for `provider`.
+   *
+   * Called when the student DISCONNECTS a CLI. Without it the clearance this
+   * cache holds would outlive the permission it was granted under, and
+   * `askService` — which reads exactly this — would let a disconnected CLI
+   * answer one more question.
+   */
+  forget(provider: CliProvider): void
 }
 
 interface ProbeOutcome {
@@ -209,18 +223,10 @@ export function createCliProbeService({
 
   return {
     probe,
-    // Sequential rather than parallel on purpose: each provider spawns up to
-    // two short-lived processes, and three CLIs booting at once on a student's
-    // laptop is a worse first impression than a settings screen that fills in
-    // over a second.
-    probeAll: async () => {
-      const statuses: CliProviderStatus[] = []
-      for (const provider of CLI_PROVIDERS) {
-        statuses.push(await probe(provider))
-      }
-      return statuses
-    },
-    capabilities: (provider) => observed.get(provider) ?? null
+    capabilities: (provider) => observed.get(provider) ?? null,
+    forget: (provider) => {
+      observed.delete(provider)
+    }
   }
 }
 

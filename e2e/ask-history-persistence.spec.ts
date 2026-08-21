@@ -43,6 +43,14 @@ test('a conversation written before relaunch is resumed with its content after r
         'INSERT INTO ask_messages (id, conversation_id, question, kind, answer, model, created_at) VALUES (1, 1, ?, ?, ?, ?, ?)'
       )
       .run(question, 'general', answer, 'sonnet', now)
+    // The panel is gated on the OPT-IN now, so seed the same row pressing
+    // "Conectar" would have written. Seeding it rather than clicking through
+    // Ajustes keeps this file's boundary intact: it still spawns no CLI.
+    const seed = raw.prepare('INSERT INTO app_settings (key, value) VALUES (?, ?)')
+    seed.run('claude.connected', '1')
+    // The panel offers a CLI's models only once it has SEEN that CLI work, so
+    // the remembered outcome is part of the state a connected student is in.
+    seed.run('claude.lastStatus', 'connected')
   } finally {
     raw.close()
   }

@@ -137,6 +137,7 @@ async function bootstrap(): Promise<void> {
   const cliProbeService = createCliProbeService({ settings: appSettingsRepository })
   registerCliHandlers({
     probeService: cliProbeService,
+    settings: appSettingsRepository,
     settingsRepository: appSettingsRepository,
     // Reads the CLI's own state file, never a spawn: the model list is the
     // one thing no CLI of the three will answer a question about.

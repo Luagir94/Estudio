@@ -104,6 +104,18 @@ export interface BuildModelGroupsInput {
   /** Model ids in recommendation priority. The first one AVAILABLE wins; none is a valid answer. */
   recommended: readonly string[]
   discovered: readonly DiscoveredModel[]
+  /**
+   * The CLIs that are BOTH connected and known to work. A provider absent from
+   * this list gets NO section, however many models the baseline would have
+   * offered for it.
+   *
+   * Availability, not permission — and the difference is not academic. A CLI
+   * can be opted in and missing from the machine, and a menu filtered only by
+   * the opt-in would offer its models anyway: rows that spend a click to reach
+   * a CLI that answers nothing. The baseline exists to keep the picker usable
+   * with zero DISCOVERIES, never to advertise a CLI that is not there.
+   */
+  available: readonly CliProvider[]
 }
 
 /** A model plus the ordering its own CLI gave it, if any. */
@@ -120,7 +132,8 @@ export function buildModelGroups({
   baseline,
   knowledge,
   recommended,
-  discovered
+  discovered,
+  available
 }: BuildModelGroupsInput): ModelGroup[] {
   // Baseline first so a model the app has measured keeps its place above the
   // ones it merely found, then everything discovered that is genuinely new.
@@ -133,22 +146,27 @@ export function buildModelGroups({
     all.push({ provider: entry.provider, modelId: entry.modelId, rank: entry.rank })
   }
 
-  return CLI_PROVIDERS.map((provider) => {
-    const members = order(all.filter((entry) => entry.provider === provider))
-    const winner = recommend(members, recommended)
+  // Menu order stays `CLI_PROVIDERS`, so connecting a second CLI slots it into
+  // the same place it would always have had rather than appending it wherever
+  // the student happened to connect it.
+  return CLI_PROVIDERS.filter((provider) => available.includes(provider))
+    .map((provider) => {
+      const members = order(all.filter((entry) => entry.provider === provider))
+      const winner = recommend(members, recommended)
 
-    return {
-      provider,
-      label: ASK_PROVIDER_LABEL[provider],
-      options: members.map((entry) => ({
+      return {
         provider,
-        modelId: entry.modelId,
-        name: humanizeModelId(entry.modelId),
-        detail: knowledge[entry.modelId] ?? '',
-        recommended: entry.modelId === winner
-      }))
-    }
-  }).filter((group) => group.options.length > 0)
+        label: ASK_PROVIDER_LABEL[provider],
+        options: members.map((entry) => ({
+          provider,
+          modelId: entry.modelId,
+          name: humanizeModelId(entry.modelId),
+          detail: knowledge[entry.modelId] ?? '',
+          recommended: entry.modelId === winner
+        }))
+      }
+    })
+    .filter((group) => group.options.length > 0)
 }
 
 /**
