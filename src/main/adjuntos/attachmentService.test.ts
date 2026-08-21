@@ -6,7 +6,7 @@ import { subjects } from '../db/schema'
 import { createSqliteAttachmentRepository, type AttachmentRepository } from './adapters/sqliteAttachmentRepository'
 import type { AttachmentStorage } from './adapters/fileAttachmentStorage'
 import { MAX_ATTACHMENT_BYTES } from './domain/limits'
-import { createAttachmentService, type AttachmentService } from './attachmentService'
+import { createAttachmentService, type AttachmentIndexerPort, type AttachmentService } from './attachmentService'
 
 const migrationsFolder = path.join(__dirname, '../../../drizzle/migrations')
 
@@ -35,14 +35,20 @@ function createStorageMock(overrides: Partial<AttachmentStorage> = {}): Attachme
   }
 }
 
+function createIndexerMock(): AttachmentIndexerPort {
+  return { enqueue: vi.fn() }
+}
+
 describe('createAttachmentService', () => {
   let repository: AttachmentRepository
   let subjectId: number
+  let indexer: AttachmentIndexerPort
 
   beforeEach(() => {
     const db = createTestDb()
     repository = createSqliteAttachmentRepository(db)
     subjectId = seedSubject(db)
+    indexer = createIndexerMock()
   })
 
   it('checks size, copies, then inserts the row, in that order', async () => {
@@ -57,7 +63,7 @@ describe('createAttachmentService', () => {
         return path.join(String(subjectId), 'uuid-apuntes.pdf')
       })
     })
-    const service: AttachmentService = createAttachmentService({ repository, storage })
+    const service: AttachmentService = createAttachmentService({ repository, storage, indexer })
 
     const result = await service.addAttachments(subjectId, [path.join('C:', 'Users', 'lucho', 'apuntes.pdf')])
 
@@ -75,7 +81,7 @@ describe('createAttachmentService', () => {
 
   it('rejects a file over the size cap BEFORE copying — no partial or full copy is left on disk', async () => {
     const storage = createStorageMock({ statSize: vi.fn().mockResolvedValue(MAX_ATTACHMENT_BYTES + 1) })
-    const service = createAttachmentService({ repository, storage })
+    const service = createAttachmentService({ repository, storage, indexer })
 
     const result = await service.addAttachments(subjectId, [path.join('C:', 'huge.iso')])
 
@@ -91,7 +97,7 @@ describe('createAttachmentService', () => {
     const storage = createStorageMock({
       copyIntoSubjectDir: vi.fn().mockResolvedValue(path.join(String(nonExistentSubjectId), 'uuid-apuntes.pdf'))
     })
-    const service = createAttachmentService({ repository, storage })
+    const service = createAttachmentService({ repository, storage, indexer })
 
     // A subjectId with no matching row violates the `attachments.subject_id`
     // FK — a REAL insert failure, not a mocked one (repository.insert
@@ -120,7 +126,7 @@ describe('createAttachmentService', () => {
           return path.join(String(targetSubjectId), storedFileName)
         })
     })
-    const service = createAttachmentService({ repository, storage })
+    const service = createAttachmentService({ repository, storage, indexer })
 
     const result = await service.addAttachments(subjectId, [
       path.join('C:', 'carpeta-a', 'apuntes.pdf'),
@@ -146,7 +152,7 @@ describe('createAttachmentService', () => {
       }),
       copyIntoSubjectDir: vi.fn().mockResolvedValue(path.join(String(subjectId), 'uuid-good.pdf'))
     })
-    const service = createAttachmentService({ repository, storage })
+    const service = createAttachmentService({ repository, storage, indexer })
 
     const result = await service.addAttachments(subjectId, [path.join('C:', 'bad.pdf'), path.join('C:', 'good.pdf')])
 
@@ -155,5 +161,34 @@ describe('createAttachmentService', () => {
     expect(result.failures).toEqual([
       { fileName: 'bad.pdf', code: 'COPY_FAILED', message: expect.stringContaining('ENOENT') }
     ])
+  })
+
+  it('fires the indexer AFTER a successful insert, with that exact row\'s attachmentId (design "Port Contracts")', async () => {
+    const storage = createStorageMock({
+      copyIntoSubjectDir: vi.fn().mockResolvedValue(path.join(String(subjectId), 'uuid-apuntes.pdf'))
+    })
+    const service = createAttachmentService({ repository, storage, indexer })
+
+    const result = await service.addAttachments(subjectId, [path.join('C:', 'apuntes.pdf')])
+
+    expect(indexer.enqueue).toHaveBeenCalledTimes(1)
+    expect(indexer.enqueue).toHaveBeenCalledWith({
+      attachmentId: result.added[0]?.id,
+      subjectId,
+      storedPath: path.join(String(subjectId), 'uuid-apuntes.pdf'),
+      fileName: 'apuntes.pdf'
+    })
+  })
+
+  it('never fires the indexer when the insert fails — the port only ever sees rows that really exist (spec: Non-blocking upload)', async () => {
+    const nonExistentSubjectId = subjectId + 999
+    const storage = createStorageMock({
+      copyIntoSubjectDir: vi.fn().mockResolvedValue(path.join(String(nonExistentSubjectId), 'uuid-apuntes.pdf'))
+    })
+    const service = createAttachmentService({ repository, storage, indexer })
+
+    await service.addAttachments(nonExistentSubjectId, [path.join('C:', 'apuntes.pdf')])
+
+    expect(indexer.enqueue).not.toHaveBeenCalled()
   })
 })

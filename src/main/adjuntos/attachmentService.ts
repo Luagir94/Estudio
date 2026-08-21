@@ -21,20 +21,38 @@ export interface AttachmentService {
   addAttachments(subjectId: number, sourcePaths: string[]): Promise<AddAttachmentsResult>
 }
 
+/**
+ * Consumer-owned port (attachment-fts-index design "Port Contracts") —
+ * `attachmentService` depends only on this shape, never on `indexadoService`
+ * directly. Fired ONLY after a successful insert and NEVER awaited: a slow
+ * or failing indexing job must never delay or fail the add response (spec
+ * "Non-blocking upload" — the CLI-independence requirement). Implemented
+ * structurally by `indexadoService.enqueue` (slice 2b), with no import
+ * cycle between the two modules.
+ */
+export interface AttachmentIndexerPort {
+  enqueue(input: { attachmentId: number; subjectId: number; storedPath: string; fileName: string }): void
+}
+
 interface CreateAttachmentServiceDeps {
   repository: AttachmentRepository
   storage: AttachmentStorage
+  indexer: AttachmentIndexerPort
 }
 
 /**
- * Orchestrates the add-attachment flow over two ports (design "Copy/unlink
- * orchestration") — repository and storage never talk to each other
- * directly, this is the only place that sequences them. Per-file isolation
- * is the point of the loop's own try/catch: one file's failure is recorded
- * in `failures` and the loop moves on (spec "Add several files at once" /
- * "Insert fails after copy").
+ * Orchestrates the add-attachment flow over three ports (design "Copy/unlink
+ * orchestration" + "Port Contracts") — repository, storage, and indexer
+ * never talk to each other directly, this is the only place that sequences
+ * them. Per-file isolation is the point of the loop's own try/catch: one
+ * file's failure is recorded in `failures` and the loop moves on (spec "Add
+ * several files at once" / "Insert fails after copy").
  */
-export function createAttachmentService({ repository, storage }: CreateAttachmentServiceDeps): AttachmentService {
+export function createAttachmentService({
+  repository,
+  storage,
+  indexer
+}: CreateAttachmentServiceDeps): AttachmentService {
   return {
     async addAttachments(subjectId, sourcePaths) {
       const added: AttachmentRecord[] = []
@@ -70,6 +88,17 @@ export function createAttachmentService({ repository, storage }: CreateAttachmen
               createdAt: format(new Date(), "yyyy-MM-dd'T'HH:mm")
             })
             added.push(record)
+            // Fire-and-forget (design "Background execution" —
+            // CLI-independence requirement): never awaited, and the port
+            // contract guarantees `enqueue` itself never throws, so a slow
+            // or failing indexing job can never delay or fail this
+            // response (spec "Non-blocking upload").
+            indexer.enqueue({
+              attachmentId: record.id,
+              subjectId,
+              storedPath: record.storedPath,
+              fileName: record.fileName
+            })
           } catch (insertError) {
             // The copy already landed on disk — a failed insert must not
             // leave an orphaned file behind (spec "Insert fails after copy").
