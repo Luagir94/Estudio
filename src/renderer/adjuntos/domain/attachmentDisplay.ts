@@ -4,7 +4,7 @@
 // `entregas/domain/deadline.ts`.
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import type { AddAttachmentFailure } from '../../../shared/ipc/adjuntos'
+import type { AddAttachmentFailure, Attachment } from '../../../shared/ipc/adjuntos'
 
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'])
 
@@ -61,4 +61,33 @@ export function formatAddFailureDetail(failure: AddAttachmentFailure): string {
     return `${failure.fileName} supera el límite de 250 MB`
   }
   return `${failure.fileName} no se pudo copiar`
+}
+
+// --- index status badge (attachment-fts-index design "Renderer Delta") ----
+
+export type IndexStatus = Attachment['indexStatus']
+
+/**
+ * Identifier only — NOT a lucide component. Kept framework-free (same
+ * convention as `resolveAttachmentKind`'s `AttachmentKind`); the
+ * presentational layer (`AttachmentRow.tsx`) maps this to the actual icon.
+ */
+export type IndexBadgeIcon = 'check' | 'hourglass' | 'search-x'
+
+export interface IndexBadgeInfo {
+  label: string
+  icon: IndexBadgeIcon
+  /** Tailwind utility classes for the approved .pen tokens (bg + text). */
+  classes: string
+}
+
+const INDEX_BADGES: Record<IndexStatus, IndexBadgeInfo> = {
+  indexed: { label: 'Indexado', icon: 'check', classes: 'bg-ok-soft text-ok' },
+  pending: { label: 'Pendiente', icon: 'hourglass', classes: 'bg-warn-soft text-warn' },
+  'not-indexable': { label: 'No indexable', icon: 'search-x', classes: 'bg-surface-sunken text-muted-foreground' }
+}
+
+/** Closed 3-state mapping (spec "Index status badge") — matches the approved .pen tokens exactly. */
+export function indexBadgeFor(status: IndexStatus): IndexBadgeInfo {
+  return INDEX_BADGES[status]
 }

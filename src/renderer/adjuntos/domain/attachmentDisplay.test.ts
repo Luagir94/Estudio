@@ -6,6 +6,7 @@ import {
   formatAttachmentMeta,
   formatAttachmentSize,
   getFileExtension,
+  indexBadgeFor,
   resolveAttachmentKind
 } from './attachmentDisplay'
 
@@ -85,5 +86,31 @@ describe('formatAddFailureDetail', () => {
     expect(formatAddFailureDetail({ fileName: 'notas.txt', code: 'COPY_FAILED', message: 'irrelevant' })).toBe(
       'notas.txt no se pudo copiar'
     )
+  })
+})
+
+describe('indexBadgeFor', () => {
+  it('maps "indexed" to the approved .pen ok tokens', () => {
+    expect(indexBadgeFor('indexed')).toEqual({
+      label: 'Indexado',
+      icon: 'check',
+      classes: 'bg-ok-soft text-ok'
+    })
+  })
+
+  it('maps "pending" to the approved .pen warn tokens', () => {
+    expect(indexBadgeFor('pending')).toEqual({
+      label: 'Pendiente',
+      icon: 'hourglass',
+      classes: 'bg-warn-soft text-warn'
+    })
+  })
+
+  it('maps "not-indexable" to the approved .pen muted tokens', () => {
+    expect(indexBadgeFor('not-indexable')).toEqual({
+      label: 'No indexable',
+      icon: 'search-x',
+      classes: 'bg-surface-sunken text-muted-foreground'
+    })
   })
 })

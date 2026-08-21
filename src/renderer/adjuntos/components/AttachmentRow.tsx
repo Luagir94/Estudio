@@ -2,11 +2,26 @@
 // existing DeadlineRow idiom — card surface, 44px type chip on the sunken
 // surface, name + meta, two 30x30 icon buttons. No data fetching, no IPC —
 // that lives in AdjuntosContainer.
-import { ExternalLink, FileText, FileX, Image, Trash2 } from 'lucide-react'
+import { Check, ExternalLink, FileText, FileX, Hourglass, Image, type LucideIcon, SearchX, Trash2 } from 'lucide-react'
 import type { Attachment } from '../../../shared/ipc/adjuntos'
 import { cn } from '../../shared/lib/cn'
 import { interactiveGhost, interactiveGhostDestructive } from '../../shared/lib/interactive'
-import { formatAttachmentMeta, getFileExtension, resolveAttachmentKind } from '../domain/attachmentDisplay'
+import {
+  formatAttachmentMeta,
+  getFileExtension,
+  indexBadgeFor,
+  type IndexBadgeIcon,
+  resolveAttachmentKind
+} from '../domain/attachmentDisplay'
+
+// Presentational icon-name → component map (same convention as
+// `AskTranscript.tsx`'s `SECTION_ICONS`) — the domain layer stays
+// framework-free and returns only the identifier.
+const INDEX_BADGE_ICON_COMPONENTS: Record<IndexBadgeIcon, LucideIcon> = {
+  check: Check,
+  hourglass: Hourglass,
+  'search-x': SearchX
+}
 
 interface AttachmentRowProps {
   attachment: Attachment
@@ -25,6 +40,8 @@ export function AttachmentRow({ attachment, isMissing, onOpen, onDelete }: Attac
   const kind = resolveAttachmentKind(attachment.fileName)
   const Icon = isMissing ? FileX : kind === 'image' ? Image : FileText
   const chipColor = isMissing ? 'text-destructive' : 'text-muted-foreground'
+  const badge = indexBadgeFor(attachment.indexStatus)
+  const BadgeIcon = INDEX_BADGE_ICON_COMPONENTS[badge.icon]
 
   return (
     <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5">
@@ -43,6 +60,20 @@ export function AttachmentRow({ attachment, isMissing, onOpen, onDelete }: Attac
           </span>
         )}
       </div>
+
+      {/* Index status badge (design "Approved design — Attachment row" /
+          spec "Index status badge") — cornerRadius 6, gap 5px, padding
+          4px/8px, 12px icon, 11px semibold label, matching the .pen values
+          exactly on the existing `@theme` tokens (no new tokens needed). */}
+      <span
+        className={cn(
+          'inline-flex shrink-0 items-center gap-[5px] rounded-md px-2 py-1 text-caption font-semibold',
+          badge.classes
+        )}
+      >
+        <BadgeIcon className="h-3 w-3" aria-hidden="true" />
+        {badge.label}
+      </span>
 
       <div className="flex shrink-0 items-center gap-1.5">
         <button
