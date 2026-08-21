@@ -13,8 +13,8 @@ export const CHUNK_OVERLAP_CHARS = 120
 /**
  * XLSX/CSV source files at or above this size become `not-indexable`
  * WITHOUT parsing (spec "Format dispatch and size cap": "10 MiB
- * (10,485,760 bytes)"). Consumed by the spreadsheet extractor in a later
- * slice — declared here now because it is one of the three pinned limits
- * this slice's design assigns to `limits.ts`.
+ * (10,485,760 bytes)"). Consumed by BOTH `spreadsheetExtractor.ts` (XLSX)
+ * and `textExtractor.ts` (CSV only — TXT/MD are uncapped, the spec's cap
+ * text names only "XLSX/CSV").
  */
 export const MAX_SPREADSHEET_SOURCE_BYTES = 10 * 1024 * 1024
