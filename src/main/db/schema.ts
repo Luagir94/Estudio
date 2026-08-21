@@ -171,7 +171,32 @@ export const attachments = sqliteTable('attachments', {
   // Reserved for a future rename/title-editing UI (spec "First-Slice
   // Non-Goals") — this slice never writes or exposes it.
   title: text('title'),
-  createdAt: text('created_at').notNull()
+  createdAt: text('created_at').notNull(),
+  // Closed set 'pending' | 'indexed' | 'not-indexable' (attachment-fts-index
+  // design "Status storage", spec "Status lifecycle"), zod-owned — same
+  // no-SQL-constraint precedent as `subjects.outcome`/`deadlines.type`.
+  // Defaults every pre-existing row to 'pending' on migration, which is
+  // exactly what lets Sincronizar backfill them (spec "Sincronizar picks up
+  // pre-existing and stuck attachments").
+  indexStatus: text('index_status').notNull().default('pending')
+})
+
+// One chunk of extracted attachment text (attachment-fts-index design
+// "Storage"). Cascade-deleted with its attachment via FK, same rule as
+// every other subject-owned child table — this is what the FTS5 AD sync
+// trigger on `attachment_chunks_fts` (migration 0007) rides on to stay
+// consistent under delete, with zero app-side dual-write code (spec
+// "Delete cascade"). `subjectId` is denormalized (no FK) purely as a query
+// filter, same flat-column style as `askMessageCitations` — retrieval scopes
+// by subject without a JOIN through `attachments`.
+export const attachmentChunks = sqliteTable('attachment_chunks', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  attachmentId: integer('attachment_id')
+    .notNull()
+    .references(() => attachments.id, { onDelete: 'cascade' }),
+  subjectId: integer('subject_id').notNull(),
+  chunkIndex: integer('chunk_index').notNull(),
+  text: text('text').notNull()
 })
 
 // A durable ask-panel Q&A thread (design D4, spec "ask-history"). Global

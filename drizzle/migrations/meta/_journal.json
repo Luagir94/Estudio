@@ -43,6 +43,20 @@
       "when": 1787081371100,
       "tag": "0005_wealthy_madripoor",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1787345429029,
+      "tag": "0006_mushy_blizzard",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1787345486294,
+      "tag": "0007_attachment_chunks_fts",
+      "breakpoints": true
     }
   ]
 }
