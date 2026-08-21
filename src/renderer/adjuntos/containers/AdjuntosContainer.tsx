@@ -10,9 +10,10 @@
 // whether THIS row currently renders as "Archivo no encontrado", which is
 // local, ephemeral UI state, not server state.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { AddAttachmentFailure, Attachment } from '../../../shared/ipc/adjuntos'
 import { AdjuntosApiError, adjuntosApi } from '../adapters/adjuntosApi'
+import { indexadoApi } from '../adapters/indexadoApi'
 import { AdjuntosSection } from '../components/AdjuntosSection'
 
 interface AdjuntosContainerProps {
@@ -44,6 +45,30 @@ export function AdjuntosContainer({ subjectId }: AdjuntosContainerProps): React.
   function invalidate(): void {
     void queryClient.invalidateQueries({ queryKey })
   }
+
+  // Main pushes `indexado:status-changed` once a background indexing job
+  // finishes (design "Renderer notify") — this is what makes "Sincronizar"
+  // (and upload-time indexing) actually surface updated badges, since the
+  // sync call itself only returns `{enqueued}` before any indexing runs.
+  // Scoped to THIS subject: a status change for another subject's attachment
+  // must not refetch a list the user isn't even looking at.
+  useEffect(() => {
+    return indexadoApi.onStatusChanged((payload) => {
+      if (payload.subjectId === subjectId) {
+        void queryClient.invalidateQueries({ queryKey: ['adjuntos', subjectId] })
+      }
+    })
+  }, [subjectId, queryClient])
+
+  const syncMutation = useMutation({
+    mutationFn: () => indexadoApi.sync(),
+    onSuccess: () => {
+      setActionError(null)
+    },
+    onError: () => {
+      setActionError('No se pudo sincronizar')
+    }
+  })
 
   const addMutation = useMutation({
     mutationFn: () => adjuntosApi.add(subjectId),
@@ -106,6 +131,7 @@ export function AdjuntosContainer({ subjectId }: AdjuntosContainerProps): React.
       onRetry={() => void refetch()}
       onOpen={(attachment) => openMutation.mutate(attachment)}
       onDelete={(attachment) => deleteMutation.mutate(attachment)}
+      onSync={() => syncMutation.mutate()}
     />
   )
 }

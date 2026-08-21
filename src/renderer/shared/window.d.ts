@@ -47,6 +47,7 @@ import type {
 import type { CreateFinalExamInput, DeleteFinalExamResult, UpdateFinalExamInput } from '../../shared/ipc/finales'
 import type { WeekScheduleResult } from '../../shared/ipc/horario'
 import type { DashboardResult } from '../../shared/ipc/hoy'
+import type { IndexStatusChangedPayload, SyncResult } from '../../shared/ipc/indexado'
 import type {
   CreateSubjectInput,
   DeleteSubjectResult,
@@ -103,6 +104,11 @@ declare global {
         add: (input: AddAttachmentsInput) => Promise<IpcResult<AddAttachmentsResult>>
         open: (id: number) => Promise<IpcResult<undefined>>
         remove: (id: number) => Promise<IpcResult<DeleteAttachmentResult>>
+      }
+      indexado: {
+        sync: () => Promise<IpcResult<SyncResult>>
+        /** Pushed whenever a background indexing job finishes. Returns an unsubscribe function. */
+        onStatusChanged: (callback: (payload: IndexStatusChangedPayload) => void) => () => void
       }
       app: {
         openExternal: (input: OpenExternalInput) => Promise<IpcResult<undefined>>

@@ -3,11 +3,11 @@
 // "Agregar entrega" button), the "Alta parcial" warning banner, and the five
 // states (vacío/cargando/error/lista/archivo no encontrado handled per-row).
 // No data fetching, no IPC — that lives in AdjuntosContainer.
-import { CircleAlert, Paperclip, Plus, TriangleAlert } from 'lucide-react'
+import { CircleAlert, Paperclip, Plus, RefreshCw, TriangleAlert } from 'lucide-react'
 import type { AddAttachmentFailure, Attachment } from '../../../shared/ipc/adjuntos'
 import { Button } from '../../shared/components/ui/button'
 import { cn } from '../../shared/lib/cn'
-import { interactiveLink } from '../../shared/lib/interactive'
+import { interactive, interactiveLink } from '../../shared/lib/interactive'
 import { formatAddFailureDetail, formatAddFailureSummary } from '../domain/attachmentDisplay'
 import { AttachmentRow } from './AttachmentRow'
 
@@ -23,6 +23,8 @@ interface AdjuntosSectionProps {
   onRetry: () => void
   onOpen: (attachment: Attachment) => void
   onDelete: (attachment: Attachment) => void
+  /** Manual sync trigger (design "Approved design" — Sincronizar button, spec "Sincronizar button"). */
+  onSync: () => void
 }
 
 function AttachmentRowSkeleton(): React.JSX.Element {
@@ -51,16 +53,38 @@ export function AdjuntosSection({
   onAdd,
   onRetry,
   onOpen,
-  onDelete
+  onDelete,
+  onSync
 }: AdjuntosSectionProps): React.JSX.Element {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h3 className="text-label font-semibold text-muted-foreground">ADJUNTOS</h3>
-        <Button type="button" onClick={onAdd} className="gap-2">
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Agregar archivo
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Secondary action (design "Approved design" — cornerRadius 8,
+              padding 12px/16px, 16px icon, 13px semibold label, $surface-sunken
+              bg + $border border + $text-secondary text/icon). Hand-styled
+              rather than the shared `Button` primitive: `Button`'s base
+              classes hardcode `text-body-lg font-medium` (14px/medium), and
+              that custom theme font-size utility is not one tailwind-merge
+              can override via `className`. */}
+          <button
+            type="button"
+            onClick={onSync}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-4 py-3 text-body font-semibold text-secondary-foreground',
+              interactive,
+              'hover:bg-secondary/80 active:bg-secondary/70'
+            )}
+          >
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            Sincronizar
+          </button>
+          <Button type="button" onClick={onAdd} className="gap-2">
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Agregar archivo
+          </Button>
+        </div>
       </div>
 
       {actionError !== null && (

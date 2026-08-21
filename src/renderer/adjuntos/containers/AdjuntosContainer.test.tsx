@@ -45,6 +45,10 @@ beforeEach(() => {
       open: vi.fn(),
       remove: vi.fn()
     },
+    indexado: {
+      sync: vi.fn().mockResolvedValue({ ok: true, data: { enqueued: 0 } }),
+      onStatusChanged: vi.fn().mockReturnValue(vi.fn())
+    },
     materias: {
       create: vi.fn(),
       list: vi.fn(),
@@ -286,5 +290,62 @@ describe('AdjuntosContainer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
     await waitFor(() => expect(screen.queryByText('No se pudo eliminar el adjunto')).not.toBeInTheDocument())
+  })
+
+  it('clicking "Sincronizar" invokes indexado:sync', async () => {
+    renderWithClient(<AdjuntosContainer subjectId={42} />)
+    await screen.findByText('apuntes.pdf')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sincronizar' }))
+
+    await waitFor(() => expect(window.api.indexado.sync).toHaveBeenCalledTimes(1))
+  })
+
+  it('subscribes to indexado:status-changed and invalidates ONLY the ["adjuntos", subjectId] query when the payload matches this subject', async () => {
+    let pushStatusChanged: ((payload: { subjectId: number }) => void) | undefined
+    window.api.indexado.onStatusChanged = vi.fn().mockImplementation((callback) => {
+      pushStatusChanged = callback
+      return vi.fn()
+    })
+
+    const { invalidateSpy } = renderWithClient(<AdjuntosContainer subjectId={42} />)
+    await screen.findByText('apuntes.pdf')
+
+    expect(pushStatusChanged).toBeDefined()
+    pushStatusChanged?.({ subjectId: 42 })
+
+    await waitFor(() => expect(invalidateSpy).toHaveBeenCalled())
+    for (const call of invalidateSpy.mock.calls) {
+      expect(call[0]).toMatchObject({ queryKey: ['adjuntos', 42] })
+    }
+  })
+
+  it('ignores an indexado:status-changed push for a DIFFERENT subject (not a hardcoded pass-through)', async () => {
+    let pushStatusChanged: ((payload: { subjectId: number }) => void) | undefined
+    window.api.indexado.onStatusChanged = vi.fn().mockImplementation((callback) => {
+      pushStatusChanged = callback
+      return vi.fn()
+    })
+
+    const { invalidateSpy } = renderWithClient(<AdjuntosContainer subjectId={42} />)
+    await screen.findByText('apuntes.pdf')
+
+    pushStatusChanged?.({ subjectId: 99 })
+
+    // Give any (incorrect) async invalidation a chance to fire before asserting it never did.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(invalidateSpy).not.toHaveBeenCalled()
+  })
+
+  it('unsubscribes from indexado:status-changed on unmount', async () => {
+    const unsubscribe = vi.fn()
+    window.api.indexado.onStatusChanged = vi.fn().mockReturnValue(unsubscribe)
+
+    const { unmount } = renderWithClient(<AdjuntosContainer subjectId={42} />)
+    await screen.findByText('apuntes.pdf')
+
+    unmount()
+
+    expect(unsubscribe).toHaveBeenCalledTimes(1)
   })
 })
