@@ -9,3 +9,10 @@
 // file exists so a real runtime constant (the push-event channel name) can
 // be shared with preload without breaking that invariant.
 export const MENU_EXPORT_REQUESTED_CHANNEL = 'menu:export-requested'
+
+// Same zod-free-module requirement as above: main pushes this event
+// whenever a background indexing job finishes (attachment-fts-index design
+// "Renderer notify" — precedent: `MENU_EXPORT_REQUESTED_CHANNEL`), and the
+// sandboxed preload bundle must be able to `require()` the constant without
+// pulling `zod` in through `shared/ipc/indexado.ts`.
+export const INDEXADO_STATUS_CHANGED_CHANNEL = 'indexado:status-changed'
