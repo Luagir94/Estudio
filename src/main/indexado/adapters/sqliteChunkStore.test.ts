@@ -134,6 +134,34 @@ describe('createSqliteChunkStore', () => {
     expect(ftsCount.count).toBe(0)
   })
 
+  it("replaceChunks atomically swaps an attachment's chunks — old text stops matching, new text matches (idempotent re-indexing, no duplicates)", () => {
+    const store = createSqliteChunkStore(raw)
+    store.insertMany([{ attachmentId, subjectId, chunkIndex: 0, text: 'version original del documento' }])
+    expect(store.search('original', 10)).toHaveLength(1)
+
+    store.replaceChunks(attachmentId, subjectId, ['version revisada del documento'])
+
+    expect(store.search('original', 10)).toEqual([])
+    expect(store.search('revisada', 10)).toHaveLength(1)
+    const chunkCount = raw
+      .prepare('SELECT COUNT(*) as count FROM attachment_chunks WHERE attachment_id = ?')
+      .get(attachmentId) as { count: number }
+    expect(chunkCount.count).toBe(1)
+  })
+
+  it('replaceChunks called twice with the SAME text never produces duplicate rows (spec: Re-indexing is idempotent)', () => {
+    const store = createSqliteChunkStore(raw)
+
+    store.replaceChunks(attachmentId, subjectId, ['contenido estable'])
+    store.replaceChunks(attachmentId, subjectId, ['contenido estable'])
+
+    const chunkCount = raw
+      .prepare('SELECT COUNT(*) as count FROM attachment_chunks WHERE attachment_id = ?')
+      .get(attachmentId) as { count: number }
+    expect(chunkCount.count).toBe(1)
+    expect(store.search('estable', 10)).toHaveLength(1)
+  })
+
   it('FK-cascade delete of the owning SUBJECT (two-level cascade) also empties the FTS index via the AD trigger', () => {
     const store = createSqliteChunkStore(raw)
     store.insertMany([{ attachmentId, subjectId, chunkIndex: 0, text: 'programacion orientada a objetos' }])

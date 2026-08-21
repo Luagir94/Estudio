@@ -18,6 +18,15 @@ export interface ChunkStore {
   /** Inserts all rows in one transaction; migration 0007's AI trigger keeps `attachment_chunks_fts` in sync per row — no dual write here. */
   insertMany(chunks: readonly InsertChunkInput[]): void
   /**
+   * Atomically deletes every existing chunk row for `attachmentId`, then
+   * inserts `texts` as fresh chunks (indexed 0..n-1) — the transaction
+   * boundary that makes re-indexing idempotent (spec "Re-indexing is
+   * idempotent": no duplicate chunk rows) no matter how many times a job
+   * runs for the same attachment (design "Job pipeline": "tx{delete old
+   * chunks, insert, set indexed}").
+   */
+  replaceChunks(attachmentId: number, subjectId: number, texts: readonly string[]): void
+  /**
    * Top-`maxChunks` BM25 matches across every indexed chunk (design "MATCH
    * construction" / "Storage"). Returns `[]` without touching SQLite when
    * `question` has no alphanumeric tokens (`buildMatchQuery` → `null`) —
@@ -49,15 +58,25 @@ export function createSqliteChunkStore(raw: Database.Database): ChunkStore {
     ORDER BY bm25(attachment_chunks_fts)
     LIMIT ?
   `)
+  const deleteByAttachmentStatement = raw.prepare('DELETE FROM attachment_chunks WHERE attachment_id = ?')
   const insertAll = raw.transaction((chunks: readonly InsertChunkInput[]) => {
     for (const chunk of chunks) {
       insertStatement.run(chunk.attachmentId, chunk.subjectId, chunk.chunkIndex, chunk.text)
     }
   })
+  const replaceChunksTx = raw.transaction((attachmentId: number, subjectId: number, texts: readonly string[]) => {
+    deleteByAttachmentStatement.run(attachmentId)
+    texts.forEach((text, chunkIndex) => {
+      insertStatement.run(attachmentId, subjectId, chunkIndex, text)
+    })
+  })
 
   return {
     insertMany(chunks) {
       insertAll(chunks)
+    },
+    replaceChunks(attachmentId, subjectId, texts) {
+      replaceChunksTx(attachmentId, subjectId, texts)
     },
     search(question, maxChunks) {
       const matchQuery = buildMatchQuery(question)
