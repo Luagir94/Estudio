@@ -39,7 +39,11 @@ import type {
   UpdatePeriodInput,
   UpdateProgramInput
 } from '../shared/ipc/carreras'
-import { MENU_EXPORT_REQUESTED_CHANNEL } from '../shared/ipc/channels'
+// Both push-event channel constants come from the zod-free `channels`
+// module, NOT from `../shared/ipc/app` / `../shared/ipc/indexado` — a
+// runtime (non-`type`) import from a zod-importing shared/ipc module breaks
+// the sandboxed preload bundle ("module not found: zod").
+import { INDEXADO_STATUS_CHANGED_CHANNEL, MENU_EXPORT_REQUESTED_CHANNEL } from '../shared/ipc/channels'
 import type {
   CreateDeadlineInput,
   DeadlineWithSubject,
@@ -50,6 +54,7 @@ import type {
 import type { CreateFinalExamInput, DeleteFinalExamResult, UpdateFinalExamInput } from '../shared/ipc/finales'
 import type { WeekScheduleResult } from '../shared/ipc/horario'
 import type { DashboardResult } from '../shared/ipc/hoy'
+import type { IndexStatusChangedPayload, SyncResult } from '../shared/ipc/indexado'
 import type {
   CreateSubjectInput,
   DeleteSubjectResult,
@@ -124,6 +129,17 @@ const api = {
       ipcRenderer.invoke('adjuntos:add', input),
     open: (id: number): Promise<IpcResult<undefined>> => ipcRenderer.invoke('adjuntos:open', { id }),
     remove: (id: number): Promise<IpcResult<DeleteAttachmentResult>> => ipcRenderer.invoke('adjuntos:delete', { id })
+  },
+  indexado: {
+    sync: (): Promise<IpcResult<SyncResult>> => ipcRenderer.invoke('indexado:sync'),
+    // Pushed whenever a background indexing job finishes (design "Renderer
+    // notify"); the renderer's own listener/invalidation lands in slice 2c.
+    // Returns an unsubscribe function (same shape as `onExportRequested`).
+    onStatusChanged: (callback: (payload: IndexStatusChangedPayload) => void): (() => void) => {
+      const listener = (_event: unknown, payload: IndexStatusChangedPayload) => callback(payload)
+      ipcRenderer.on(INDEXADO_STATUS_CHANGED_CHANNEL, listener)
+      return () => ipcRenderer.removeListener(INDEXADO_STATUS_CHANGED_CHANNEL, listener)
+    }
   },
   cli: {
     probe: (input: ProbeCliInput): Promise<IpcResult<CliProviderStatus>> => ipcRenderer.invoke('cli:probe', input),

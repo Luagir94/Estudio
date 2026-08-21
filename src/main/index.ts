@@ -2,6 +2,7 @@ import * as nodeFs from 'node:fs/promises'
 import path from 'node:path'
 import { app, BrowserWindow, Menu } from 'electron'
 import { MENU_EXPORT_REQUESTED_CHANNEL } from '../shared/ipc/app'
+import { INDEXADO_STATUS_CHANGED_CHANNEL } from '../shared/ipc/channels'
 import { createAttachmentStorage } from './adjuntos/adapters/fileAttachmentStorage'
 import { createSqliteAttachmentRepository } from './adjuntos/adapters/sqliteAttachmentRepository'
 import { createAttachmentService } from './adjuntos/attachmentService'
@@ -30,6 +31,10 @@ import { createSqliteFinalExamRepository } from './finales/adapters/sqliteFinalE
 import { registerFinalesHandlers } from './finales/ipc/registerFinalesHandlers'
 import { registerEntregasHandlers } from './entregas/ipc/registerEntregasHandlers'
 import { registerHoyHandlers } from './hoy/ipc/registerHoyHandlers'
+import { createSqliteChunkStore } from './indexado/adapters/sqliteChunkStore'
+import { createSqliteIndexStatusRepository } from './indexado/adapters/sqliteIndexStatusRepository'
+import { createIndexadoService } from './indexado/indexadoService'
+import { registerIndexadoHandlers } from './indexado/ipc/registerIndexadoHandlers'
 import { createSqliteSubjectRepository } from './materias/adapters/sqliteSubjectRepository'
 import { registerMateriasHandlers } from './materias/ipc/registerMateriasHandlers'
 import { registerHorarioHandlers } from './horario/ipc/registerHorarioHandlers'
@@ -84,7 +89,7 @@ async function bootstrap(): Promise<void> {
     migrationsFolder: getMigrationsFolder()
   })
 
-  const { db } = openAppDatabase(getDatabasePath())
+  const { db, raw } = openAppDatabase(getDatabasePath())
   // Both handler sets share ONE repository instance: horario:week is a
   // read-only projection over the same subjects+slots data materias:list
   // serves (design §2), never a separate table or write path.
@@ -115,9 +120,41 @@ async function bootstrap(): Promise<void> {
   // files on disk do not, which is why registerMateriasHandlers above also
   // needs attachmentStorage (design "subject cascade").
   const attachmentRepository = createSqliteAttachmentRepository(db)
+
+  // attachment-fts-index (slice 2b): the indexing pipeline is wired BEFORE
+  // `attachmentService` below, because `attachmentService` needs the
+  // resulting `indexadoService` as its `AttachmentIndexerPort` — fired
+  // fire-and-forget right after a successful insert (design "Port
+  // Contracts" / spec "Non-blocking upload"). `chunkStore` uses the RAW
+  // handle (FTS5 `MATCH`/`bm25()` have no drizzle equivalent, design
+  // "Storage"); `indexStatusRepository` uses typed drizzle over the same
+  // `attachments` table `attachmentRepository` already reads.
+  const indexStatusRepository = createSqliteIndexStatusRepository(db)
+  const chunkStore = createSqliteChunkStore(raw)
+  const indexadoService = createIndexadoService({
+    statusRepository: indexStatusRepository,
+    chunkStore,
+    resolveStoredPath: attachmentStorage.resolveStoredPath,
+    // Fans out to every window — a status change (e.g. from Sincronizar)
+    // must reach every open renderer, not just the focused one (design
+    // "Renderer notify"; contrast with the single-focused-window
+    // `MENU_EXPORT_REQUESTED_CHANNEL` push below). Kept as a plain function
+    // here so `indexadoService.ts` itself never imports Electron.
+    notifyStatusChanged: (subjectId) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        window.webContents.send(INDEXADO_STATUS_CHANGED_CHANNEL, { subjectId })
+      }
+    }
+  })
+  registerIndexadoHandlers({ service: indexadoService })
+
   registerAdjuntosHandlers({
     repository: attachmentRepository,
-    service: createAttachmentService({ repository: attachmentRepository, storage: attachmentStorage }),
+    service: createAttachmentService({
+      repository: attachmentRepository,
+      storage: attachmentStorage,
+      indexer: indexadoService
+    }),
     storage: attachmentStorage,
     subjectRepository
   })
