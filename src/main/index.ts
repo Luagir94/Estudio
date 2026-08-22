@@ -212,6 +212,12 @@ async function bootstrap(): Promise<void> {
     settings: appSettingsRepository,
     subjectRepository,
     attachmentRepository,
+    // `chunkStore` (created above, ahead of `indexadoService`) satisfies
+    // `AskAttachmentIndexPort` structurally — same `AskAttachmentPort`
+    // consumer-owned-port convention (attachment-fts-index design "Port
+    // Contracts"): ask stays FTS-ignorant, `search()` calls `buildMatchQuery`
+    // internally.
+    attachmentIndex: chunkStore,
     appData: createRepositoryAppDataReader({
       subjectRepository,
       deadlineRepository,

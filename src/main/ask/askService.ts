@@ -21,8 +21,15 @@ import { buildAppContext, type AppContext } from './domain/appContext'
 import { buildAskPrompt, type AskManifestSubject } from './domain/promptBuilder'
 import { parseAskResponse } from './domain/responseParser'
 import type { EnvelopeKind } from '../cli/providerSpec'
+import { computeRetrievalWindow, type RetrievedAttachmentChunk } from './domain/retrievalWindow'
 import { computeTranscriptWindow, type TranscriptSourceTurn } from './domain/transcriptWindow'
-import { ASK_MAX_FILE_BYTES, ASK_MAX_STDERR_DETAIL_BYTES, ASK_MAX_STDOUT_BYTES, ASK_TIMEOUT_MS } from './domain/limits'
+import {
+  ASK_MAX_FILE_BYTES,
+  ASK_MAX_STDERR_DETAIL_BYTES,
+  ASK_MAX_STDOUT_BYTES,
+  ASK_RETRIEVAL_TOP_K,
+  ASK_TIMEOUT_MS
+} from './domain/limits'
 import type { AskErrorCode, AskResult } from '../../shared/ipc/ask'
 import type { CliProvider, ModelSelection } from '../../shared/ipc/cli'
 
@@ -53,6 +60,17 @@ export interface AskSubjectPort {
 
 export interface AskAttachmentPort {
   listBySubject(subjectId: number): readonly { fileName: string; storedPath: string; sizeBytes: number }[]
+}
+
+/**
+ * Scoped BM25 top-K retrieval over indexed attachment chunks
+ * (attachment-fts-index design "Port Contracts" — consumer-owned, same
+ * `AskAttachmentPort` structural convention above). `sqliteChunkStore.ts`'s
+ * `ChunkStore.search` satisfies this structurally: same `(question,
+ * maxChunks)` signature, same `{text, displayName, subjectName}` shape.
+ */
+export interface AskAttachmentIndexPort {
+  search(question: string, maxChunks: number): readonly RetrievedAttachmentChunk[]
 }
 
 /**
@@ -133,6 +151,15 @@ export interface AskServiceDeps {
   settings: AppSettingsPort
   subjectRepository: AskSubjectPort
   attachmentRepository: AskAttachmentPort
+  /**
+   * Required (attachment-fts-index design "Port Contracts"), same closed-
+   * bridge convention `history` uses below: `src/main/index.ts` wires the
+   * real `sqliteChunkStore` in, so a missing wire is a compile error, not a
+   * silent runtime degrade. An index with nothing indexed yet degrades
+   * gracefully on its own (`search` returning `[]` → no retrieval section,
+   * spec "Graceful degradation") — no separate no-op branch needed here.
+   */
+  attachmentIndex: AskAttachmentIndexPort
   appData: AskAppDataPort
   /** App-computed `userData/attachments`; re-asserted inside the validator before it reaches any command line. */
   attachmentsRoot: string
@@ -200,6 +227,7 @@ export function createAskService({
   settings,
   subjectRepository,
   attachmentRepository,
+  attachmentIndex,
   appData,
   attachmentsRoot,
   history,
@@ -324,9 +352,16 @@ export function createAskService({
       return { ok: false, code: 'OVERSIZED_ATTACHMENT', message: oversized.join(', ') }
     }
 
+    // Scoped BM25 top-K retrieval, trimmed to the char budget (design
+    // "Retrieval + Prompt"). Chunks are untrusted file content — reaching
+    // `buildAskPrompt` is what wraps them in the sentinel-protected section;
+    // nothing indexed yet means `search` returns `[]`, the window stays
+    // empty, and the prompt below is byte-identical to pre-change behavior.
+    const retrievedChunks = computeRetrievalWindow(attachmentIndex.search(question, ASK_RETRIEVAL_TOP_K))
+
     // Composed BEFORE the spawn, not after it, because for an `argv` provider
     // the prompt is part of the command line the spawn is about to build.
-    const prompt = buildAskPrompt(buildAppContext(appData.read()), subjects, question, transcript)
+    const prompt = buildAskPrompt(buildAppContext(appData.read()), subjects, question, transcript, retrievedChunks)
 
     // The argv ceiling applies to argv delivery and nowhere else: a question
     // that travels on stdin has no command-line limit to exceed, and inflicting

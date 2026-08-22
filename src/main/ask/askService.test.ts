@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events'
 import type { ChildProcess } from 'node:child_process'
 import { describe, expect, it, vi } from 'vitest'
 import { createAskService, type AskHistoryPort, type AskHistoryTurn, type AskServiceDeps } from './askService'
-import { ASK_MAX_FILE_BYTES } from './domain/limits'
+import { ASK_MAX_FILE_BYTES, ASK_RETRIEVAL_TOP_K } from './domain/limits'
 import { MAX_ARGV_PROMPT_CHARS, type ValidatedExecutablePath } from '../claude/claudeExecutableValidator'
 
 // Orchestration for `ask:question` (design D3/D4). Mirrors
@@ -65,6 +65,11 @@ function defaultRepos(sizeBytes = 1024): Pick<AskServiceDeps, 'subjectRepository
       listBySubject: () => [{ fileName: 'apunte.pdf', storedPath: '1/uuid-apunte.pdf', sizeBytes }]
     }
   }
+}
+
+/** Default `AskAttachmentIndexPort` double: nothing indexed, matching today's pre-change behavior. */
+function noopAttachmentIndex(): AskServiceDeps['attachmentIndex'] {
+  return { search: () => [] }
 }
 
 /** A spawn double that scripts a clean exit carrying `payload` as the CLI envelope, fresh per call. */
@@ -146,6 +151,7 @@ function buildService(overrides: Partial<AskServiceDeps> = {}): {
       }
     },
     history: createFakeHistory(),
+    attachmentIndex: noopAttachmentIndex(),
     ...overrides,
     spawnPrompt
   })
@@ -743,6 +749,62 @@ describe('createAskService — argv prompt delivery', () => {
     const outcome = await service.ask('¿Qué es un anillo?', ANTIGRAVITY)
 
     expect(outcome).toEqual({ ok: false, code: 'MALFORMED_RESPONSE' })
+  })
+})
+
+// Retrieval wiring (attachment-fts-index design "Retrieval + Prompt", spec
+// "Scoped BM25 top-K retrieval" / "Graceful degradation"). `attachmentIndex`
+// is REQUIRED (no default), the SAME closed-bridge convention `history` uses
+// (askService.ts's own comment) — a missing wire is a compile error at the
+// real call site (`src/main/index.ts`), not a silent runtime degrade.
+describe('createAskService — retrieval wiring', () => {
+  it('searches the attachment index with the question and the pinned TOP_K, and the retrieved chunks reach the prompt', async () => {
+    const { spawnPrompt, last } = respondWith({ kind: 'not-found' })
+    const search = vi.fn(() => [
+      { text: 'Un anillo es una estructura algebraica.', displayName: 'apunte.pdf', subjectName: 'Álgebra' }
+    ])
+    const { service } = buildService({ spawnPrompt, attachmentIndex: { search } })
+
+    await service.ask('¿Qué es un anillo?', SELECTION)
+
+    expect(search).toHaveBeenCalledWith('¿Qué es un anillo?', ASK_RETRIEVAL_TOP_K)
+    const prompt = last().writes.join('')
+    expect(prompt).toContain('[Materia: Álgebra | Archivo: apunte.pdf]')
+    expect(prompt).toContain('Un anillo es una estructura algebraica.')
+  })
+
+  // Spec "No attachments indexed at all": the retrieval section is omitted
+  // and the prompt matches pre-change behavior exactly — proven here by a
+  // byte-for-byte comparison against a service built with NO attachmentIndex
+  // wiring difference other than an empty search result.
+  it('degrades gracefully to a manifest-only prompt when the attachment index has nothing indexed', async () => {
+    const { spawnPrompt, last } = respondWith({ kind: 'not-found' })
+    const { service } = buildService({ spawnPrompt, attachmentIndex: { search: () => [] } })
+
+    await service.ask('¿Qué es un anillo?', SELECTION)
+
+    const prompt = last().writes.join('')
+    expect(prompt).not.toContain('FRAGMENTOS DE ARCHIVOS INDEXADOS')
+  })
+
+  // Budget trimming actually runs INSIDE the service (not just in
+  // `retrievalWindow.test.ts`'s isolated unit tests) — a chunk store that
+  // returns more text than the budget allows must not blow past it here.
+  it('trims retrieved chunks to the retrieval budget before they reach the prompt', async () => {
+    const { spawnPrompt, last } = respondWith({ kind: 'not-found' })
+    const bigChunks = [
+      { text: 'a'.repeat(4000), displayName: 'grande-1.pdf', subjectName: 'Álgebra' },
+      { text: 'b'.repeat(4000), displayName: 'grande-2.pdf', subjectName: 'Álgebra' }
+    ]
+    const { service } = buildService({ spawnPrompt, attachmentIndex: { search: () => bigChunks } })
+
+    await service.ask('¿Qué es un anillo?', SELECTION)
+
+    const prompt = last().writes.join('')
+    // 4000 + 4000 = 8000 > ASK_RETRIEVAL_BUDGET_CHARS (7000): only the
+    // first, best-ranked chunk fits.
+    expect(prompt).toContain('grande-1.pdf')
+    expect(prompt).not.toContain('grande-2.pdf')
   })
 })
 
