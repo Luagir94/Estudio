@@ -97,14 +97,45 @@ export type AskResult = z.infer<typeof askResultSchema>
 
 // --- ask:question turn response --------------------------------------------
 
+// cli-generated-artifacts spec "Explicit discriminated-union artifact
+// outcome report" / design "IPC Delta". Lives ALONGSIDE `askResultSchema`,
+// never inside it — `askResultSchema` and persisted ask history receive ZERO
+// edits for this capability (design D1: the block is split from the inner
+// text before the result JSON is even parsed).
+export const askArtifactDropReasonSchema = z.enum([
+  'malformed-block',
+  'invalid-header',
+  'empty-content',
+  'oversize',
+  'invalid-filename',
+  'unknown-subject',
+  'ambiguous-subject'
+])
+
+export type AskArtifactDropReason = z.infer<typeof askArtifactDropReasonSchema>
+
+export const askArtifactReportSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('saved'), fileName: z.string(), subjectName: z.string() }),
+  z.object({ status: z.literal('failed'), fileName: z.string(), subjectName: z.string() }),
+  z.object({ status: z.literal('dropped'), reason: askArtifactDropReasonSchema })
+])
+
+export type AskArtifactReport = z.infer<typeof askArtifactReportSchema>
+
 // Wraps every completed-outcome branch with the conversation it landed in
 // (design D1/D5). `conversationId: null` is the per-turn WRITE-FAILURE
 // signal ONLY — it means exactly "this turn was not saved". It is NEVER a
 // thread-selection value; the renderer must never feed it into thread
 // selection state.
+//
+// `artifact` is OPTIONAL and TRANSIENT (design D6, cli-generated-artifacts
+// spec "Transcript reporting is plain text, action-free, and transient") —
+// present only on the live turn that produced it, absent when no artifact
+// block was emitted, and never persisted into ask history.
 export const askTurnResponseSchema = z.object({
   conversationId: z.number().int().positive().nullable(),
-  result: askResultSchema
+  result: askResultSchema,
+  artifact: askArtifactReportSchema.optional()
 })
 
 export type AskTurnResponse = z.infer<typeof askTurnResponseSchema>

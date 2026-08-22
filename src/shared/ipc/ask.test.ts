@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  askArtifactDropReasonSchema,
+  askArtifactReportSchema,
   askErrorCodeSchema,
   askHistoryMessageSchema,
   askQuestionInputSchema,
@@ -282,6 +284,120 @@ describe('askTurnResponseSchema', () => {
 
   it('rejects a response whose result fails schema validation', () => {
     expect(() => askTurnResponseSchema.parse({ conversationId: null, result: { kind: 'bogus' } })).toThrow()
+  })
+})
+
+// cli-generated-artifacts spec "Explicit discriminated-union artifact
+// outcome report" — the closed seven-value drop-reason set. `askResultSchema`
+// itself is NEVER touched by this capability (design "Wire Format"): the
+// artifact travels outside it as a separate, optional field below.
+describe('askArtifactDropReasonSchema', () => {
+  const reasons = [
+    'malformed-block',
+    'invalid-header',
+    'empty-content',
+    'oversize',
+    'invalid-filename',
+    'unknown-subject',
+    'ambiguous-subject'
+  ]
+
+  it.each(reasons)('accepts %s as a closed drop reason', (reason) => {
+    expect(askArtifactDropReasonSchema.parse(reason)).toBe(reason)
+  })
+
+  it('rejects an 8th reason outside the closed set', () => {
+    expect(() => askArtifactDropReasonSchema.parse('unexpected-reason')).toThrow()
+  })
+})
+
+// Discriminated union on `status` (design D1/D6) — never a single shape with
+// nullable fields, same discipline as `askResultSchema` above.
+describe('askArtifactReportSchema', () => {
+  it('parses a saved outcome', () => {
+    const result = askArtifactReportSchema.parse({
+      status: 'saved',
+      fileName: 'resumen-parcial-1.md',
+      subjectName: 'Física'
+    })
+    expect(result).toEqual({ status: 'saved', fileName: 'resumen-parcial-1.md', subjectName: 'Física' })
+  })
+
+  it('parses a failed outcome', () => {
+    const result = askArtifactReportSchema.parse({
+      status: 'failed',
+      fileName: 'resumen-parcial-1.md',
+      subjectName: 'Física'
+    })
+    expect(result).toEqual({ status: 'failed', fileName: 'resumen-parcial-1.md', subjectName: 'Física' })
+  })
+
+  it('parses a dropped outcome carrying one of the seven closed reasons', () => {
+    const result = askArtifactReportSchema.parse({ status: 'dropped', reason: 'unknown-subject' })
+    expect(result).toEqual({ status: 'dropped', reason: 'unknown-subject' })
+  })
+
+  it('rejects a dropped outcome whose reason is free text, not a closed-set member', () => {
+    expect(() => askArtifactReportSchema.parse({ status: 'dropped', reason: 'algo salió mal' })).toThrow()
+  })
+
+  it('rejects a status outside the union', () => {
+    expect(() => askArtifactReportSchema.parse({ status: 'pending', fileName: 'x.md', subjectName: 'Física' })).toThrow()
+  })
+})
+
+// The `artifact` field is optional and lives ALONGSIDE `result`, never
+// inside it — `askResultSchema` receives zero edits for this capability
+// (design "IPC Delta").
+describe('askTurnResponseSchema — artifact field', () => {
+  it('parses a turn response with no artifact field at all (no block emitted)', () => {
+    const result = askTurnResponseSchema.parse({ conversationId: 3, result: { kind: 'not-found' } })
+    expect(result.artifact).toBeUndefined()
+  })
+
+  it('parses a turn response carrying a saved artifact report alongside its result', () => {
+    const result = askTurnResponseSchema.parse({
+      conversationId: 3,
+      result: { kind: 'not-found' },
+      artifact: { status: 'saved', fileName: 'resumen-parcial-1.md', subjectName: 'Física' }
+    })
+    expect(result.artifact).toEqual({ status: 'saved', fileName: 'resumen-parcial-1.md', subjectName: 'Física' })
+    // askResultSchema's own shape is untouched by the artifact's presence.
+    expect(result.result).toEqual({ kind: 'not-found' })
+  })
+
+  it('parses a turn response carrying a dropped artifact report', () => {
+    const result = askTurnResponseSchema.parse({
+      conversationId: 3,
+      result: { kind: 'not-found' },
+      artifact: { status: 'dropped', reason: 'oversize' }
+    })
+    expect(result.artifact).toEqual({ status: 'dropped', reason: 'oversize' })
+  })
+
+  it('rejects a turn response whose artifact field fails schema validation', () => {
+    expect(() =>
+      askTurnResponseSchema.parse({
+        conversationId: 3,
+        result: { kind: 'not-found' },
+        artifact: { status: 'dropped', reason: 'not-a-real-reason' }
+      })
+    ).toThrow()
+  })
+
+  // Both-sides parsing (design D6 convention): encoding a value through the
+  // schema and re-parsing it back must be lossless, same round-trip
+  // guarantee every other two-sided IPC shape in this file relies on.
+  it('round-trips an artifact report through parse -> serialize -> parse unchanged', () => {
+    const original = askTurnResponseSchema.parse({
+      conversationId: 3,
+      result: { kind: 'not-found' },
+      artifact: { status: 'saved', fileName: 'resumen-parcial-1.md', subjectName: 'Física' }
+    })
+
+    const roundTripped = askTurnResponseSchema.parse(JSON.parse(JSON.stringify(original)))
+
+    expect(roundTripped).toEqual(original)
   })
 })
 
