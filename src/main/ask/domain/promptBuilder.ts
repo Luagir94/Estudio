@@ -62,12 +62,14 @@ const ANSWER_SHAPES = [
 // materias the gate drops the artifact anyway. Same prompt-trust model as
 // `ANSWER_SHAPES`: no server-side intent detection exists or is added.
 const ARTIFACT_INSTRUCTION_LINES = [
-  '- Si la pregunta del estudiante pide explícitamente un documento (resumen, apunte, machete/cheatsheet), podés agregar, DESPUÉS del JSON de arriba, UN bloque de artefacto generado con esta forma exacta:',
+  '- Si la pregunta del estudiante pide explícitamente un documento (resumen, apunte, machete/cheatsheet, diagrama), podés agregar, DESPUÉS del JSON de arriba, UN bloque de artefacto generado con esta forma exacta:',
   `  ${ARTIFACT_START_SENTINEL}`,
   '  {"materia": string, "fileName": string}',
   '  <contenido crudo del documento, sin escapar>',
   `  ${ARTIFACT_END_SENTINEL}`,
   '  "materia" debe ser EXACTAMENTE el nombre de la materia como aparece en los datos de arriba, y "fileName" debe terminar en ".md".',
+  '  Para un diagrama, incluí el diagrama como bloque Mermaid dentro del ".md".',
+  '- Un pedido de generación de documento es una pregunta válida: respondela con {"kind": "answer"} (con citas, si lo generás desde los datos o archivos de arriba) o {"kind": "general"}, describiendo lo generado, y agregá el bloque de artefacto. Nunca devuelvas {"kind": "not-found"} solo porque la pregunta pide generar un documento.',
   '- Si la pregunta no pide un documento, no agregues este bloque.',
   '- Como máximo un bloque de artefacto por respuesta.'
 ]

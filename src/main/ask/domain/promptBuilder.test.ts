@@ -282,6 +282,20 @@ describe('buildAskPrompt', () => {
       expect(prompt).toMatch(/máximo un bloque/i)
     })
 
+    it('names diagrams among the document examples, with Mermaid inside the .md', () => {
+      const prompt = buildAskPrompt(appContext, manifest, '¿Y esto?')
+
+      expect(prompt).toMatch(/machete\/cheatsheet, diagrama/)
+      expect(prompt).toMatch(/bloque Mermaid dentro del "\.md"/)
+    })
+
+    it('tells the model a generation request is answered, never not-found', () => {
+      const prompt = buildAskPrompt(appContext, manifest, 'Generame un diagrama y guardalo en la materia')
+
+      expect(prompt).toMatch(/pedido de generación de documento/i)
+      expect(prompt).toMatch(/Nunca devuelvas \{"kind": "not-found"\} solo porque la pregunta pide generar/)
+    })
+
     it('carries the carve-out addendum on the exact-JSON instruction line', () => {
       const prompt = buildAskPrompt(appContext, manifest, '¿Y esto?')
 
