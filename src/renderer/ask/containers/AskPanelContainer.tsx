@@ -10,6 +10,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Folder, Loader, Plug, SearchX } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import type { AskArtifactReport } from '../../../shared/ipc/ask'
 import type { ModelSelection } from '../../../shared/ipc/cli'
 import {
   AskApiError,
@@ -66,6 +67,15 @@ export function AskPanelContainer({ onGoToAjustes }: AskPanelContainerProps): Re
   // The in-flight question and anything a failed write left behind — merged
   // onto the derived (persisted) entries below.
   const [localEntries, setLocalEntries] = useState<readonly AskEntry[]>([])
+  // The LIVE turn's generated-artifact outcome (cli-generated-artifacts spec
+  // "Transcript reporting is plain text, action-free, and transient") — kept
+  // OUTSIDE `entries`/`localEntries` on purpose (design D6): it must render
+  // for a turn whether that turn's result is a local, not-saved entry or the
+  // freshly-persisted last entry `derivedEntries` picks up on refetch, and it
+  // must NEVER be sourced from persisted history. Reset at every point that
+  // moves the panel away from "the turn that just finished" — a fresh submit
+  // or a close — so reopening a past conversation can never replay it.
+  const [liveArtifact, setLiveArtifact] = useState<AskArtifactReport | undefined>(undefined)
   const nextId = useRef(FIRST_LOCAL_ENTRY_SEED)
   const queryClient = useQueryClient()
 
@@ -169,7 +179,12 @@ export function AskPanelContainer({ onGoToAjustes }: AskPanelContainerProps): Re
       activeId != null
         ? askApi.question(input.question, input.model, activeId)
         : askApi.question(input.question, input.model),
-    onSuccess: ({ conversationId, result }) => {
+    onSuccess: ({ conversationId, result, artifact }) => {
+      // Set unconditionally, BEFORE the branch below: a generated-artifact
+      // outcome is independent of whether the ANSWER itself got persisted, so
+      // both the persisted and not-saved branches must report it the same way.
+      setLiveArtifact(artifact)
+
       if (conversationId !== null) {
         // Persisted: the invalidated refetch becomes the source of truth for
         // this turn, so the optimistic local copy is dropped instead of
@@ -223,6 +238,7 @@ export function AskPanelContainer({ onGoToAjustes }: AskPanelContainerProps): Re
   const close = (): void => {
     setOpen(false)
     setLocalEntries([])
+    setLiveArtifact(undefined)
     setDraft('')
     setHistoryOpen(false)
     cancelQuietly()
@@ -271,6 +287,10 @@ export function AskPanelContainer({ onGoToAjustes }: AskPanelContainerProps): Re
     if (degraded || historyOpen || question.length === 0 || mutation.isPending) {
       return
     }
+    // The PREVIOUS turn's outcome line belongs to that turn, not to whatever
+    // is about to run — clearing it here keeps it from lingering under a
+    // brand-new, unrelated pending question.
+    setLiveArtifact(undefined)
     append({ kind: 'question', text: question })
     setDraft('')
     mutation.mutate({ question, model })
@@ -330,7 +350,7 @@ export function AskPanelContainer({ onGoToAjustes }: AskPanelContainerProps): Re
                   detail="Respondo solo con lo que subiste, y siempre te digo de qué archivo lo saqué."
                 />
               )}
-              <AskTranscript entries={entries} />
+              <AskTranscript entries={entries} liveArtifact={liveArtifact} />
               {mutation.isPending && <AskStateCard icon={Loader} busy {...ASK_PENDING} />}
             </>
           )}

@@ -1090,6 +1090,87 @@ describe('AskPanelContainer — no CLI connected', () => {
   })
 })
 
+// Generated-artifact outcome line (cli-generated-artifacts spec "Transcript
+// reporting is plain text, action-free, and transient"). The container is
+// the ONLY place that threads `askTurnResponse.artifact` — a TRANSIENT field
+// never persisted with history — into the live turn; these tests prove both
+// the threading and its scoped lifetime (never survives a close/reopen or a
+// freshly-submitted question).
+describe('AskPanelContainer — generated artifact outcome', () => {
+  beforeEach(resetAskMocks)
+
+  it('renders the app-owned outcome line after a successful turn that reports one', async () => {
+    vi.mocked(askApi.question).mockResolvedValue({
+      conversationId: null,
+      result: { kind: 'general', answer: 'Acá tenés tu resumen.' },
+      artifact: { status: 'saved', fileName: 'resumen-parcial-1.md', subjectName: 'Álgebra' }
+    })
+    renderPanel()
+    await openPanel()
+    await ask('Armame un resumen del parcial 1')
+
+    expect(await screen.findByText('Acá tenés tu resumen.')).toBeInTheDocument()
+    expect(screen.getByText('Se guardó "resumen-parcial-1.md" en Álgebra.')).toBeInTheDocument()
+  })
+
+  // Persisted writes take the OTHER `onSuccess` branch (selection switches,
+  // `localEntries` clears, `derivedEntries` takes over on refetch) — the
+  // outcome line must still thread through that branch, not only the
+  // not-saved one exercised above.
+  it('renders the outcome line for a persisted turn too', async () => {
+    vi.mocked(askApi.question).mockResolvedValue({
+      conversationId: 7,
+      result: { kind: 'not-found' },
+      artifact: { status: 'dropped', reason: 'unknown-subject' }
+    })
+    vi.mocked(askApi.getConversation).mockResolvedValue(
+      conversation(7, [message(1, 'Armame un resumen de Física', { kind: 'not-found' })])
+    )
+    renderPanel()
+    await openPanel()
+    await ask('Armame un resumen de Física')
+
+    await waitFor(() => expect(askApi.getConversation).toHaveBeenCalledWith(7))
+    expect(
+      await screen.findByText('El modelo intentó generar un documento para una materia que no encontré. No se guardó.')
+    ).toBeInTheDocument()
+  })
+
+  it('does not replay the outcome line once the panel is closed and reopened', async () => {
+    vi.mocked(askApi.question).mockResolvedValue({
+      conversationId: null,
+      result: { kind: 'general', answer: 'Acá tenés tu resumen.' },
+      artifact: { status: 'saved', fileName: 'resumen.md', subjectName: 'Álgebra' }
+    })
+    renderPanel()
+    await openPanel()
+    await ask('Armame un resumen')
+    await screen.findByText('Se guardó "resumen.md" en Álgebra.')
+
+    fireEvent.click(screen.getByRole('button', { name: /cerrar/i }))
+    await openPanel()
+
+    expect(screen.queryByText('Se guardó "resumen.md" en Álgebra.')).not.toBeInTheDocument()
+  })
+
+  it('does not carry a turn’s outcome line into a newly submitted question', async () => {
+    vi.mocked(askApi.question).mockResolvedValueOnce({
+      conversationId: null,
+      result: { kind: 'general', answer: 'Primera respuesta.' },
+      artifact: { status: 'saved', fileName: 'resumen.md', subjectName: 'Álgebra' }
+    })
+    renderPanel()
+    await openPanel()
+    await ask('Primera pregunta')
+    await screen.findByText('Se guardó "resumen.md" en Álgebra.')
+
+    vi.mocked(askApi.question).mockReturnValue(new Promise(() => {}))
+    await ask('Segunda pregunta, sin pedir documento')
+
+    expect(screen.queryByText('Se guardó "resumen.md" en Álgebra.')).not.toBeInTheDocument()
+  })
+})
+
 // A model the app cannot spawn must not be on the menu. Main refuses a
 // disconnected provider at the process boundary, so offering its models would
 // be offering rows that answer nothing.

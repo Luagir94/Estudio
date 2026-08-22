@@ -10,13 +10,14 @@ import {
   Minus,
   type LucideIcon
 } from 'lucide-react'
-import type { Citation, CitationSection } from '../../../shared/ipc/ask'
+import type { AskArtifactReport, Citation, CitationSection } from '../../../shared/ipc/ask'
 import {
   ASK_CITATIONS_LABEL,
   ASK_GENERAL_MARKER,
   ASK_MEMORY_BOUNDARY_MARKER,
   ASK_NOT_SAVED,
-  ASK_SECTION_LABELS
+  ASK_SECTION_LABELS,
+  describeAskArtifact
 } from '../domain/askDisplay'
 import { AskStateCard } from './AskStateCard'
 
@@ -47,6 +48,17 @@ export type AskEntryInput = DistributiveOmit<Exclude<AskEntry, { kind: 'boundary
 
 interface AskTranscriptProps {
   entries: readonly AskEntry[]
+  /**
+   * The current live turn's generated-artifact outcome, if any (design D6) —
+   * NEVER a field on `AskEntry`/`entries`, because it must render for a turn
+   * regardless of whether that turn's result came from `localEntries` (an
+   * unsaved write) or from freshly-persisted history. It is threaded in by
+   * the container from the live `AskTurnResponse` only; `entries` — including
+   * anything built by `toEntries` off persisted messages — can never carry
+   * one, which is what makes reopening a past conversation unable to replay
+   * it (spec "Reopening a conversation does not replay the outcome line").
+   */
+  liveArtifact?: AskArtifactReport
 }
 
 const SECTION_ICONS: Record<CitationSection, LucideIcon> = {
@@ -95,11 +107,24 @@ function NotSavedMarker(): React.JSX.Element {
  * click-to-open. There is deliberately no path by which model output can
  * trigger an app action.
  *
+ * ONE BOUNDED, SINGLE EXCEPTION (cli-generated-artifacts design's "Validation
+ * Gate" section): `liveArtifact` reports the outcome of a generated-document
+ * save that already happened entirely inside `askService`, behind a single
+ * validation gate, before this component ever renders — this transcript
+ * itself never triggers that write, only reports it. The report still stays
+ * fully action-free: it renders as one plain `<p>` text node built from
+ * APP-OWNED copy (`describeAskArtifact`), with no anchor, no `onClick`, and
+ * no markdown/link parsing — the only model-adjacent values it ever shows are
+ * the already-sanitized `fileName`/`subjectName`. Every other model-output
+ * field (citations, general text, and any future field) stays exactly as
+ * inert as described above; this is the sole precedent, not a pattern to
+ * extend without a new, separately reviewed exception.
+ *
  * A `general` entry is an answer the model produced WITHOUT the student's
  * corpus. It renders with an unmissable marker, because that marker is the
  * only thing distinguishing it from a sourced answer.
  */
-export function AskTranscript({ entries }: AskTranscriptProps): React.JSX.Element {
+export function AskTranscript({ entries, liveArtifact }: AskTranscriptProps): React.JSX.Element {
   return (
     <div className="flex flex-col gap-4">
       {entries.map((entry) => {
@@ -163,6 +188,7 @@ export function AskTranscript({ entries }: AskTranscriptProps): React.JSX.Elemen
           </div>
         )
       })}
+      {liveArtifact && <p className="text-label text-muted-foreground">{describeAskArtifact(liveArtifact)}</p>}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { AskHistoryMessage, TranscriptWindowMarker } from '../../../shared/ipc/ask'
+import type { AskArtifactReport, AskHistoryMessage, TranscriptWindowMarker } from '../../../shared/ipc/ask'
 import { SearchX } from 'lucide-react'
 import { ASK_MEMORY_BOUNDARY_MARKER, ASK_NOT_FOUND, ASK_NOT_SAVED } from '../domain/askDisplay'
 import { toEntries } from '../domain/historyEntries'
@@ -108,5 +108,106 @@ describe('AskTranscript — not-saved marker', () => {
 
     expect(screen.getByText(ASK_NOT_FOUND.title)).toBeInTheDocument()
     expect(screen.getByText(ASK_NOT_SAVED)).toBeInTheDocument()
+  })
+})
+
+// Generated-artifact outcome line (cli-generated-artifacts spec "Transcript
+// reporting is plain text, action-free, and transient"; design "Renderer
+// Delta" + the bounded exception named in the invariant docstring above the
+// component). `liveArtifact` is a prop of `AskTranscript` itself — NOT a
+// field on `AskEntry` — because it must render for a turn regardless of
+// whether that turn's result entry came from `localEntries` or from
+// `derivedEntries` built off freshly-persisted history (see design D6).
+describe('AskTranscript — generated artifact outcome line', () => {
+  const answerEntries: readonly AskEntry[] = [
+    { kind: 'answer', id: 1, text: 'Acá tenés el resumen que pediste.', citations: [] }
+  ]
+
+  it('renders the saved outcome naming the file and subject', () => {
+    const artifact: AskArtifactReport = { status: 'saved', fileName: 'resumen-parcial-1.md', subjectName: 'Álgebra' }
+
+    render(<AskTranscript entries={answerEntries} liveArtifact={artifact} />)
+
+    expect(screen.getByText('Se guardó "resumen-parcial-1.md" en Álgebra.')).toBeInTheDocument()
+  })
+
+  it('renders the failed outcome naming the file and subject', () => {
+    const artifact: AskArtifactReport = { status: 'failed', fileName: 'resumen-parcial-1.md', subjectName: 'Álgebra' }
+
+    render(<AskTranscript entries={answerEntries} liveArtifact={artifact} />)
+
+    expect(screen.getByText('No se pudo guardar "resumen-parcial-1.md" en Álgebra.')).toBeInTheDocument()
+  })
+
+  // Table-driven over the closed seven-reason set (spec's exact enum) — each
+  // reason gets its own distinct, app-owned sentence, never a raw code.
+  it.each([
+    ['malformed-block', 'El modelo intentó generar un documento con un formato inválido. No se guardó.'],
+    ['invalid-header', 'El modelo intentó generar un documento con datos inválidos. No se guardó.'],
+    ['empty-content', 'El modelo intentó generar un documento vacío. No se guardó.'],
+    ['oversize', 'El modelo intentó generar un documento demasiado grande. No se guardó.'],
+    ['invalid-filename', 'El modelo intentó generar un documento con un nombre de archivo inválido. No se guardó.'],
+    ['unknown-subject', 'El modelo intentó generar un documento para una materia que no encontré. No se guardó.'],
+    ['ambiguous-subject', 'El modelo intentó generar un documento para una materia ambigua. No se guardó.']
+  ] as const)('renders the %s drop reason with its own copy', (reason, expectedText) => {
+    const artifact: AskArtifactReport = { status: 'dropped', reason }
+
+    render(<AskTranscript entries={answerEntries} liveArtifact={artifact} />)
+
+    expect(screen.getByText(expectedText)).toBeInTheDocument()
+  })
+
+  it('renders no interactive elements on the outcome line', () => {
+    const artifact: AskArtifactReport = { status: 'dropped', reason: 'oversize' }
+
+    const { container } = render(<AskTranscript entries={answerEntries} liveArtifact={artifact} />)
+
+    expect(container.querySelector('a')).toBeNull()
+    expect(container.querySelector('button')).toBeNull()
+  })
+
+  it('renders the model answer regardless of the artifact outcome', () => {
+    const artifact: AskArtifactReport = { status: 'dropped', reason: 'unknown-subject' }
+
+    render(<AskTranscript entries={answerEntries} liveArtifact={artifact} />)
+
+    expect(screen.getByText('Acá tenés el resumen que pediste.')).toBeInTheDocument()
+    expect(
+      screen.getByText('El modelo intentó generar un documento para una materia que no encontré. No se guardó.')
+    ).toBeInTheDocument()
+  })
+
+  it('renders nothing extra when no artifact was reported', () => {
+    render(<AskTranscript entries={answerEntries} />)
+
+    expect(screen.queryByText(/no se guardó/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Se guardó/)).not.toBeInTheDocument()
+  })
+
+  // The explicit non-replay scenario (spec "Reopening a conversation does not
+  // replay the outcome line"): entries built the SAME way the container
+  // builds them for a reopened thread — through `toEntries` off persisted
+  // messages — with no `liveArtifact` passed, because a reopened thread is
+  // never "the live turn". Nothing in `entries`/`toEntries` can carry an
+  // artifact report (askResultSchema was never extended for it), so this
+  // also proves the line cannot leak in through persisted data.
+  it('does not replay an outcome line when rendering a reopened past conversation', () => {
+    const messages: AskHistoryMessage[] = [
+      {
+        id: 1,
+        question: '¿Me armás un resumen de la clase 3?',
+        model: 'sonnet',
+        result: { kind: 'answer', answer: 'Acá tenés el resumen que pediste.', citations: [] },
+        createdAt: '2026-08-18T09:00'
+      }
+    ]
+    const window: TranscriptWindowMarker = { startMessageId: 1, excludedCount: 0 }
+    const entries = toEntries(messages, window)
+
+    render(<AskTranscript entries={entries} />)
+
+    expect(screen.getByText('Acá tenés el resumen que pediste.')).toBeInTheDocument()
+    expect(screen.queryByText(/no se guardó/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Se guardó/)).not.toBeInTheDocument()
   })
 })

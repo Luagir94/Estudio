@@ -1,4 +1,4 @@
-import type { AskErrorCode, CitationSection } from '../../../shared/ipc/ask'
+import type { AskArtifactDropReason, AskArtifactReport, AskErrorCode, CitationSection } from '../../../shared/ipc/ask'
 import type { CliProvider, ModelSelection } from '../../../shared/ipc/cli'
 
 // Every user-facing string for the ask panel (design D7). Main sends a typed
@@ -293,4 +293,40 @@ export function describeAskError(code: AskErrorCode, detail?: string): AskErrorC
   }
 
   return copy
+}
+
+/**
+ * One sentence per closed drop reason (cli-generated-artifacts spec's exact
+ * seven-value enum — `askArtifactDropReasonSchema`). App-owned, like every
+ * other entry in this file: the CLI never explains itself in its own words
+ * here, it only supplies the typed reason this maps from.
+ */
+const ARTIFACT_DROP_COPY: Record<AskArtifactDropReason, string> = {
+  'malformed-block': 'El modelo intentó generar un documento con un formato inválido. No se guardó.',
+  'invalid-header': 'El modelo intentó generar un documento con datos inválidos. No se guardó.',
+  'empty-content': 'El modelo intentó generar un documento vacío. No se guardó.',
+  oversize: 'El modelo intentó generar un documento demasiado grande. No se guardó.',
+  'invalid-filename': 'El modelo intentó generar un documento con un nombre de archivo inválido. No se guardó.',
+  'unknown-subject': 'El modelo intentó generar un documento para una materia que no encontré. No se guardó.',
+  'ambiguous-subject': 'El modelo intentó generar un documento para una materia ambigua. No se guardó.'
+}
+
+/**
+ * Maps a generated-artifact outcome report to one app-owned, plain-text
+ * sentence (cli-generated-artifacts spec "Transcript reporting is plain
+ * text, action-free, and transient"). `fileName`/`subjectName` are the ONLY
+ * model-adjacent values ever interpolated here — both are already
+ * app-validated by `artifactGate.ts` (sanitized filename, exact-resolved
+ * subject name) before this report is ever built, so they carry no more
+ * trust risk than any other third-party file name already shown elsewhere
+ * in this panel (e.g. a citation's `file`).
+ */
+export function describeAskArtifact(report: AskArtifactReport): string {
+  if (report.status === 'saved') {
+    return `Se guardó "${report.fileName}" en ${report.subjectName}.`
+  }
+  if (report.status === 'failed') {
+    return `No se pudo guardar "${report.fileName}" en ${report.subjectName}.`
+  }
+  return ARTIFACT_DROP_COPY[report.reason]
 }
