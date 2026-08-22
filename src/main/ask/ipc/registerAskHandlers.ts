@@ -51,8 +51,17 @@ export function registerAskHandlers({ askService, askHistoryRepository }: Regist
       )
       // `message` is a technical detail or the offending file names — the
       // renderer owns every user-facing string, keyed off the code.
+      //
+      // `artifact` is spread in ONLY when present (cli-generated-artifacts
+      // tasks 7.6/7.7) — the field must stay ABSENT, not merely `undefined`,
+      // when the service reported no artifact block, matching
+      // `askTurnResponseSchema`'s optional shape exactly.
       return outcome.ok
-        ? ipcOk({ conversationId: outcome.conversationId, result: outcome.data })
+        ? ipcOk({
+            conversationId: outcome.conversationId,
+            result: outcome.data,
+            ...(outcome.artifact ? { artifact: outcome.artifact } : {})
+          })
         : ipcErr(outcome.code, outcome.message ?? outcome.code)
     } catch (error) {
       // The service maps its own failures; anything reaching here is

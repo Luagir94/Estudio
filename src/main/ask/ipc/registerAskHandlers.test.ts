@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AskResult } from '../../../shared/ipc/ask'
+import { askTurnResponseSchema, type AskResult, type AskTurnResponse } from '../../../shared/ipc/ask'
 import type {
   AskHistoryRepository,
   AskHistoryMessage,
@@ -176,6 +176,43 @@ describe('registerAskHandlers', () => {
         ok: false,
         error: { code: 'OVERSIZED_ATTACHMENT', message: 'enorme.pdf, gigante.pdf' }
       })
+    })
+
+    // cli-generated-artifacts Unit 7.6/7.7 — the artifact report must pass
+    // through the turn envelope unchanged and stay schema-valid on the SAME
+    // shared `askTurnResponseSchema` both processes parse against.
+    it('passes an artifact report through the turn envelope, matching askTurnResponseSchema [artifact]', async () => {
+      const data: AskResult = { kind: 'not-found' }
+      const artifact: NonNullable<AskTurnResponse['artifact']> = {
+        status: 'saved',
+        fileName: 'resumen.md',
+        subjectName: 'Álgebra'
+      }
+      vi.mocked(askService.ask).mockResolvedValue({ ok: true, data, conversationId: 5, messageId: 42, artifact })
+
+      const result = await invoke('ask:question', {
+        question: '¿Y esto?',
+        provider: 'claude',
+        model: 'claude-sonnet-5'
+      })
+
+      expect(result).toEqual({ ok: true, data: { conversationId: 5, result: data, artifact } })
+      expect(askTurnResponseSchema.safeParse((result as { ok: true; data: unknown }).data).success).toBe(true)
+    })
+
+    it('omits the artifact field entirely when the service reports none, staying schema-valid [artifact]', async () => {
+      const data: AskResult = { kind: 'not-found' }
+      vi.mocked(askService.ask).mockResolvedValue({ ok: true, data, conversationId: 5, messageId: 42 })
+
+      const result = await invoke('ask:question', {
+        question: '¿Y esto?',
+        provider: 'claude',
+        model: 'claude-sonnet-5'
+      })
+
+      expect(result).toEqual({ ok: true, data: { conversationId: 5, result: data } })
+      expect('artifact' in (result as { ok: true; data: object }).data).toBe(false)
+      expect(askTurnResponseSchema.safeParse((result as { ok: true; data: unknown }).data).success).toBe(true)
     })
 
     // A rejected promise crossing the bridge would surface in the renderer as

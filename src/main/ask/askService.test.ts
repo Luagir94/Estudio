@@ -1,9 +1,17 @@
 import { EventEmitter } from 'node:events'
 import type { ChildProcess } from 'node:child_process'
 import { describe, expect, it, vi } from 'vitest'
-import { createAskService, type AskHistoryPort, type AskHistoryTurn, type AskServiceDeps } from './askService'
-import { ASK_MAX_FILE_BYTES, ASK_RETRIEVAL_TOP_K } from './domain/limits'
+import {
+  createAskService,
+  type AskGeneratedArtifactPort,
+  type AskHistoryPort,
+  type AskHistoryTurn,
+  type AskServiceDeps
+} from './askService'
+import { ARTIFACT_START_SENTINEL, ARTIFACT_END_SENTINEL } from './domain/artifactBlock'
+import { ASK_ARTIFACT_MAX_CONTENT_BYTES, ASK_MAX_FILE_BYTES, ASK_RETRIEVAL_TOP_K } from './domain/limits'
 import { MAX_ARGV_PROMPT_CHARS, type ValidatedExecutablePath } from '../claude/claudeExecutableValidator'
+import type { AskArtifactDropReason } from '../../shared/ipc/ask'
 
 // Orchestration for `ask:question` (design D3/D4). Mirrors
 // `claudeProbeService.test.ts`: every external effect — resolver, settings,
@@ -74,17 +82,48 @@ function noopAttachmentIndex(): AskServiceDeps['attachmentIndex'] {
 
 /** A spawn double that scripts a clean exit carrying `payload` as the CLI envelope, fresh per call. */
 function respondWith(payload: unknown): { spawnPrompt: AskServiceDeps['spawnPrompt']; last: () => FakeChild } {
+  return respondWithInnerText(JSON.stringify(payload))
+}
+
+/**
+ * Same clean-exit double as `respondWith`, but the inner text handed to the
+ * envelope is caller-composed — used to append a sentinel-wrapped artifact
+ * block AFTER the result JSON, exactly as design "Wire Format" describes.
+ */
+function respondWithInnerText(innerText: string): {
+  spawnPrompt: AskServiceDeps['spawnPrompt']
+  last: () => FakeChild
+} {
   let last: FakeChild | undefined
   const spawnPrompt = vi.fn(() => {
     const fake = createFakeChild()
     last = fake
     queueMicrotask(() => {
-      fake.stdout.emit('data', JSON.stringify({ result: JSON.stringify(payload) }))
+      fake.stdout.emit('data', JSON.stringify({ result: innerText }))
       fake.child.emit('close', 0)
     })
     return fake.child
   })
   return { spawnPrompt, last: () => last as FakeChild }
+}
+
+/** A well-formed sentinel-wrapped artifact block, appended after the result JSON (design "Wire Format"). */
+function artifactBlockText(header: unknown, body: string): string {
+  return [ARTIFACT_START_SENTINEL, JSON.stringify(header), body, ARTIFACT_END_SENTINEL].join('\n')
+}
+
+/** A `respondWith`-equivalent whose inner text carries `payload` followed by a well-formed artifact block. */
+function respondWithArtifact(
+  payload: unknown,
+  header: unknown,
+  body: string
+): { spawnPrompt: AskServiceDeps['spawnPrompt']; last: () => FakeChild } {
+  return respondWithInnerText(`${JSON.stringify(payload)}\n${artifactBlockText(header, body)}`)
+}
+
+/** Default `AskGeneratedArtifactPort` double: saves cleanly, matching a well-behaved storage layer. */
+function okGeneratedArtifacts(): AskGeneratedArtifactPort {
+  return { saveGenerated: vi.fn().mockResolvedValue({ ok: true }) }
 }
 
 /**
@@ -152,6 +191,7 @@ function buildService(overrides: Partial<AskServiceDeps> = {}): {
     },
     history: createFakeHistory(),
     attachmentIndex: noopAttachmentIndex(),
+    generatedArtifacts: okGeneratedArtifacts(),
     ...overrides,
     spawnPrompt
   })
@@ -840,5 +880,149 @@ describe('the opt-in gate', () => {
     await service.ask('¿Y esto?', SELECTION)
 
     expect(logs.some((line) => line.includes('is not connected') && line.includes('no process started'))).toBe(true)
+  })
+})
+
+// Unit 7 — the bounded exception (design "Validation Gate", spec "Bounded
+// exception to 'model output never triggers an app action'"). `mapOutcome`'s
+// `MappedExecutionOutcome` threading `artifact: ArtifactExtraction`
+// unchanged from `parseAskResponse`'s ok-branch (tasks 7.1/7.2) has no
+// independently observable surface — it is a private, unexported type-only
+// increment — so it is proven transitively by every test below, which could
+// not pass without it (apply-time deviation, recorded in apply-progress).
+// `validateArtifact` + `AskGeneratedArtifactPort.saveGenerated` (tasks
+// 7.3/7.4) is the SINGLE call site in the whole app where model output
+// triggers a real write (design's bounded-exception invariant).
+describe('createAskService — generated artifact pipeline', () => {
+  const NOT_FOUND = { kind: 'not-found' } as const
+  const VALID_HEADER = { materia: 'Álgebra', fileName: 'resumen.md' }
+
+  it('saves a valid artifact through the port with exactly {subjectId, fileName, content}, and reports it saved', async () => {
+    const saveGenerated = vi.fn().mockResolvedValue({ ok: true })
+    const { spawnPrompt } = respondWithArtifact(NOT_FOUND, VALID_HEADER, 'Contenido del resumen.')
+    const { service } = buildService({ spawnPrompt, generatedArtifacts: { saveGenerated } })
+
+    const outcome = await service.ask('Hacéme un resumen de anillos', SELECTION)
+
+    expect(saveGenerated).toHaveBeenCalledWith({
+      subjectId: 1,
+      fileName: 'resumen.md',
+      content: 'Contenido del resumen.'
+    })
+    expect(outcome).toMatchObject({
+      ok: true,
+      artifact: { status: 'saved', fileName: 'resumen.md', subjectName: 'Álgebra' }
+    })
+  })
+
+  // Every one of the 7 closed drop reasons must reach the SAME place a
+  // malformed block does at the gate boundary (artifactGate.test.ts already
+  // proves the gate's own logic in isolation) — this proves askService wires
+  // that gate result through to the port call and the turn response.
+  // `ambiguous-subject` needs a two-subject repo, so it is a separate test
+  // below rather than a seventh table row.
+  it.each<{ reason: AskArtifactDropReason; innerTextSuffix: string }>([
+    {
+      reason: 'malformed-block',
+      innerTextSuffix: `${ARTIFACT_START_SENTINEL}\n${JSON.stringify(VALID_HEADER)}\nsin cierre`
+    },
+    { reason: 'invalid-header', innerTextSuffix: artifactBlockText({ materia: 'Álgebra' }, 'contenido') },
+    { reason: 'empty-content', innerTextSuffix: artifactBlockText(VALID_HEADER, '   ') },
+    {
+      reason: 'oversize',
+      innerTextSuffix: artifactBlockText(VALID_HEADER, 'x'.repeat(ASK_ARTIFACT_MAX_CONTENT_BYTES + 1))
+    },
+    {
+      reason: 'invalid-filename',
+      innerTextSuffix: artifactBlockText({ materia: 'Álgebra', fileName: 'resumen.pdf' }, 'contenido')
+    },
+    {
+      reason: 'unknown-subject',
+      innerTextSuffix: artifactBlockText({ materia: 'Química', fileName: 'resumen.md' }, 'contenido')
+    }
+  ])('drops a $reason artifact without calling saveGenerated, and reports the reason', async ({
+    reason,
+    innerTextSuffix
+  }) => {
+    const saveGenerated = vi.fn().mockResolvedValue({ ok: true })
+    const { spawnPrompt } = respondWithInnerText(`${JSON.stringify(NOT_FOUND)}\n${innerTextSuffix}`)
+    const { service } = buildService({ spawnPrompt, generatedArtifacts: { saveGenerated } })
+
+    const outcome = await service.ask('Hacéme un resumen', SELECTION)
+
+    expect(saveGenerated).not.toHaveBeenCalled()
+    expect(outcome).toMatchObject({ ok: true, artifact: { status: 'dropped', reason } })
+  })
+
+  it('drops an ambiguous-subject artifact when two subjects share the exact trimmed name', async () => {
+    const saveGenerated = vi.fn().mockResolvedValue({ ok: true })
+    const { spawnPrompt } = respondWithArtifact(NOT_FOUND, VALID_HEADER, 'contenido')
+    const { service } = buildService({
+      spawnPrompt,
+      subjectRepository: {
+        list: () => [
+          { id: 1, name: 'Álgebra' },
+          { id: 2, name: 'Álgebra' }
+        ]
+      },
+      generatedArtifacts: { saveGenerated }
+    })
+
+    const outcome = await service.ask('Hacéme un resumen', SELECTION)
+
+    expect(saveGenerated).not.toHaveBeenCalled()
+    expect(outcome).toMatchObject({ ok: true, artifact: { status: 'dropped', reason: 'ambiguous-subject' } })
+  })
+
+  it.each([
+    ['a rejected promise', () => Promise.reject(new Error('disk full'))],
+    ['an {ok:false} result', () => Promise.resolve({ ok: false, message: 'insert failed' })]
+  ])('reports failed (and keeps the answer intact) when saveGenerated resolves with %s', async (_label, impl) => {
+    const saveGenerated = vi.fn(impl)
+    const { spawnPrompt } = respondWithArtifact(NOT_FOUND, VALID_HEADER, 'Contenido del resumen.')
+    const { service } = buildService({ spawnPrompt, generatedArtifacts: { saveGenerated } })
+
+    const outcome = await service.ask('Hacéme un resumen', SELECTION)
+
+    expect(outcome).toMatchObject({
+      ok: true,
+      data: NOT_FOUND,
+      artifact: { status: 'failed', fileName: 'resumen.md', subjectName: 'Álgebra' }
+    })
+  })
+
+  it('leaves the artifact field absent when the response carries no block at all', async () => {
+    const { spawnPrompt } = respondWith(NOT_FOUND)
+    const { service } = buildService({ spawnPrompt })
+
+    const outcome = await service.ask('¿Qué es un anillo?', SELECTION)
+
+    expect(outcome).toMatchObject({ ok: true, data: NOT_FOUND })
+    expect(outcome).not.toHaveProperty('artifact')
+  })
+
+  it('never leaks the artifact into persisted history — appendTurn only ever receives the AskResult (D6)', async () => {
+    const history = createFakeHistory()
+    const appendTurn = vi.spyOn(history, 'appendTurn')
+    const { spawnPrompt } = respondWithArtifact(NOT_FOUND, VALID_HEADER, 'Contenido del resumen.')
+    const { service } = buildService({ spawnPrompt, history })
+
+    await service.ask('Hacéme un resumen', SELECTION)
+
+    expect(appendTurn).toHaveBeenCalledWith(expect.objectContaining({ result: NOT_FOUND }))
+    const [[call]] = appendTurn.mock.calls
+    expect(call).not.toHaveProperty('artifact')
+  })
+
+  it('logs the artifact outcome, reason, and byte size — never the content', async () => {
+    const { spawnPrompt } = respondWithArtifact(NOT_FOUND, VALID_HEADER, 'CONTENIDO_SECRETO_DEL_RESUMEN')
+    const { service, logs } = buildService({ spawnPrompt })
+
+    await service.ask('Hacéme un resumen', SELECTION)
+
+    const line = logs.join('\n')
+    expect(line).toContain('artifact')
+    expect(line).toContain('outcome=saved')
+    expect(line).not.toContain('CONTENIDO_SECRETO_DEL_RESUMEN')
   })
 })

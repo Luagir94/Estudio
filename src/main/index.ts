@@ -148,13 +148,20 @@ async function bootstrap(): Promise<void> {
   })
   registerIndexadoHandlers({ service: indexadoService })
 
+  // Held in a variable — same single-instance-shared pattern as
+  // `subjectRepository`/`appSettingsRepository` above — because `askService`
+  // below ALSO wires it in as `generatedArtifacts` (cli-generated-artifacts
+  // design "Port Contract + Orchestration"): the generated-artifact write
+  // path is not a second implementation, it is this exact same service.
+  const attachmentService = createAttachmentService({
+    repository: attachmentRepository,
+    storage: attachmentStorage,
+    indexer: indexadoService
+  })
+
   registerAdjuntosHandlers({
     repository: attachmentRepository,
-    service: createAttachmentService({
-      repository: attachmentRepository,
-      storage: attachmentStorage,
-      indexer: indexadoService
-    }),
+    service: attachmentService,
     storage: attachmentStorage,
     subjectRepository
   })
@@ -226,6 +233,15 @@ async function bootstrap(): Promise<void> {
     }),
     attachmentsRoot: getAttachmentsRootDir(),
     history: askHistoryRepository,
+    // `attachmentService.addGeneratedAttachment` satisfies
+    // `AskGeneratedArtifactPort` structurally (design "Port Contract +
+    // Orchestration") — the SAME service the upload path
+    // (`registerAdjuntosHandlers` above) uses, never a parallel write
+    // mechanism. Adapted from positional args to the port's object shape.
+    generatedArtifacts: {
+      saveGenerated: (input) =>
+        attachmentService.addGeneratedAttachment(input.subjectId, input.fileName, input.content)
+    },
     spawnPrompt: warmPromptSession.spawnPrompt,
     terminate: warmPromptSession.terminate,
     // The settings screen's observations, reused. A provider stays unusable

@@ -23,6 +23,8 @@ import { parseAskResponse } from './domain/responseParser'
 import type { EnvelopeKind } from '../cli/providerSpec'
 import { computeRetrievalWindow, type RetrievedAttachmentChunk } from './domain/retrievalWindow'
 import { computeTranscriptWindow, type TranscriptSourceTurn } from './domain/transcriptWindow'
+import type { ArtifactExtraction } from './domain/artifactBlock'
+import { validateArtifact } from './domain/artifactGate'
 import {
   ASK_MAX_FILE_BYTES,
   ASK_MAX_STDERR_DETAIL_BYTES,
@@ -30,7 +32,7 @@ import {
   ASK_RETRIEVAL_TOP_K,
   ASK_TIMEOUT_MS
 } from './domain/limits'
-import type { AskErrorCode, AskResult } from '../../shared/ipc/ask'
+import type { AskArtifactReport, AskErrorCode, AskResult } from '../../shared/ipc/ask'
 import type { CliProvider, ModelSelection } from '../../shared/ipc/cli'
 
 // Orchestrates one question end to end (design D3/D4): override → resolve →
@@ -71,6 +73,21 @@ export interface AskAttachmentPort {
  */
 export interface AskAttachmentIndexPort {
   search(question: string, maxChunks: number): readonly RetrievedAttachmentChunk[]
+}
+
+/**
+ * Consumer-owned port (design "Port Contract + Orchestration", same
+ * `AttachmentIndexerPort` convention as `attachmentService.ts`) for the
+ * SINGLE call site where a validated, subject-resolved artifact is actually
+ * written to disk. `attachmentService.addGeneratedAttachment` satisfies this
+ * structurally; wired once in `src/main/index.ts`.
+ */
+export interface AskGeneratedArtifactPort {
+  saveGenerated(input: {
+    subjectId: number
+    fileName: string
+    content: string
+  }): Promise<{ ok: true } | { ok: false; message: string }>
 }
 
 /**
@@ -144,7 +161,20 @@ export interface AskHistoryPort {
  * never a thread-selection value.
  */
 export type AskOutcome =
-  | { ok: true; data: AskResult; conversationId: number | null; messageId: number | null }
+  | {
+      ok: true
+      data: AskResult
+      conversationId: number | null
+      messageId: number | null
+      /**
+       * OPTIONAL and TRANSIENT (design D6, cli-generated-artifacts spec
+       * "Transcript reporting is plain text, action-free, and transient") —
+       * present only when the response carried an artifact block, and NEVER
+       * forwarded into `history.appendTurn` (no leakage into persisted
+       * history).
+       */
+      artifact?: AskArtifactReport
+    }
   | { ok: false; code: AskErrorCode; message?: string }
 
 export interface AskServiceDeps {
@@ -171,6 +201,13 @@ export interface AskServiceDeps {
    * reminds the next caller to wire it (design D1, validation #260).
    */
   history: AskHistoryPort
+  /**
+   * Required (same closed-bridge convention as `history`/`attachmentIndex`
+   * above): `src/main/index.ts` wires the real `attachmentService` in as this
+   * port. This is the ONE port whose method call is the bounded exception to
+   * "model output never triggers an app action" (design "Validation Gate").
+   */
+  generatedArtifacts: AskGeneratedArtifactPort
   resolve?: (executableName: string) => Promise<string | null>
   validate?: (candidatePath: string) => Promise<ValidatedExecutablePath | null>
   spawnPrompt?: (
@@ -231,6 +268,7 @@ export function createAskService({
   appData,
   attachmentsRoot,
   history,
+  generatedArtifacts,
   resolve = defaultResolve,
   validate = defaultValidate,
   // The real spawn takes its injected `spawnFn` before the prompt (see
@@ -406,7 +444,53 @@ export function createAskService({
       // CANCELED, which reaches here through the same branch.
       return mapped
     }
-    return persistTurn(mapped, conversationId, question, selection)
+
+    // THE bounded exception (design "Validation Gate", spec "Bounded
+    // exception to 'model output never triggers an app action'"): the SINGLE
+    // call site in the whole app where model output triggers a real write.
+    // Runs between `mapOutcome` and `persistTurn` — never before mapping
+    // (an unparsed answer has nothing to gate) and never inside `persistTurn`
+    // (the artifact report must never leak into what gets persisted).
+    const artifact = await resolveArtifact(mapped.artifact)
+
+    return persistTurn(mapped, conversationId, question, selection, artifact)
+  }
+
+  /**
+   * Validates the pre-gate extraction, saves a valid one through the
+   * `generatedArtifacts` port, and returns the transient report — `undefined`
+   * when no block was present at all (spec "No artifact block leaves the
+   * report field absent"). A save rejection is treated identically to an
+   * `{ok:false}` result (both surface as `failed`); either way the model's
+   * answer text is never affected, only this report.
+   */
+  async function resolveArtifact(extraction: ArtifactExtraction): Promise<AskArtifactReport | undefined> {
+    const gate = validateArtifact(extraction, subjectRepository.list())
+
+    let report: AskArtifactReport | undefined
+    if (gate.kind === 'valid') {
+      try {
+        const saved = await generatedArtifacts.saveGenerated({
+          subjectId: gate.subjectId,
+          fileName: gate.fileName,
+          content: gate.content
+        })
+        report = saved.ok
+          ? { status: 'saved', fileName: gate.fileName, subjectName: gate.subjectName }
+          : { status: 'failed', fileName: gate.fileName, subjectName: gate.subjectName }
+      } catch {
+        report = { status: 'failed', fileName: gate.fileName, subjectName: gate.subjectName }
+      }
+    } else if (gate.kind === 'dropped') {
+      report = { status: 'dropped', reason: gate.reason }
+    }
+
+    // Audit line: outcome + reason + byte size — NEVER the content itself.
+    logger.info(
+      `ask: artifact outcome=${report?.status ?? 'none'} reason=${gate.kind === 'dropped' ? gate.reason : 'n/a'} bytes=${gate.kind === 'valid' ? Buffer.byteLength(gate.content, 'utf8') : 0}`
+    )
+
+    return report
   }
 
   /**
@@ -416,12 +500,18 @@ export function createAskService({
    * (including an FK failure when the thread was deleted mid-flight), the
    * failure is logged and the answer still returns, with `conversationId:
    * null` as the ONLY per-turn write-failure signal.
+   *
+   * `artifact` is threaded into the RETURNED outcome only — `history.appendTurn`
+   * below receives `result: outcome.data` alone, never `artifact` (design D6,
+   * spec "Explicit discriminated-union artifact outcome report": the artifact
+   * must never leak into persisted history).
    */
   function persistTurn(
     outcome: { ok: true; data: AskResult },
     conversationId: number | undefined,
     question: string,
-    selection: ModelSelection
+    selection: ModelSelection,
+    artifact: AskArtifactReport | undefined
   ): AskOutcome {
     try {
       const appended = history.appendTurn({
@@ -434,11 +524,17 @@ export function createAskService({
         result: outcome.data,
         createdAt: format(new Date(), "yyyy-MM-dd'T'HH:mm")
       })
-      return { ok: true, data: outcome.data, conversationId: appended.conversationId, messageId: appended.messageId }
+      return {
+        ok: true,
+        data: outcome.data,
+        conversationId: appended.conversationId,
+        messageId: appended.messageId,
+        ...(artifact ? { artifact } : {})
+      }
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'unknown error'
       logger.info(`ask: appendTurn failed for conversationId=${conversationId ?? 'new'} — turn NOT saved: ${detail}`)
-      return { ok: true, data: outcome.data, conversationId: null, messageId: null }
+      return { ok: true, data: outcome.data, conversationId: null, messageId: null, ...(artifact ? { artifact } : {}) }
     }
   }
 
@@ -557,8 +653,16 @@ export function createAskService({
  * widening `AskOutcome` back to optional fields (validation #260): a
  * pre-persistence outcome and a fully-settled one are different facts and
  * must stay different types.
+ *
+ * `artifact` carries the PRE-GATE `ArtifactExtraction` unchanged from
+ * `parseAskResponse`'s ok-branch (cli-generated-artifacts design "Wire
+ * Format") — no validation has run yet. Named distinctly from the post-gate
+ * `AskArtifactReport` on `AskOutcome`, which `resolveArtifact`/`persistTurn`
+ * produce after the gate runs.
  */
-type MappedExecutionOutcome = { ok: true; data: AskResult } | { ok: false; code: AskErrorCode; message?: string }
+type MappedExecutionOutcome =
+  | { ok: true; data: AskResult; artifact: ArtifactExtraction }
+  | { ok: false; code: AskErrorCode; message?: string }
 
 function mapOutcome(outcome: ExecutionOutcome, envelope: EnvelopeKind): MappedExecutionOutcome {
   // A path that validated but vanished before spawn is honestly `not-found`,
@@ -600,7 +704,7 @@ function mapOutcome(outcome: ExecutionOutcome, envelope: EnvelopeKind): MappedEx
   }
 
   const parsed = parseAskResponse(outcome.stdout, envelope)
-  return parsed.ok ? { ok: true, data: parsed.data } : { ok: false, code: parsed.code }
+  return parsed.ok ? { ok: true, data: parsed.data, artifact: parsed.artifact } : { ok: false, code: parsed.code }
 }
 
 function firstLine(text: string): string | null {
