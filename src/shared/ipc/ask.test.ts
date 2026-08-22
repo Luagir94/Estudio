@@ -342,7 +342,9 @@ describe('askArtifactReportSchema', () => {
   })
 
   it('rejects a status outside the union', () => {
-    expect(() => askArtifactReportSchema.parse({ status: 'pending', fileName: 'x.md', subjectName: 'Física' })).toThrow()
+    expect(() =>
+      askArtifactReportSchema.parse({ status: 'pending', fileName: 'x.md', subjectName: 'Física' })
+    ).toThrow()
   })
 })
 
