@@ -462,7 +462,7 @@ describe('createAskService — response mapping', () => {
 
     const outcome = await service.ask('¿Qué es un anillo?', SELECTION)
 
-    expect(outcome).toEqual({ ok: false, code: 'MALFORMED_RESPONSE' })
+    expect(outcome).toEqual({ ok: false, code: 'MALFORMED_RESPONSE', reason: 'schema' })
   })
 
   it('returns EXECUTION_FAILED with the first stderr line on a non-zero exit', async () => {
@@ -495,6 +495,17 @@ describe('createAskService — audit log', () => {
     expect(line).toContain('ask:')
     expect(line).toContain('exitCode=0')
     expect(line).not.toContain('mi pregunta secreta')
+  })
+
+  it('logs which parse layer rejected a malformed response, never the output itself', async () => {
+    const { spawnPrompt } = respondWith({ kind: 'answer', answer: 'Sin fuente citable.', citations: [] })
+    const { service, logs } = buildService({ spawnPrompt })
+
+    await service.ask('¿Qué es un anillo?', SELECTION)
+
+    const line = logs.join('\n')
+    expect(line).toContain('layer=schema')
+    expect(line).not.toContain('Sin fuente citable')
   })
 })
 
@@ -672,7 +683,7 @@ describe('createAskService — conversation continuation and persistence', () =>
 
     const outcome = await service.ask('¿Qué es un anillo?', SELECTION, 7)
 
-    expect(outcome).toEqual({ ok: false, code: 'MALFORMED_RESPONSE' })
+    expect(outcome).toEqual({ ok: false, code: 'MALFORMED_RESPONSE', reason: 'schema' })
   })
 })
 
@@ -793,7 +804,7 @@ describe('createAskService — argv prompt delivery', () => {
 
     const outcome = await service.ask('¿Qué es un anillo?', ANTIGRAVITY)
 
-    expect(outcome).toEqual({ ok: false, code: 'MALFORMED_RESPONSE' })
+    expect(outcome).toEqual({ ok: false, code: 'MALFORMED_RESPONSE', reason: 'envelope' })
   })
 })
 

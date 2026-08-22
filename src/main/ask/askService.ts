@@ -19,7 +19,7 @@ import { PROVIDER_SPECS } from '../cli/providerSpec'
 import { type AppSettingsPort, type TimeoutHandle } from '../cli/cliProbeService'
 import { buildAppContext, type AppContext } from './domain/appContext'
 import { buildAskPrompt, type AskManifestSubject } from './domain/promptBuilder'
-import { parseAskResponse } from './domain/responseParser'
+import { parseAskResponse, type ParseFailureReason } from './domain/responseParser'
 import type { EnvelopeKind } from '../cli/providerSpec'
 import { stripAttachmentEcho } from './domain/attachmentEchoFilter'
 import { buildRetrievalQuery } from './domain/retrievalQuery'
@@ -185,7 +185,11 @@ export type AskOutcome =
        */
       artifact?: AskArtifactReport
     }
-  | { ok: false; code: AskErrorCode; message?: string }
+  // `reason` travels ONLY on MALFORMED_RESPONSE: a content-free tag naming
+  // which parse layer refused the run. The IPC layer never forwards it
+  // (`ipcErr` picks code+message) — it exists for the audit log and for
+  // in-process consumers, never for the renderer, whose copy is fixed.
+  | { ok: false; code: AskErrorCode; message?: string; reason?: ParseFailureReason }
 
 export interface AskServiceDeps {
   settings: AppSettingsPort
@@ -474,6 +478,13 @@ export function createAskService({
 
     const mapped = mapOutcome(outcome, spec.envelope)
     if (!mapped.ok) {
+      // The parse-layer tag is the ONLY diagnostic a malformed run leaves
+      // behind — the audit line above proves the run completed, this one says
+      // which layer refused it. Content-free by construction (a closed
+      // three-value tag), so it never violates the no-content log rule.
+      if (mapped.reason !== undefined) {
+        logger.info(`ask: malformed response layer=${mapped.reason}`)
+      }
       // Typed errors are NEVER persisted (design D1, Decision 2) — including
       // CANCELED, which reaches here through the same branch.
       return mapped
@@ -695,7 +706,8 @@ export function createAskService({
  * produce after the gate runs.
  */
 type MappedExecutionOutcome =
-  { ok: true; data: AskResult; artifact: ArtifactExtraction } | { ok: false; code: AskErrorCode; message?: string }
+  | { ok: true; data: AskResult; artifact: ArtifactExtraction }
+  | { ok: false; code: AskErrorCode; message?: string; reason?: ParseFailureReason }
 
 function mapOutcome(outcome: ExecutionOutcome, envelope: EnvelopeKind): MappedExecutionOutcome {
   // A path that validated but vanished before spawn is honestly `not-found`,
@@ -737,7 +749,9 @@ function mapOutcome(outcome: ExecutionOutcome, envelope: EnvelopeKind): MappedEx
   }
 
   const parsed = parseAskResponse(outcome.stdout, envelope)
-  return parsed.ok ? { ok: true, data: parsed.data, artifact: parsed.artifact } : { ok: false, code: parsed.code }
+  return parsed.ok
+    ? { ok: true, data: parsed.data, artifact: parsed.artifact }
+    : { ok: false, code: parsed.code, reason: parsed.reason }
 }
 
 function firstLine(text: string): string | null {

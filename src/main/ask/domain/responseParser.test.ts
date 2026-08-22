@@ -62,22 +62,27 @@ describe('parseAskResponse', () => {
     }
   })
 
-  const malformedCases: [string, string][] = [
+  // The third column is the content-free diagnostic: WHICH layer refused the
+  // run, without ever carrying the output itself. It is what the audit log
+  // records — without it a malformed run is undiagnosable after the fact.
+  const malformedCases: [string, string, 'envelope' | 'inner-json' | 'schema'][] = [
     [
       'an answer with zero citations, never rendered as an answer',
-      JSON.stringify({ result: JSON.stringify({ kind: 'answer', answer: 'Sin fuente.', citations: [] }) })
+      JSON.stringify({ result: JSON.stringify({ kind: 'answer', answer: 'Sin fuente.', citations: [] }) }),
+      'schema'
     ],
-    ['malformed inner JSON', JSON.stringify({ result: '{not valid json' })],
-    ['envelope drift — no result field', JSON.stringify({ type: 'result', unexpected: true })],
-    ['stdout that is not valid JSON at all', 'not json at all']
+    ['malformed inner JSON', JSON.stringify({ result: '{not valid json' }), 'inner-json'],
+    ['envelope drift — no result field', JSON.stringify({ type: 'result', unexpected: true }), 'envelope'],
+    ['stdout that is not valid JSON at all', 'not json at all', 'envelope']
   ]
 
-  it.each(malformedCases)('rejects %s as MALFORMED_RESPONSE', (_label, rawStdout) => {
+  it.each(malformedCases)('rejects %s as MALFORMED_RESPONSE', (_label, rawStdout, reason) => {
     const parsed = parseAskResponse(rawStdout)
 
     expect(parsed.ok).toBe(false)
     if (!parsed.ok) {
       expect(parsed.code).toBe('MALFORMED_RESPONSE')
+      expect(parsed.reason).toBe(reason)
     }
   })
 })

@@ -49,15 +49,25 @@ const codexAgentMessageSchema = z.object({
 
 const FENCE_PATTERN = /^```(?:json)?\s*([\s\S]*?)\s*```$/
 
+// `reason` names WHICH layer refused the run — the CLI's wrapper
+// (`envelope`), the model's JSON syntax (`inner-json`), or the answer
+// contract (`schema`). It is content-free by construction: a closed
+// three-value tag, never a byte of the output itself, so the audit log can
+// record it without ever recording what the model said.
+export type ParseFailureReason = 'envelope' | 'inner-json' | 'schema'
+
 // `artifact` is the PRE-GATE extraction (cli-generated-artifacts design
 // "Wire Format" / "Artifact block is split from the inner text before result
 // parsing") — distinct from the post-gate `AskArtifactReport` that
 // `artifactGate.ts`/`askService.ts` produce. It travels ONLY on the ok-branch:
 // a malformed answer parse has nothing to report an artifact against.
 export type ParseAskResponseResult =
-  { ok: true; data: AskResult; artifact: ArtifactExtraction } | { ok: false; code: 'MALFORMED_RESPONSE' }
+  | { ok: true; data: AskResult; artifact: ArtifactExtraction }
+  | { ok: false; code: 'MALFORMED_RESPONSE'; reason: ParseFailureReason }
 
-const malformed: ParseAskResponseResult = { ok: false, code: 'MALFORMED_RESPONSE' }
+function malformed(reason: ParseFailureReason): ParseAskResponseResult {
+  return { ok: false, code: 'MALFORMED_RESPONSE', reason }
+}
 
 /**
  * Parses raw CLI stdout into a typed `AskResult`, or a typed
@@ -77,18 +87,18 @@ const malformed: ParseAskResponseResult = { ok: false, code: 'MALFORMED_RESPONSE
 export function parseAskResponse(rawStdout: string, envelope: EnvelopeKind = 'claude-json'): ParseAskResponseResult {
   const inner = extractInnerText(rawStdout, envelope)
   if (inner === undefined) {
-    return malformed
+    return malformed('envelope')
   }
 
   const { resultText, block } = splitArtifactBlock(inner)
 
   const parsedInner = safeJsonParse(stripFence(resultText))
   if (parsedInner === undefined) {
-    return malformed
+    return malformed('inner-json')
   }
 
   const parsed = askResultSchema.safeParse(parsedInner)
-  return parsed.success ? { ok: true, data: parsed.data, artifact: block } : malformed
+  return parsed.success ? { ok: true, data: parsed.data, artifact: block } : malformed('schema')
 }
 
 /** Peels the provider's own wrapper off, yielding the model's inner JSON text. */
