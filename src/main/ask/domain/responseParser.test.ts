@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ARTIFACT_END_SENTINEL, ARTIFACT_START_SENTINEL } from './artifactBlock'
+import { ARTIFACT_END_SENTINEL, ARTIFACT_START_SENTINEL, type ArtifactExtraction } from './artifactBlock'
 import { parseAskResponse } from './responseParser'
 
 // Two-layer parse (design D5): zod-lenient CLI envelope (`{ result: string
@@ -275,26 +275,36 @@ describe('parseAskResponse — artifact block extraction (cli-generated-artifact
     citations: [{ kind: 'archivo', subject: 'Física', file: 'apunte-clase-3.pdf' }]
   })
 
-  it('parses a legacy response (no artifact block) identically, reporting artifact as none', () => {
-    const rawStdout = JSON.stringify({ result: answerJson })
+  // Every row proves the answer parses IDENTICALLY (`parsed.data` unaffected)
+  // while `parsed.artifact` reports the pre-gate extraction for that inner
+  // text — the three mandated cases: no block, a well-formed trailing block,
+  // and a malformed one (missing end sentinel) that still lets the answer through.
+  const cases: [string, string, ArtifactExtraction][] = [
+    ['a legacy response with no artifact block', answerJson, { kind: 'none' }],
+    [
+      'a trailing well-formed artifact block, stripped before JSON.parse',
+      [
+        answerJson,
+        ARTIFACT_START_SENTINEL,
+        '{"materia": "Física", "fileName": "resumen.md"}',
+        'Contenido del resumen.',
+        ARTIFACT_END_SENTINEL
+      ].join('\n'),
+      { kind: 'block', headerLine: '{"materia": "Física", "fileName": "resumen.md"}', body: 'Contenido del resumen.' }
+    ],
+    [
+      'a malformed artifact block (missing end sentinel) — the answer always survives',
+      [
+        answerJson,
+        ARTIFACT_START_SENTINEL,
+        '{"materia": "Física", "fileName": "resumen.md"}',
+        'Contenido sin cierre.'
+      ].join('\n'),
+      { kind: 'invalid', reason: 'malformed-block' }
+    ]
+  ]
 
-    const parsed = parseAskResponse(rawStdout)
-
-    expect(parsed.ok).toBe(true)
-    if (parsed.ok) {
-      expect(parsed.data).toEqual(JSON.parse(answerJson))
-      expect(parsed.artifact).toEqual({ kind: 'none' })
-    }
-  })
-
-  it('strips a trailing well-formed artifact block before JSON.parse and surfaces it on the ok-branch', () => {
-    const inner = [
-      answerJson,
-      ARTIFACT_START_SENTINEL,
-      '{"materia": "Física", "fileName": "resumen.md"}',
-      'Contenido del resumen.',
-      ARTIFACT_END_SENTINEL
-    ].join('\n')
+  it.each(cases)('parses the answer identically for %s', (_label, inner, expectedArtifact) => {
     const rawStdout = JSON.stringify({ result: inner })
 
     const parsed = parseAskResponse(rawStdout)
@@ -302,29 +312,7 @@ describe('parseAskResponse — artifact block extraction (cli-generated-artifact
     expect(parsed.ok).toBe(true)
     if (parsed.ok) {
       expect(parsed.data).toEqual(JSON.parse(answerJson))
-      expect(parsed.artifact).toEqual({
-        kind: 'block',
-        headerLine: '{"materia": "Física", "fileName": "resumen.md"}',
-        body: 'Contenido del resumen.'
-      })
-    }
-  })
-
-  it('still yields an ok answer parse when the artifact block is malformed — the answer always survives', () => {
-    const inner = [
-      answerJson,
-      ARTIFACT_START_SENTINEL,
-      '{"materia": "Física", "fileName": "resumen.md"}',
-      'Contenido sin cierre.'
-    ].join('\n') // missing end sentinel
-    const rawStdout = JSON.stringify({ result: inner })
-
-    const parsed = parseAskResponse(rawStdout)
-
-    expect(parsed.ok).toBe(true)
-    if (parsed.ok) {
-      expect(parsed.data).toEqual(JSON.parse(answerJson))
-      expect(parsed.artifact).toEqual({ kind: 'invalid', reason: 'malformed-block' })
+      expect(parsed.artifact).toEqual(expectedArtifact)
     }
   })
 })

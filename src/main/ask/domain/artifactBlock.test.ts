@@ -8,17 +8,21 @@ import { ARTIFACT_END_SENTINEL, ARTIFACT_START_SENTINEL, splitArtifactBlock } fr
 // it never validates header shape, filename, size, or subject (that is
 // `artifactGate.ts`, Unit 4).
 describe('splitArtifactBlock', () => {
+  const resultJson = JSON.stringify({ kind: 'answer', answer: 'x', citations: [] })
+
   it('returns the input text byte-identical when no artifact block is present', () => {
-    const innerText = JSON.stringify({ kind: 'answer', answer: 'x', citations: [] })
+    const result = splitArtifactBlock(resultJson)
 
-    const result = splitArtifactBlock(innerText)
-
-    expect(result.resultText).toBe(innerText)
+    expect(result.resultText).toBe(resultJson)
     expect(result.block).toEqual({ kind: 'none' })
   })
 
-  it('splits a well-formed artifact block from the trailing result text', () => {
-    const resultJson = JSON.stringify({ kind: 'answer', answer: 'x', citations: [] })
+  // Same well-formed shape, split on LF vs CRLF — the sentinel match must
+  // recognize both line-ending styles identically.
+  it.each([
+    ['LF', '\n'],
+    ['CRLF', '\r\n']
+  ])('splits a well-formed artifact block joined with %s line endings', (_label, joiner) => {
     const innerText = [
       resultJson,
       ARTIFACT_START_SENTINEL,
@@ -26,7 +30,7 @@ describe('splitArtifactBlock', () => {
       'Primera línea del documento.',
       'Segunda línea del documento.',
       ARTIFACT_END_SENTINEL
-    ].join('\n')
+    ].join(joiner)
 
     const result = splitArtifactBlock(innerText)
 
@@ -38,58 +42,49 @@ describe('splitArtifactBlock', () => {
     })
   })
 
-  it('recognizes the sentinel lines regardless of CRLF line endings', () => {
-    const resultJson = JSON.stringify({ kind: 'answer', answer: 'x', citations: [] })
-    const innerText = [
-      resultJson,
-      ARTIFACT_START_SENTINEL,
-      '{"materia": "Física", "fileName": "resumen.md"}',
-      'Contenido.',
-      ARTIFACT_END_SENTINEL
-    ].join('\r\n')
+  // Every case below collapses the WHOLE extraction to a single
+  // malformed-block outcome — never a partial or double-split result — while
+  // `resultText` (everything before the first start sentinel) stays intact,
+  // so the answer still parses.
+  const malformedCases: [string, string[]][] = [
+    ['the end sentinel is missing', [ARTIFACT_START_SENTINEL, '{"materia":"Física","fileName":"a.md"}', 'contenido']],
+    [
+      'non-whitespace text follows the end sentinel',
+      [
+        ARTIFACT_START_SENTINEL,
+        '{"materia":"Física","fileName":"a.md"}',
+        'contenido',
+        ARTIFACT_END_SENTINEL,
+        'texto sobrante'
+      ]
+    ],
+    [
+      'a second start sentinel appears anywhere later, never splitting into two candidates',
+      [
+        ARTIFACT_START_SENTINEL,
+        '{"materia":"Física","fileName":"a.md"}',
+        'contenido uno',
+        ARTIFACT_END_SENTINEL,
+        ARTIFACT_START_SENTINEL,
+        '{"materia":"Química","fileName":"b.md"}',
+        'contenido dos',
+        ARTIFACT_END_SENTINEL
+      ]
+    ]
+  ]
+
+  it.each(malformedCases)('drops the whole extraction as malformed-block when %s', (_label, blockLines) => {
+    const innerText = [resultJson, ...blockLines].join('\n')
 
     const result = splitArtifactBlock(innerText)
 
     expect(result.resultText).toBe(resultJson)
-    expect(result.block).toEqual({
-      kind: 'block',
-      headerLine: '{"materia": "Física", "fileName": "resumen.md"}',
-      body: 'Contenido.'
-    })
-  })
-
-  it('drops the whole extraction as malformed-block when the end sentinel is missing', () => {
-    const resultJson = JSON.stringify({ kind: 'answer', answer: 'x', citations: [] })
-    const innerText = [resultJson, ARTIFACT_START_SENTINEL, '{"materia":"Física","fileName":"a.md"}', 'contenido'].join(
-      '\n'
-    )
-
-    const result = splitArtifactBlock(innerText)
-
-    expect(result.resultText).toBe(resultJson)
-    expect(result.block).toEqual({ kind: 'invalid', reason: 'malformed-block' })
-  })
-
-  it('drops the whole extraction as malformed-block when non-whitespace text follows the end sentinel', () => {
-    const resultJson = JSON.stringify({ kind: 'answer', answer: 'x', citations: [] })
-    const innerText = [
-      resultJson,
-      ARTIFACT_START_SENTINEL,
-      '{"materia":"Física","fileName":"a.md"}',
-      'contenido',
-      ARTIFACT_END_SENTINEL,
-      'texto sobrante'
-    ].join('\n')
-
-    const result = splitArtifactBlock(innerText)
-
     expect(result.block).toEqual({ kind: 'invalid', reason: 'malformed-block' })
   })
 
   // Triangulation: whitespace-only trailing lines are NOT "non-whitespace
   // text" and must not be treated as trailing junk.
   it('tolerates whitespace-only trailing lines after the end sentinel', () => {
-    const resultJson = JSON.stringify({ kind: 'answer', answer: 'x', citations: [] })
     const innerText = [
       resultJson,
       ARTIFACT_START_SENTINEL,
@@ -109,28 +104,7 @@ describe('splitArtifactBlock', () => {
     })
   })
 
-  it('drops the whole extraction as malformed-block on a second start sentinel, never splitting into two candidates', () => {
-    const resultJson = JSON.stringify({ kind: 'answer', answer: 'x', citations: [] })
-    const innerText = [
-      resultJson,
-      ARTIFACT_START_SENTINEL,
-      '{"materia":"Física","fileName":"a.md"}',
-      'contenido uno',
-      ARTIFACT_END_SENTINEL,
-      ARTIFACT_START_SENTINEL,
-      '{"materia":"Química","fileName":"b.md"}',
-      'contenido dos',
-      ARTIFACT_END_SENTINEL
-    ].join('\n')
-
-    const result = splitArtifactBlock(innerText)
-
-    expect(result.resultText).toBe(resultJson)
-    expect(result.block).toEqual({ kind: 'invalid', reason: 'malformed-block' })
-  })
-
   it('does not falsely truncate on a body line that merely resembles a sentinel', () => {
-    const resultJson = JSON.stringify({ kind: 'answer', answer: 'x', citations: [] })
     const innerText = [
       resultJson,
       ARTIFACT_START_SENTINEL,

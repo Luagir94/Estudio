@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { AskArtifactDropReason } from '../../../shared/ipc/ask'
 import type { ArtifactExtraction } from './artifactBlock'
 import { validateArtifact, type ArtifactGateSubject } from './artifactGate'
 
@@ -22,87 +23,64 @@ describe('validateArtifact', () => {
     expect(validateArtifact(extraction, subjects)).toEqual({ kind: 'none' })
   })
 
-  it('drops a structurally malformed extraction with its carried reason', () => {
-    const extraction: ArtifactExtraction = { kind: 'invalid', reason: 'malformed-block' }
+  const dropCases: [string, ArtifactExtraction, AskArtifactDropReason][] = [
+    [
+      'a structurally malformed extraction carries its reason through',
+      { kind: 'invalid', reason: 'malformed-block' },
+      'malformed-block'
+    ],
+    [
+      'header line is not valid JSON',
+      { kind: 'block', headerLine: '{not valid json', body: 'contenido' },
+      'invalid-header'
+    ],
+    [
+      'header JSON is missing fileName',
+      { kind: 'block', headerLine: JSON.stringify({ materia: 'Física' }), body: 'contenido' },
+      'invalid-header'
+    ],
+    // sanitizeFileName never returns a literal empty string — an all-dots
+    // name collapses to "" internally and falls back to a bare
+    // extension-less name, which then fails the extension whitelist below.
+    // Same drop reason either way: the sanitizer is reused, never reimplemented.
+    ['file name sanitizes to an extension-less fallback', block('Física', '...', 'contenido'), 'invalid-filename'],
+    ['sanitized extension is not .md or .txt', block('Física', 'resumen.pdf', 'contenido'), 'invalid-filename'],
+    ['body is empty', block('Física', 'resumen.md', ''), 'empty-content'],
+    ['body is whitespace-only', block('Física', 'resumen.md', '   \n  \n'), 'empty-content'],
+    ['body is one byte past the 262144-byte cap', block('Física', 'resumen.md', 'a'.repeat(262_145)), 'oversize'],
+    // The cap is byte-based, not code-unit-based.
+    [
+      'a multibyte character pushes the body one byte past the cap',
+      block('Física', 'resumen.md', 'a'.repeat(262_141) + '🎉'), // 4-byte emoji => 262_145 bytes total
+      'oversize'
+    ],
+    ['no subject matches, and none is auto-created', block('Química', 'resumen.md', 'contenido'), 'unknown-subject'],
+    // No case folding.
+    ['a case-differing near-miss (no folding)', block('física', 'resumen.md', 'contenido'), 'unknown-subject']
+  ]
 
-    expect(validateArtifact(extraction, subjects)).toEqual({ kind: 'dropped', reason: 'malformed-block' })
+  it.each(dropCases)('drops with %s -> %s', (_label, extraction, reason) => {
+    expect(validateArtifact(extraction, subjects)).toEqual({ kind: 'dropped', reason })
   })
 
-  it('drops with invalid-header when the header line is not valid JSON', () => {
-    const extraction: ArtifactExtraction = { kind: 'block', headerLine: '{not valid json', body: 'contenido' }
+  it('drops with ambiguous-subject when more than one subject matches exactly', () => {
+    const duplicateSubjects: ArtifactGateSubject[] = [
+      { id: 1, name: 'Física' },
+      { id: 2, name: 'Física' }
+    ]
+    const extraction = block('Física', 'resumen.md', 'contenido')
 
-    expect(validateArtifact(extraction, subjects)).toEqual({ kind: 'dropped', reason: 'invalid-header' })
+    expect(validateArtifact(extraction, duplicateSubjects)).toEqual({ kind: 'dropped', reason: 'ambiguous-subject' })
   })
 
-  it('drops with invalid-header when the header JSON does not match the required shape', () => {
-    const extraction: ArtifactExtraction = {
-      kind: 'block',
-      headerLine: JSON.stringify({ materia: 'Física' }), // missing fileName
-      body: 'contenido'
-    }
+  it('passes at exactly the 262144-byte content cap, including a multibyte character straddling it', () => {
+    const asciiExtraction = block('Física', 'resumen.md', 'a'.repeat(262_144))
+    const multibyteBody = 'a'.repeat(262_140) + '🎉' // 4-byte emoji => 262_144 bytes total
+    const multibyteExtraction = block('Física', 'resumen.md', multibyteBody)
 
-    expect(validateArtifact(extraction, subjects)).toEqual({ kind: 'dropped', reason: 'invalid-header' })
-  })
-
-  // sanitizeFileName never returns a literal empty string — an all-dots name
-  // like "..." collapses to "" internally and the reused sanitizer falls back
-  // to a bare extension-less name, which then fails the extension whitelist
-  // below. Same drop reason either way: the sanitizer is reused, never
-  // reimplemented.
-  it('drops with invalid-filename when the file name sanitizes to an extension-less fallback', () => {
-    const extraction = block('Física', '...', 'contenido')
-
-    expect(validateArtifact(extraction, subjects)).toEqual({ kind: 'dropped', reason: 'invalid-filename' })
-  })
-
-  it('drops with invalid-filename when the sanitized extension is not .md or .txt', () => {
-    const extraction = block('Física', 'resumen.pdf', 'contenido')
-
-    expect(validateArtifact(extraction, subjects)).toEqual({ kind: 'dropped', reason: 'invalid-filename' })
-  })
-
-  it('drops with empty-content when the body is empty', () => {
-    const extraction = block('Física', 'resumen.md', '')
-
-    expect(validateArtifact(extraction, subjects)).toEqual({ kind: 'dropped', reason: 'empty-content' })
-  })
-
-  it('drops with empty-content when the body is whitespace-only', () => {
-    const extraction = block('Física', 'resumen.md', '   \n  \n')
-
-    expect(validateArtifact(extraction, subjects)).toEqual({ kind: 'dropped', reason: 'empty-content' })
-  })
-
-  it('passes at exactly the 262144-byte content cap', () => {
-    const extraction = block('Física', 'resumen.md', 'a'.repeat(262_144))
-
-    const result = validateArtifact(extraction, subjects)
-
-    expect(result.kind).toBe('valid')
-  })
-
-  it('drops with oversize one byte past the 262144-byte content cap', () => {
-    const extraction = block('Física', 'resumen.md', 'a'.repeat(262_145))
-
-    expect(validateArtifact(extraction, subjects)).toEqual({ kind: 'dropped', reason: 'oversize' })
-  })
-
-  // The cap is byte-based, not code-unit-based: a multibyte UTF-8 character
-  // straddling the boundary must still be measured correctly.
-  it('passes when a multibyte character keeps the body at exactly the byte cap', () => {
-    const body = 'a'.repeat(262_140) + '🎉' // 4-byte emoji => 262_144 bytes total
-    const extraction = block('Física', 'resumen.md', body)
-
-    expect(Buffer.byteLength(body, 'utf8')).toBe(262_144)
-    expect(validateArtifact(extraction, subjects).kind).toBe('valid')
-  })
-
-  it('drops with oversize when a multibyte character pushes the body one byte past the cap', () => {
-    const body = 'a'.repeat(262_141) + '🎉' // 4-byte emoji => 262_145 bytes total
-    const extraction = block('Física', 'resumen.md', body)
-
-    expect(Buffer.byteLength(body, 'utf8')).toBe(262_145)
-    expect(validateArtifact(extraction, subjects)).toEqual({ kind: 'dropped', reason: 'oversize' })
+    expect(Buffer.byteLength(multibyteBody, 'utf8')).toBe(262_144)
+    expect(validateArtifact(asciiExtraction, subjects).kind).toBe('valid')
+    expect(validateArtifact(multibyteExtraction, subjects).kind).toBe('valid')
   })
 
   it('resolves the subject and returns the sanitized name, content, and trimmed exact match', () => {
@@ -115,29 +93,5 @@ describe('validateArtifact', () => {
       fileName: 'resumen.md',
       content: 'contenido real'
     })
-  })
-
-  it('drops with unknown-subject when no subject matches, without auto-creating one', () => {
-    const extraction = block('Química', 'resumen.md', 'contenido')
-
-    expect(validateArtifact(extraction, subjects)).toEqual({ kind: 'dropped', reason: 'unknown-subject' })
-  })
-
-  // No case folding: a case-differing near-miss is treated as unknown, never
-  // resolved by a case-insensitive match.
-  it('drops with unknown-subject on a case-differing near-miss (no folding)', () => {
-    const extraction = block('física', 'resumen.md', 'contenido')
-
-    expect(validateArtifact(extraction, subjects)).toEqual({ kind: 'dropped', reason: 'unknown-subject' })
-  })
-
-  it('drops with ambiguous-subject when more than one subject matches exactly', () => {
-    const duplicateSubjects: ArtifactGateSubject[] = [
-      { id: 1, name: 'Física' },
-      { id: 2, name: 'Física' }
-    ]
-    const extraction = block('Física', 'resumen.md', 'contenido')
-
-    expect(validateArtifact(extraction, duplicateSubjects)).toEqual({ kind: 'dropped', reason: 'ambiguous-subject' })
   })
 })

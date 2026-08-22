@@ -243,43 +243,26 @@ describe('buildAskPrompt', () => {
   // parameter-free, like the rest of `ANSWER_SHAPES` — same prompt-trust
   // model, no server-side intent detection.
   describe('artifact block instruction (cli-generated-artifacts)', () => {
-    it('always includes the artifact instruction, positioned after the three answer shapes', () => {
-      const prompt = buildAskPrompt(appContext, manifest, '¿Y esto?')
-
-      const notFoundIndex = prompt.indexOf('"kind": "not-found"')
-      const artifactIndex = prompt.indexOf(ARTIFACT_START_SENTINEL)
-
-      expect(notFoundIndex).toBeGreaterThan(-1)
-      expect(artifactIndex).toBeGreaterThan(notFoundIndex)
-    })
-
-    it('is present unconditionally, regardless of whether the question requests a document', () => {
+    it('always includes the instruction unconditionally, positioned after the three answer shapes', () => {
       const withoutRequest = buildAskPrompt(appContext, manifest, '¿Y esto?')
       const withRequest = buildAskPrompt(appContext, manifest, 'Hacéme un resumen de la unidad 2')
 
-      expect(withoutRequest).toContain(ARTIFACT_START_SENTINEL)
+      const notFoundIndex = withoutRequest.indexOf('"kind": "not-found"')
+      const artifactIndex = withoutRequest.indexOf(ARTIFACT_START_SENTINEL)
+
+      expect(artifactIndex).toBeGreaterThan(notFoundIndex)
       expect(withRequest).toContain(ARTIFACT_START_SENTINEL)
     })
 
-    it('states the artifact must only be emitted when the question explicitly requests a document', () => {
+    it('describes the explicit-request rule, sentinel lines, {materia, fileName} header, .md rule, and one-block limit', () => {
       const prompt = buildAskPrompt(appContext, manifest, '¿Y esto?')
 
       expect(prompt).toMatch(/pide explícitamente un documento/i)
-    })
-
-    it('describes the sentinel lines, the {materia, fileName} header shape, and the .md filename rule', () => {
-      const prompt = buildAskPrompt(appContext, manifest, '¿Y esto?')
-
       expect(prompt).toContain(ARTIFACT_START_SENTINEL)
       expect(prompt).toContain(ARTIFACT_END_SENTINEL)
       expect(prompt).toContain('"materia"')
       expect(prompt).toContain('"fileName"')
       expect(prompt).toMatch(/\.md/)
-    })
-
-    it('limits emission to at most one artifact block', () => {
-      const prompt = buildAskPrompt(appContext, manifest, '¿Y esto?')
-
       expect(prompt).toMatch(/máximo un bloque/i)
     })
 
