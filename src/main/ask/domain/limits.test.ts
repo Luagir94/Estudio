@@ -4,6 +4,8 @@ import {
   ASK_MAX_QUESTION_LENGTH,
   ASK_MAX_STDERR_DETAIL_BYTES,
   ASK_MAX_STDOUT_BYTES,
+  ASK_RETRIEVAL_BUDGET_CHARS,
+  ASK_RETRIEVAL_TOP_K,
   ASK_TIMEOUT_MS,
   ASK_TRANSCRIPT_BUDGET_CHARS
 } from './limits'
@@ -34,5 +36,13 @@ describe('ask domain limits', () => {
 
   it('ASK_TRANSCRIPT_BUDGET_CHARS is exactly 24000 (design D2 budget)', () => {
     expect(ASK_TRANSCRIPT_BUDGET_CHARS).toBe(24_000)
+  })
+
+  it('ASK_RETRIEVAL_BUDGET_CHARS is exactly 7000 (attachment-fts-index spec: pinned "Retrieval budget")', () => {
+    expect(ASK_RETRIEVAL_BUDGET_CHARS).toBe(7_000)
+  })
+
+  it('ASK_RETRIEVAL_TOP_K is exactly 6 (attachment-fts-index spec: pinned "Scoped BM25 top-K retrieval")', () => {
+    expect(ASK_RETRIEVAL_TOP_K).toBe(6)
   })
 })

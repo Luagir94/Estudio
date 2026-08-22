@@ -37,3 +37,21 @@ export const ASK_TITLE_MAX_CHARS = 80
  * holding roughly 4-10 typical turns. Design-owned and tunable post-usage.
  */
 export const ASK_TRANSCRIPT_BUDGET_CHARS = 24_000
+
+/**
+ * Character budget for injected retrieved-chunk text in the ask prompt
+ * (attachment-fts-index spec "Retrieval budget" — pinned, not tunable: "MUST
+ * NOT exceed 7000 characters total"). Mirrors `ASK_TRANSCRIPT_BUDGET_CHARS`'s
+ * chars-stand-in-for-tokens rationale; `retrievalWindow.ts` drops whole
+ * lowest-ranked chunks rather than truncating mid-chunk to stay under it.
+ */
+export const ASK_RETRIEVAL_BUDGET_CHARS = 7_000
+
+/**
+ * Max chunks requested per question from `AskAttachmentIndexPort.search()`
+ * (attachment-fts-index spec "Scoped BM25 top-K retrieval" — pinned `TOP_K
+ * = 6`). Bounds the BM25 query itself, upstream of the char-budget trim
+ * above — the two limits compose (search cannot return more than this many
+ * chunks; the budget trim can still drop some of those).
+ */
+export const ASK_RETRIEVAL_TOP_K = 6
