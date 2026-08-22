@@ -239,8 +239,7 @@ async function bootstrap(): Promise<void> {
     // (`registerAdjuntosHandlers` above) uses, never a parallel write
     // mechanism. Adapted from positional args to the port's object shape.
     generatedArtifacts: {
-      saveGenerated: (input) =>
-        attachmentService.addGeneratedAttachment(input.subjectId, input.fileName, input.content)
+      saveGenerated: (input) => attachmentService.addGeneratedAttachment(input.subjectId, input.fileName, input.content)
     },
     spawnPrompt: warmPromptSession.spawnPrompt,
     terminate: warmPromptSession.terminate,

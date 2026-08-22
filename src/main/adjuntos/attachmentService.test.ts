@@ -240,9 +240,7 @@ describe('createAttachmentService', () => {
 
     it('removes the just-written file and returns ok:false when the insert fails (orphan-cleanup rule, mirrors addAttachments)', async () => {
       const nonExistentSubjectId = subjectId + 999
-      const writeIntoSubjectDir = vi
-        .fn()
-        .mockResolvedValue(path.join(String(nonExistentSubjectId), 'uuid-resumen.md'))
+      const writeIntoSubjectDir = vi.fn().mockResolvedValue(path.join(String(nonExistentSubjectId), 'uuid-resumen.md'))
       const storage = createStorageMock({ writeIntoSubjectDir })
       const service = createAttachmentService({ repository, storage, indexer })
 
@@ -270,9 +268,7 @@ describe('createAttachmentService', () => {
 
     it('never fires the indexer when the insert fails', async () => {
       const nonExistentSubjectId = subjectId + 999
-      const writeIntoSubjectDir = vi
-        .fn()
-        .mockResolvedValue(path.join(String(nonExistentSubjectId), 'uuid-resumen.md'))
+      const writeIntoSubjectDir = vi.fn().mockResolvedValue(path.join(String(nonExistentSubjectId), 'uuid-resumen.md'))
       const service = createAttachmentService({
         repository,
         storage: createStorageMock({ writeIntoSubjectDir }),

@@ -661,8 +661,7 @@ export function createAskService({
  * produce after the gate runs.
  */
 type MappedExecutionOutcome =
-  | { ok: true; data: AskResult; artifact: ArtifactExtraction }
-  | { ok: false; code: AskErrorCode; message?: string }
+  { ok: true; data: AskResult; artifact: ArtifactExtraction } | { ok: false; code: AskErrorCode; message?: string }
 
 function mapOutcome(outcome: ExecutionOutcome, envelope: EnvelopeKind): MappedExecutionOutcome {
   // A path that validated but vanished before spawn is honestly `not-found`,

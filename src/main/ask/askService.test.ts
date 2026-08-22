@@ -940,19 +940,19 @@ describe('createAskService — generated artifact pipeline', () => {
       reason: 'unknown-subject',
       innerTextSuffix: artifactBlockText({ materia: 'Química', fileName: 'resumen.md' }, 'contenido')
     }
-  ])('drops a $reason artifact without calling saveGenerated, and reports the reason', async ({
-    reason,
-    innerTextSuffix
-  }) => {
-    const saveGenerated = vi.fn().mockResolvedValue({ ok: true })
-    const { spawnPrompt } = respondWithInnerText(`${JSON.stringify(NOT_FOUND)}\n${innerTextSuffix}`)
-    const { service } = buildService({ spawnPrompt, generatedArtifacts: { saveGenerated } })
+  ])(
+    'drops a $reason artifact without calling saveGenerated, and reports the reason',
+    async ({ reason, innerTextSuffix }) => {
+      const saveGenerated = vi.fn().mockResolvedValue({ ok: true })
+      const { spawnPrompt } = respondWithInnerText(`${JSON.stringify(NOT_FOUND)}\n${innerTextSuffix}`)
+      const { service } = buildService({ spawnPrompt, generatedArtifacts: { saveGenerated } })
 
-    const outcome = await service.ask('Hacéme un resumen', SELECTION)
+      const outcome = await service.ask('Hacéme un resumen', SELECTION)
 
-    expect(saveGenerated).not.toHaveBeenCalled()
-    expect(outcome).toMatchObject({ ok: true, artifact: { status: 'dropped', reason } })
-  })
+      expect(saveGenerated).not.toHaveBeenCalled()
+      expect(outcome).toMatchObject({ ok: true, artifact: { status: 'dropped', reason } })
+    }
+  )
 
   it('drops an ambiguous-subject artifact when two subjects share the exact trimmed name', async () => {
     const saveGenerated = vi.fn().mockResolvedValue({ ok: true })
