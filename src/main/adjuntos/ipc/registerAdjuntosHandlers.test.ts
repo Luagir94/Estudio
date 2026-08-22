@@ -74,10 +74,14 @@ describe('registerAdjuntosHandlers', () => {
       insert: vi.fn(),
       remove: vi.fn().mockReturnValue(sampleRecord)
     }
-    service = { addAttachments: vi.fn().mockResolvedValue({ added: [sampleRecord], failures: [] }) }
+    service = {
+      addAttachments: vi.fn().mockResolvedValue({ added: [sampleRecord], failures: [] }),
+      addGeneratedAttachment: vi.fn().mockResolvedValue({ ok: true })
+    }
     storage = {
       statSize: vi.fn().mockResolvedValue(1024),
       copyIntoSubjectDir: vi.fn(),
+      writeIntoSubjectDir: vi.fn(),
       resolveStoredPath: vi.fn().mockReturnValue('C:\\userData\\attachments\\7\\uuid-apuntes.pdf'),
       removeFile: vi.fn().mockResolvedValue(undefined),
       removeSubjectDir: vi.fn().mockResolvedValue(undefined)

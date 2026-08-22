@@ -28,6 +28,7 @@ function createStorageMock(overrides: Partial<AttachmentStorage> = {}): Attachme
   return {
     statSize: vi.fn().mockResolvedValue(10),
     copyIntoSubjectDir: vi.fn().mockResolvedValue('stored/path.pdf'),
+    writeIntoSubjectDir: vi.fn().mockResolvedValue('stored/generated.md'),
     resolveStoredPath: vi.fn(),
     removeFile: vi.fn().mockResolvedValue(undefined),
     removeSubjectDir: vi.fn().mockResolvedValue(undefined),
@@ -190,5 +191,97 @@ describe('createAttachmentService', () => {
     await service.addAttachments(nonExistentSubjectId, [path.join('C:', 'apuntes.pdf')])
 
     expect(indexer.enqueue).not.toHaveBeenCalled()
+  })
+
+  // cli-generated-artifacts Unit 6.3 — the generated write path: a content
+  // STRING (not a source file path) written into the resolved subject's
+  // directory, reusing the same sanitized-filename convention, repository
+  // insert, orphan-cleanup-on-failure, and indexer enqueue as the upload
+  // path above, per design "Port Contract + Orchestration".
+  describe('addGeneratedAttachment', () => {
+    it('computes sizeBytes and writes the content via storage with a UUID-prefixed, re-sanitized stored name', async () => {
+      const writeIntoSubjectDir = vi.fn().mockResolvedValue(path.join(String(subjectId), 'uuid-resumen__.md'))
+      const storage = createStorageMock({ writeIntoSubjectDir })
+      const service = createAttachmentService({ repository, storage, indexer })
+
+      // A raw name with characters `sanitizeFileName` must clean — proves the
+      // call site re-sanitizes rather than trusting an already-sanitized
+      // caller (artifactGate already sanitized once; this is idempotent).
+      const result = await service.addGeneratedAttachment(subjectId, 'resumen<>.md', 'Contenido del resumen.')
+
+      expect(result).toEqual({ ok: true })
+      expect(writeIntoSubjectDir).toHaveBeenCalledWith(
+        subjectId,
+        expect.stringMatching(/^[0-9a-f-]{36}-resumen__\.md$/),
+        'Contenido del resumen.'
+      )
+    })
+
+    it('inserts the row with ai-generated origin, null title, and null mimeType', async () => {
+      const service = createAttachmentService({ repository, storage: createStorageMock(), indexer })
+
+      await service.addGeneratedAttachment(subjectId, 'resumen.md', 'Contenido.')
+
+      const rows = repository.listBySubject(subjectId)
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toMatchObject({ origin: 'ai-generated', title: null, mimeType: null, fileName: 'resumen.md' })
+    })
+
+    it('computes sizeBytes via Buffer.byteLength, not character length (multibyte content)', async () => {
+      const content = 'á'.repeat(10) // 2 UTF-8 bytes each = 20 bytes, but only 10 chars
+      const service = createAttachmentService({ repository, storage: createStorageMock(), indexer })
+
+      await service.addGeneratedAttachment(subjectId, 'resumen.md', content)
+
+      const [row] = repository.listBySubject(subjectId)
+      expect(row?.sizeBytes).toBe(Buffer.byteLength(content, 'utf8'))
+      expect(row?.sizeBytes).not.toBe(content.length)
+    })
+
+    it('removes the just-written file and returns ok:false when the insert fails (orphan-cleanup rule, mirrors addAttachments)', async () => {
+      const nonExistentSubjectId = subjectId + 999
+      const writeIntoSubjectDir = vi
+        .fn()
+        .mockResolvedValue(path.join(String(nonExistentSubjectId), 'uuid-resumen.md'))
+      const storage = createStorageMock({ writeIntoSubjectDir })
+      const service = createAttachmentService({ repository, storage, indexer })
+
+      const result = await service.addGeneratedAttachment(nonExistentSubjectId, 'resumen.md', 'Contenido.')
+
+      expect(storage.removeFile).toHaveBeenCalledWith(path.join(String(nonExistentSubjectId), 'uuid-resumen.md'))
+      expect(result).toEqual({ ok: false, message: expect.any(String) })
+    })
+
+    it("fires the indexer after a successful insert, with that row's attachmentId", async () => {
+      const service = createAttachmentService({ repository, storage: createStorageMock(), indexer })
+
+      const result = await service.addGeneratedAttachment(subjectId, 'resumen.md', 'Contenido.')
+
+      const [row] = repository.listBySubject(subjectId)
+      expect(indexer.enqueue).toHaveBeenCalledTimes(1)
+      expect(indexer.enqueue).toHaveBeenCalledWith({
+        attachmentId: row?.id,
+        subjectId,
+        storedPath: row?.storedPath,
+        fileName: 'resumen.md'
+      })
+      expect(result).toEqual({ ok: true })
+    })
+
+    it('never fires the indexer when the insert fails', async () => {
+      const nonExistentSubjectId = subjectId + 999
+      const writeIntoSubjectDir = vi
+        .fn()
+        .mockResolvedValue(path.join(String(nonExistentSubjectId), 'uuid-resumen.md'))
+      const service = createAttachmentService({
+        repository,
+        storage: createStorageMock({ writeIntoSubjectDir }),
+        indexer
+      })
+
+      await service.addGeneratedAttachment(nonExistentSubjectId, 'resumen.md', 'Contenido.')
+
+      expect(indexer.enqueue).not.toHaveBeenCalled()
+    })
   })
 })

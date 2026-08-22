@@ -11,6 +11,7 @@ export interface AttachmentFsSubset {
   stat(path: string): Promise<{ size: number }>
   mkdir(path: string, options?: { recursive?: boolean }): Promise<string | undefined>
   copyFile(src: string, dest: string): Promise<void>
+  writeFile(path: string, content: string, encoding: 'utf8'): Promise<void>
   unlink(path: string): Promise<void>
   rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void>
 }
@@ -20,6 +21,14 @@ export interface AttachmentStorage {
   statSize(sourcePath: string): Promise<number>
   /** Ensures `rootDir/subjectId` exists, copies `sourcePath` into it as `storedFileName`, and returns the storedPath RELATIVE to `rootDir`. */
   copyIntoSubjectDir(subjectId: number, sourcePath: string, storedFileName: string): Promise<string>
+  /**
+   * Ensures `rootDir/subjectId` exists, writes `content` into it as
+   * `storedFileName` (UTF-8), and returns the storedPath RELATIVE to
+   * `rootDir`. Mirrors `copyIntoSubjectDir` for a content STRING rather than
+   * a source file path (cli-generated-artifacts design D5 — the ask
+   * generated-write-path uses this instead of a temp-file round-trip).
+   */
+  writeIntoSubjectDir(subjectId: number, storedFileName: string, content: string): Promise<string>
   /** The single choke point that turns a stored (relative) path back into an absolute one. Throws `INVALID_PATH` on escape (see `attachmentPaths.ts`). */
   resolveStoredPath(storedPath: string): string
   /** Resolves the storedPath and unlinks it. Propagates any failure (missing file, locked file) — callers decide how to log/report it. */
@@ -51,6 +60,13 @@ export function createAttachmentStorage({ rootDir, fs = nodeFs }: CreateAttachme
       await fs.mkdir(path.join(rootDir, subjectDir), { recursive: true })
       const storedPath = path.join(subjectDir, storedFileName)
       await fs.copyFile(sourcePath, path.join(rootDir, storedPath))
+      return storedPath
+    },
+    async writeIntoSubjectDir(subjectId, storedFileName, content) {
+      const subjectDir = String(subjectId)
+      await fs.mkdir(path.join(rootDir, subjectDir), { recursive: true })
+      const storedPath = path.join(subjectDir, storedFileName)
+      await fs.writeFile(path.join(rootDir, storedPath), content, 'utf8')
       return storedPath
     },
     resolveStoredPath(storedPath) {

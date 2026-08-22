@@ -17,8 +17,25 @@ export interface AddAttachmentsResult {
   failures: AddAttachmentFailure[]
 }
 
+/**
+ * Result of the generated write path (cli-generated-artifacts spec "Generated
+ * attachment write path" / design "Port Contract"). Shape matches
+ * `AskGeneratedArtifactPort.saveGenerated` exactly — this method satisfies
+ * that consumer-owned port structurally, no adapter needed.
+ */
+export type AddGeneratedAttachmentResult = { ok: true } | { ok: false; message: string }
+
 export interface AttachmentService {
   addAttachments(subjectId: number, sourcePaths: string[]): Promise<AddAttachmentsResult>
+  /**
+   * Persists a content STRING (not a source file path) as a new attachment
+   * for `subjectId`, marking it `origin: 'ai-generated'` (cli-generated-
+   * artifacts spec "Generated attachment write path" / "Origin provenance
+   * column and badge"). Reuses the same sanitized-filename convention,
+   * repository insert, orphan-cleanup-on-insert-failure, and fire-and-forget
+   * indexer enqueue as `addAttachments` above — no parallel write mechanism.
+   */
+  addGeneratedAttachment(subjectId: number, fileName: string, content: string): Promise<AddGeneratedAttachmentResult>
 }
 
 /**
@@ -124,6 +141,47 @@ export function createAttachmentService({
       }
 
       return { added, failures }
+    },
+
+    async addGeneratedAttachment(subjectId, fileName, content) {
+      const sizeBytes = Buffer.byteLength(content, 'utf8')
+      // Re-sanitized here even though `artifactGate.ts` already sanitized the
+      // header's fileName once — idempotent by construction, and this call
+      // site must never trust an upstream caller's sanitization alone.
+      const storedFileName = `${randomUUID()}-${sanitizeFileName(fileName)}`
+      const storedPath = await storage.writeIntoSubjectDir(subjectId, storedFileName, content)
+
+      try {
+        const record = repository.insert({
+          subjectId,
+          fileName,
+          storedPath,
+          mimeType: null,
+          sizeBytes,
+          title: null,
+          createdAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+          // The generated write path is the ONLY call site that ever writes
+          // 'ai-generated' (cli-generated-artifacts spec "Generated artifact
+          // is marked and badged").
+          origin: 'ai-generated'
+        })
+        // Fire-and-forget, same convention as `addAttachments` above: never
+        // awaited, so a slow or failing indexing job never delays this
+        // response.
+        indexer.enqueue({
+          attachmentId: record.id,
+          subjectId,
+          storedPath: record.storedPath,
+          fileName: record.fileName
+        })
+        return { ok: true }
+      } catch (insertError) {
+        // Orphan-cleanup rule copied from `addAttachments` (spec "Failed
+        // insert cleans up the written file"): the write already landed on
+        // disk, so a failed insert must not leave it behind.
+        await storage.removeFile(storedPath).catch(() => {})
+        return { ok: false, message: insertError instanceof Error ? insertError.message : 'Unknown error' }
+      }
     }
   }
 }

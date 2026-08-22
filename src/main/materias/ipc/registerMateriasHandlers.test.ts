@@ -70,6 +70,7 @@ describe('registerMateriasHandlers', () => {
     attachmentStorage = {
       statSize: vi.fn(),
       copyIntoSubjectDir: vi.fn(),
+      writeIntoSubjectDir: vi.fn(),
       resolveStoredPath: vi.fn(),
       removeFile: vi.fn(),
       removeSubjectDir: vi.fn().mockResolvedValue(undefined)

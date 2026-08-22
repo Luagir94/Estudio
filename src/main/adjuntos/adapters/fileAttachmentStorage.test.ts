@@ -10,6 +10,7 @@ function createFsMock(overrides: Partial<AttachmentFsSubset> = {}): AttachmentFs
     stat: vi.fn().mockResolvedValue({ size: 0 }),
     mkdir: vi.fn().mockResolvedValue(undefined),
     copyFile: vi.fn().mockResolvedValue(undefined),
+    writeFile: vi.fn().mockResolvedValue(undefined),
     unlink: vi.fn().mockResolvedValue(undefined),
     rm: vi.fn().mockResolvedValue(undefined),
     ...overrides
@@ -47,6 +48,23 @@ describe('createAttachmentStorage', () => {
     expect(fs.mkdir).toHaveBeenCalledWith(path.join(rootDir, '7'), { recursive: true })
     expect(fs.copyFile).toHaveBeenCalledWith(sourcePath, path.join(rootDir, '7', 'uuid-apuntes.pdf'))
     expect(storedPath).toBe(path.join('7', 'uuid-apuntes.pdf'))
+  })
+
+  // cli-generated-artifacts Unit 6.1 — mirrors `copyIntoSubjectDir` for a
+  // content STRING (the ask-generated write path) instead of a source file.
+  it('writeIntoSubjectDir creates the subject directory then writes the content string into it as UTF-8', async () => {
+    const fs = createFsMock()
+    const storage = createAttachmentStorage({ rootDir, fs })
+
+    const storedPath = await storage.writeIntoSubjectDir(7, 'uuid-resumen.md', 'Contenido del resumen.')
+
+    expect(fs.mkdir).toHaveBeenCalledWith(path.join(rootDir, '7'), { recursive: true })
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      path.join(rootDir, '7', 'uuid-resumen.md'),
+      'Contenido del resumen.',
+      'utf8'
+    )
+    expect(storedPath).toBe(path.join('7', 'uuid-resumen.md'))
   })
 
   it('resolveStoredPath resolves a normal storedPath to an absolute path under the root', () => {
