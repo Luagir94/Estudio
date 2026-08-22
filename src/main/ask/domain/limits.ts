@@ -55,3 +55,13 @@ export const ASK_RETRIEVAL_BUDGET_CHARS = 7_000
  * chunks; the budget trim can still drop some of those).
  */
 export const ASK_RETRIEVAL_TOP_K = 6
+
+/**
+ * Content-size cap for a generated artifact block's body (cli-generated-
+ * artifacts design D9, pinned — not tunable). Measured with
+ * `Buffer.byteLength(body, 'utf8')`, never `.length`: bytes are the honest
+ * unit for disk writes and the `ASK_MAX_STDOUT_BYTES` ceiling above. An
+ * oversize artifact is dropped WHOLE — same `computeRetrievalWindow`
+ * philosophy of never truncating mid-content.
+ */
+export const ASK_ARTIFACT_MAX_CONTENT_BYTES = 262_144

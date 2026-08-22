@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ASK_ARTIFACT_MAX_CONTENT_BYTES,
   ASK_MAX_FILE_BYTES,
   ASK_MAX_QUESTION_LENGTH,
   ASK_MAX_STDERR_DETAIL_BYTES,
@@ -44,5 +45,9 @@ describe('ask domain limits', () => {
 
   it('ASK_RETRIEVAL_TOP_K is exactly 6 (attachment-fts-index spec: pinned "Scoped BM25 top-K retrieval")', () => {
     expect(ASK_RETRIEVAL_TOP_K).toBe(6)
+  })
+
+  it('ASK_ARTIFACT_MAX_CONTENT_BYTES is exactly 262144 bytes (cli-generated-artifacts design D9, pinned)', () => {
+    expect(ASK_ARTIFACT_MAX_CONTENT_BYTES).toBe(262_144)
   })
 })
