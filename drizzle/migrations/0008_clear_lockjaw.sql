@@ -1,0 +1,1 @@
+ALTER TABLE `attachments` ADD `origin` text DEFAULT 'user' NOT NULL;

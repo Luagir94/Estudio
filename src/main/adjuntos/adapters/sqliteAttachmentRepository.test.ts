@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { openAppDatabase } from '../../db/connection'
-import { subjects } from '../../db/schema'
+import { attachments, subjects } from '../../db/schema'
 import { createSqliteAttachmentRepository } from './sqliteAttachmentRepository'
 
 const migrationsFolder = path.join(__dirname, '../../../../drizzle/migrations')
@@ -45,7 +45,8 @@ describe('createSqliteAttachmentRepository', () => {
       mimeType: null,
       sizeBytes: 1024,
       title: null,
-      createdAt: '2026-08-16T10:00'
+      createdAt: '2026-08-16T10:00',
+      origin: 'user'
     })
 
     expect(inserted).toMatchObject({
@@ -69,11 +70,62 @@ describe('createSqliteAttachmentRepository', () => {
       mimeType: null,
       sizeBytes: 1024,
       title: null,
-      createdAt: '2026-08-16T10:00'
+      createdAt: '2026-08-16T10:00',
+      origin: 'user'
     })
 
     expect(inserted.indexStatus).toBe('pending')
     expect(repository.get(inserted.id)?.indexStatus).toBe('pending')
+  })
+
+  // cli-generated-artifacts spec "Generated artifact is marked and badged":
+  // `origin: 'ai-generated'` must round-trip through a real `:memory:` +
+  // production `migrate()` exactly like any other column.
+  it('inserts an attachment with origin "ai-generated" and round-trips it back unchanged', () => {
+    const repository = createSqliteAttachmentRepository(db)
+
+    const inserted = repository.insert({
+      subjectId,
+      fileName: 'resumen-parcial-1.md',
+      storedPath: path.join(String(subjectId), 'uuid-resumen-parcial-1.md'),
+      mimeType: null,
+      sizeBytes: 512,
+      title: null,
+      createdAt: '2026-08-16T10:00',
+      // `origin` is a REQUIRED field on `CreateAttachmentInput` (task 1.2) —
+      // omitting it here would be a TypeScript compile error, not a runtime
+      // one; every insert() call site in the codebase must pass it
+      // explicitly, on purpose.
+      origin: 'ai-generated'
+    })
+
+    expect(inserted.origin).toBe('ai-generated')
+    expect(repository.get(inserted.id)?.origin).toBe('ai-generated')
+  })
+
+  // cli-generated-artifacts spec "Pre-existing rows migrate to 'user' by
+  // default": a row written without an explicit `origin` (the pre-migration
+  // 0008 shape, simulated here via a raw drizzle insert that bypasses
+  // `CreateAttachmentInput`'s required field) must pick up the column's
+  // `DEFAULT 'user'`.
+  it('a legacy row written without an explicit origin column defaults to "user"', () => {
+    const repository = createSqliteAttachmentRepository(db)
+    const legacyId = db
+      .insert(attachments)
+      .values({
+        subjectId,
+        fileName: 'viejo.pdf',
+        storedPath: path.join(String(subjectId), 'uuid-viejo.pdf'),
+        mimeType: null,
+        sizeBytes: 10,
+        title: null,
+        createdAt: '2026-08-01T09:00'
+        // `origin` intentionally omitted.
+      })
+      .returning()
+      .get().id
+
+    expect(repository.get(legacyId)?.origin).toBe('user')
   })
 
   it('get returns the inserted row by id', () => {
@@ -85,7 +137,8 @@ describe('createSqliteAttachmentRepository', () => {
       mimeType: null,
       sizeBytes: 2048,
       title: null,
-      createdAt: '2026-08-16T10:05'
+      createdAt: '2026-08-16T10:05',
+      origin: 'user'
     })
 
     expect(repository.get(inserted.id)).toMatchObject({ id: inserted.id, fileName: 'foto.png' })
@@ -107,7 +160,8 @@ describe('createSqliteAttachmentRepository', () => {
       mimeType: null,
       sizeBytes: 10,
       title: null,
-      createdAt: '2026-08-16T10:00'
+      createdAt: '2026-08-16T10:00',
+      origin: 'user'
     })
     repository.insert({
       subjectId: otherSubjectId,
@@ -116,7 +170,8 @@ describe('createSqliteAttachmentRepository', () => {
       mimeType: null,
       sizeBytes: 10,
       title: null,
-      createdAt: '2026-08-16T10:01'
+      createdAt: '2026-08-16T10:01',
+      origin: 'user'
     })
 
     const listed = repository.listBySubject(subjectId)
@@ -140,7 +195,8 @@ describe('createSqliteAttachmentRepository', () => {
       mimeType: null,
       sizeBytes: 10,
       title: null,
-      createdAt: '2026-08-16T12:00'
+      createdAt: '2026-08-16T12:00',
+      origin: 'user'
     })
     repository.insert({
       subjectId,
@@ -149,7 +205,8 @@ describe('createSqliteAttachmentRepository', () => {
       mimeType: null,
       sizeBytes: 10,
       title: null,
-      createdAt: '2026-08-16T08:00'
+      createdAt: '2026-08-16T08:00',
+      origin: 'user'
     })
     repository.insert({
       subjectId,
@@ -158,7 +215,8 @@ describe('createSqliteAttachmentRepository', () => {
       mimeType: null,
       sizeBytes: 10,
       title: null,
-      createdAt: '2026-08-16T20:00'
+      createdAt: '2026-08-16T20:00',
+      origin: 'user'
     })
 
     const listed = repository.listBySubject(subjectId)
@@ -175,7 +233,8 @@ describe('createSqliteAttachmentRepository', () => {
       mimeType: null,
       sizeBytes: 10,
       title: null,
-      createdAt: '2026-08-16T10:00'
+      createdAt: '2026-08-16T10:00',
+      origin: 'user'
     })
 
     const removed = repository.remove(inserted.id)
@@ -199,7 +258,8 @@ describe('createSqliteAttachmentRepository', () => {
       mimeType: null,
       sizeBytes: 10,
       title: null,
-      createdAt: '2026-08-16T10:00'
+      createdAt: '2026-08-16T10:00',
+      origin: 'user'
     })
     repository.insert({
       subjectId,
@@ -208,7 +268,8 @@ describe('createSqliteAttachmentRepository', () => {
       mimeType: null,
       sizeBytes: 10,
       title: null,
-      createdAt: '2026-08-16T10:01'
+      createdAt: '2026-08-16T10:01',
+      origin: 'user'
     })
 
     db.delete(subjects).where(eq(subjects.id, subjectId)).run()

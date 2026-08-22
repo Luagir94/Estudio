@@ -23,7 +23,12 @@ export const attachmentSchema = z.object({
   // Closed set (attachment-fts-index design "Status storage", spec "Status
   // lifecycle") — rides on the existing `adjuntos:list` payload, one query
   // serves the badge (slice 2c), no new channel needed.
-  indexStatus: z.enum(['pending', 'indexed', 'not-indexable'])
+  indexStatus: z.enum(['pending', 'indexed', 'not-indexable']),
+  // Provenance (cli-generated-artifacts spec "Origin provenance column and
+  // badge"): 'user' for a normal upload, 'ai-generated' for a document the
+  // ask-generated-artifacts save path wrote on the model's behalf. Rides on
+  // the same `adjuntos:list` payload as `indexStatus`, no new channel.
+  origin: z.enum(['user', 'ai-generated'])
 })
 
 export type Attachment = z.infer<typeof attachmentSchema>

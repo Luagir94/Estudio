@@ -39,7 +39,8 @@ const sampleRecord: AttachmentRecord = {
   sizeBytes: 1024,
   title: null,
   createdAt: '2026-08-16T10:00',
-  indexStatus: 'pending'
+  indexStatus: 'pending',
+  origin: 'user'
 }
 
 const sampleAttachment = {
@@ -50,7 +51,8 @@ const sampleAttachment = {
   sizeBytes: 1024,
   title: null,
   createdAt: '2026-08-16T10:00',
-  indexStatus: 'pending'
+  indexStatus: 'pending',
+  origin: 'user'
 }
 
 describe('registerAdjuntosHandlers', () => {

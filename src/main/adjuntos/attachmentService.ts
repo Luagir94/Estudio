@@ -85,7 +85,12 @@ export function createAttachmentService({
               mimeType: null,
               sizeBytes,
               title: null,
-              createdAt: format(new Date(), "yyyy-MM-dd'T'HH:mm")
+              createdAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+              // A picker-driven upload is always a 'user' origin
+              // (cli-generated-artifacts spec "User upload defaults to
+              // 'user' origin") — the 'ai-generated' origin is written only
+              // by the generated write path (Unit 6, not this call site).
+              origin: 'user'
             })
             added.push(record)
             // Fire-and-forget (design "Background execution" —

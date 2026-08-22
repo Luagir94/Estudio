@@ -3,6 +3,19 @@ import type { AppDatabase } from '../../db/connection'
 import { attachments } from '../../db/schema'
 import { InvalidIndexStatusError, isIndexStatus, type IndexStatus } from '../../indexado/domain/indexStatus'
 
+// Closed set for `attachments.origin` (cli-generated-artifacts spec "Origin
+// provenance column and badge") — same no-SQL-constraint convention as
+// `IndexStatus`/`subjects.outcome`. 'user' is a normal upload; 'ai-generated'
+// marks a row written by the ask-generated-artifacts save path.
+export type AttachmentOrigin = 'user' | 'ai-generated'
+
+function toOrigin(value: string): AttachmentOrigin {
+  if (value !== 'user' && value !== 'ai-generated') {
+    throw new Error(`Unknown attachment origin "${value}"`)
+  }
+  return value
+}
+
 export interface AttachmentRecord {
   id: number
   subjectId: number
@@ -17,6 +30,10 @@ export interface AttachmentRecord {
   // repository never writes it, only reads it back through `.returning()`/
   // `.select()`, which already includes every column of the row.
   indexStatus: IndexStatus
+  // Defaults to 'user' at the column level (migration 0008,
+  // cli-generated-artifacts spec "Pre-existing rows migrate to 'user' by
+  // default").
+  origin: AttachmentOrigin
 }
 
 export interface CreateAttachmentInput {
@@ -27,6 +44,11 @@ export interface CreateAttachmentInput {
   sizeBytes: number
   title: string | null
   createdAt: string
+  // REQUIRED, not defaulted here (cli-generated-artifacts design "Module
+  // Layout"): every call site must say explicitly whether it is writing a
+  // user upload or an ai-generated artifact — a compile error is the point,
+  // not an oversight.
+  origin: AttachmentOrigin
 }
 
 export interface AttachmentRepository {
@@ -44,7 +66,7 @@ function toRecord(row: typeof attachments.$inferSelect): AttachmentRecord {
   if (!isIndexStatus(row.indexStatus)) {
     throw new InvalidIndexStatusError(row.indexStatus)
   }
-  return { ...row, indexStatus: row.indexStatus }
+  return { ...row, indexStatus: row.indexStatus, origin: toOrigin(row.origin) }
 }
 
 /**
@@ -81,7 +103,8 @@ export function createSqliteAttachmentRepository(db: AppDatabase): AttachmentRep
           mimeType: input.mimeType,
           sizeBytes: input.sizeBytes,
           title: input.title,
-          createdAt: input.createdAt
+          createdAt: input.createdAt,
+          origin: input.origin
         })
         .returning()
         .get()

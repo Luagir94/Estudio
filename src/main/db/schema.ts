@@ -178,7 +178,15 @@ export const attachments = sqliteTable('attachments', {
   // Defaults every pre-existing row to 'pending' on migration, which is
   // exactly what lets Sincronizar backfill them (spec "Sincronizar picks up
   // pre-existing and stuck attachments").
-  indexStatus: text('index_status').notNull().default('pending')
+  indexStatus: text('index_status').notNull().default('pending'),
+  // Provenance marker (cli-generated-artifacts spec "Origin provenance
+  // column and badge", design "Storage / Migration"): 'user' for a normal
+  // upload, 'ai-generated' for a document the ask-generated-artifacts save
+  // path wrote on the model's behalf. Additive, no CHECK constraint — same
+  // no-SQL-constraint precedent as `indexStatus`/`subjects.outcome`.
+  // Migration 0008 defaults every pre-existing row to 'user', same rule as
+  // `indexStatus`'s migration 0006.
+  origin: text('origin').notNull().default('user')
 })
 
 // One chunk of extracted attachment text (attachment-fts-index design
