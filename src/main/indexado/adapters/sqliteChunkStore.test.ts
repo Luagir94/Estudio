@@ -68,8 +68,35 @@ describe('createSqliteChunkStore', () => {
     expect(results[0]).toEqual({
       text: 'la clase de algebra lineal cubre matrices',
       displayName: 'apuntes.pdf',
-      subjectName: 'Algoritmos'
+      subjectName: 'Algoritmos',
+      attachmentId,
+      chunkIndex: 0
     })
+  })
+
+  // Chunk provenance for the diversity re-ranker (`retrievalDiversity.ts`):
+  // adjacent chunk_index values of the SAME attachment are overlapping
+  // 1000-char windows of one passage, and detecting that requires each row
+  // to say WHICH attachment and WHICH position it came from.
+  it('search returns each matching row with its own attachmentId and chunkIndex', () => {
+    const store = createSqliteChunkStore(raw)
+    const otherAttachmentId = seedAttachment(db, subjectId, 'otro.pdf')
+    store.insertMany([
+      { attachmentId, subjectId, chunkIndex: 385, text: 'sistemas de informacion transaccionales' },
+      { attachmentId, subjectId, chunkIndex: 386, text: 'informacion transaccionales y gerenciales' },
+      { attachmentId: otherAttachmentId, subjectId, chunkIndex: 0, text: 'otra informacion distinta' }
+    ])
+
+    const results = store.search('informacion', 10)
+
+    expect(results).toHaveLength(3)
+    expect(results.map((row) => ({ attachmentId: row.attachmentId, chunkIndex: row.chunkIndex }))).toEqual(
+      expect.arrayContaining([
+        { attachmentId, chunkIndex: 385 },
+        { attachmentId, chunkIndex: 386 },
+        { attachmentId: otherAttachmentId, chunkIndex: 0 }
+      ])
+    )
   })
 
   it('search returns no results for a term that does not appear in any indexed chunk', () => {

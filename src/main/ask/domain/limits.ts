@@ -48,6 +48,15 @@ export const ASK_TRANSCRIPT_BUDGET_CHARS = 24_000
 export const ASK_RETRIEVAL_BUDGET_CHARS = 7_000
 
 /**
+ * Character cap on the prior-turn context appended to the BM25 retrieval
+ * query for a follow-up question (`retrievalQuery.ts`). Unlike the prompt
+ * windows above, this one MAY cut mid-content: the enriched query is never
+ * shown to the model or the student — it only seeds OR-joined match terms,
+ * so a truncated tail loses nothing but candidate keywords.
+ */
+export const ASK_RETRIEVAL_QUERY_CONTEXT_CHARS = 2_000
+
+/**
  * Max chunks requested per question from `AskAttachmentIndexPort.search()`
  * (attachment-fts-index spec "Scoped BM25 top-K retrieval" — pinned `TOP_K
  * = 6`). Bounds the BM25 query itself, upstream of the char-budget trim
@@ -55,6 +64,30 @@ export const ASK_RETRIEVAL_BUDGET_CHARS = 7_000
  * chunks; the budget trim can still drop some of those).
  */
 export const ASK_RETRIEVAL_TOP_K = 6
+
+/**
+ * Candidate pool fetched from FTS before the diversity re-rank
+ * (`retrievalDiversity.ts`). The BM25 top-`TOP_K` alone can fill with
+ * near-copies of ONE passage — adjacent overlapping chunk windows rank
+ * together — so the store is asked for a wider slate and the final
+ * `TOP_K` are selected from it. A NEW value chosen in this change, not
+ * pinned by any spec: 8× the window is enough slate for pass 1 to skip
+ * whole runs of adjacent chunks and still fill six diverse slots, while
+ * staying a trivial LIMIT for SQLite. The prompt never sees more than
+ * `ASK_RETRIEVAL_TOP_K` chunks of it.
+ */
+export const ASK_RETRIEVAL_CANDIDATES = 48
+
+/**
+ * Same-attachment chunks whose `chunk_index` positions sit closer than this
+ * are treated as near-duplicates of one passage by `retrievalDiversity.ts`.
+ * A NEW value chosen in this change, not pinned by any spec: chunks are
+ * fixed 1000-char windows with 120-char overlap, so index neighbors at
+ * delta 1-2 share text directly or straddle the same page; delta 3 (~2600
+ * fresh chars away) is the first distance that reads as a different
+ * passage.
+ */
+export const ASK_RETRIEVAL_DIVERSITY_MIN_GAP = 3
 
 /**
  * Content-size cap for a generated artifact block's body (cli-generated-

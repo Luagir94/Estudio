@@ -21,6 +21,9 @@ import { buildAppContext, type AppContext } from './domain/appContext'
 import { buildAskPrompt, type AskManifestSubject } from './domain/promptBuilder'
 import { parseAskResponse } from './domain/responseParser'
 import type { EnvelopeKind } from '../cli/providerSpec'
+import { stripAttachmentEcho } from './domain/attachmentEchoFilter'
+import { buildRetrievalQuery } from './domain/retrievalQuery'
+import { selectDiverseChunks } from './domain/retrievalDiversity'
 import { computeRetrievalWindow, type RetrievedAttachmentChunk } from './domain/retrievalWindow'
 import { computeTranscriptWindow, type TranscriptSourceTurn } from './domain/transcriptWindow'
 import type { ArtifactExtraction } from './domain/artifactBlock'
@@ -29,6 +32,8 @@ import {
   ASK_MAX_FILE_BYTES,
   ASK_MAX_STDERR_DETAIL_BYTES,
   ASK_MAX_STDOUT_BYTES,
+  ASK_RETRIEVAL_CANDIDATES,
+  ASK_RETRIEVAL_DIVERSITY_MIN_GAP,
   ASK_RETRIEVAL_TOP_K,
   ASK_TIMEOUT_MS
 } from './domain/limits'
@@ -65,11 +70,16 @@ export interface AskAttachmentPort {
 }
 
 /**
- * Scoped BM25 top-K retrieval over indexed attachment chunks
+ * BM25 top-K retrieval over indexed attachment chunks
  * (attachment-fts-index design "Port Contracts" — consumer-owned, same
  * `AskAttachmentPort` structural convention above). `sqliteChunkStore.ts`'s
  * `ChunkStore.search` satisfies this structurally: same `(question,
- * maxChunks)` signature, same `{text, displayName, subjectName}` shape.
+ * maxChunks)` signature, same `{text, displayName, subjectName,
+ * attachmentId, chunkIndex}` shape. `attachmentId`/`chunkIndex` are not
+ * display fields: they feed the near-duplicate clustering in
+ * `selectDiverseChunks`, so an adapter that fakes them with constants
+ * silently disables diversity re-ranking — every chunk would cluster with
+ * every other chunk of the same fake attachment.
  */
 export interface AskAttachmentIndexPort {
   search(question: string, maxChunks: number): readonly RetrievedAttachmentChunk[]
@@ -390,12 +400,36 @@ export function createAskService({
       return { ok: false, code: 'OVERSIZED_ATTACHMENT', message: oversized.join(', ') }
     }
 
-    // Scoped BM25 top-K retrieval, trimmed to the char budget (design
-    // "Retrieval + Prompt"). Chunks are untrusted file content — reaching
-    // `buildAskPrompt` is what wraps them in the sentinel-protected section;
-    // nothing indexed yet means `search` returns `[]`, the window stays
-    // empty, and the prompt below is byte-identical to pre-change behavior.
-    const retrievedChunks = computeRetrievalWindow(attachmentIndex.search(question, ASK_RETRIEVAL_TOP_K))
+    // Scoped BM25 retrieval, diversity-selected down to top-K and trimmed to
+    // the char budget (design "Retrieval + Prompt"). Chunks are untrusted
+    // file content — reaching `buildAskPrompt` is what wraps them in the
+    // sentinel-protected section; nothing indexed yet means `search` returns
+    // `[]`, the window stays empty, and the prompt below is byte-identical
+    // to pre-change behavior.
+    // The QUERY (never the prompt's question line) is enriched with the
+    // newest answered turn so a keyword-free follow-up still retrieves the
+    // chunks its topic lives in — then stripped of tokens that echo the
+    // attachment filenames, because title tokens are the rarest in the corpus
+    // and OR-joined BM25 would rank front matter over content. The WHOLE
+    // enriched query is filtered: title tokens are identity echo wherever
+    // they appear, including in appended prior-turn text.
+    // The search fetches a WIDER candidate pool than the window holds, and
+    // `selectDiverseChunks` picks the top-K from it: adjacent overlapping
+    // chunk windows of one attachment are near-copies of one passage, and
+    // the raw BM25 prefix would spend several of the six slots on them. The
+    // final window is still at most `ASK_RETRIEVAL_TOP_K` chunks under the
+    // same char budget — prompt size cannot grow from this.
+    const attachmentFileNames = subjects.flatMap((subject) => subject.files.map((file) => file.displayName))
+    const retrievedChunks = computeRetrievalWindow(
+      selectDiverseChunks(
+        attachmentIndex.search(
+          stripAttachmentEcho(buildRetrievalQuery(question, transcript), attachmentFileNames),
+          ASK_RETRIEVAL_CANDIDATES
+        ),
+        ASK_RETRIEVAL_TOP_K,
+        ASK_RETRIEVAL_DIVERSITY_MIN_GAP
+      )
+    )
 
     // Composed BEFORE the spawn, not after it, because for an `argv` provider
     // the prompt is part of the command line the spawn is about to build.

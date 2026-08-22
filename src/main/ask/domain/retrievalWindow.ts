@@ -16,6 +16,15 @@ export interface RetrievedAttachmentChunk {
   displayName: string
   /** Same value as the source attachment's manifest `subjectName`. */
   subjectName: string
+  /**
+   * Chunk provenance for `retrievalDiversity.ts`'s near-duplicate detection
+   * (`attachment_chunks.attachment_id` / `chunk_index`): adjacent chunk
+   * indexes of the SAME attachment are overlapping 1000-char windows of the
+   * same passage. Never rendered into the prompt — `promptBuilder.ts` reads
+   * only the three fields above.
+   */
+  attachmentId: number
+  chunkIndex: number
 }
 
 /**

@@ -9,7 +9,12 @@ import {
   type AskServiceDeps
 } from './askService'
 import { ARTIFACT_START_SENTINEL, ARTIFACT_END_SENTINEL } from './domain/artifactBlock'
-import { ASK_ARTIFACT_MAX_CONTENT_BYTES, ASK_MAX_FILE_BYTES, ASK_RETRIEVAL_TOP_K } from './domain/limits'
+import {
+  ASK_ARTIFACT_MAX_CONTENT_BYTES,
+  ASK_MAX_FILE_BYTES,
+  ASK_RETRIEVAL_CANDIDATES,
+  ASK_RETRIEVAL_TOP_K
+} from './domain/limits'
 import { MAX_ARGV_PROMPT_CHARS, type ValidatedExecutablePath } from '../claude/claudeExecutableValidator'
 import type { AskArtifactDropReason } from '../../shared/ipc/ask'
 
@@ -798,19 +803,92 @@ describe('createAskService — argv prompt delivery', () => {
 // (askService.ts's own comment) — a missing wire is a compile error at the
 // real call site (`src/main/index.ts`), not a silent runtime degrade.
 describe('createAskService — retrieval wiring', () => {
-  it('searches the attachment index with the question and the pinned TOP_K, and the retrieved chunks reach the prompt', async () => {
+  // The question shares no token with the corpus filename ('apunte.pdf'), so
+  // the echo filter is a no-op and the search receives the question
+  // BYTE-IDENTICAL — this exact-string assertion pins that invariant. The
+  // search is asked for the WIDER candidate pool (never TOP_K directly):
+  // the diversity re-rank downstream needs slate to choose from.
+  it('searches the attachment index with the question and the candidate-pool size, and the retrieved chunks reach the prompt', async () => {
     const { spawnPrompt, last } = respondWith({ kind: 'not-found' })
     const search = vi.fn(() => [
-      { text: 'Un anillo es una estructura algebraica.', displayName: 'apunte.pdf', subjectName: 'Álgebra' }
+      {
+        text: 'Un anillo es una estructura algebraica.',
+        displayName: 'apunte.pdf',
+        subjectName: 'Álgebra',
+        attachmentId: 1,
+        chunkIndex: 0
+      }
     ])
     const { service } = buildService({ spawnPrompt, attachmentIndex: { search } })
 
     await service.ask('¿Qué es un anillo?', SELECTION)
 
-    expect(search).toHaveBeenCalledWith('¿Qué es un anillo?', ASK_RETRIEVAL_TOP_K)
+    expect(search).toHaveBeenCalledWith('¿Qué es un anillo?', ASK_RETRIEVAL_CANDIDATES)
     const prompt = last().writes.join('')
     expect(prompt).toContain('[Materia: Álgebra | Archivo: apunte.pdf]')
     expect(prompt).toContain('Un anillo es una estructura algebraica.')
+  })
+
+  // The title-echo fix (attachmentEchoFilter.ts): a question that names the
+  // attachment ranks front-matter chunks over content, because title tokens
+  // are the rarest in the corpus and `ftsQuery.ts` OR-joins every token with
+  // equal weight. The SEARCH QUERY — never the prompt's question line — must
+  // arrive with the filename-echo tokens stripped.
+  it('strips question tokens that echo attachment filenames before the search', async () => {
+    const { spawnPrompt, last } = respondWith({ kind: 'not-found' })
+    const search = vi.fn(() => [])
+    const { service } = buildService({
+      spawnPrompt,
+      attachmentIndex: { search },
+      subjectRepository: { list: () => [{ id: 1, name: 'ITICS' }] },
+      attachmentRepository: {
+        listBySubject: () => [
+          {
+            fileName: 'Sistemas de Informacion Gerencial - 12va Edicion.pdf',
+            storedPath: '1/uuid-sig.pdf',
+            sizeBytes: 1024
+          }
+        ]
+      }
+    })
+
+    const question = '¿Qué tipos de sistemas de información existen según Sistemas de Información Gerencial?'
+    await service.ask(question, SELECTION)
+
+    expect(search).toHaveBeenCalledWith('Qué tipos existen según', ASK_RETRIEVAL_CANDIDATES)
+    // The model still reads the RAW question — filtering must never leak into
+    // the prompt (the same invariant `retrievalQuery.ts` documents).
+    expect(last().writes.join('')).toContain(question)
+  })
+
+  // The follow-up fix: "¿Podés detallar cada uno?" alone matches nothing in
+  // BM25, so the search query — and ONLY the search query, never the prompt's
+  // question line — borrows the newest answered turn's text from the same
+  // windowed transcript the prompt uses.
+  it('enriches the retrieval query with the newest answered turn on a continued conversation', async () => {
+    const priorTurn: AskHistoryTurn = {
+      id: 42,
+      question: '¿Qué sistemas empresariales se mencionan?',
+      model: 'sonnet',
+      result: { kind: 'general', answer: 'Se mencionan ERP, CRM y SCM.' },
+      createdAt: '2026-08-18T09:00'
+    }
+    const history = createFakeHistory({ 7: [priorTurn] })
+    const { spawnPrompt } = respondWith({ kind: 'not-found' })
+    const search = vi.fn(() => [])
+    const { service } = buildService({ spawnPrompt, history, attachmentIndex: { search } })
+
+    await service.ask('¿Podés detallar cada uno?', SELECTION, 7)
+
+    expect(search).toHaveBeenCalledWith(expect.stringContaining('¿Podés detallar cada uno?'), ASK_RETRIEVAL_CANDIDATES)
+    expect(search).toHaveBeenCalledWith(
+      expect.stringContaining('Se mencionan ERP, CRM y SCM.'),
+      ASK_RETRIEVAL_CANDIDATES
+    )
+    expect(search).toHaveBeenCalledWith(
+      expect.stringContaining('¿Qué sistemas empresariales se mencionan?'),
+      ASK_RETRIEVAL_CANDIDATES
+    )
   })
 
   // Spec "No attachments indexed at all": the retrieval section is omitted
@@ -833,8 +911,8 @@ describe('createAskService — retrieval wiring', () => {
   it('trims retrieved chunks to the retrieval budget before they reach the prompt', async () => {
     const { spawnPrompt, last } = respondWith({ kind: 'not-found' })
     const bigChunks = [
-      { text: 'a'.repeat(4000), displayName: 'grande-1.pdf', subjectName: 'Álgebra' },
-      { text: 'b'.repeat(4000), displayName: 'grande-2.pdf', subjectName: 'Álgebra' }
+      { text: 'a'.repeat(4000), displayName: 'grande-1.pdf', subjectName: 'Álgebra', attachmentId: 1, chunkIndex: 0 },
+      { text: 'b'.repeat(4000), displayName: 'grande-2.pdf', subjectName: 'Álgebra', attachmentId: 2, chunkIndex: 0 }
     ]
     const { service } = buildService({ spawnPrompt, attachmentIndex: { search: () => bigChunks } })
 
@@ -845,6 +923,51 @@ describe('createAskService — retrieval wiring', () => {
     // first, best-ranked chunk fits.
     expect(prompt).toContain('grande-1.pdf')
     expect(prompt).not.toContain('grande-2.pdf')
+  })
+
+  // The near-duplicate fix (retrievalDiversity.ts): adjacent overlapping
+  // chunk windows of the same attachment rank together in BM25, so the raw
+  // top-6 prefix can spend two slots on ONE passage (replay: chunk_index 385
+  // AND 386 came back together). The service must select the diversified
+  // top-6 from the wider candidate pool — never the raw prefix.
+  it('diversifies the candidate pool before the prompt: an adjacent same-attachment near-duplicate is replaced by the next diverse candidate', async () => {
+    const { spawnPrompt, last } = respondWith({ kind: 'not-found' })
+    const candidate = (attachmentId: number, chunkIndex: number, text: string) => ({
+      text,
+      displayName: `apunte-${attachmentId}.pdf`,
+      subjectName: 'Álgebra',
+      attachmentId,
+      chunkIndex
+    })
+    // Best-match-first order, as the chunk store returns it. The raw top-6
+    // prefix would include 'contenido-beta' (chunk 386, a near-copy of 385)
+    // and would NEVER reach 'contenido-eta' at rank 7.
+    const candidates = [
+      candidate(1, 385, 'contenido-alfa'),
+      candidate(1, 386, 'contenido-beta'),
+      candidate(2, 10, 'contenido-gamma'),
+      candidate(3, 20, 'contenido-delta'),
+      candidate(4, 30, 'contenido-epsilon'),
+      candidate(5, 40, 'contenido-zeta'),
+      candidate(6, 50, 'contenido-eta'),
+      candidate(7, 60, 'contenido-theta')
+    ]
+    const search = vi.fn(() => candidates)
+    const { service } = buildService({ spawnPrompt, attachmentIndex: { search } })
+
+    await service.ask('¿Qué es un anillo?', SELECTION)
+
+    expect(search).toHaveBeenCalledWith('¿Qué es un anillo?', ASK_RETRIEVAL_CANDIDATES)
+    const prompt = last().writes.join('')
+    // The freed slot goes to the next diverse candidate...
+    expect(prompt).toContain('contenido-alfa')
+    expect(prompt).toContain('contenido-eta')
+    // ...the near-duplicate is out, and the window is still exactly TOP_K
+    // wide — rank 8 stays outside it.
+    expect(prompt).not.toContain('contenido-beta')
+    expect(prompt).not.toContain('contenido-theta')
+    const includedCount = candidates.filter((entry) => prompt.includes(entry.text)).length
+    expect(includedCount).toBe(ASK_RETRIEVAL_TOP_K)
   })
 })
 

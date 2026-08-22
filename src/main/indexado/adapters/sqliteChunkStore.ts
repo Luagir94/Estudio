@@ -12,6 +12,14 @@ export interface RetrievedChunk {
   text: string
   displayName: string
   subjectName: string
+  /**
+   * Chunk provenance (`attachment_chunks.attachment_id` / `chunk_index`),
+   * consumed by ask's diversity re-ranker: adjacent chunk indexes of the
+   * same attachment are overlapping windows of one passage, and the
+   * re-ranker needs to know which rows are neighbors to dedupe them.
+   */
+  attachmentId: number
+  chunkIndex: number
 }
 
 export interface ChunkStore {
@@ -49,7 +57,8 @@ export function createSqliteChunkStore(raw: Database.Database): ChunkStore {
     'INSERT INTO attachment_chunks (attachment_id, subject_id, chunk_index, text) VALUES (?, ?, ?, ?)'
   )
   const searchStatement = raw.prepare(`
-    SELECT c.text AS text, a.file_name AS displayName, s.name AS subjectName
+    SELECT c.text AS text, a.file_name AS displayName, s.name AS subjectName,
+           c.attachment_id AS attachmentId, c.chunk_index AS chunkIndex
     FROM attachment_chunks_fts f
     JOIN attachment_chunks c ON c.id = f.rowid
     JOIN attachments a ON a.id = c.attachment_id
