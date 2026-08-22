@@ -2,7 +2,18 @@
 // existing DeadlineRow idiom — card surface, 44px type chip on the sunken
 // surface, name + meta, two 30x30 icon buttons. No data fetching, no IPC —
 // that lives in AdjuntosContainer.
-import { Check, ExternalLink, FileText, FileX, Hourglass, Image, type LucideIcon, SearchX, Trash2 } from 'lucide-react'
+import {
+  Check,
+  ExternalLink,
+  FileText,
+  FileX,
+  Hourglass,
+  Image,
+  type LucideIcon,
+  SearchX,
+  Sparkles,
+  Trash2
+} from 'lucide-react'
 import type { Attachment } from '../../../shared/ipc/adjuntos'
 import { cn } from '../../shared/lib/cn'
 import { interactiveGhost, interactiveGhostDestructive } from '../../shared/lib/interactive'
@@ -11,6 +22,8 @@ import {
   getFileExtension,
   indexBadgeFor,
   type IndexBadgeIcon,
+  type OriginBadgeIcon,
+  originBadgeFor,
   resolveAttachmentKind
 } from '../domain/attachmentDisplay'
 
@@ -21,6 +34,10 @@ const INDEX_BADGE_ICON_COMPONENTS: Record<IndexBadgeIcon, LucideIcon> = {
   check: Check,
   hourglass: Hourglass,
   'search-x': SearchX
+}
+
+const ORIGIN_BADGE_ICON_COMPONENTS: Record<OriginBadgeIcon, LucideIcon> = {
+  sparkles: Sparkles
 }
 
 interface AttachmentRowProps {
@@ -42,6 +59,8 @@ export function AttachmentRow({ attachment, isMissing, onOpen, onDelete }: Attac
   const chipColor = isMissing ? 'text-destructive' : 'text-muted-foreground'
   const badge = indexBadgeFor(attachment.indexStatus)
   const BadgeIcon = INDEX_BADGE_ICON_COMPONENTS[badge.icon]
+  const originBadge = originBadgeFor(attachment.origin)
+  const OriginBadgeIconComponent = originBadge ? ORIGIN_BADGE_ICON_COMPONENTS[originBadge.icon] : null
 
   return (
     <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5">
@@ -60,6 +79,21 @@ export function AttachmentRow({ attachment, isMissing, onOpen, onDelete }: Attac
           </span>
         )}
       </div>
+
+      {/* Origin provenance badge (cli-generated-artifacts spec "Origin
+          provenance column and badge") — additive, sits BESIDE the index
+          status badge below; absent entirely for a normal user upload. */}
+      {originBadge && OriginBadgeIconComponent && (
+        <span
+          className={cn(
+            'inline-flex shrink-0 items-center gap-[5px] rounded-md px-2 py-1 text-caption font-semibold',
+            originBadge.classes
+          )}
+        >
+          <OriginBadgeIconComponent className="h-3 w-3" aria-hidden="true" />
+          {originBadge.label}
+        </span>
+      )}
 
       {/* Index status badge (design "Approved design — Attachment row" /
           spec "Index status badge") — cornerRadius 6, gap 5px, padding

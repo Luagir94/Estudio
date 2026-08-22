@@ -7,6 +7,7 @@ import {
   formatAttachmentSize,
   getFileExtension,
   indexBadgeFor,
+  originBadgeFor,
   resolveAttachmentKind
 } from './attachmentDisplay'
 
@@ -111,6 +112,24 @@ describe('indexBadgeFor', () => {
       label: 'No indexable',
       icon: 'search-x',
       classes: 'bg-surface-sunken text-muted-foreground'
+    })
+  })
+})
+
+// AI-generated provenance badge (cli-generated-artifacts spec "Origin
+// provenance column and badge") — mirrors `indexBadgeFor`'s exact shape, but
+// only ONE of the two origins ever gets a badge: a normal upload renders
+// nothing extra.
+describe('originBadgeFor', () => {
+  it('returns null for a normal user upload (no badge shown)', () => {
+    expect(originBadgeFor('user')).toBeNull()
+  })
+
+  it('maps "ai-generated" to the IA badge with the accent tokens', () => {
+    expect(originBadgeFor('ai-generated')).toEqual({
+      label: 'IA',
+      icon: 'sparkles',
+      classes: 'bg-violet-soft text-primary-ink'
     })
   })
 })

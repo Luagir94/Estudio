@@ -91,3 +91,32 @@ const INDEX_BADGES: Record<IndexStatus, IndexBadgeInfo> = {
 export function indexBadgeFor(status: IndexStatus): IndexBadgeInfo {
   return INDEX_BADGES[status]
 }
+
+// --- origin provenance badge (cli-generated-artifacts design "Renderer
+// Delta") --------------------------------------------------------------
+
+export type AttachmentOrigin = Attachment['origin']
+
+/** Identifier only — NOT a lucide component (same convention as `IndexBadgeIcon`). */
+export type OriginBadgeIcon = 'sparkles'
+
+export interface OriginBadgeInfo {
+  label: string
+  icon: OriginBadgeIcon
+  /** Tailwind utility classes for the approved .pen tokens (bg + text). */
+  classes: string
+}
+
+/** Only `'ai-generated'` gets a badge — a normal upload renders nothing extra. */
+const ORIGIN_BADGES: Partial<Record<AttachmentOrigin, OriginBadgeInfo>> = {
+  'ai-generated': { label: 'IA', icon: 'sparkles', classes: 'bg-violet-soft text-primary-ink' }
+}
+
+/**
+ * Mirrors `indexBadgeFor`'s exact shape (spec "Origin provenance column and
+ * badge"), but returns `null` instead of a badge for `'user'` — the badge is
+ * additive, not a 1:1 status mapping.
+ */
+export function originBadgeFor(origin: AttachmentOrigin): OriginBadgeInfo | null {
+  return ORIGIN_BADGES[origin] ?? null
+}

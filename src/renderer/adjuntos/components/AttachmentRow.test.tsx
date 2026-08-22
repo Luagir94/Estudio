@@ -61,3 +61,23 @@ describe('AttachmentRow — index status badge', () => {
     expect(screen.queryByText('Indexado')).not.toBeInTheDocument()
   })
 })
+
+// AI-generated provenance badge (cli-generated-artifacts spec "Origin
+// provenance column and badge") — renders BESIDE the existing indexStatus
+// badge, only for `origin: 'ai-generated'`.
+describe('AttachmentRow — origin badge', () => {
+  it('shows the IA badge alongside the index status badge for an ai-generated attachment', () => {
+    const { container } = renderRow({ origin: 'ai-generated', indexStatus: 'pending' })
+
+    expect(screen.getByText('IA')).toBeInTheDocument()
+    expect(container.querySelector('svg.lucide-sparkles')).not.toBeNull()
+    // The index status badge still renders — the IA badge is additive, not a replacement.
+    expect(screen.getByText('Pendiente')).toBeInTheDocument()
+  })
+
+  it('does not show the IA badge for a normal user upload', () => {
+    renderRow({ origin: 'user' })
+
+    expect(screen.queryByText('IA')).not.toBeInTheDocument()
+  })
+})
