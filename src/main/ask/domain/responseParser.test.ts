@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { ARTIFACT_END_SENTINEL, ARTIFACT_START_SENTINEL } from './artifactBlock'
 import { parseAskResponse } from './responseParser'
 
 // Two-layer parse (design D5): zod-lenient CLI envelope (`{ result: string
@@ -259,5 +260,71 @@ describe('parseAskResponse — codex-jsonl envelope', () => {
     const rawStdout = line({ type: 'item.completed', item: { id: '1', type: 'agent_message', text: noCitations } })
 
     expect(parseAskResponse(rawStdout, 'codex-jsonl').ok).toBe(false)
+  })
+})
+
+// Artifact block extraction (cli-generated-artifacts design D2, spec
+// "Artifact block is split from the inner text before result parsing").
+// Parse order: extractInnerText -> splitArtifactBlock -> stripFence(resultText)
+// -> JSON.parse -> askResultSchema. The answer ALWAYS survives a broken
+// block — a malformed artifact drops only the artifact, never the answer.
+describe('parseAskResponse — artifact block extraction (cli-generated-artifacts)', () => {
+  const answerJson = JSON.stringify({
+    kind: 'answer',
+    answer: 'La entropía mide el desorden.',
+    citations: [{ kind: 'archivo', subject: 'Física', file: 'apunte-clase-3.pdf' }]
+  })
+
+  it('parses a legacy response (no artifact block) identically, reporting artifact as none', () => {
+    const rawStdout = JSON.stringify({ result: answerJson })
+
+    const parsed = parseAskResponse(rawStdout)
+
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) {
+      expect(parsed.data).toEqual(JSON.parse(answerJson))
+      expect(parsed.artifact).toEqual({ kind: 'none' })
+    }
+  })
+
+  it('strips a trailing well-formed artifact block before JSON.parse and surfaces it on the ok-branch', () => {
+    const inner = [
+      answerJson,
+      ARTIFACT_START_SENTINEL,
+      '{"materia": "Física", "fileName": "resumen.md"}',
+      'Contenido del resumen.',
+      ARTIFACT_END_SENTINEL
+    ].join('\n')
+    const rawStdout = JSON.stringify({ result: inner })
+
+    const parsed = parseAskResponse(rawStdout)
+
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) {
+      expect(parsed.data).toEqual(JSON.parse(answerJson))
+      expect(parsed.artifact).toEqual({
+        kind: 'block',
+        headerLine: '{"materia": "Física", "fileName": "resumen.md"}',
+        body: 'Contenido del resumen.'
+      })
+    }
+  })
+
+  it('still yields an ok answer parse when the artifact block is malformed — the answer always survives', () => {
+    const inner = [
+      answerJson,
+      ARTIFACT_START_SENTINEL,
+      '{"materia": "Física", "fileName": "resumen.md"}',
+      'Contenido sin cierre.'
+    ].join('\n') // missing end sentinel
+    const rawStdout = JSON.stringify({ result: inner })
+
+    const parsed = parseAskResponse(rawStdout)
+
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) {
+      expect(parsed.data).toEqual(JSON.parse(answerJson))
+      expect(parsed.artifact).toEqual({ kind: 'invalid', reason: 'malformed-block' })
+    }
   })
 })

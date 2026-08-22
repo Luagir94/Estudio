@@ -8,6 +8,7 @@
 // The question — and the transcript — travel in the prompt BODY, never in
 // argv — that is what keeps arbitrary user text away from the cmd.exe
 // command line.
+import { ARTIFACT_END_SENTINEL, ARTIFACT_START_SENTINEL } from './artifactBlock'
 import type { RetrievedAttachmentChunk } from './retrievalWindow'
 import { serializeTranscriptTurn, type TranscriptSourceTurn } from './transcriptWindow'
 
@@ -53,6 +54,22 @@ const ANSWER_SHAPES = [
   '  Sin campo "citations". Es correcto usar esta forma; se muestra marcada como respuesta general.',
   '- Si no podés responder de ninguna de las dos maneras, devolvé:',
   '  {"kind": "not-found"}'
+]
+
+// Artifact block instruction (cli-generated-artifacts design "Prompt
+// Changes", spec "Artifact block emission convention"). Unconditional, like
+// the rest of `ANSWER_SHAPES` — the pure fn stays parameter-free; with no
+// materias the gate drops the artifact anyway. Same prompt-trust model as
+// `ANSWER_SHAPES`: no server-side intent detection exists or is added.
+const ARTIFACT_INSTRUCTION_LINES = [
+  '- Si la pregunta del estudiante pide explícitamente un documento (resumen, apunte, machete/cheatsheet), podés agregar, DESPUÉS del JSON de arriba, UN bloque de artefacto generado con esta forma exacta:',
+  `  ${ARTIFACT_START_SENTINEL}`,
+  '  {"materia": string, "fileName": string}',
+  '  <contenido crudo del documento, sin escapar>',
+  `  ${ARTIFACT_END_SENTINEL}`,
+  '  "materia" debe ser EXACTAMENTE el nombre de la materia como aparece en los datos de arriba, y "fileName" debe terminar en ".md".',
+  '- Si la pregunta no pide un documento, no agregues este bloque.',
+  '- Como máximo un bloque de artefacto por respuesta.'
 ]
 
 /**
@@ -115,7 +132,8 @@ export function buildAskPrompt(
 
   lines.push(
     ...ANSWER_SHAPES,
-    '- Devolvé EXACTAMENTE ese JSON, sin bloques de código ni texto adicional.',
+    '- Devolvé EXACTAMENTE ese JSON, sin bloques de código ni texto adicional, salvo el bloque de artefacto descrito abajo cuando corresponda.',
+    ...ARTIFACT_INSTRUCTION_LINES,
     '',
     `Pregunta: ${question}`
   )

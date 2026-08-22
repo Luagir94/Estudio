@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { ARTIFACT_END_SENTINEL, ARTIFACT_START_SENTINEL } from './artifactBlock'
 import { buildAskPrompt, type AskManifestSubject } from './promptBuilder'
 import type { RetrievedAttachmentChunk } from './retrievalWindow'
 import type { TranscriptSourceTurn } from './transcriptWindow'
@@ -234,6 +235,58 @@ describe('buildAskPrompt', () => {
 
       expect(hostileIndex).toBeGreaterThan(-1)
       expect(instructionsIndex).toBeGreaterThan(hostileIndex)
+    })
+  })
+
+  // Artifact block instruction (cli-generated-artifacts design "Prompt
+  // Changes", spec "Artifact block emission convention"). Unconditional and
+  // parameter-free, like the rest of `ANSWER_SHAPES` — same prompt-trust
+  // model, no server-side intent detection.
+  describe('artifact block instruction (cli-generated-artifacts)', () => {
+    it('always includes the artifact instruction, positioned after the three answer shapes', () => {
+      const prompt = buildAskPrompt(appContext, manifest, '¿Y esto?')
+
+      const notFoundIndex = prompt.indexOf('"kind": "not-found"')
+      const artifactIndex = prompt.indexOf(ARTIFACT_START_SENTINEL)
+
+      expect(notFoundIndex).toBeGreaterThan(-1)
+      expect(artifactIndex).toBeGreaterThan(notFoundIndex)
+    })
+
+    it('is present unconditionally, regardless of whether the question requests a document', () => {
+      const withoutRequest = buildAskPrompt(appContext, manifest, '¿Y esto?')
+      const withRequest = buildAskPrompt(appContext, manifest, 'Hacéme un resumen de la unidad 2')
+
+      expect(withoutRequest).toContain(ARTIFACT_START_SENTINEL)
+      expect(withRequest).toContain(ARTIFACT_START_SENTINEL)
+    })
+
+    it('states the artifact must only be emitted when the question explicitly requests a document', () => {
+      const prompt = buildAskPrompt(appContext, manifest, '¿Y esto?')
+
+      expect(prompt).toMatch(/pide explícitamente un documento/i)
+    })
+
+    it('describes the sentinel lines, the {materia, fileName} header shape, and the .md filename rule', () => {
+      const prompt = buildAskPrompt(appContext, manifest, '¿Y esto?')
+
+      expect(prompt).toContain(ARTIFACT_START_SENTINEL)
+      expect(prompt).toContain(ARTIFACT_END_SENTINEL)
+      expect(prompt).toContain('"materia"')
+      expect(prompt).toContain('"fileName"')
+      expect(prompt).toMatch(/\.md/)
+    })
+
+    it('limits emission to at most one artifact block', () => {
+      const prompt = buildAskPrompt(appContext, manifest, '¿Y esto?')
+
+      expect(prompt).toMatch(/máximo un bloque/i)
+    })
+
+    it('carries the carve-out addendum on the exact-JSON instruction line', () => {
+      const prompt = buildAskPrompt(appContext, manifest, '¿Y esto?')
+
+      expect(prompt).toMatch(/Devolvé EXACTAMENTE ese JSON.*artefacto/i)
     })
   })
 })

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { askResultSchema, type AskResult } from '../../../shared/ipc/ask'
 import type { EnvelopeKind } from '../../cli/providerSpec'
+import { splitArtifactBlock, type ArtifactExtraction } from './artifactBlock'
 
 // Two-layer parse (design D5), now across THREE providers: an outer envelope
 // that belongs to whichever CLI produced it, wrapping the model's inner JSON
@@ -48,7 +49,13 @@ const codexAgentMessageSchema = z.object({
 
 const FENCE_PATTERN = /^```(?:json)?\s*([\s\S]*?)\s*```$/
 
-export type ParseAskResponseResult = { ok: true; data: AskResult } | { ok: false; code: 'MALFORMED_RESPONSE' }
+// `artifact` is the PRE-GATE extraction (cli-generated-artifacts design
+// "Wire Format" / "Artifact block is split from the inner text before result
+// parsing") — distinct from the post-gate `AskArtifactReport` that
+// `artifactGate.ts`/`askService.ts` produce. It travels ONLY on the ok-branch:
+// a malformed answer parse has nothing to report an artifact against.
+export type ParseAskResponseResult =
+  { ok: true; data: AskResult; artifact: ArtifactExtraction } | { ok: false; code: 'MALFORMED_RESPONSE' }
 
 const malformed: ParseAskResponseResult = { ok: false, code: 'MALFORMED_RESPONSE' }
 
@@ -59,6 +66,13 @@ const malformed: ParseAskResponseResult = { ok: false, code: 'MALFORMED_RESPONSE
  * `envelope` defaults to Claude's shape so every existing caller and test
  * keeps its exact meaning — adding providers changed no behavior for the one
  * that was already there.
+ *
+ * Parse order (design D2): extractInnerText -> splitArtifactBlock ->
+ * stripFence(resultText) -> JSON.parse -> `askResultSchema`. The split runs
+ * BEFORE `stripFence` so a fenced result JSON followed by a sentinel-wrapped
+ * artifact block still parses — the split, not the fence regex, is what
+ * finds where the result JSON ends. A malformed artifact block never fails
+ * the answer parse: the answer always survives a broken block.
  */
 export function parseAskResponse(rawStdout: string, envelope: EnvelopeKind = 'claude-json'): ParseAskResponseResult {
   const inner = extractInnerText(rawStdout, envelope)
@@ -66,13 +80,15 @@ export function parseAskResponse(rawStdout: string, envelope: EnvelopeKind = 'cl
     return malformed
   }
 
-  const parsedInner = safeJsonParse(stripFence(inner))
+  const { resultText, block } = splitArtifactBlock(inner)
+
+  const parsedInner = safeJsonParse(stripFence(resultText))
   if (parsedInner === undefined) {
     return malformed
   }
 
   const parsed = askResultSchema.safeParse(parsedInner)
-  return parsed.success ? { ok: true, data: parsed.data } : malformed
+  return parsed.success ? { ok: true, data: parsed.data, artifact: block } : malformed
 }
 
 /** Peels the provider's own wrapper off, yielding the model's inner JSON text. */
