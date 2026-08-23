@@ -40,14 +40,13 @@ export const ASK_MODEL_LABEL = 'Modelo'
  * One row of the model menu (design `Screen — Preguntar · Modelo`).
  *
  * `name` is DERIVED from the model id, never stored here — see
- * `humanizeModelId`. `detail` is empty for a model the app has measured
- * nothing about, and empty is the correct answer: inventing a description
- * would be worse than silence on a row the student spends their own quota
- * from.
+ * `humanizeModelId`. It is also the row's ONLY text: the menu describes no
+ * model, by design. A description the app could stand behind would need a
+ * fresh measurement per model per release, and a stale or invented one
+ * misleads on a row the student spends their own quota from.
  */
 export interface AskModelOption extends ModelSelection {
   name: string
-  detail: string
   /** Exactly one option across the whole menu carries this, or none does. */
   recommended: boolean
 }
@@ -76,37 +75,10 @@ export const ASK_BASELINE_MODELS: readonly ModelSelection[] = [
   { provider: 'claude', modelId: 'claude-haiku-4-5-20251001' },
   // Two ids read off `agy models` against the real binary on 2026-08-19: one
   // from the CLI's own Gemini lineage and one Claude, because the account
-  // reaches both and offering only one would hide half of what it has. They are
-  // listed with no `ASK_MODEL_KNOWLEDGE` entry on purpose — this app has
-  // measured nothing about either, and inventing a description for a row the
-  // student spends their own quota from would be worse than saying nothing.
+  // reaches both and offering only one would hide half of what it has.
   { provider: 'antigravity', modelId: 'gemini-3.1-pro-high' },
   { provider: 'antigravity', modelId: 'claude-sonnet-4-6' }
 ]
-
-/**
- * What the app has actually MEASURED, keyed by model id.
- *
- * Keyed rather than listed on purpose: this is knowledge about a model, not a
- * decision to offer it. A description attaches when its model turns out to be
- * available and stays silent when it does not, which is what lets the menu
- * grow with the account without the app pretending to know things it does not.
- *
- * The details talk about USAGE, not money. The CLI's `total_cost_usd` is an
- * API-rate equivalence, and a user authenticated with a Pro/Max subscription
- * is not billed per question — they spend their usage limit. "Consume más de
- * tu límite" is true under both auth modes; "más caro" is only true under one.
- *
- * Measured against the installed CLI on one run each: Sonnet ≈ $0.017 / 61 s,
- * Haiku ≈ $0.04–0.08 / 4 s, Opus ≈ $0.485 / 91 s. Haiku is the FASTEST, not
- * the cheapest — cache creation dominates the figure, so it came out costlier
- * than Sonnet.
- */
-export const ASK_MODEL_KNOWLEDGE: Readonly<Record<string, string>> = {
-  'claude-sonnet-5': 'Equilibrado',
-  'claude-opus-5': 'El más capaz · consume mucho más de tu límite',
-  'claude-haiku-4-5-20251001': 'El más rápido · unos 4 segundos'
-}
 
 /**
  * The FALLBACK recommendation order, for a CLI that publishes none of its own.
@@ -117,8 +89,11 @@ export const ASK_MODEL_KNOWLEDGE: Readonly<Record<string, string>> = {
  * `orgModelDefaultCache` is null and `modelAccessCache` is empty.
  *
  * Only models the app has MEASURED belong here. Recommending one it merely
- * discovered would be inventing an opinion it cannot defend. Sonnet leads
- * because it measured cheapest AND balanced.
+ * discovered would be inventing an opinion it cannot defend. The measurements
+ * (against the installed CLI, one run each): Sonnet ≈ $0.017 / 61 s, Haiku
+ * ≈ $0.04–0.08 / 4 s, Opus ≈ $0.485 / 91 s — Haiku is the FASTEST, not the
+ * cheapest, because cache creation dominates its figure. Sonnet leads because
+ * it measured cheapest AND balanced.
  */
 export const ASK_RECOMMENDED_MODELS: readonly string[] = [
   'claude-sonnet-5',

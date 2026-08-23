@@ -92,28 +92,20 @@ export function AskModelPicker({ value, groups, disabled, onChange }: AskModelPi
                         onChange({ provider: option.provider, modelId: option.modelId })
                         setOpen(false)
                       }}
-                      className={`flex w-full items-center gap-2 rounded-md px-2.5 text-left ${
-                        // A row the app can describe is taller than one it
-                        // cannot, and that difference is the design's, not an
-                        // accident: silence takes less room than a sentence.
-                        option.detail === '' ? 'py-[7px]' : 'py-2'
-                      } ${isSelected ? 'bg-violet-soft' : ''}`}
+                      className={`flex w-full items-center gap-2 rounded-md px-2.5 py-[7px] text-left ${
+                        isSelected ? 'bg-violet-soft' : ''
+                      }`}
                     >
-                      <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
-                        <span className="flex items-center gap-1.5">
-                          <span
-                            className={`text-body-sm font-semibold ${isSelected ? 'text-primary-ink' : 'text-foreground'}`}
-                          >
-                            {option.name}
-                          </span>
-                          {option.recommended && (
-                            <span className="rounded bg-secondary px-[5px] py-0.5 text-overline font-semibold text-ink-secondary">
-                              {ASK_RECOMMENDED_LABEL}
-                            </span>
-                          )}
+                      <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                        <span
+                          className={`text-body-sm font-semibold ${isSelected ? 'text-primary-ink' : 'text-foreground'}`}
+                        >
+                          {option.name}
                         </span>
-                        {option.detail !== '' && (
-                          <span className="text-label text-muted-foreground">{option.detail}</span>
+                        {option.recommended && (
+                          <span className="rounded bg-secondary px-[5px] py-0.5 text-overline font-semibold text-ink-secondary">
+                            {ASK_RECOMMENDED_LABEL}
+                          </span>
                         )}
                       </span>
                       {isSelected && <Check className="size-3.5 shrink-0 text-primary-ink" aria-hidden="true" />}

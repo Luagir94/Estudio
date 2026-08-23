@@ -1,23 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { CLI_PROVIDERS, type DiscoveredModel } from '../../../shared/ipc/cli'
-import { ASK_BASELINE_MODELS, ASK_MODEL_KNOWLEDGE, ASK_RECOMMENDED_MODELS } from './askDisplay'
+import { ASK_BASELINE_MODELS, ASK_RECOMMENDED_MODELS } from './askDisplay'
 import { buildModelGroups, humanizeModelId } from './modelCatalog'
 
 const BASELINE = [
   { provider: 'claude' as const, modelId: 'claude-sonnet-5' },
   { provider: 'claude' as const, modelId: 'claude-opus-5' }
 ]
-const KNOWLEDGE = {
-  'claude-sonnet-5': 'Equilibrado',
-  'claude-opus-5': 'El más capaz · consume mucho más de tu límite'
-}
 const RECOMMENDED = ['claude-sonnet-5', 'claude-opus-5']
 
 // Every CLI connected is the DEFAULT for these cases: this file is about how
 // models are grouped, named and ranked, and the permission filter has its own
 // cases at the bottom.
 const build = (discovered: DiscoveredModel[] = [], recommended = RECOMMENDED) =>
-  buildModelGroups({ baseline: BASELINE, knowledge: KNOWLEDGE, recommended, discovered, available: CLI_PROVIDERS })
+  buildModelGroups({ baseline: BASELINE, recommended, discovered, available: CLI_PROVIDERS })
 
 const flatten = (discovered: DiscoveredModel[] = []) => build(discovered).flatMap((group) => group.options)
 
@@ -65,22 +61,23 @@ describe('buildModelGroups', () => {
     expect(options.map((option) => option.modelId)).toEqual(['claude-sonnet-5', 'claude-opus-5', 'claude-fable-5[1m]'])
   })
 
-  it('names every option from its id and describes only the ones it knows', () => {
+  // `toContainEqual` matches the WHOLE shape, so these also pin that no
+  // description field survives: the menu no longer describes models (design
+  // `Screen — Preguntar · Modelo`), and a stray field here would be the old
+  // mechanism quietly coming back.
+  it('names every option from its id alone', () => {
     const options = flatten([{ provider: 'codex', modelId: 'gpt-5.6-terra', origin: 'catalog', rank: null }])
 
     expect(options).toContainEqual({
       provider: 'claude',
       modelId: 'claude-sonnet-5',
       name: 'Sonnet 5',
-      detail: 'Equilibrado',
       recommended: true
     })
-    // Nothing measured about it, so nothing claimed about it.
     expect(options).toContainEqual({
       provider: 'codex',
       modelId: 'gpt-5.6-terra',
       name: 'GPT 5.6 Terra',
-      detail: '',
       recommended: false
     })
   })
@@ -120,7 +117,6 @@ describe('buildModelGroups', () => {
     const groups = buildModelGroups({
       available: CLI_PROVIDERS,
       baseline: ASK_BASELINE_MODELS,
-      knowledge: ASK_MODEL_KNOWLEDGE,
       recommended: ASK_RECOMMENDED_MODELS,
       discovered: []
     })
@@ -138,7 +134,6 @@ describe('buildModelGroups', () => {
       const groups = buildModelGroups({
         available: CLI_PROVIDERS,
         baseline: [],
-        knowledge: KNOWLEDGE,
         recommended: RECOMMENDED,
         discovered: [
           { provider: 'codex', modelId: 'gpt-5.5', origin: 'catalog', rank: 7 },
@@ -154,7 +149,6 @@ describe('buildModelGroups', () => {
       const groups = buildModelGroups({
         available: CLI_PROVIDERS,
         baseline: [],
-        knowledge: KNOWLEDGE,
         recommended: RECOMMENDED,
         discovered: [
           { provider: 'codex', modelId: 'gpt-5.4-mini', origin: 'catalog', rank: 23 },
@@ -180,7 +174,6 @@ describe('buildModelGroups', () => {
       const groups = buildModelGroups({
         available: CLI_PROVIDERS,
         baseline: [{ provider: 'claude', modelId: 'claude-opus-5' }],
-        knowledge: KNOWLEDGE,
         recommended: RECOMMENDED,
         discovered: []
       })
@@ -194,7 +187,6 @@ describe('buildModelGroups', () => {
       const groups = buildModelGroups({
         available: CLI_PROVIDERS,
         baseline: BASELINE,
-        knowledge: KNOWLEDGE,
         recommended: RECOMMENDED,
         discovered: [{ provider: 'codex', modelId: 'gpt-5.6-terra', origin: 'catalog', rank: 2 }]
       })
@@ -210,7 +202,6 @@ describe('buildModelGroups', () => {
       const groups = buildModelGroups({
         available: CLI_PROVIDERS,
         baseline: [],
-        knowledge: KNOWLEDGE,
         recommended: RECOMMENDED,
         discovered: [{ provider: 'codex', modelId: 'gpt-5.5', origin: 'catalog', rank: null }]
       })
@@ -234,7 +225,6 @@ describe('buildModelGroups — only available CLIs', () => {
   const withConnected = (connected: readonly ('claude' | 'antigravity' | 'codex')[]) =>
     buildModelGroups({
       baseline: ASK_BASELINE_MODELS,
-      knowledge: ASK_MODEL_KNOWLEDGE,
       recommended: ASK_RECOMMENDED_MODELS,
       discovered: [],
       available: connected
@@ -268,7 +258,6 @@ describe('buildModelGroups — only available CLIs', () => {
   it('drops a discovered model whose CLI is not connected', () => {
     const groups = buildModelGroups({
       baseline: [],
-      knowledge: {},
       recommended: [],
       discovered: [{ provider: 'codex', modelId: 'gpt-5.5', origin: 'catalog', rank: 1 }],
       available: ['claude']
@@ -285,7 +274,6 @@ describe('buildModelGroups — an opted-in CLI that does not work', () => {
   it('offers no section for it', () => {
     const groups = buildModelGroups({
       baseline: ASK_BASELINE_MODELS,
-      knowledge: ASK_MODEL_KNOWLEDGE,
       recommended: ASK_RECOMMENDED_MODELS,
       discovered: [],
       // Antigravity is connected but not found, so the caller leaves it out.

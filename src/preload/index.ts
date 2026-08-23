@@ -3,7 +3,8 @@ import type {
   AddAttachmentsInput,
   AddAttachmentsResult,
   Attachment,
-  DeleteAttachmentResult
+  DeleteAttachmentResult,
+  ReadAttachmentTextResult
 } from '../shared/ipc/adjuntos'
 import type { ExportJsonResult, OpenExternalInput } from '../shared/ipc/app'
 import type {
@@ -43,7 +44,12 @@ import type {
 // module, NOT from `../shared/ipc/app` / `../shared/ipc/indexado` — a
 // runtime (non-`type`) import from a zod-importing shared/ipc module breaks
 // the sandboxed preload bundle ("module not found: zod").
-import { INDEXADO_STATUS_CHANGED_CHANNEL, MENU_EXPORT_REQUESTED_CHANNEL } from '../shared/ipc/channels'
+import {
+  ADJUNTOS_READ_CHANNEL,
+  ADJUNTOS_WRITE_CHANNEL,
+  INDEXADO_STATUS_CHANGED_CHANNEL,
+  MENU_EXPORT_REQUESTED_CHANNEL
+} from '../shared/ipc/channels'
 import type {
   CreateDeadlineInput,
   DeadlineWithSubject,
@@ -128,7 +134,14 @@ const api = {
     add: (input: AddAttachmentsInput): Promise<IpcResult<AddAttachmentsResult>> =>
       ipcRenderer.invoke('adjuntos:add', input),
     open: (id: number): Promise<IpcResult<undefined>> => ipcRenderer.invoke('adjuntos:open', { id }),
-    remove: (id: number): Promise<IpcResult<DeleteAttachmentResult>> => ipcRenderer.invoke('adjuntos:delete', { id })
+    remove: (id: number): Promise<IpcResult<DeleteAttachmentResult>> => ipcRenderer.invoke('adjuntos:delete', { id }),
+    // Markdown viewer/editor (markdown-attachment-viewer): content crosses
+    // the bridge as a STRING only, never a filesystem path. Channel names
+    // come from the zod-free `channels` module — see its doc comment.
+    read: (id: number): Promise<IpcResult<ReadAttachmentTextResult>> =>
+      ipcRenderer.invoke(ADJUNTOS_READ_CHANNEL, { id }),
+    write: (id: number, content: string): Promise<IpcResult<Attachment>> =>
+      ipcRenderer.invoke(ADJUNTOS_WRITE_CHANNEL, { id, content })
   },
   indexado: {
     sync: (): Promise<IpcResult<SyncResult>> => ipcRenderer.invoke('indexado:sync'),

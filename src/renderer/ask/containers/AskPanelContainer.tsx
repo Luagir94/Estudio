@@ -27,7 +27,6 @@ import { AskTrigger } from '../components/AskTrigger'
 import { AskTranscript, type AskEntry, type AskEntryInput } from '../components/AskTranscript'
 import {
   ASK_BASELINE_MODELS,
-  ASK_MODEL_KNOWLEDGE,
   ASK_NO_CLI_CONNECTED,
   ASK_NOT_FOUND,
   ASK_PENDING,
@@ -226,11 +225,14 @@ export function AskPanelContainer({ onGoToAjustes }: AskPanelContainerProps): Re
     }
   })
 
-  // Cancel covers BOTH close and unmount: a question left running would keep
-  // spending the user's own tokens with nothing left on screen to receive it.
-  // Swallowed on purpose: both call sites are teardown paths, and a rejected
-  // cancel there would surface as an unhandled rejection during unmount with
-  // nothing left on screen to report it to. Main already logs the real cause.
+  // Cancel covers close, unmount AND the composer's stop control: a question
+  // left running would keep spending the user's own tokens. Swallowed on
+  // purpose at all three sites. On the teardown paths a rejected cancel would
+  // surface as an unhandled rejection with nothing left on screen to report
+  // it to; on the stop control everything the user sees arrives through the
+  // question promise itself — main settles it as CANCELED, which `onError`
+  // maps to the app's own "Cancelaste la consulta" line. Main already logs
+  // the real cause.
   const cancelQuietly = (): void => {
     void askApi.cancel().catch(() => {})
   }
@@ -250,7 +252,6 @@ export function AskPanelContainer({ onGoToAjustes }: AskPanelContainerProps): Re
   // discovered half is already cached by TanStack Query.
   const modelGroups = buildModelGroups({
     baseline: ASK_BASELINE_MODELS,
-    knowledge: ASK_MODEL_KNOWLEDGE,
     recommended: ASK_RECOMMENDED_MODELS,
     discovered: discoveredModels ?? [],
     // Undefined while the read is in flight: offering nothing for a moment is
@@ -314,6 +315,7 @@ export function AskPanelContainer({ onGoToAjustes }: AskPanelContainerProps): Re
           value={draft}
           onValueChange={setDraft}
           onSubmit={handleSubmit}
+          onCancel={cancelQuietly}
           onClose={close}
           onToggleHistory={() => setHistoryOpen((previous) => !previous)}
           historyOpen={historyOpen}

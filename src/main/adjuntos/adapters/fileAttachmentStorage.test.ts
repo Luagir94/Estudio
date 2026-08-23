@@ -10,6 +10,7 @@ function createFsMock(overrides: Partial<AttachmentFsSubset> = {}): AttachmentFs
     stat: vi.fn().mockResolvedValue({ size: 0 }),
     mkdir: vi.fn().mockResolvedValue(undefined),
     copyFile: vi.fn().mockResolvedValue(undefined),
+    readFile: vi.fn().mockResolvedValue(''),
     writeFile: vi.fn().mockResolvedValue(undefined),
     unlink: vi.fn().mockResolvedValue(undefined),
     rm: vi.fn().mockResolvedValue(undefined),
@@ -65,6 +66,34 @@ describe('createAttachmentStorage', () => {
       'utf8'
     )
     expect(storedPath).toBe(path.join('7', 'uuid-resumen.md'))
+  })
+
+  // markdown-attachment-viewer — the viewer's read path: resolves through the
+  // SAME `resolveStoredPath` choke point as the open handler (INVALID_PATH
+  // discipline), then reads the file back as UTF-8 text.
+  it('readTextFile resolves the storedPath and reads the resulting absolute path as UTF-8', async () => {
+    const fs = createFsMock({ readFile: vi.fn().mockResolvedValue('# Resumen') })
+    const storage = createAttachmentStorage({ rootDir, fs })
+
+    const content = await storage.readTextFile(path.join('7', 'uuid-resumen.md'))
+
+    expect(content).toBe('# Resumen')
+    expect(fs.readFile).toHaveBeenCalledWith(path.join(rootDir, '7', 'uuid-resumen.md'), 'utf8')
+  })
+
+  it('readTextFile throws INVALID_PATH for a storedPath that escapes the root, without touching fs', async () => {
+    const fs = createFsMock()
+    const storage = createAttachmentStorage({ rootDir, fs })
+
+    await expect(storage.readTextFile(path.join('..', 'evil', 'payload.md'))).rejects.toThrow('INVALID_PATH')
+    expect(fs.readFile).not.toHaveBeenCalled()
+  })
+
+  it('readTextFile propagates a read failure (e.g. ENOENT) instead of swallowing it', async () => {
+    const fs = createFsMock({ readFile: vi.fn().mockRejectedValue(new Error('ENOENT: no such file')) })
+    const storage = createAttachmentStorage({ rootDir, fs })
+
+    await expect(storage.readTextFile(path.join('7', 'gone.md'))).rejects.toThrow('ENOENT')
   })
 
   it('resolveStoredPath resolves a normal storedPath to an absolute path under the root', () => {

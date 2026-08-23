@@ -77,7 +77,60 @@ vi.mock('../components/EditarMateriaModal', () => ({
 }))
 
 vi.mock('../../adjuntos/containers/AdjuntosContainer', () => ({
-  AdjuntosContainer: ({ subjectId }: { subjectId: number }) => <div>stub-adjuntos-{subjectId}</div>
+  AdjuntosContainer: ({
+    subjectId,
+    onOpenMarkdown
+  }: {
+    subjectId: number
+    onOpenMarkdown?: (attachment: unknown) => void
+  }) => (
+    <div>
+      stub-adjuntos-{subjectId}
+      {onOpenMarkdown && (
+        <button
+          type="button"
+          onClick={() =>
+            onOpenMarkdown({
+              id: 9,
+              subjectId,
+              fileName: 'Resumen unidad 3.md',
+              mimeType: null,
+              sizeBytes: 8397,
+              title: null,
+              createdAt: '2026-08-18T10:00',
+              indexStatus: 'indexed',
+              origin: 'user'
+            })
+          }
+        >
+          stub-open-markdown
+        </button>
+      )}
+    </div>
+  )
+}))
+
+vi.mock('../../adjuntos/containers/AttachmentViewerContainer', () => ({
+  AttachmentViewerContainer: ({
+    attachment,
+    subjectId,
+    subjectName,
+    onBack
+  }: {
+    attachment: { fileName: string }
+    subjectId: number
+    subjectName: string
+    onBack: () => void
+  }) => (
+    <div>
+      <span>
+        stub-viewer-{attachment.fileName}-{subjectName}-{subjectId}
+      </span>
+      <button type="button" onClick={onBack}>
+        stub-viewer-back
+      </button>
+    </div>
+  )
 }))
 
 vi.mock('../components/DeleteSubjectConfirmDialog', () => ({
@@ -356,6 +409,33 @@ describe('SubjectDetailContainer', () => {
 
       expect(screen.queryByLabelText(/Nota/)).not.toBeInTheDocument()
       expect(screen.getByText(/no lleva nota/)).toBeInTheDocument()
+    })
+  })
+
+  // markdown-attachment-viewer — opening a .md attachment renders the
+  // full-screen viewer INSTEAD of the detail screen (the exact
+  // MateriasContainer selectedSubjectId pattern), and its back link returns
+  // to the detail.
+  describe('markdown viewer routing', () => {
+    it('replaces the detail screen with the viewer when a .md attachment is opened', async () => {
+      renderWithClient(<SubjectDetailContainer subjectId={1} onBack={vi.fn()} now={new Date('2026-03-04T09:00:00')} />)
+      await screen.findByText('1 de 2')
+
+      fireEvent.click(screen.getByText('stub-open-markdown'))
+
+      expect(screen.getByText('stub-viewer-Resumen unidad 3.md-Algoritmos-1')).toBeInTheDocument()
+      expect(screen.queryByText('1 de 2')).not.toBeInTheDocument()
+    })
+
+    it('the viewer back link returns to the detail screen', async () => {
+      renderWithClient(<SubjectDetailContainer subjectId={1} onBack={vi.fn()} now={new Date('2026-03-04T09:00:00')} />)
+      await screen.findByText('1 de 2')
+
+      fireEvent.click(screen.getByText('stub-open-markdown'))
+      fireEvent.click(screen.getByText('stub-viewer-back'))
+
+      expect(await screen.findByText('1 de 2')).toBeInTheDocument()
+      expect(screen.queryByText('stub-viewer-Resumen unidad 3.md-Algoritmos-1')).not.toBeInTheDocument()
     })
   })
 })

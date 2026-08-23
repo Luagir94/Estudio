@@ -16,3 +16,11 @@ export const MENU_EXPORT_REQUESTED_CHANNEL = 'menu:export-requested'
 // sandboxed preload bundle must be able to `require()` the constant without
 // pulling `zod` in through `shared/ipc/indexado.ts`.
 export const INDEXADO_STATUS_CHANGED_CHANNEL = 'indexado:status-changed'
+
+// Markdown viewer/editor channels (markdown-attachment-viewer). Same
+// zod-free-module requirement as above: preload needs the runtime channel
+// NAME for its `ipcRenderer.invoke` forwarders, and it must come from here —
+// a runtime import from `shared/ipc/adjuntos.ts` would pull `zod` into the
+// sandboxed preload bundle.
+export const ADJUNTOS_READ_CHANNEL = 'adjuntos:read'
+export const ADJUNTOS_WRITE_CHANNEL = 'adjuntos:write'

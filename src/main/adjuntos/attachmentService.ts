@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { format } from 'date-fns'
+import { MAX_MARKDOWN_TEXT_BYTES } from '../../shared/ipc/adjuntos'
 import type { AttachmentStorage } from './adapters/fileAttachmentStorage'
 import type { AttachmentRecord, AttachmentRepository } from './adapters/sqliteAttachmentRepository'
 import { sanitizeFileName } from './domain/attachmentPaths'
@@ -25,6 +26,24 @@ export interface AddAttachmentsResult {
  */
 export type AddGeneratedAttachmentResult = { ok: true } | { ok: false; message: string }
 
+/**
+ * Typed error codes for the markdown viewer's read path — the IPC handler
+ * maps these 1:1 onto `ipcErr` codes, so the union IS the channel contract
+ * (markdown-attachment-viewer). `READ_FAILED` also covers a tampered/stale
+ * row whose storedPath escapes the attachments root (same INVALID_PATH →
+ * failure mapping as the open handler).
+ */
+export type ReadAttachmentTextErrorCode =
+  'ATTACHMENT_NOT_FOUND' | 'NOT_MARKDOWN' | 'ATTACHMENT_FILE_MISSING' | 'FILE_TOO_LARGE' | 'READ_FAILED'
+
+export type ReadAttachmentTextServiceResult =
+  { ok: true; content: string } | { ok: false; code: ReadAttachmentTextErrorCode; message: string }
+
+export type UpdateAttachmentTextErrorCode = 'ATTACHMENT_NOT_FOUND' | 'NOT_MARKDOWN' | 'FILE_TOO_LARGE' | 'WRITE_FAILED'
+
+export type UpdateAttachmentTextServiceResult =
+  { ok: true; attachment: AttachmentRecord } | { ok: false; code: UpdateAttachmentTextErrorCode; message: string }
+
 export interface AttachmentService {
   addAttachments(subjectId: number, sourcePaths: string[]): Promise<AddAttachmentsResult>
   /**
@@ -36,6 +55,24 @@ export interface AttachmentService {
    * indexer enqueue as `addAttachments` above — no parallel write mechanism.
    */
   addGeneratedAttachment(subjectId: number, fileName: string, content: string): Promise<AddGeneratedAttachmentResult>
+  /**
+   * The in-app viewer's read path (markdown-attachment-viewer): only `.md`
+   * attachments, capped at 1 MiB, returned as a UTF-8 STRING — the renderer
+   * never receives a filesystem path.
+   */
+  readAttachmentText(id: number): Promise<ReadAttachmentTextServiceResult>
+  /**
+   * The editor's save path: rewrites the SAME stored file in place, persists
+   * the new sizeBytes, flips indexStatus back to 'pending', notifies every
+   * renderer, and re-enqueues indexing (fire-and-forget — `replaceChunks`
+   * makes the re-index idempotent).
+   */
+  updateAttachmentText(id: number, content: string): Promise<UpdateAttachmentTextServiceResult>
+}
+
+/** Case-insensitive: `resumen.MD` is as much markdown as `resumen.md`. */
+function isMarkdownFileName(fileName: string): boolean {
+  return /\.md$/i.test(fileName)
 }
 
 /**
@@ -55,6 +92,15 @@ interface CreateAttachmentServiceDeps {
   repository: AttachmentRepository
   storage: AttachmentStorage
   indexer: AttachmentIndexerPort
+  /**
+   * Fans out an index-status change to every renderer window — the SAME
+   * injected-function seam `indexadoService` already uses (attachment-fts-
+   * index design "Renderer notify"), so this module never imports Electron.
+   * Fired by `updateAttachmentText` when a save flips the row back to
+   * 'pending', so an open Adjuntos list in another window sees the badge
+   * move without its own save round-trip.
+   */
+  notifyStatusChanged: (subjectId: number) => void
 }
 
 /**
@@ -68,7 +114,8 @@ interface CreateAttachmentServiceDeps {
 export function createAttachmentService({
   repository,
   storage,
-  indexer
+  indexer,
+  notifyStatusChanged
 }: CreateAttachmentServiceDeps): AttachmentService {
   return {
     async addAttachments(subjectId, sourcePaths) {
@@ -182,6 +229,104 @@ export function createAttachmentService({
         await storage.removeFile(storedPath).catch(() => {})
         return { ok: false, message: insertError instanceof Error ? insertError.message : 'Unknown error' }
       }
+    },
+
+    async readAttachmentText(id) {
+      const row = repository.get(id)
+      if (!row) {
+        return { ok: false, code: 'ATTACHMENT_NOT_FOUND', message: `No attachment with id ${id}` }
+      }
+      if (!isMarkdownFileName(row.fileName)) {
+        return { ok: false, code: 'NOT_MARKDOWN', message: `${row.fileName} is not a .md file` }
+      }
+
+      // Resolved through the storage port's single choke point — a tampered
+      // row whose storedPath escapes the root fails HERE, before any fs call.
+      let absolutePath: string
+      try {
+        absolutePath = storage.resolveStoredPath(row.storedPath)
+      } catch (error) {
+        return { ok: false, code: 'READ_FAILED', message: error instanceof Error ? error.message : 'Unknown error' }
+      }
+
+      // Stat before read (same order as the open handler): a legitimately
+      // missing file is its own condition, distinct from a failed read.
+      let sizeBytes: number
+      try {
+        sizeBytes = await storage.statSize(absolutePath)
+      } catch {
+        return {
+          ok: false,
+          code: 'ATTACHMENT_FILE_MISSING',
+          message: `The file for attachment ${id} could not be found`
+        }
+      }
+
+      if (sizeBytes > MAX_MARKDOWN_TEXT_BYTES) {
+        return {
+          ok: false,
+          code: 'FILE_TOO_LARGE',
+          message: `${row.fileName} exceeds the ${MAX_MARKDOWN_TEXT_BYTES}-byte viewer limit`
+        }
+      }
+
+      try {
+        return { ok: true, content: await storage.readTextFile(row.storedPath) }
+      } catch (error) {
+        return { ok: false, code: 'READ_FAILED', message: error instanceof Error ? error.message : 'Unknown error' }
+      }
+    },
+
+    async updateAttachmentText(id, content) {
+      const row = repository.get(id)
+      if (!row) {
+        return { ok: false, code: 'ATTACHMENT_NOT_FOUND', message: `No attachment with id ${id}` }
+      }
+      if (!isMarkdownFileName(row.fileName)) {
+        return { ok: false, code: 'NOT_MARKDOWN', message: `${row.fileName} is not a .md file` }
+      }
+
+      // Byte length, not character length — the zod cap at the bridge counts
+      // characters, so multibyte content can be over the BYTE cap at a legal
+      // character count. This is the authoritative check.
+      const sizeBytes = Buffer.byteLength(content, 'utf8')
+      if (sizeBytes > MAX_MARKDOWN_TEXT_BYTES) {
+        return {
+          ok: false,
+          code: 'FILE_TOO_LARGE',
+          message: `${row.fileName} exceeds the ${MAX_MARKDOWN_TEXT_BYTES}-byte viewer limit`
+        }
+      }
+
+      // Reuses `writeIntoSubjectDir` with the row's EXISTING stored file name
+      // — same directory, same name, so this overwrites in place rather than
+      // minting a second stored file.
+      try {
+        await storage.writeIntoSubjectDir(row.subjectId, path.basename(row.storedPath), content)
+      } catch (error) {
+        return { ok: false, code: 'WRITE_FAILED', message: error instanceof Error ? error.message : 'Unknown error' }
+      }
+
+      // The row may have been deleted between the get above and this update
+      // (the delete handler commits rows first) — treat it as not-found, the
+      // rewritten file will be cleaned with the rest of the subject dir.
+      const updated = repository.update(id, { sizeBytes, indexStatus: 'pending' })
+      if (!updated) {
+        return { ok: false, code: 'ATTACHMENT_NOT_FOUND', message: `No attachment with id ${id}` }
+      }
+
+      // Same push seam as the indexing pipeline: the badge flip to
+      // 'Pendiente' reaches every open window immediately.
+      notifyStatusChanged(row.subjectId)
+      // Fire-and-forget, same convention as the add paths above; the
+      // indexer's `replaceChunks` makes the re-index idempotent.
+      indexer.enqueue({
+        attachmentId: row.id,
+        subjectId: row.subjectId,
+        storedPath: row.storedPath,
+        fileName: row.fileName
+      })
+      return { ok: true, attachment: updated }
     }
   }
 }

@@ -72,16 +72,20 @@ describe('registerAdjuntosHandlers', () => {
       listBySubject: vi.fn().mockReturnValue([sampleRecord]),
       get: vi.fn().mockReturnValue(sampleRecord),
       insert: vi.fn(),
+      update: vi.fn().mockReturnValue(sampleRecord),
       remove: vi.fn().mockReturnValue(sampleRecord)
     }
     service = {
       addAttachments: vi.fn().mockResolvedValue({ added: [sampleRecord], failures: [] }),
-      addGeneratedAttachment: vi.fn().mockResolvedValue({ ok: true })
+      addGeneratedAttachment: vi.fn().mockResolvedValue({ ok: true }),
+      readAttachmentText: vi.fn().mockResolvedValue({ ok: true, content: '# Resumen' }),
+      updateAttachmentText: vi.fn().mockResolvedValue({ ok: true, attachment: sampleRecord })
     }
     storage = {
       statSize: vi.fn().mockResolvedValue(1024),
       copyIntoSubjectDir: vi.fn(),
       writeIntoSubjectDir: vi.fn(),
+      readTextFile: vi.fn().mockResolvedValue(''),
       resolveStoredPath: vi.fn().mockReturnValue('C:\\userData\\attachments\\7\\uuid-apuntes.pdf'),
       removeFile: vi.fn().mockResolvedValue(undefined),
       removeSubjectDir: vi.fn().mockResolvedValue(undefined)
@@ -269,5 +273,90 @@ describe('registerAdjuntosHandlers', () => {
 
     expect(logWarnMock).toHaveBeenCalledTimes(1)
     expect(result).toEqual({ ok: true, data: { id: 1, fileRemoved: false } })
+  })
+
+  // markdown-attachment-viewer — the viewer's read channel. Same zod-parse →
+  // service → ipcOk/ipcErr shape as every handler above; the service's typed
+  // error code IS the envelope code.
+  it('adjuntos:read rejects an invalid payload without calling the service', async () => {
+    const result = await invoke('adjuntos:read', { id: 'nope' })
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'VALIDATION_ERROR' } })
+    expect(service.readAttachmentText).not.toHaveBeenCalled()
+  })
+
+  it('adjuntos:read returns the content string wrapped in the ok envelope', async () => {
+    const result = await invoke('adjuntos:read', { id: 1 })
+
+    expect(service.readAttachmentText).toHaveBeenCalledWith(1)
+    expect(result).toEqual({ ok: true, data: { content: '# Resumen' } })
+  })
+
+  it("adjuntos:read maps the service's typed error code straight onto the error envelope", async () => {
+    service.readAttachmentText = vi
+      .fn()
+      .mockResolvedValue({ ok: false, code: 'NOT_MARKDOWN', message: 'apuntes.pdf is not a .md file' })
+    registerAdjuntosHandlers({ repository, service, storage, subjectRepository })
+
+    const result = await invoke('adjuntos:read', { id: 1 })
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'NOT_MARKDOWN', message: 'apuntes.pdf is not a .md file' }
+    })
+  })
+
+  it('adjuntos:read never throws across the bridge when the service itself rejects', async () => {
+    service.readAttachmentText = vi.fn().mockRejectedValue(new Error('unexpected'))
+    registerAdjuntosHandlers({ repository, service, storage, subjectRepository })
+
+    const result = await invoke('adjuntos:read', { id: 1 })
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'READ_FAILED' } })
+  })
+
+  // markdown-attachment-viewer — the editor's write channel.
+  it('adjuntos:write rejects an invalid payload without calling the service', async () => {
+    const result = await invoke('adjuntos:write', { id: 1 })
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'VALIDATION_ERROR' } })
+    expect(service.updateAttachmentText).not.toHaveBeenCalled()
+  })
+
+  it('adjuntos:write rejects content over the 1 MiB cap at the bridge, before the service', async () => {
+    const result = await invoke('adjuntos:write', { id: 1, content: 'a'.repeat(1_048_577) })
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'VALIDATION_ERROR' } })
+    expect(service.updateAttachmentText).not.toHaveBeenCalled()
+  })
+
+  it('adjuntos:write returns the updated attachment, without storedPath, wrapped in the ok envelope', async () => {
+    const result = await invoke('adjuntos:write', { id: 1, content: '# Nuevo' })
+
+    expect(service.updateAttachmentText).toHaveBeenCalledWith(1, '# Nuevo')
+    expect(result).toEqual({ ok: true, data: sampleAttachment })
+  })
+
+  it("adjuntos:write maps the service's typed error code straight onto the error envelope", async () => {
+    service.updateAttachmentText = vi
+      .fn()
+      .mockResolvedValue({ ok: false, code: 'ATTACHMENT_NOT_FOUND', message: 'No attachment with id 1' })
+    registerAdjuntosHandlers({ repository, service, storage, subjectRepository })
+
+    const result = await invoke('adjuntos:write', { id: 1, content: '# Nuevo' })
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'ATTACHMENT_NOT_FOUND', message: 'No attachment with id 1' }
+    })
+  })
+
+  it('adjuntos:write never throws across the bridge when the service itself rejects', async () => {
+    service.updateAttachmentText = vi.fn().mockRejectedValue(new Error('unexpected'))
+    registerAdjuntosHandlers({ repository, service, storage, subjectRepository })
+
+    const result = await invoke('adjuntos:write', { id: 1, content: '# Nuevo' })
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'WRITE_FAILED' } })
   })
 })

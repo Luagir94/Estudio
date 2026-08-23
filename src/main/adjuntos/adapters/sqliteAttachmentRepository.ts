@@ -51,12 +51,26 @@ export interface CreateAttachmentInput {
   origin: AttachmentOrigin
 }
 
+/**
+ * The ONLY two columns the markdown save path may touch
+ * (markdown-attachment-viewer): the rewritten file's byte size, and the
+ * index status dropping back to 'pending' so the re-index is visible.
+ * Deliberately not a general-purpose patch — fileName/storedPath/origin
+ * stay immutable through this repository.
+ */
+export interface UpdateAttachmentInput {
+  sizeBytes: number
+  indexStatus: IndexStatus
+}
+
 export interface AttachmentRepository {
   /** Ordered by `createdAt` ASCENDING (spec: "List Attachments"). */
   listBySubject(subjectId: number): AttachmentRecord[]
   /** Null if not found. */
   get(id: number): AttachmentRecord | null
   insert(input: CreateAttachmentInput): AttachmentRecord
+  /** The updated row, or `undefined` if no row with that id existed. */
+  update(id: number, input: UpdateAttachmentInput): AttachmentRecord | undefined
   /** The deleted row, or `undefined` if no row with that id existed. */
   remove(id: number): AttachmentRecord | undefined
 }
@@ -109,6 +123,15 @@ export function createSqliteAttachmentRepository(db: AppDatabase): AttachmentRep
         .returning()
         .get()
       return toRecord(record)
+    },
+    update(id, input) {
+      const record = db
+        .update(attachments)
+        .set({ sizeBytes: input.sizeBytes, indexStatus: input.indexStatus })
+        .where(eq(attachments.id, id))
+        .returning()
+        .get()
+      return record ? toRecord(record) : undefined
     },
     remove(id) {
       const existing = db.select().from(attachments).where(eq(attachments.id, id)).get()

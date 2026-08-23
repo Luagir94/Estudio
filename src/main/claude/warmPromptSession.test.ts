@@ -1,9 +1,11 @@
 import { EventEmitter } from 'node:events'
 import type { ChildProcess } from 'node:child_process'
 import { describe, expect, it, vi } from 'vitest'
+import type { AskServiceDeps } from '../ask/askService'
 import { createWarmPromptSession } from './warmPromptSession'
 import {
   clearProvider,
+  NO_STREAMING_SESSION_CODE,
   validateModelId,
   type ClearedProvider,
   type ValidatedExecutablePath,
@@ -258,6 +260,39 @@ describe('createWarmPromptSession', () => {
     session.dispose()
 
     expect(terminateSession).toHaveBeenCalledWith(sessions[0].child)
+  })
+
+  // The composition root once wired this Claude-only session as the spawn dep
+  // for EVERY provider. For an argv provider that meant the turn never started
+  // (nothing was ever written to the handle's stdin), so the swallowed
+  // no-streaming-mode refusal left a healthy-looking handle that hung the
+  // question to its five-minute timeout. That exact refusal must escape
+  // synchronously; every OTHER failure keeps the deferred report the ENOENT
+  // test above pins.
+  it('rethrows the no-streaming-mode refusal instead of returning a fake healthy handle', () => {
+    const spawnSession = vi.fn(() => {
+      const refusal: NodeJS.ErrnoException = new Error('antigravity has no streaming session mode')
+      refusal.code = NO_STREAMING_SESSION_CODE
+      throw refusal
+    })
+    const session = createWarmPromptSession({ spawnSession, terminateSession: vi.fn(), logger: { info: vi.fn() } })
+
+    expect(() => session.spawnPrompt(PROVIDER, VALIDATED, ROOT, MODEL)).toThrow(/no streaming session mode/)
+  })
+
+  // The other half of the same regression guard, at compile time: `askService`
+  // hands its spawn dep FIVE arguments, the fifth being the argv prompt, and
+  // this session's four-argument shape used to be silently assignable — the
+  // prompt just vanished. The signature now admits only `null` there, so the
+  // raw wiring is a type error and `createPromptSpawnRouter` is the one
+  // sanctioned adapter.
+  it("cannot be wired raw where askService's five-argument spawn contract is expected", () => {
+    const { session } = harness()
+
+    // @ts-expect-error — the warm session never receives an argv prompt; wire it through createPromptSpawnRouter.
+    const miswired: NonNullable<AskServiceDeps['spawnPrompt']> = session.spawnPrompt
+
+    expect(miswired).toBe(session.spawnPrompt)
   })
 
   // Same rule as every other spawn in this app: user text reaches the CLI

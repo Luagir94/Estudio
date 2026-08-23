@@ -15,12 +15,20 @@ import type { AddAttachmentFailure, Attachment } from '../../../shared/ipc/adjun
 import { AdjuntosApiError, adjuntosApi } from '../adapters/adjuntosApi'
 import { indexadoApi } from '../adapters/indexadoApi'
 import { AdjuntosSection } from '../components/AdjuntosSection'
+import { isMarkdownAttachment } from '../domain/markdownEditing'
 
 interface AdjuntosContainerProps {
   subjectId: number
+  /**
+   * In-app route for `.md` attachments (markdown-attachment-viewer): when
+   * present, opening a markdown attachment calls this INSTEAD of the IPC
+   * open — the host screen decides what "viewing" looks like. Absent, every
+   * attachment keeps the OS open flow unchanged.
+   */
+  onOpenMarkdown?: (attachment: Attachment) => void
 }
 
-export function AdjuntosContainer({ subjectId }: AdjuntosContainerProps): React.JSX.Element {
+export function AdjuntosContainer({ subjectId, onOpenMarkdown }: AdjuntosContainerProps): React.JSX.Element {
   const queryClient = useQueryClient()
   const queryKey = ['adjuntos', subjectId]
 
@@ -129,7 +137,13 @@ export function AdjuntosContainer({ subjectId }: AdjuntosContainerProps): React.
       actionError={actionError}
       onAdd={() => addMutation.mutate()}
       onRetry={() => void refetch()}
-      onOpen={(attachment) => openMutation.mutate(attachment)}
+      onOpen={(attachment) => {
+        if (onOpenMarkdown && isMarkdownAttachment(attachment.fileName)) {
+          onOpenMarkdown(attachment)
+          return
+        }
+        openMutation.mutate(attachment)
+      }}
       onDelete={(attachment) => deleteMutation.mutate(attachment)}
       onSync={() => syncMutation.mutate()}
     />

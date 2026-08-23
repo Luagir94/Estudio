@@ -11,6 +11,7 @@ export interface AttachmentFsSubset {
   stat(path: string): Promise<{ size: number }>
   mkdir(path: string, options?: { recursive?: boolean }): Promise<string | undefined>
   copyFile(src: string, dest: string): Promise<void>
+  readFile(path: string, encoding: 'utf8'): Promise<string>
   writeFile(path: string, content: string, encoding: 'utf8'): Promise<void>
   unlink(path: string): Promise<void>
   rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void>
@@ -29,6 +30,13 @@ export interface AttachmentStorage {
    * generated-write-path uses this instead of a temp-file round-trip).
    */
   writeIntoSubjectDir(subjectId: number, storedFileName: string, content: string): Promise<string>
+  /**
+   * Resolves the storedPath (same `INVALID_PATH` discipline as the open
+   * handler — everything goes through `resolveStoredPath`) and reads the
+   * file back as UTF-8 text (markdown-attachment-viewer read path).
+   * Propagates any failure (missing file, permission) — callers map it.
+   */
+  readTextFile(storedPath: string): Promise<string>
   /** The single choke point that turns a stored (relative) path back into an absolute one. Throws `INVALID_PATH` on escape (see `attachmentPaths.ts`). */
   resolveStoredPath(storedPath: string): string
   /** Resolves the storedPath and unlinks it. Propagates any failure (missing file, locked file) — callers decide how to log/report it. */
@@ -68,6 +76,10 @@ export function createAttachmentStorage({ rootDir, fs = nodeFs }: CreateAttachme
       const storedPath = path.join(subjectDir, storedFileName)
       await fs.writeFile(path.join(rootDir, storedPath), content, 'utf8')
       return storedPath
+    },
+    async readTextFile(storedPath) {
+      const absolutePath = resolveAttachmentPath(rootDir, storedPath)
+      return fs.readFile(absolutePath, 'utf8')
     },
     resolveStoredPath(storedPath) {
       return resolveAttachmentPath(rootDir, storedPath)

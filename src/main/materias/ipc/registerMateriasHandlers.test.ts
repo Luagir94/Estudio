@@ -71,6 +71,7 @@ describe('registerMateriasHandlers', () => {
       statSize: vi.fn(),
       copyIntoSubjectDir: vi.fn(),
       writeIntoSubjectDir: vi.fn(),
+      readTextFile: vi.fn(),
       resolveStoredPath: vi.fn(),
       removeFile: vi.fn(),
       removeSubjectDir: vi.fn().mockResolvedValue(undefined)

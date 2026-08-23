@@ -1,4 +1,4 @@
-import { ArrowUp, History, MessageCircle, X } from 'lucide-react'
+import { ArrowUp, CircleStop, History, MessageCircle, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { ModelSelection } from '../../../shared/ipc/cli'
 import { cn } from '../../shared/lib/cn'
@@ -24,6 +24,12 @@ interface AskPanelProps {
   value: string
   onValueChange: (value: string) => void
   onSubmit: () => void
+  /**
+   * Stops the in-flight question. Only reachable while `pending`: the send
+   * arrow morphs into the stop control (design `Screen — Preguntar · Estados`,
+   * cell PENSANDO), so send and cancel can never be offered at once.
+   */
+  onCancel: () => void
   onClose: () => void
   /** Toggles the history browse list (design #268 §3, affordance #273 §1). */
   onToggleHistory: () => void
@@ -61,6 +67,7 @@ export function AskPanel({
   value,
   onValueChange,
   onSubmit,
+  onCancel,
   onClose,
   onToggleHistory,
   historyOpen,
@@ -171,14 +178,25 @@ export function AskPanel({
             }
             className="min-w-0 flex-1 resize-none bg-transparent text-body text-foreground placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed"
           />
-          <button
-            type="submit"
-            aria-label="Enviar"
-            disabled={composerDisabled || pending || value.trim().length === 0}
-            className="text-primary-ink transition-opacity disabled:opacity-40"
-          >
-            <ArrowUp className="size-4" aria-hidden="true" />
-          </button>
+          {pending ? (
+            // The stop control takes the arrow's exact place, size and color:
+            // the design morphs one button into the other rather than adding a
+            // second one. `type="button"` so a click can never re-submit the
+            // form, and never disabled — canceling is precisely the action
+            // that must work while everything else in the composer is locked.
+            <button type="button" aria-label="Cancelar" onClick={onCancel} className="text-primary-ink">
+              <CircleStop className="size-4" aria-hidden="true" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              aria-label="Enviar"
+              disabled={composerDisabled || value.trim().length === 0}
+              className="text-primary-ink transition-opacity disabled:opacity-40"
+            >
+              <ArrowUp className="size-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
         <p className="text-caption text-muted-foreground">{ASK_DISCLAIMER}</p>
       </form>

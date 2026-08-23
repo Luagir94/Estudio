@@ -443,6 +443,42 @@ describe('AskPanelContainer', () => {
       expect(container.querySelector('.animate-spin')).toBeNull()
       expect(screen.queryByRole('status')).not.toBeInTheDocument()
     })
+
+    // The send arrow MORPHS into a stop control while the question is in
+    // flight (design `Screen — Preguntar · Estados`, cell PENSANDO): same
+    // spot, opposite job. Enabled on purpose — canceling is the one action
+    // that only makes sense while everything else in the composer is locked.
+    it('swaps the send button for an enabled cancel control while the question is in flight', async () => {
+      askAndHang()
+      renderPanel()
+      await openPanel()
+      await ask('¿Y esto?')
+
+      expect(await screen.findByRole('button', { name: 'Cancelar' })).toBeEnabled()
+      expect(screen.queryByRole('button', { name: 'Enviar' })).not.toBeInTheDocument()
+    })
+
+    it('cancels the in-flight question when the stop control is clicked', async () => {
+      askAndHang()
+      renderPanel()
+      await openPanel()
+      await ask('¿Y esto?')
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }))
+
+      await waitFor(() => expect(askApi.cancel).toHaveBeenCalledTimes(1))
+    })
+
+    it('returns the send button once the answer arrives', async () => {
+      vi.mocked(askApi.question).mockResolvedValue(notSaved({ kind: 'general', answer: 'Listo.' }))
+      renderPanel()
+      await openPanel()
+      await ask('¿Y esto?')
+
+      await screen.findByText('Listo.')
+      expect(screen.getByRole('button', { name: 'Enviar' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Cancelar' })).not.toBeInTheDocument()
+    })
   })
 
   it('always shows the cost disclaimer while open', async () => {

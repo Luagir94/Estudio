@@ -5,14 +5,11 @@ import { ASK_PROVIDER_LABEL, type AskModelOption } from './askDisplay'
 // recommend.
 //
 // The shape of this module is the design decision worth stating. The app used
-// to hold a LIST OF MODELS TO OFFER. It now holds three smaller things that
-// answer three different questions:
+// to hold a LIST OF MODELS TO OFFER. It now holds two smaller things that
+// answer two different questions:
 //
 //   the BASELINE — what must always be offerable, so the panel works on a
 //   machine where nothing has been discovered yet;
-//   the KNOWLEDGE — what the app has actually measured, keyed by model id, so
-//   a description attaches to a model when that model is present and stays
-//   silent when it is not;
 //   the PRIORITY — which model to recommend, resolved against what is
 //   available rather than declared in advance.
 //
@@ -99,8 +96,6 @@ export interface ModelGroup {
 export interface BuildModelGroupsInput {
   /** Always offerable, in menu order — the floor that keeps the panel usable with zero discoveries. */
   baseline: readonly ModelSelection[]
-  /** Model id → what the app has measured about it. Absent means the app says nothing. */
-  knowledge: Readonly<Record<string, string>>
   /** Model ids in recommendation priority. The first one AVAILABLE wins; none is a valid answer. */
   recommended: readonly string[]
   discovered: readonly DiscoveredModel[]
@@ -130,7 +125,6 @@ const identityOf = (entry: { provider: string; modelId: string }): string => `${
 
 export function buildModelGroups({
   baseline,
-  knowledge,
   recommended,
   discovered,
   available
@@ -161,7 +155,6 @@ export function buildModelGroups({
           provider,
           modelId: entry.modelId,
           name: humanizeModelId(entry.modelId),
-          detail: knowledge[entry.modelId] ?? '',
           recommended: entry.modelId === winner
         }))
       }

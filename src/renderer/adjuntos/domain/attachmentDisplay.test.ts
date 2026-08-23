@@ -5,6 +5,8 @@ import {
   formatAttachmentDate,
   formatAttachmentMeta,
   formatAttachmentSize,
+  formatViewerMeta,
+  formatViewerSize,
   getFileExtension,
   indexBadgeFor,
   originBadgeFor,
@@ -131,5 +133,29 @@ describe('originBadgeFor', () => {
       icon: 'sparkles',
       classes: 'bg-violet-soft text-primary-ink'
     })
+  })
+})
+
+// Viewer header meta line (markdown-attachment-viewer design: "8,2 KB ·
+// Editado 18 ago" in Vista, "8,2 KB · Editando ahora" in Edición). The row
+// formatter above always speaks MB — a 8,2 KB markdown file would read
+// "0,0 MB", so the viewer needs its own size step.
+describe('formatViewerSize', () => {
+  it('formats sizes under 1 MB in KB with a Spanish comma', () => {
+    expect(formatViewerSize(8397)).toBe('8,2 KB')
+  })
+
+  it('formats sizes at or above 1 MB in MB', () => {
+    expect(formatViewerSize(2_516_582)).toBe('2,4 MB')
+  })
+})
+
+describe('formatViewerMeta', () => {
+  it('vista mode reads size · Editado date', () => {
+    expect(formatViewerMeta(8397, '2026-08-18T10:00', 'vista')).toBe('8,2 KB · Editado 18 ago')
+  })
+
+  it('edición mode reads size · Editando ahora', () => {
+    expect(formatViewerMeta(8397, '2026-08-18T10:00', 'edicion')).toBe('8,2 KB · Editando ahora')
   })
 })

@@ -23,6 +23,7 @@ import { registerCliHandlers } from './cli/ipc/registerCliHandlers'
 import { createModelCatalog } from './cli/modelCatalog'
 import { validateExecutableCandidate } from './claude/claudeExecutableValidator'
 import { resolveExecutable } from './claude/domain/executableResolver'
+import { createPromptSpawnRouter } from './claude/promptSpawnRouter'
 import { createWarmPromptSession, type WarmPromptSession } from './claude/warmPromptSession'
 import { clearProvider, validateModelId } from './claude/claudeExecutableValidator'
 import { PROVIDER_SPECS } from './cli/providerSpec'
@@ -131,20 +132,23 @@ async function bootstrap(): Promise<void> {
   // `attachments` table `attachmentRepository` already reads.
   const indexStatusRepository = createSqliteIndexStatusRepository(db)
   const chunkStore = createSqliteChunkStore(raw)
+  // Fans out to every window — a status change (e.g. from Sincronizar)
+  // must reach every open renderer, not just the focused one (design
+  // "Renderer notify"; contrast with the single-focused-window
+  // `MENU_EXPORT_REQUESTED_CHANNEL` push below). Kept as a plain function
+  // here so neither `indexadoService.ts` nor `attachmentService.ts` (which
+  // fires it when a markdown save flips a row back to 'pending') ever
+  // imports Electron.
+  const notifyStatusChanged = (subjectId: number): void => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      window.webContents.send(INDEXADO_STATUS_CHANGED_CHANNEL, { subjectId })
+    }
+  }
   const indexadoService = createIndexadoService({
     statusRepository: indexStatusRepository,
     chunkStore,
     resolveStoredPath: attachmentStorage.resolveStoredPath,
-    // Fans out to every window — a status change (e.g. from Sincronizar)
-    // must reach every open renderer, not just the focused one (design
-    // "Renderer notify"; contrast with the single-focused-window
-    // `MENU_EXPORT_REQUESTED_CHANNEL` push below). Kept as a plain function
-    // here so `indexadoService.ts` itself never imports Electron.
-    notifyStatusChanged: (subjectId) => {
-      for (const window of BrowserWindow.getAllWindows()) {
-        window.webContents.send(INDEXADO_STATUS_CHANGED_CHANNEL, { subjectId })
-      }
-    }
+    notifyStatusChanged
   })
   registerIndexadoHandlers({ service: indexadoService })
 
@@ -156,7 +160,8 @@ async function bootstrap(): Promise<void> {
   const attachmentService = createAttachmentService({
     repository: attachmentRepository,
     storage: attachmentStorage,
-    indexer: indexadoService
+    indexer: indexadoService,
+    notifyStatusChanged
   })
 
   registerAdjuntosHandlers({
@@ -207,14 +212,22 @@ async function bootstrap(): Promise<void> {
   // one database file.
   const askHistoryRepository = createSqliteAskHistoryRepository(db)
 
-  // ONE CLI process serves every question instead of one per question. That
-  // spawn was the app's single biggest source of answer latency: measured on
-  // a Windows dev machine, a trivial question cost ~15.5s through a fresh
+  // ONE CLI process serves every CLAUDE question instead of one per question.
+  // That spawn was the app's single biggest source of answer latency: measured
+  // on a Windows dev machine, a trivial question cost ~15.5s through a fresh
   // `-p` spawn while the CLI reported only ~4s of it as inference. The same
   // question on a live process costs ~5.5s including the `/clear` the session
   // sends to keep turns isolated. `askService` is untouched by this — the
   // session hands it a handle that behaves exactly like a dedicated child.
+  //
+  // Claude is also the ONLY provider the session can serve (its module
+  // comment: the other two CLIs read a prompt, answer, and exit), so the
+  // router below sends only streaming-capable providers through it and the
+  // rest through the same one-shot pair `askService` defaults to. Wiring the
+  // session raw here is what once hung antigravity questions to their
+  // five-minute timeout — and is now a compile error.
   const warmPromptSession = createWarmPromptSession()
+  const promptSpawnRouter = createPromptSpawnRouter({ warmSession: warmPromptSession })
   const askService = createAskService({
     settings: appSettingsRepository,
     subjectRepository,
@@ -241,8 +254,8 @@ async function bootstrap(): Promise<void> {
     generatedArtifacts: {
       saveGenerated: (input) => attachmentService.addGeneratedAttachment(input.subjectId, input.fileName, input.content)
     },
-    spawnPrompt: warmPromptSession.spawnPrompt,
-    terminate: warmPromptSession.terminate,
+    spawnPrompt: promptSpawnRouter.spawnPrompt,
+    terminate: promptSpawnRouter.terminate,
     // The settings screen's observations, reused. A provider stays unusable
     // until this reports that the installed binary lists the flags its
     // template needs.

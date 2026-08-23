@@ -22,8 +22,11 @@ describe('adjuntosApi', () => {
           list: vi.fn(),
           add: vi.fn(),
           open: vi.fn(),
-          remove: vi.fn()
+          remove: vi.fn(),
+          read: vi.fn(),
+          write: vi.fn()
         },
+        indexado: { sync: vi.fn(), onStatusChanged: vi.fn().mockReturnValue(vi.fn()) },
         materias: {
           create: vi.fn(),
           list: vi.fn(),
@@ -121,6 +124,55 @@ describe('adjuntosApi', () => {
 
       expect(error).toBeInstanceOf(AdjuntosApiError)
       expect((error as AdjuntosApiError).code).toBe('ATTACHMENT_FILE_MISSING')
+    })
+  })
+
+  // markdown-attachment-viewer — the viewer's read/write calls: unwrap the
+  // envelope, zod-parse the payload, preserve the typed error code across
+  // the throw (the container needs ATTACHMENT_FILE_MISSING and NOT_MARKDOWN
+  // to drive their own states).
+  describe('read', () => {
+    it('parses and returns the content string on a successful envelope', async () => {
+      window.api.adjuntos.read = vi.fn().mockResolvedValue({ ok: true, data: { content: '# Resumen' } })
+
+      const result = await adjuntosApi.read(1)
+
+      expect(result).toBe('# Resumen')
+      expect(window.api.adjuntos.read).toHaveBeenCalledWith(1)
+    })
+
+    it('throws an AdjuntosApiError carrying the envelope code when ok is false', async () => {
+      window.api.adjuntos.read = vi
+        .fn()
+        .mockResolvedValue({ ok: false, error: { code: 'ATTACHMENT_FILE_MISSING', message: 'file is gone' } })
+
+      const error: unknown = await adjuntosApi.read(1).catch((caught: unknown) => caught)
+
+      expect(error).toBeInstanceOf(AdjuntosApiError)
+      expect((error as AdjuntosApiError).code).toBe('ATTACHMENT_FILE_MISSING')
+    })
+  })
+
+  describe('write', () => {
+    it('parses and returns the updated attachment on success', async () => {
+      const updated = { ...sampleAttachment, fileName: 'resumen.md', sizeBytes: 2048 }
+      window.api.adjuntos.write = vi.fn().mockResolvedValue({ ok: true, data: updated })
+
+      const result = await adjuntosApi.write(1, '# Nuevo')
+
+      expect(result).toEqual(updated)
+      expect(window.api.adjuntos.write).toHaveBeenCalledWith(1, '# Nuevo')
+    })
+
+    it('throws an AdjuntosApiError carrying the envelope code when ok is false', async () => {
+      window.api.adjuntos.write = vi
+        .fn()
+        .mockResolvedValue({ ok: false, error: { code: 'WRITE_FAILED', message: 'disk full' } })
+
+      const error: unknown = await adjuntosApi.write(1, '# Nuevo').catch((caught: unknown) => caught)
+
+      expect(error).toBeInstanceOf(AdjuntosApiError)
+      expect((error as AdjuntosApiError).code).toBe('WRITE_FAILED')
     })
   })
 

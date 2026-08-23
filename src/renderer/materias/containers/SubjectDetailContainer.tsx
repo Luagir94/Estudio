@@ -28,7 +28,9 @@
 // is not stale the next time it mounts).
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import type { Attachment } from '../../../shared/ipc/adjuntos'
 import { AdjuntosContainer } from '../../adjuntos/containers/AdjuntosContainer'
+import { AttachmentViewerContainer } from '../../adjuntos/containers/AttachmentViewerContainer'
 import { entregasApi } from '../../entregas/adapters/entregasApi'
 import { NuevaEntregaModal } from '../../entregas/components/NuevaEntregaModal'
 import { computeProgreso, computeWeeklyMinutes, getNextClassOccurrence } from '../domain/subjectDetail'
@@ -58,6 +60,10 @@ export function SubjectDetailContainer({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [isAddEntregaOpen, setIsAddEntregaOpen] = useState(false)
   const [isCloseOpen, setIsCloseOpen] = useState(false)
+  // markdown-attachment-viewer: while set, the full-screen viewer renders
+  // INSTEAD of the detail screen — the exact MateriasContainer
+  // selectedSubjectId pattern, one level further down.
+  const [viewedAttachment, setViewedAttachment] = useState<Attachment | null>(null)
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['materias', 'detail', subjectId],
@@ -121,6 +127,17 @@ export function SubjectDetailContainer({
   const progreso = computeProgreso(data.deadlines)
   const weeklyMinutes = computeWeeklyMinutes(data.slots)
 
+  if (viewedAttachment !== null) {
+    return (
+      <AttachmentViewerContainer
+        attachment={viewedAttachment}
+        subjectId={subjectId}
+        subjectName={data.name}
+        onBack={() => setViewedAttachment(null)}
+      />
+    )
+  }
+
   return (
     <>
       <SubjectDetail
@@ -136,7 +153,7 @@ export function SubjectDetailContainer({
         onEdit={() => setIsEditOpen(true)}
         onAddEntrega={() => setIsAddEntregaOpen(true)}
         onCloseSubject={() => setIsCloseOpen(true)}
-        adjuntosSlot={<AdjuntosContainer subjectId={subjectId} />}
+        adjuntosSlot={<AdjuntosContainer subjectId={subjectId} onOpenMarkdown={setViewedAttachment} />}
       />
 
       {/* Only once the student said the final is pending: before that there

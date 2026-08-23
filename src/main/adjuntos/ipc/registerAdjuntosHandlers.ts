@@ -10,8 +10,12 @@ import {
   ipcOk,
   type IpcResult,
   listAttachmentsInputSchema,
-  openAttachmentInputSchema
+  openAttachmentInputSchema,
+  readAttachmentTextInputSchema,
+  type ReadAttachmentTextResult,
+  writeAttachmentTextInputSchema
 } from '../../../shared/ipc/adjuntos'
+import { ADJUNTOS_READ_CHANNEL, ADJUNTOS_WRITE_CHANNEL } from '../../../shared/ipc/channels'
 import type { AttachmentStorage } from '../adapters/fileAttachmentStorage'
 import type { AttachmentRecord, AttachmentRepository } from '../adapters/sqliteAttachmentRepository'
 import type { AttachmentService } from '../attachmentService'
@@ -158,5 +162,46 @@ export function registerAdjuntosHandlers({
     }
 
     return ipcOk({ id: parsed.data.id, fileRemoved })
+  })
+
+  // markdown-attachment-viewer — the viewer's read channel. The service
+  // returns a typed result (never throws by design); its error code maps 1:1
+  // onto the envelope. The try/catch is the never-throw-across-the-bridge
+  // backstop for a bug in the service itself.
+  ipcMain.handle(ADJUNTOS_READ_CHANNEL, async (_event, payload): Promise<IpcResult<ReadAttachmentTextResult>> => {
+    const parsed = readAttachmentTextInputSchema.safeParse(payload)
+    if (!parsed.success) {
+      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    }
+
+    try {
+      const result = await service.readAttachmentText(parsed.data.id)
+      if (!result.ok) {
+        return ipcErr(result.code, result.message)
+      }
+      return ipcOk({ content: result.content })
+    } catch (error) {
+      return ipcErr('READ_FAILED', error instanceof Error ? error.message : 'Unknown error')
+    }
+  })
+
+  // markdown-attachment-viewer — the editor's save channel. The updated row
+  // rides back (minus storedPath, via `toAttachment`) so the viewer header
+  // refreshes without a second round-trip.
+  ipcMain.handle(ADJUNTOS_WRITE_CHANNEL, async (_event, payload): Promise<IpcResult<Attachment>> => {
+    const parsed = writeAttachmentTextInputSchema.safeParse(payload)
+    if (!parsed.success) {
+      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    }
+
+    try {
+      const result = await service.updateAttachmentText(parsed.data.id, parsed.data.content)
+      if (!result.ok) {
+        return ipcErr(result.code, result.message)
+      }
+      return ipcOk(toAttachment(result.attachment))
+    } catch (error) {
+      return ipcErr('WRITE_FAILED', error instanceof Error ? error.message : 'Unknown error')
+    }
   })
 }

@@ -9,7 +9,9 @@ import {
   type Attachment,
   deleteAttachmentResultSchema,
   type DeleteAttachmentResult,
-  listAttachmentsResultSchema
+  listAttachmentsResultSchema,
+  readAttachmentTextResultSchema,
+  writeAttachmentTextResultSchema
 } from '../../../shared/ipc/adjuntos'
 
 // The bridge never throws (design §2) — it resolves an `IpcResult` envelope.
@@ -32,6 +34,10 @@ export interface AdjuntosApi {
   add(subjectId: number): Promise<AddAttachmentsResult>
   open(id: number): Promise<void>
   delete(id: number): Promise<DeleteAttachmentResult>
+  /** Markdown viewer read (markdown-attachment-viewer): the file's content as a STRING — never a path. */
+  read(id: number): Promise<string>
+  /** Markdown editor save: returns the updated attachment row (new sizeBytes, indexStatus back to pending). */
+  write(id: number, content: string): Promise<Attachment>
 }
 
 export const adjuntosApi: AdjuntosApi = {
@@ -61,5 +67,19 @@ export const adjuntosApi: AdjuntosApi = {
       throw new AdjuntosApiError(result.error.code, result.error.message)
     }
     return deleteAttachmentResultSchema.parse(result.data)
+  },
+  async read(id) {
+    const result = await window.api.adjuntos.read(id)
+    if (!result.ok) {
+      throw new AdjuntosApiError(result.error.code, result.error.message)
+    }
+    return readAttachmentTextResultSchema.parse(result.data).content
+  },
+  async write(id, content) {
+    const result = await window.api.adjuntos.write(id, content)
+    if (!result.ok) {
+      throw new AdjuntosApiError(result.error.code, result.error.message)
+    }
+    return writeAttachmentTextResultSchema.parse(result.data)
   }
 }

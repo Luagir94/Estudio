@@ -44,6 +44,31 @@ export function formatAttachmentMeta(sizeBytes: number, createdAt: string): stri
   return `${formatAttachmentSize(sizeBytes)} · ${formatAttachmentDate(createdAt)}`
 }
 
+// --- viewer header meta (markdown-attachment-viewer design) ---------------
+
+const BYTES_PER_KB = 1024
+
+/**
+ * The viewer's own size step: KB below 1 MB (a 8,2 KB markdown file must not
+ * read "0,0 MB" the way `formatAttachmentSize` would render it), MB from
+ * there up — one decimal, Spanish comma, same convention as the row meta.
+ */
+export function formatViewerSize(sizeBytes: number): string {
+  if (sizeBytes < BYTES_PER_MB) {
+    const kilobytes = Math.round((sizeBytes / BYTES_PER_KB) * 10) / 10
+    return `${kilobytes.toFixed(1).replace('.', ',')} KB`
+  }
+  return formatAttachmentSize(sizeBytes)
+}
+
+export type ViewerMode = 'vista' | 'edicion'
+
+/** `"8,2 KB · Editado 18 ago"` (vista) / `"8,2 KB · Editando ahora"` (edición) — the viewer header's meta line. */
+export function formatViewerMeta(sizeBytes: number, createdAt: string, mode: ViewerMode): string {
+  const suffix = mode === 'edicion' ? 'Editando ahora' : `Editado ${formatAttachmentDate(createdAt)}`
+  return `${formatViewerSize(sizeBytes)} · ${suffix}`
+}
+
 function pluralize(count: number, singular: string, plural: string): string {
   return count === 1 ? singular : plural
 }

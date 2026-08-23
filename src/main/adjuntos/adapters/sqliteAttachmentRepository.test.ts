@@ -282,3 +282,65 @@ describe('createSqliteAttachmentRepository', () => {
     expect(remaining.count).toBe(0)
   })
 })
+
+// markdown-attachment-viewer — the save path's row update: after the file is
+// rewritten, the row's sizeBytes must reflect the new content and its
+// indexStatus must drop back to 'pending' so the re-index is visible.
+describe('createSqliteAttachmentRepository — update', () => {
+  let db: ReturnType<typeof createTestDb>['db']
+  let subjectId: number
+
+  beforeEach(() => {
+    ;({ db } = createTestDb())
+    subjectId = seedSubject(db)
+  })
+
+  function insertMarkdownRow() {
+    const repository = createSqliteAttachmentRepository(db)
+    return repository.insert({
+      subjectId,
+      fileName: 'resumen.md',
+      storedPath: path.join(String(subjectId), 'uuid-resumen.md'),
+      mimeType: null,
+      sizeBytes: 1024,
+      title: null,
+      createdAt: '2026-08-16T10:00',
+      origin: 'user'
+    })
+  }
+
+  it('persists the new sizeBytes and indexStatus and returns the updated record', () => {
+    const repository = createSqliteAttachmentRepository(db)
+    const inserted = insertMarkdownRow()
+    // Simulate a completed indexing pass so the flip back to pending is real.
+    db.update(attachments).set({ indexStatus: 'indexed' }).where(eq(attachments.id, inserted.id)).run()
+
+    const updated = repository.update(inserted.id, { sizeBytes: 2048, indexStatus: 'pending' })
+
+    expect(updated).toMatchObject({ id: inserted.id, sizeBytes: 2048, indexStatus: 'pending' })
+    expect(repository.get(inserted.id)).toMatchObject({ sizeBytes: 2048, indexStatus: 'pending' })
+  })
+
+  it('leaves every other column untouched', () => {
+    const repository = createSqliteAttachmentRepository(db)
+    const inserted = insertMarkdownRow()
+
+    const updated = repository.update(inserted.id, { sizeBytes: 999, indexStatus: 'pending' })
+
+    expect(updated).toMatchObject({
+      subjectId,
+      fileName: 'resumen.md',
+      storedPath: path.join(String(subjectId), 'uuid-resumen.md'),
+      mimeType: null,
+      title: null,
+      createdAt: '2026-08-16T10:00',
+      origin: 'user'
+    })
+  })
+
+  it('returns undefined when no row with that id exists', () => {
+    const repository = createSqliteAttachmentRepository(db)
+
+    expect(repository.update(999, { sizeBytes: 1, indexStatus: 'pending' })).toBeUndefined()
+  })
+})

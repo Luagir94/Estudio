@@ -80,6 +80,45 @@ export const openAttachmentInputSchema = z.object({ id: z.number().int() })
 
 export type OpenAttachmentInput = z.infer<typeof openAttachmentInputSchema>
 
+// --- adjuntos:read ---------------------------------------------------------
+
+/**
+ * Cap for the in-app markdown viewer/editor: 1 MiB. Distinct from
+ * `MAX_ATTACHMENT_BYTES` (250 MB, the upload cap) — a document held in a
+ * `<textarea>` and re-indexed on every save has a much lower ceiling than a
+ * file the OS merely opens. Enforced twice on purpose: the write schema
+ * below caps the payload's LENGTH at the bridge, and the main-process
+ * service re-checks the BYTE length (UTF-8 multibyte content can exceed the
+ * byte cap at a legal character count).
+ */
+export const MAX_MARKDOWN_TEXT_BYTES = 1_048_576
+
+export const readAttachmentTextInputSchema = z.object({ id: z.number().int() })
+
+export type ReadAttachmentTextInput = z.infer<typeof readAttachmentTextInputSchema>
+
+// A content STRING, never a filesystem path — same `storedPath` visibility
+// rule as `attachmentSchema` above: the renderer edits text, only main ever
+// touches the file.
+export const readAttachmentTextResultSchema = z.object({ content: z.string() })
+
+export type ReadAttachmentTextResult = z.infer<typeof readAttachmentTextResultSchema>
+
+// --- adjuntos:write --------------------------------------------------------
+
+export const writeAttachmentTextInputSchema = z.object({
+  id: z.number().int(),
+  content: z.string().max(MAX_MARKDOWN_TEXT_BYTES)
+})
+
+export type WriteAttachmentTextInput = z.infer<typeof writeAttachmentTextInputSchema>
+
+// The updated row rides back on the write response so the viewer's header
+// (size, index badge) refreshes without a second round-trip.
+export const writeAttachmentTextResultSchema = attachmentSchema
+
+export type WriteAttachmentTextResult = z.infer<typeof writeAttachmentTextResultSchema>
+
 // --- adjuntos:delete -------------------------------------------------------
 
 export const deleteAttachmentInputSchema = z.object({ id: z.number().int() })

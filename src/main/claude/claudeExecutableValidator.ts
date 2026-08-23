@@ -346,14 +346,24 @@ export function spawnPromptExecution(
 }
 
 /**
+ * Typed identity for `spawnStreamingSession`'s refusal below. The warm session
+ * keys on it to tell "this provider can NEVER hold a live process" — a wiring
+ * defect it must surface synchronously — apart from an ordinary spawn failure
+ * it defers to the turn start, where ENOENT keeps its meaning. A bare message
+ * would leave that caller string-matching.
+ */
+export const NO_STREAMING_SESSION_CODE = 'ERR_NO_STREAMING_SESSION'
+
+/**
  * Spawns a duplex STREAMING session, so one process can serve many questions
  * instead of dying after one.
  *
- * THROWS for a provider that has no such mode. Only Claude does: `agy --print`
- * and `codex exec` both read a prompt, answer, and exit. That is a measured
- * cost, not a cosmetic difference — a warm process answers in ~2s where a cold
- * spawn costs ~15.5s, nearly all of it boot — so the caller must decide what to
- * do about it rather than receive a quietly degraded session.
+ * THROWS for a provider that has no such mode, with `NO_STREAMING_SESSION_CODE`
+ * on the error. Only Claude has the mode: `agy --print` and `codex exec` both
+ * read a prompt, answer, and exit. That is a measured cost, not a cosmetic
+ * difference — a warm process answers in ~2s where a cold spawn costs ~15.5s,
+ * nearly all of it boot — so the caller must decide what to do about it rather
+ * than receive a quietly degraded session.
  */
 export function spawnStreamingSession(
   provider: ClearedProvider,
@@ -364,7 +374,9 @@ export function spawnStreamingSession(
 ): ChildProcess {
   const template = PROVIDER_SPECS[provider as CliProvider].streamingArgs
   if (template === null) {
-    throw new Error(`${provider} has no streaming session mode`)
+    const refusal: NodeJS.ErrnoException = new Error(`${provider} has no streaming session mode`)
+    refusal.code = NO_STREAMING_SESSION_CODE
+    throw refusal
   }
   return spawnWithTemplate(template, provider, absPath, attachmentsRoot, model, spawnFn)
 }

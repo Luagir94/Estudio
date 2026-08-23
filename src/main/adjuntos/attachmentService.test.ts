@@ -1,8 +1,10 @@
 import path from 'node:path'
+import { eq } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { MAX_MARKDOWN_TEXT_BYTES } from '../../shared/ipc/adjuntos'
 import { openAppDatabase } from '../db/connection'
-import { subjects } from '../db/schema'
+import { attachments, subjects } from '../db/schema'
 import { createSqliteAttachmentRepository, type AttachmentRepository } from './adapters/sqliteAttachmentRepository'
 import type { AttachmentStorage } from './adapters/fileAttachmentStorage'
 import { MAX_ATTACHMENT_BYTES } from './domain/limits'
@@ -29,7 +31,8 @@ function createStorageMock(overrides: Partial<AttachmentStorage> = {}): Attachme
     statSize: vi.fn().mockResolvedValue(10),
     copyIntoSubjectDir: vi.fn().mockResolvedValue('stored/path.pdf'),
     writeIntoSubjectDir: vi.fn().mockResolvedValue('stored/generated.md'),
-    resolveStoredPath: vi.fn(),
+    readTextFile: vi.fn().mockResolvedValue(''),
+    resolveStoredPath: vi.fn().mockReturnValue(path.join('C:', 'userData', 'attachments', 'resolved')),
     removeFile: vi.fn().mockResolvedValue(undefined),
     removeSubjectDir: vi.fn().mockResolvedValue(undefined),
     ...overrides
@@ -64,7 +67,12 @@ describe('createAttachmentService', () => {
         return path.join(String(subjectId), 'uuid-apuntes.pdf')
       })
     })
-    const service: AttachmentService = createAttachmentService({ repository, storage, indexer })
+    const service: AttachmentService = createAttachmentService({
+      repository,
+      storage,
+      indexer,
+      notifyStatusChanged: vi.fn()
+    })
 
     const result = await service.addAttachments(subjectId, [path.join('C:', 'Users', 'lucho', 'apuntes.pdf')])
 
@@ -82,7 +90,7 @@ describe('createAttachmentService', () => {
 
   it('rejects a file over the size cap BEFORE copying — no partial or full copy is left on disk', async () => {
     const storage = createStorageMock({ statSize: vi.fn().mockResolvedValue(MAX_ATTACHMENT_BYTES + 1) })
-    const service = createAttachmentService({ repository, storage, indexer })
+    const service = createAttachmentService({ repository, storage, indexer, notifyStatusChanged: vi.fn() })
 
     const result = await service.addAttachments(subjectId, [path.join('C:', 'huge.iso')])
 
@@ -98,7 +106,7 @@ describe('createAttachmentService', () => {
     const storage = createStorageMock({
       copyIntoSubjectDir: vi.fn().mockResolvedValue(path.join(String(nonExistentSubjectId), 'uuid-apuntes.pdf'))
     })
-    const service = createAttachmentService({ repository, storage, indexer })
+    const service = createAttachmentService({ repository, storage, indexer, notifyStatusChanged: vi.fn() })
 
     // A subjectId with no matching row violates the `attachments.subject_id`
     // FK — a REAL insert failure, not a mocked one (repository.insert
@@ -127,7 +135,7 @@ describe('createAttachmentService', () => {
           return path.join(String(targetSubjectId), storedFileName)
         })
     })
-    const service = createAttachmentService({ repository, storage, indexer })
+    const service = createAttachmentService({ repository, storage, indexer, notifyStatusChanged: vi.fn() })
 
     const result = await service.addAttachments(subjectId, [
       path.join('C:', 'carpeta-a', 'apuntes.pdf'),
@@ -153,7 +161,7 @@ describe('createAttachmentService', () => {
       }),
       copyIntoSubjectDir: vi.fn().mockResolvedValue(path.join(String(subjectId), 'uuid-good.pdf'))
     })
-    const service = createAttachmentService({ repository, storage, indexer })
+    const service = createAttachmentService({ repository, storage, indexer, notifyStatusChanged: vi.fn() })
 
     const result = await service.addAttachments(subjectId, [path.join('C:', 'bad.pdf'), path.join('C:', 'good.pdf')])
 
@@ -168,7 +176,7 @@ describe('createAttachmentService', () => {
     const storage = createStorageMock({
       copyIntoSubjectDir: vi.fn().mockResolvedValue(path.join(String(subjectId), 'uuid-apuntes.pdf'))
     })
-    const service = createAttachmentService({ repository, storage, indexer })
+    const service = createAttachmentService({ repository, storage, indexer, notifyStatusChanged: vi.fn() })
 
     const result = await service.addAttachments(subjectId, [path.join('C:', 'apuntes.pdf')])
 
@@ -186,7 +194,7 @@ describe('createAttachmentService', () => {
     const storage = createStorageMock({
       copyIntoSubjectDir: vi.fn().mockResolvedValue(path.join(String(nonExistentSubjectId), 'uuid-apuntes.pdf'))
     })
-    const service = createAttachmentService({ repository, storage, indexer })
+    const service = createAttachmentService({ repository, storage, indexer, notifyStatusChanged: vi.fn() })
 
     await service.addAttachments(nonExistentSubjectId, [path.join('C:', 'apuntes.pdf')])
 
@@ -202,7 +210,7 @@ describe('createAttachmentService', () => {
     it('computes sizeBytes and writes the content via storage with a UUID-prefixed, re-sanitized stored name', async () => {
       const writeIntoSubjectDir = vi.fn().mockResolvedValue(path.join(String(subjectId), 'uuid-resumen__.md'))
       const storage = createStorageMock({ writeIntoSubjectDir })
-      const service = createAttachmentService({ repository, storage, indexer })
+      const service = createAttachmentService({ repository, storage, indexer, notifyStatusChanged: vi.fn() })
 
       // A raw name with characters `sanitizeFileName` must clean — proves the
       // call site re-sanitizes rather than trusting an already-sanitized
@@ -218,7 +226,12 @@ describe('createAttachmentService', () => {
     })
 
     it('inserts the row with ai-generated origin, null title, and null mimeType', async () => {
-      const service = createAttachmentService({ repository, storage: createStorageMock(), indexer })
+      const service = createAttachmentService({
+        repository,
+        storage: createStorageMock(),
+        indexer,
+        notifyStatusChanged: vi.fn()
+      })
 
       await service.addGeneratedAttachment(subjectId, 'resumen.md', 'Contenido.')
 
@@ -229,7 +242,12 @@ describe('createAttachmentService', () => {
 
     it('computes sizeBytes via Buffer.byteLength, not character length (multibyte content)', async () => {
       const content = 'á'.repeat(10) // 2 UTF-8 bytes each = 20 bytes, but only 10 chars
-      const service = createAttachmentService({ repository, storage: createStorageMock(), indexer })
+      const service = createAttachmentService({
+        repository,
+        storage: createStorageMock(),
+        indexer,
+        notifyStatusChanged: vi.fn()
+      })
 
       await service.addGeneratedAttachment(subjectId, 'resumen.md', content)
 
@@ -242,7 +260,7 @@ describe('createAttachmentService', () => {
       const nonExistentSubjectId = subjectId + 999
       const writeIntoSubjectDir = vi.fn().mockResolvedValue(path.join(String(nonExistentSubjectId), 'uuid-resumen.md'))
       const storage = createStorageMock({ writeIntoSubjectDir })
-      const service = createAttachmentService({ repository, storage, indexer })
+      const service = createAttachmentService({ repository, storage, indexer, notifyStatusChanged: vi.fn() })
 
       const result = await service.addGeneratedAttachment(nonExistentSubjectId, 'resumen.md', 'Contenido.')
 
@@ -251,7 +269,12 @@ describe('createAttachmentService', () => {
     })
 
     it("fires the indexer after a successful insert, with that row's attachmentId", async () => {
-      const service = createAttachmentService({ repository, storage: createStorageMock(), indexer })
+      const service = createAttachmentService({
+        repository,
+        storage: createStorageMock(),
+        indexer,
+        notifyStatusChanged: vi.fn()
+      })
 
       const result = await service.addGeneratedAttachment(subjectId, 'resumen.md', 'Contenido.')
 
@@ -272,11 +295,223 @@ describe('createAttachmentService', () => {
       const service = createAttachmentService({
         repository,
         storage: createStorageMock({ writeIntoSubjectDir }),
-        indexer
+        indexer,
+        notifyStatusChanged: vi.fn()
       })
 
       await service.addGeneratedAttachment(nonExistentSubjectId, 'resumen.md', 'Contenido.')
 
+      expect(indexer.enqueue).not.toHaveBeenCalled()
+    })
+  })
+})
+
+// markdown-attachment-viewer — the viewer's read path and the editor's save
+// path. Same real-`:memory:`-repository + mocked-storage convention as the
+// suites above.
+describe('attachmentService — markdown text (viewer/editor)', () => {
+  let repository: AttachmentRepository
+  let db: ReturnType<typeof createTestDb>
+  let subjectId: number
+  let indexer: AttachmentIndexerPort
+  let notifyStatusChanged: ReturnType<typeof vi.fn<(subjectId: number) => void>>
+
+  beforeEach(() => {
+    db = createTestDb()
+    repository = createSqliteAttachmentRepository(db)
+    subjectId = seedSubject(db)
+    indexer = createIndexerMock()
+    notifyStatusChanged = vi.fn()
+  })
+
+  function insertRow(fileName = 'resumen.md') {
+    return repository.insert({
+      subjectId,
+      fileName,
+      storedPath: path.join(String(subjectId), `uuid-${fileName}`),
+      mimeType: null,
+      sizeBytes: 1024,
+      title: null,
+      createdAt: '2026-08-16T10:00',
+      origin: 'user'
+    })
+  }
+
+  function createService(storage: AttachmentStorage): AttachmentService {
+    return createAttachmentService({ repository, storage, indexer, notifyStatusChanged })
+  }
+
+  describe('readAttachmentText', () => {
+    it('returns the file content for a .md attachment', async () => {
+      const row = insertRow()
+      const storage = createStorageMock({ readTextFile: vi.fn().mockResolvedValue('# Resumen') })
+      const service = createService(storage)
+
+      const result = await service.readAttachmentText(row.id)
+
+      expect(result).toEqual({ ok: true, content: '# Resumen' })
+      expect(storage.readTextFile).toHaveBeenCalledWith(row.storedPath)
+    })
+
+    it('accepts an uppercase .MD extension — the check is case-insensitive', async () => {
+      const row = insertRow('RESUMEN.MD')
+      const service = createService(createStorageMock({ readTextFile: vi.fn().mockResolvedValue('# Ok') }))
+
+      const result = await service.readAttachmentText(row.id)
+
+      expect(result).toEqual({ ok: true, content: '# Ok' })
+    })
+
+    it('returns ATTACHMENT_NOT_FOUND when no row with that id exists', async () => {
+      const service = createService(createStorageMock())
+
+      const result = await service.readAttachmentText(999)
+
+      expect(result).toMatchObject({ ok: false, code: 'ATTACHMENT_NOT_FOUND' })
+    })
+
+    it('returns NOT_MARKDOWN for a non-.md attachment without touching the file', async () => {
+      const row = insertRow('apuntes.pdf')
+      const storage = createStorageMock()
+      const service = createService(storage)
+
+      const result = await service.readAttachmentText(row.id)
+
+      expect(result).toMatchObject({ ok: false, code: 'NOT_MARKDOWN' })
+      expect(storage.readTextFile).not.toHaveBeenCalled()
+    })
+
+    it('returns ATTACHMENT_FILE_MISSING when the stored file cannot be stat-ed', async () => {
+      const row = insertRow()
+      const storage = createStorageMock({ statSize: vi.fn().mockRejectedValue(new Error('ENOENT')) })
+      const service = createService(storage)
+
+      const result = await service.readAttachmentText(row.id)
+
+      expect(result).toMatchObject({ ok: false, code: 'ATTACHMENT_FILE_MISSING' })
+      expect(storage.readTextFile).not.toHaveBeenCalled()
+    })
+
+    it('returns FILE_TOO_LARGE when the file on disk exceeds the 1 MiB viewer cap, without reading it', async () => {
+      const row = insertRow()
+      const storage = createStorageMock({ statSize: vi.fn().mockResolvedValue(MAX_MARKDOWN_TEXT_BYTES + 1) })
+      const service = createService(storage)
+
+      const result = await service.readAttachmentText(row.id)
+
+      expect(result).toMatchObject({ ok: false, code: 'FILE_TOO_LARGE' })
+      expect(storage.readTextFile).not.toHaveBeenCalled()
+    })
+
+    it('returns READ_FAILED when the read itself fails', async () => {
+      const row = insertRow()
+      const storage = createStorageMock({ readTextFile: vi.fn().mockRejectedValue(new Error('EACCES')) })
+      const service = createService(storage)
+
+      const result = await service.readAttachmentText(row.id)
+
+      expect(result).toMatchObject({ ok: false, code: 'READ_FAILED' })
+    })
+
+    it('returns READ_FAILED for a tampered storedPath that escapes the attachments root', async () => {
+      const row = insertRow()
+      const storage = createStorageMock({
+        resolveStoredPath: vi.fn().mockImplementation(() => {
+          throw new Error('INVALID_PATH: storedPath escapes the attachments root')
+        })
+      })
+      const service = createService(storage)
+
+      const result = await service.readAttachmentText(row.id)
+
+      expect(result).toMatchObject({ ok: false, code: 'READ_FAILED' })
+      expect(storage.readTextFile).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('updateAttachmentText', () => {
+    it('rewrites the SAME stored file, updates sizeBytes, flips indexStatus to pending, notifies, and re-enqueues indexing', async () => {
+      const row = insertRow()
+      // Simulate a completed indexing pass so the flip back to pending is real.
+      db.update(attachments).set({ indexStatus: 'indexed' }).where(eq(attachments.id, row.id)).run()
+      const storage = createStorageMock()
+      const service = createService(storage)
+
+      const result = await service.updateAttachmentText(row.id, '# Nuevo contenido')
+
+      expect(storage.writeIntoSubjectDir).toHaveBeenCalledWith(subjectId, 'uuid-resumen.md', '# Nuevo contenido')
+      expect(result).toMatchObject({
+        ok: true,
+        attachment: { id: row.id, sizeBytes: Buffer.byteLength('# Nuevo contenido', 'utf8'), indexStatus: 'pending' }
+      })
+      expect(repository.get(row.id)).toMatchObject({
+        sizeBytes: Buffer.byteLength('# Nuevo contenido', 'utf8'),
+        indexStatus: 'pending'
+      })
+      expect(notifyStatusChanged).toHaveBeenCalledWith(subjectId)
+      expect(indexer.enqueue).toHaveBeenCalledWith({
+        attachmentId: row.id,
+        subjectId,
+        storedPath: row.storedPath,
+        fileName: 'resumen.md'
+      })
+    })
+
+    it('computes sizeBytes via Buffer.byteLength, not character length (multibyte content)', async () => {
+      const row = insertRow()
+      const content = 'á'.repeat(10) // 20 UTF-8 bytes, 10 chars
+      const service = createService(createStorageMock())
+
+      await service.updateAttachmentText(row.id, content)
+
+      expect(repository.get(row.id)?.sizeBytes).toBe(20)
+    })
+
+    it('returns ATTACHMENT_NOT_FOUND when no row with that id exists, writing nothing', async () => {
+      const storage = createStorageMock()
+      const service = createService(storage)
+
+      const result = await service.updateAttachmentText(999, '# Nada')
+
+      expect(result).toMatchObject({ ok: false, code: 'ATTACHMENT_NOT_FOUND' })
+      expect(storage.writeIntoSubjectDir).not.toHaveBeenCalled()
+    })
+
+    it('returns NOT_MARKDOWN for a non-.md attachment, writing nothing', async () => {
+      const row = insertRow('apuntes.pdf')
+      const storage = createStorageMock()
+      const service = createService(storage)
+
+      const result = await service.updateAttachmentText(row.id, '# Nada')
+
+      expect(result).toMatchObject({ ok: false, code: 'NOT_MARKDOWN' })
+      expect(storage.writeIntoSubjectDir).not.toHaveBeenCalled()
+    })
+
+    it('returns FILE_TOO_LARGE when the content exceeds 1 MiB in BYTES even at a legal character count', async () => {
+      const row = insertRow()
+      // 524_289 chars × 2 UTF-8 bytes = 1_048_578 bytes — over the byte cap,
+      // under the char cap. Regresses if the service checks .length.
+      const content = 'á'.repeat(524_289)
+      const storage = createStorageMock()
+      const service = createService(storage)
+
+      const result = await service.updateAttachmentText(row.id, content)
+
+      expect(result).toMatchObject({ ok: false, code: 'FILE_TOO_LARGE' })
+      expect(storage.writeIntoSubjectDir).not.toHaveBeenCalled()
+    })
+
+    it('returns WRITE_FAILED when the file write fails, leaving the row untouched and firing nothing', async () => {
+      const row = insertRow()
+      const storage = createStorageMock({ writeIntoSubjectDir: vi.fn().mockRejectedValue(new Error('EBUSY')) })
+      const service = createService(storage)
+
+      const result = await service.updateAttachmentText(row.id, '# Nuevo')
+
+      expect(result).toMatchObject({ ok: false, code: 'WRITE_FAILED' })
+      expect(repository.get(row.id)).toMatchObject({ sizeBytes: 1024, indexStatus: 'pending' })
+      expect(notifyStatusChanged).not.toHaveBeenCalled()
       expect(indexer.enqueue).not.toHaveBeenCalled()
     })
   })

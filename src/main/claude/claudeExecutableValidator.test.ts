@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   clearProvider,
   MAX_ARGV_PROMPT_CHARS,
+  NO_STREAMING_SESSION_CODE,
   spawnPromptExecution,
   spawnStreamingSession,
   spawnVersionProbe,
@@ -867,6 +868,32 @@ describe('spawnStreamingSession', () => {
     ).toThrow(/attachments root/i)
     expect(spawnFn).not.toHaveBeenCalled()
   })
+
+  // The refusal carries a machine-readable code because the warm session must
+  // tell "this provider can NEVER hold a live process" (a wiring defect it has
+  // to surface synchronously) apart from an ordinary spawn failure it defers
+  // to the turn start — a bare message would leave it string-matching.
+  it.each([['antigravity'], ['codex']] as const)(
+    'refuses %s — no streaming mode — with the typed code, without spawning',
+    (name) => {
+      const spawnFn: SpawnFn = vi.fn(() => ({}) as ChildProcess)
+      const provider = clearProvider(name, null) as ClearedProvider
+
+      let thrown: NodeJS.ErrnoException | null = null
+      try {
+        spawnStreamingSession(provider, asValidated('C:\\tools\\cli.exe'), ATTACHMENTS_ROOT, asModel('m-1'), spawnFn)
+      } catch (error) {
+        thrown = error as NodeJS.ErrnoException
+      }
+
+      expect(thrown?.message).toMatch(/no streaming session mode/)
+      // Pinned to the Node `ERR_*` shape as well as to the constant, so this
+      // cannot pass vacuously with both sides undefined.
+      expect(thrown?.code).toBe(NO_STREAMING_SESSION_CODE)
+      expect(thrown?.code).toMatch(/^ERR_/)
+      expect(spawnFn).not.toHaveBeenCalled()
+    }
+  )
 })
 
 // The shim branch spawns cmd.exe, so the real `claude` runs as a GRANDCHILD.

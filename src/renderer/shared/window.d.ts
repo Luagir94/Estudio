@@ -6,7 +6,8 @@ import type {
   AddAttachmentsInput,
   AddAttachmentsResult,
   Attachment,
-  DeleteAttachmentResult
+  DeleteAttachmentResult,
+  ReadAttachmentTextResult
 } from '../../shared/ipc/adjuntos'
 import type { ExportJsonResult, OpenExternalInput } from '../../shared/ipc/app'
 import type {
@@ -104,6 +105,10 @@ declare global {
         add: (input: AddAttachmentsInput) => Promise<IpcResult<AddAttachmentsResult>>
         open: (id: number) => Promise<IpcResult<undefined>>
         remove: (id: number) => Promise<IpcResult<DeleteAttachmentResult>>
+        /** Markdown viewer read: `.md` only, ≤ 1 MiB, content as a STRING — never a path. */
+        read: (id: number) => Promise<IpcResult<ReadAttachmentTextResult>>
+        /** Markdown editor save: rewrites the stored file and returns the updated row. */
+        write: (id: number, content: string) => Promise<IpcResult<Attachment>>
       }
       indexado: {
         sync: () => Promise<IpcResult<SyncResult>>

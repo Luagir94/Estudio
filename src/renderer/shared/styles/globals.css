@@ -110,6 +110,11 @@
 
   --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
   --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  /* Code voice for the markdown viewer/editor. JetBrains Mono is not shipped
+     and the CSP blocks CDNs — the fallback stack IS the design: Cascadia
+     Code ships with Windows/VS Code, Consolas with every Windows, and
+     ui-monospace covers the rest. */
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, ui-monospace, monospace;
 
   /*
    * Type scale. Nine integer sizes, taken from the normalized design (the

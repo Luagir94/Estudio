@@ -44,7 +44,9 @@ beforeEach(() => {
       list: vi.fn().mockResolvedValue({ ok: true, data: [sampleAttachment] }),
       add: vi.fn(),
       open: vi.fn(),
-      remove: vi.fn()
+      remove: vi.fn(),
+      read: vi.fn(),
+      write: vi.fn()
     },
     indexado: {
       sync: vi.fn().mockResolvedValue({ ok: true, data: { enqueued: 0 } }),
@@ -348,5 +350,50 @@ describe('AdjuntosContainer', () => {
     unmount()
 
     expect(unsubscribe).toHaveBeenCalledTimes(1)
+  })
+
+  // markdown-attachment-viewer — the open flow's in-app route: a `.md`
+  // attachment goes to the viewer callback instead of the OS, everything
+  // else (and every caller without the callback) keeps the IPC open.
+  describe('onOpenMarkdown', () => {
+    const markdownAttachment = { ...sampleAttachment, id: 2, fileName: 'Resumen unidad 3.md' }
+
+    it('routes a .md attachment to the callback INSTEAD of the IPC open', async () => {
+      window.api.adjuntos.list = vi.fn().mockResolvedValue({ ok: true, data: [markdownAttachment] })
+      const onOpenMarkdown = vi.fn()
+
+      renderWithClient(<AdjuntosContainer subjectId={42} onOpenMarkdown={onOpenMarkdown} />)
+      await screen.findByText('Resumen unidad 3.md')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir' }))
+
+      expect(onOpenMarkdown).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }))
+      expect(window.api.adjuntos.open).not.toHaveBeenCalled()
+    })
+
+    it('still opens a non-.md attachment through IPC even with the callback present', async () => {
+      window.api.adjuntos.open = vi.fn().mockResolvedValue({ ok: true, data: undefined })
+      const onOpenMarkdown = vi.fn()
+
+      renderWithClient(<AdjuntosContainer subjectId={42} onOpenMarkdown={onOpenMarkdown} />)
+      await screen.findByText('apuntes.pdf')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir' }))
+
+      await waitFor(() => expect(window.api.adjuntos.open).toHaveBeenCalledWith(1))
+      expect(onOpenMarkdown).not.toHaveBeenCalled()
+    })
+
+    it('falls back to the IPC open for a .md attachment when no callback is provided', async () => {
+      window.api.adjuntos.list = vi.fn().mockResolvedValue({ ok: true, data: [markdownAttachment] })
+      window.api.adjuntos.open = vi.fn().mockResolvedValue({ ok: true, data: undefined })
+
+      renderWithClient(<AdjuntosContainer subjectId={42} />)
+      await screen.findByText('Resumen unidad 3.md')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir' }))
+
+      await waitFor(() => expect(window.api.adjuntos.open).toHaveBeenCalledWith(2))
+    })
   })
 })
