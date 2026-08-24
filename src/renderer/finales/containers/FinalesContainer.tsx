@@ -8,6 +8,7 @@ import { FinalsCard } from '../components/FinalsCard'
 import { GiveUpConfirmDialog } from '../components/GiveUpConfirmDialog'
 import { NuevaInstanciaModal } from '../components/NuevaInstanciaModal'
 import { materiasApi } from '../../materias/adapters/materiasApi'
+import { describeIpcError } from '../../shared/lib/ipcErrorCopy'
 import type { FinalExamRecord, FinalExamResult } from '../../../shared/ipc/materias'
 
 interface FinalesContainerProps {
@@ -53,8 +54,19 @@ export function FinalesContainer({ subjectId, subjectName, finals }: FinalesCont
     }
   })
 
+  // The result chips and the delete button fire straight from the rows —
+  // there is no dialog to carry the failure, so it surfaces as a banner next
+  // to the list, the same shape as EntregasContainer's load-error line.
+  // Already app-owned Spanish copy (`shared/lib/ipcErrorCopy.ts`); a retry
+  // clears it because `mutate` resets the mutation's error.
+  const updateError = describeIpcError(updateMutation.error)
+  const deleteError = describeIpcError(deleteMutation.error)
+
   return (
     <>
+      {updateError && <p className="text-body-lg text-destructive">{updateError}</p>}
+      {deleteError && <p className="text-body-lg text-destructive">{deleteError}</p>}
+
       <FinalsCard
         finals={finals}
         onAdd={() => setIsAddOpen(true)}
@@ -69,6 +81,8 @@ export function FinalesContainer({ subjectId, subjectName, finals }: FinalesCont
         <NuevaInstanciaModal
           subjectId={subjectId}
           subjectName={subjectName}
+          error={describeIpcError(createMutation.error)}
+          pending={createMutation.isPending}
           onSubmit={(input) => createMutation.mutate(input)}
           onClose={() => setIsAddOpen(false)}
         />
@@ -77,6 +91,8 @@ export function FinalesContainer({ subjectId, subjectName, finals }: FinalesCont
       {isGiveUpOpen && (
         <GiveUpConfirmDialog
           subjectName={subjectName}
+          error={describeIpcError(giveUpMutation.error)}
+          pending={giveUpMutation.isPending}
           onConfirm={() => giveUpMutation.mutate({ id: subjectId, outcome: 'reprobada', grade: null })}
           onCancel={() => setIsGiveUpOpen(false)}
         />

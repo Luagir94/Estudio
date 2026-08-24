@@ -21,11 +21,25 @@ import { DialogBody, DialogContent, DialogFooter, DialogOverlay } from '../../sh
 
 interface GiveUpConfirmDialogProps {
   subjectName: string
+  /**
+   * Why the outcome was not recorded. A dead confirm button explains
+   * nothing. Already app-owned Spanish copy (`shared/lib/ipcErrorCopy.ts`) —
+   * never the raw IPC message.
+   */
+  error?: string | null
+  /** True while the write is in flight — the confirm button locks so one decision cannot be recorded twice. */
+  pending?: boolean
   onConfirm: () => void
   onCancel: () => void
 }
 
-export function GiveUpConfirmDialog({ subjectName, onConfirm, onCancel }: GiveUpConfirmDialogProps): React.JSX.Element {
+export function GiveUpConfirmDialog({
+  subjectName,
+  error,
+  pending,
+  onConfirm,
+  onCancel
+}: GiveUpConfirmDialogProps): React.JSX.Element {
   const { t } = useTranslation('finales')
   return (
     <DialogOverlay>
@@ -33,18 +47,20 @@ export function GiveUpConfirmDialog({ subjectName, onConfirm, onCancel }: GiveUp
         role="dialog"
         aria-label={t('giveUpConfirmDialog.dialogLabel', { name: subjectName })}
         className="max-w-[420px]"
+        onDismiss={onCancel}
       >
         <DialogBody className="gap-2">
           <p className="text-body-lg text-foreground">
             {t('giveUpConfirmDialog.confirmQuestion', { name: subjectName })}
           </p>
           <p className="text-body-lg text-secondary-foreground">{t('giveUpConfirmDialog.reversibleHint')}</p>
+          {error && <p className="text-body-lg text-destructive">{error}</p>}
         </DialogBody>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>
             {t('common:actions.cancel')}
           </Button>
-          <Button type="button" variant="destructive" onClick={onConfirm}>
+          <Button type="button" variant="destructive" disabled={pending} onClick={onConfirm}>
             {t('giveUpConfirmDialog.confirm')}
           </Button>
         </DialogFooter>

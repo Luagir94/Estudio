@@ -18,6 +18,15 @@ import { Select } from '../../shared/components/ui/select'
 interface NuevaInstanciaModalProps {
   subjectId: number
   subjectName: string
+  /**
+   * Why the last submit did not go through. Without this the form just sits
+   * there on a failed write and the button reads as broken. Already
+   * app-owned Spanish copy (`shared/lib/ipcErrorCopy.ts`) — never the raw
+   * IPC message.
+   */
+  error?: string | null
+  /** True while the write is in flight — the submit button locks so one mesa cannot be recorded twice. */
+  pending?: boolean
   onSubmit: (input: CreateFinalExamInput) => void
   onClose: () => void
 }
@@ -25,6 +34,8 @@ interface NuevaInstanciaModalProps {
 export function NuevaInstanciaModal({
   subjectId,
   subjectName,
+  error,
+  pending,
   onSubmit,
   onClose
 }: NuevaInstanciaModalProps): React.JSX.Element {
@@ -40,7 +51,7 @@ export function NuevaInstanciaModal({
 
   return (
     <DialogOverlay>
-      <DialogContent role="dialog" aria-label={t('nuevaInstanciaModal.dialogLabel')}>
+      <DialogContent role="dialog" aria-label={t('nuevaInstanciaModal.dialogLabel')} onDismiss={onClose}>
         <DialogHeader onClose={onClose}>
           <h2 className="font-display text-title font-bold text-foreground">{t('nuevaInstanciaModal.title')}</h2>
           <p className="text-body-sm text-muted-foreground">{subjectName}</p>
@@ -93,12 +104,21 @@ export function NuevaInstanciaModal({
           </DialogBody>
 
           <DialogFooter>
-            <p className="text-caption text-muted-foreground">{t('nuevaInstanciaModal.footerNote')}</p>
+            {/* The failure takes the footer-note slot (same as
+                NuevoPeriodoModal): a note about what you CAN do is noise
+                while the form is telling you what just did not happen. */}
+            {error ? (
+              <p className="text-caption text-destructive">{error}</p>
+            ) : (
+              <p className="text-caption text-muted-foreground">{t('nuevaInstanciaModal.footerNote')}</p>
+            )}
             <div className="flex items-center gap-3">
               <Button type="button" variant="outline" onClick={onClose}>
                 {t('common:actions.cancel')}
               </Button>
-              <Button type="submit">{t('nuevaInstanciaModal.submit')}</Button>
+              <Button type="submit" disabled={pending}>
+                {t('nuevaInstanciaModal.submit')}
+              </Button>
             </div>
           </DialogFooter>
         </form>

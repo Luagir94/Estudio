@@ -74,6 +74,19 @@ describe('FinalesContainer', () => {
     expect(materiasApi.setOutcome).not.toHaveBeenCalled()
   })
 
+  // Escape must be the same safe exit as Cancel: the dialog closes and the
+  // destructive mutation never fires.
+  it('Escape closes the give-up dialog without recording the outcome', () => {
+    renderWithClient(<FinalesContainer subjectId={5} subjectName="Algoritmos" finals={allFailedFinals} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Darla por reprobada' }))
+    const dialog = screen.getByRole('dialog', { name: 'Dar por reprobada Algoritmos' })
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(materiasApi.setOutcome).not.toHaveBeenCalled()
+  })
+
   it('confirming calls materiasApi.setOutcome with the reprobada outcome and closes the dialog', async () => {
     renderWithClient(<FinalesContainer subjectId={5} subjectName="Algoritmos" finals={allFailedFinals} />)
 
@@ -97,5 +110,87 @@ describe('FinalesContainer', () => {
     expect(finalesApi.create).not.toHaveBeenCalled()
     expect(finalesApi.update).not.toHaveBeenCalled()
     expect(finalesApi.delete).not.toHaveBeenCalled()
+  })
+
+  // A write that fails and says nothing reads as a dead button — the same
+  // rule the carreras containers already follow (CarreraDetailContainer).
+  // Every copy assertion below is app-owned Spanish from ipcErrorCopy, never
+  // the raw IPC message.
+  const GENERIC_ERROR = 'Ocurrió un error inesperado. Probá de nuevo en un momento.'
+
+  function openAddModal(): HTMLElement {
+    renderWithClient(<FinalesContainer subjectId={5} subjectName="Algoritmos" finals={allFailedFinals} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar mesa' }))
+    return screen.getByRole('dialog', { name: 'Nueva mesa de final' })
+  }
+
+  async function submitNewInstance(dialog: HTMLElement): Promise<void> {
+    fireEvent.change(within(dialog).getByLabelText('Nombre de la mesa'), { target: { value: '3ra mesa' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Agregar mesa' }))
+    await waitFor(() => expect(finalesApi.create).toHaveBeenCalled())
+  }
+
+  it('says why the mesa could not be created and keeps the modal open', async () => {
+    vi.mocked(finalesApi.create).mockRejectedValue(new Error('boom'))
+    const dialog = openAddModal()
+
+    await submitNewInstance(dialog)
+
+    expect(await screen.findByText(GENERIC_ERROR)).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Nueva mesa de final' })).toBeInTheDocument()
+  })
+
+  it('disables the create submit button while the mutation is in flight', async () => {
+    vi.mocked(finalesApi.create).mockReturnValue(new Promise(() => {}))
+    const dialog = openAddModal()
+
+    await submitNewInstance(dialog)
+
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Agregar mesa' })).toBeDisabled())
+  })
+
+  // The result chips fire the update straight from the row (no dialog), so
+  // the failure has to surface as a banner next to the list — and the mapped
+  // copy for the error's CODE, not the generic fallback, proves the whole
+  // FinalesApiError → describeIpcError chain is wired.
+  it('surfaces the mapped copy when setting a result fails', async () => {
+    vi.mocked(finalesApi.update).mockRejectedValue(Object.assign(new Error('SQLITE_BUSY'), { code: 'UPDATE_FAILED' }))
+    renderWithClient(<FinalesContainer subjectId={5} subjectName="Algoritmos" finals={allFailedFinals} />)
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Aprobado' })[0]!)
+
+    expect(await screen.findByText('No se pudieron guardar los cambios. Probá de nuevo.')).toBeInTheDocument()
+  })
+
+  it('says why the mesa could not be deleted instead of failing silently', async () => {
+    vi.mocked(finalesApi.delete).mockRejectedValue(new Error('boom'))
+    renderWithClient(<FinalesContainer subjectId={5} subjectName="Algoritmos" finals={allFailedFinals} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Borrar 1ra mesa' }))
+
+    expect(await screen.findByText(GENERIC_ERROR)).toBeInTheDocument()
+  })
+
+  it('says why the give-up could not be recorded and keeps the dialog open', async () => {
+    vi.mocked(materiasApi.setOutcome).mockRejectedValue(new Error('boom'))
+    renderWithClient(<FinalesContainer subjectId={5} subjectName="Algoritmos" finals={allFailedFinals} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Darla por reprobada' }))
+    const dialog = screen.getByRole('dialog', { name: 'Dar por reprobada Algoritmos' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Darla por reprobada' }))
+
+    expect(await within(dialog).findByText(GENERIC_ERROR)).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Dar por reprobada Algoritmos' })).toBeInTheDocument()
+  })
+
+  it('disables the give-up confirm button while the mutation is in flight', async () => {
+    vi.mocked(materiasApi.setOutcome).mockReturnValue(new Promise(() => {}))
+    renderWithClient(<FinalesContainer subjectId={5} subjectName="Algoritmos" finals={allFailedFinals} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Darla por reprobada' }))
+    const dialog = screen.getByRole('dialog', { name: 'Dar por reprobada Algoritmos' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Darla por reprobada' }))
+
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Darla por reprobada' })).toBeDisabled())
   })
 })
