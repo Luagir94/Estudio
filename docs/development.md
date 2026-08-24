@@ -43,7 +43,7 @@ npm install
 
 ### End-to-end tests (Playwright)
 
-`npm run test:e2e` first runs `electron-vite build`, then drives the **real production build** (`out/main/index.js`) through Playwright's `_electron` fixture — real preload bridge, real IPC, real SQLite, strict production CSP. Specs run serially (one worker, no retries, 60s timeout). The four specs in `e2e/`:
+`npm run test:e2e` first runs `electron-vite build`, then drives the **real production build** (`out/main/index.js`) through Playwright's `_electron` fixture — real preload bridge, real IPC, real SQLite, strict production CSP. Specs run serially (one worker, no retries, 60s timeout). The five specs in `e2e/`:
 
 | Spec                              | Covers                                                                                |
 | --------------------------------- | ------------------------------------------------------------------------------------- |
@@ -51,6 +51,7 @@ npm install
 | `claude-connection.spec.ts`       | Ajustes probes the installed CLI and reports connected with version and path          |
 | `ask-my-materials.spec.ts`        | The ask panel opens from Hoy, is wired end to end, and closes cleanly                 |
 | `ask-history-persistence.spec.ts` | A conversation written before relaunch is resumed after relaunch (same user-data dir) |
+| `attachment-indexing.spec.ts`     | Sincronizar indexes pending and ai-generated attachments; chunks are BM25-retrievable |
 
 Note: `claude-connection.spec.ts` expects a locally installed Claude Code CLI to resolve.
 
