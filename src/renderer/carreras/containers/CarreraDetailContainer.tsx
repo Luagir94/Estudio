@@ -21,6 +21,8 @@ import { PeriodsTable } from '../components/PeriodsTable'
 import { Button } from '../../shared/components/ui/button'
 import { cn } from '../../shared/lib/cn'
 import { interactiveGhost } from '../../shared/lib/interactive'
+import { subjectColorForScheme } from '../../shared/lib/subjectColorScheme'
+import { usePrefersLightScheme } from '../../shared/lib/usePrefersLightScheme'
 
 interface CarreraDetailContainerProps {
   programId: number
@@ -48,6 +50,9 @@ export function CarreraDetailContainer({
   now
 }: CarreraDetailContainerProps): React.JSX.Element {
   const { t } = useTranslation('carreras')
+  // Stored carrera colours come from the same subject catalogue; inline
+  // styles cannot hear the light media query, so the mapping happens here.
+  const scheme = usePrefersLightScheme() ? 'light' : 'dark'
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false)
@@ -200,7 +205,7 @@ export function CarreraDetailContainer({
               <div className="flex items-center gap-3">
                 <span
                   aria-hidden="true"
-                  style={{ backgroundColor: data.color }}
+                  style={{ backgroundColor: subjectColorForScheme(data.color, scheme) }}
                   className="h-[34px] w-[3px] shrink-0 rounded-sm"
                 />
                 <h1 className="font-display text-display-lg font-bold text-foreground">{data.name}</h1>

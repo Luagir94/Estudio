@@ -21,6 +21,8 @@ import { MateriasList } from '../../materias/components/MateriasList'
 import { Button } from '../../shared/components/ui/button'
 import { cn } from '../../shared/lib/cn'
 import { interactiveGhost } from '../../shared/lib/interactive'
+import { subjectColorForScheme } from '../../shared/lib/subjectColorScheme'
+import { usePrefersLightScheme } from '../../shared/lib/usePrefersLightScheme'
 import { derivePeriodYear, formatPeriodRange, isOpenEnded, periodStatus, type PeriodStatus } from '../domain/period'
 
 interface PeriodDetailProps {
@@ -92,6 +94,9 @@ export function PeriodDetail({
   onOpenSubject
 }: PeriodDetailProps): React.JSX.Element {
   const { t } = useTranslation('carreras')
+  // Stored carrera colours come from the same subject catalogue; inline
+  // styles cannot hear the light media query, so the mapping happens here.
+  const scheme = usePrefersLightScheme() ? 'light' : 'dark'
   const status = periodStatus(period, now)
 
   return (
@@ -116,7 +121,7 @@ export function PeriodDetail({
           <div className="flex items-center gap-3">
             <span
               aria-hidden="true"
-              style={{ backgroundColor: programColor }}
+              style={{ backgroundColor: subjectColorForScheme(programColor, scheme) }}
               className="h-[34px] w-[3px] shrink-0 rounded-sm"
             />
             <h1 className="font-display text-display-lg font-bold text-foreground">{period.name}</h1>

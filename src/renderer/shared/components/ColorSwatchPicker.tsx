@@ -15,9 +15,20 @@
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/cn'
 import { interactive, interactiveSwatch } from '../lib/interactive'
+import { subjectColorForScheme } from '../lib/subjectColorScheme'
+import { usePrefersLightScheme } from '../lib/usePrefersLightScheme'
 
-/** The design's `subject-1`..`subject-5`. Fixed order: the nth carrera gets the nth colour. */
-export const SUBJECT_COLORS = ['#4C8DFF', '#A78BFA', '#FB923C', '#2DD4A7', '#F472B6'] as const
+/** The design's `subject-1`..`subject-8` (dark values — the stored form). Fixed order: the nth carrera gets the nth colour. */
+export const SUBJECT_COLORS = [
+  '#4C8DFF',
+  '#22D3EE',
+  '#FB923C',
+  '#A3E635',
+  '#F472B6',
+  '#E879F9',
+  '#34D399',
+  '#FACC15'
+] as const
 
 /**
  * The custom swatch's resting face. It is the app's own six hues in a wheel,
@@ -39,6 +50,11 @@ export function ColorSwatchPicker({
   options = SUBJECT_COLORS
 }: ColorSwatchPickerProps): React.JSX.Element {
   const { t } = useTranslation('common')
+  // The STORED value is always the dark hex; the dot's FACE follows the
+  // active scheme so the swatch previews the colour the way the rest of the
+  // app will actually paint it. Selection, aria-labels and `onChange` keep
+  // speaking the stored form.
+  const scheme = usePrefersLightScheme() ? 'light' : 'dark'
   // Anything the catalogue does not contain is a custom colour, including the
   // empty string a brand-new form starts with — which is why the ring is
   // gated on a non-empty value rather than on `isCustom` alone.
@@ -59,7 +75,11 @@ export function ColorSwatchPicker({
             interactiveSwatch
           )}
         >
-          <span aria-hidden="true" style={{ backgroundColor: option }} className="h-4 w-4 rounded-full" />
+          <span
+            aria-hidden="true"
+            style={{ backgroundColor: subjectColorForScheme(option, scheme) }}
+            className="h-4 w-4 rounded-full"
+          />
         </button>
       ))}
 
@@ -78,7 +98,7 @@ export function ColorSwatchPicker({
       >
         <span
           aria-hidden="true"
-          style={{ background: isCustom ? value : COLOR_WHEEL }}
+          style={{ background: isCustom ? subjectColorForScheme(value, scheme) : COLOR_WHEEL }}
           className="h-4 w-4 rounded-full"
         />
         <input

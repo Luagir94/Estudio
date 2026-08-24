@@ -11,6 +11,8 @@ import { UserCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../shared/lib/cn'
 import { interactiveSurface } from '../../shared/lib/interactive'
+import { subjectColorForScheme } from '../../shared/lib/subjectColorScheme'
+import { usePrefersLightScheme } from '../../shared/lib/usePrefersLightScheme'
 import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
 import { resolveSubjectStatus } from '../domain/subjectStatus'
 import { SubjectStatusBadge } from './SubjectStatusBadge'
@@ -45,6 +47,9 @@ function formatScheduleSummary(slots: ScheduleSlotRecord[], dayAbbreviations: st
 
 export function MateriasList({ subjects, now, onSelect, emptyMessage }: MateriasListProps): React.JSX.Element {
   const { t } = useTranslation('materias')
+  // Stored subject colours are the dark palette; inline styles cannot hear
+  // the light media query, so the scheme mapping happens here.
+  const scheme = usePrefersLightScheme() ? 'light' : 'dark'
   // Monday-first, same order as `toMondayFirstIndex` produces.
   const dayAbbreviations = t('common:weekdaysShort3', { returnObjects: true }) as string[]
 
@@ -92,7 +97,7 @@ export function MateriasList({ subjects, now, onSelect, emptyMessage }: Materias
               <span className="flex min-w-0 flex-1 items-center gap-3">
                 <span
                   aria-hidden="true"
-                  style={{ backgroundColor: subject.color }}
+                  style={{ backgroundColor: subjectColorForScheme(subject.color, scheme) }}
                   className="h-8 w-[3px] shrink-0 rounded-sm"
                 />
                 <span className="flex min-w-0 flex-col gap-1">

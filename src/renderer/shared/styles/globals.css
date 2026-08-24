@@ -1,7 +1,9 @@
 /*
- * Dark theme tokens (design/course-companion.pen, recorded in
+ * Theme tokens (design/course-companion.pen, recorded in
  * sdd/course-companion/ui-design obs #93 — this file is the single source
  * of truth for the values, do not hand-copy hex codes into components).
+ * Dark is the DEFAULT scheme; the `prefers-color-scheme: light` block below
+ * re-paints the raw tokens when the OS asks for light.
  *
  * Tailwind v4 is CSS-first: `@theme` both declares the CSS custom
  * properties AND generates matching utility classes (e.g. `--color-primary`
@@ -57,10 +59,13 @@
   --color-warn: #f5b14c;
   --color-warn-soft: #2c220f;
   --color-subject-1: #4c8dff;
-  --color-subject-2: #a78bfa;
+  --color-subject-2: #22d3ee;
   --color-subject-3: #fb923c;
-  --color-subject-4: #2dd4a7;
+  --color-subject-4: #a3e635;
   --color-subject-5: #f472b6;
+  --color-subject-6: #e879f9;
+  --color-subject-7: #34d399;
+  --color-subject-8: #facc15;
 
   /* Shadcn/ui semantic tokens — every hand-built primitive in
      shared/components/ui/ references these, never the raw names above. */
@@ -117,20 +122,22 @@
   --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, ui-monospace, monospace;
 
   /*
-   * Type scale. Nine integer sizes, taken from the normalized design (the
-   * "Sistema de diseño" group in the .pen). Letter-spacing is baked into each
-   * step because it is a property of the step, not a per-call-site decision:
-   * a heading is 20px AND -0.5px tracking or it is not a heading.
+   * Type scale. Seven integer sizes, taken from the normalized design (the
+   * "Sistema de diseño" group in the .pen) — the consolidation pass eliminated
+   * the 13px and 11px steps. Letter-spacing is baked into each step because it
+   * is a property of the step, not a per-call-site decision: a heading is 20px
+   * AND -0.5px tracking or it is not a heading.
    *
    * Line-height is deliberately declared ONLY on the two display steps, which
    * are the only ones the design pins. Every other step inherits the font's
    * natural line-height, exactly as the design does — declaring one here would
    * silently re-flow every dense row in the app.
    *
-   * `label` and `caption` share a size on purpose: same 11px, different
-   * tracking. `label` is the uppercase field label, `caption` the metadata
-   * that sits under a value. Weight stays at the call site (`font-semibold`),
-   * since 13px body text is set at both 400 and 600.
+   * `body` equalling `body-sm` at 12px is intentional and TRANSITIONAL: the
+   * step names keep working while call sites migrate off the retired 13px.
+   * `caption` joins them at 12px; `label` drops to 10px with the scale's
+   * 0.6px uppercase tracking. Weight stays at the call site
+   * (`font-semibold`), since body text is set at both 400 and 600.
    */
   --text-display-xl: 40px;
   --text-display-xl--line-height: 1.05;
@@ -144,19 +151,19 @@
   --text-title--letter-spacing: -0.3px;
   --text-body-lg: 14px;
   --text-body-lg--letter-spacing: -0.1px;
-  --text-body: 13px;
+  --text-body: 12px;
   --text-body--letter-spacing: 0px;
   --text-body-sm: 12px;
   --text-body-sm--letter-spacing: 0px;
-  --text-label: 11px;
-  --text-label--letter-spacing: 0.3px;
-  --text-caption: 11px;
+  --text-label: 10px;
+  --text-label--letter-spacing: 0.6px;
+  --text-caption: 12px;
   --text-caption--letter-spacing: 0px;
   --text-overline: 10px;
   --text-overline--letter-spacing: 0.9px;
   /*
-   * `micro` and `overline` share 10px the same way `label` and `caption`
-   * share 11px: same size, different tracking, different job. Tracking is
+   * `micro` and `overline` share 10px (as does `label`, with its own 0.6px
+   * tracking): same size, different tracking, different job. Tracking is
    * what makes an uppercase COLUMN HEADING readable at 10px, and it is
    * exactly what ruins a dense numeric label — a timeline tick, an hour in
    * the schedule gutter, a weekday initial. Those are set solid.
@@ -189,8 +196,56 @@
   --color-scrim: #05050899;
   /* Tells the engine this is a dark UI, so anything it paints itself (native
      form controls, the flash before the first paint) starts dark instead of
-     white. */
+     white. The light media query below flips it. */
   color-scheme: dark;
+}
+
+/*
+ * Light theme (design/course-companion, light palette — AA-verified, do not
+ * tweak). Dark stays the default; when the OS asks for light, the RAW tokens
+ * are re-painted here and every semantic alias above follows for free,
+ * because each alias is a `var()` reference resolved at USE time — `@theme`
+ * emits the custom properties on `:root`, utilities consume them via
+ * `var()`, and this unlayered override outranks the theme layer.
+ *
+ * Only raw tokens appear here. `on-accent` keeps #ffffff (white on the light
+ * violet still clears AA) and `scrim` keeps #05050899 — a scrim's job is to
+ * darken whatever is behind it, in either scheme. `on-urgent` DOES flip:
+ * near-black on the dark coral, white on the light #c22f20.
+ *
+ * Per-row subject colours applied via inline `style` cannot hear this media
+ * query — `shared/lib/subjectColorScheme.ts` is the runtime mirror of the
+ * subject-1..8 pairs below and must be kept in sync with them.
+ */
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --color-canvas: #f4f4f7;
+    --color-surface: #ffffff;
+    --color-surface-sunken: #e9e9ef;
+    --color-hairline: #dcdce5;
+    --color-ink: #1b1b22;
+    --color-ink-secondary: #565664;
+    --color-ink-muted: #63636f;
+    --color-violet: #6d4ae7;
+    --color-violet-soft: #ece6fd;
+    --color-violet-ink: #5f3bd8;
+    --color-urgent: #c22f20;
+    --color-urgent-soft: #fce9e6;
+    --color-on-urgent: #ffffff;
+    --color-ok: #0b7357;
+    --color-ok-soft: #e3f7ef;
+    --color-warn: #92610e;
+    --color-warn-soft: #fbf0dc;
+    --color-subject-1: #2563eb;
+    --color-subject-2: #0891b2;
+    --color-subject-3: #ea580c;
+    --color-subject-4: #65a30d;
+    --color-subject-5: #db2777;
+    --color-subject-6: #c026d3;
+    --color-subject-7: #059669;
+    --color-subject-8: #ca8a04;
+  }
 }
 
 body {

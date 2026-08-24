@@ -44,7 +44,7 @@ describe('NuevaMateriaModal', () => {
 
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Algoritmos' } })
     fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ALG-101' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Color #A78BFA' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Color #22D3EE' }))
     // docente/contacto left blank on purpose (spec: "Create subject with
     // only required fields")
     fireEvent.click(screen.getByRole('button', { name: 'Agregar horario' }))
@@ -52,7 +52,7 @@ describe('NuevaMateriaModal', () => {
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
     const [submitted] = onSubmit.mock.calls[0] as [Record<string, unknown>]
-    expect(submitted).toMatchObject({ name: 'Algoritmos', code: 'ALG-101', color: '#A78BFA' })
+    expect(submitted).toMatchObject({ name: 'Algoritmos', code: 'ALG-101', color: '#22D3EE' })
     expect(submitted.slots).toHaveLength(1)
   })
 
@@ -69,7 +69,7 @@ describe('NuevaMateriaModal', () => {
     )
 
     fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ALG-101' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Color #A78BFA' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Color #22D3EE' }))
     fireEvent.click(screen.getByRole('button', { name: 'Crear materia' }))
 
     await waitFor(() => expect(screen.getByText('Poné un nombre')).toBeInTheDocument())

@@ -4,6 +4,8 @@
 // Monday-first (spec: "Week Strip Starts Monday").
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../shared/lib/cn'
+import { subjectColorForScheme } from '../../shared/lib/subjectColorScheme'
+import { usePrefersLightScheme } from '../../shared/lib/usePrefersLightScheme'
 import type { WeekStripDay } from '../domain/dashboard'
 
 interface WeekStripProps {
@@ -15,6 +17,9 @@ interface WeekStripProps {
 
 export function WeekStrip({ days, todayMondayFirstIndex }: WeekStripProps): React.JSX.Element {
   const { t } = useTranslation('hoy')
+  // Stored subject colours are the dark palette; inline styles cannot hear
+  // the light media query, so the scheme mapping happens here.
+  const scheme = usePrefersLightScheme() ? 'light' : 'dark'
   // Monday-first, matching `mondayFirstIndex` — same indexing the old
   // hardcoded DAY_ABBR table had.
   const dayAbbr = t('common:weekdaysCaps', { returnObjects: true }) as string[]
@@ -49,7 +54,11 @@ export function WeekStrip({ days, todayMondayFirstIndex }: WeekStripProps): Reac
 
             <div className="flex flex-col gap-1" aria-hidden={day.classColors.length === 0}>
               {day.classColors.map((color, index) => (
-                <span key={index} style={{ backgroundColor: color }} className="h-[5px] w-full shrink-0 rounded-full" />
+                <span
+                  key={index}
+                  style={{ backgroundColor: subjectColorForScheme(color, scheme) }}
+                  className="h-[5px] w-full shrink-0 rounded-full"
+                />
               ))}
             </div>
 

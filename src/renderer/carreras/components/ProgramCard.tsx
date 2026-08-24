@@ -10,6 +10,8 @@ import { ChevronRight, Infinity as InfinityIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../shared/lib/cn'
 import { interactiveSurface } from '../../shared/lib/interactive'
+import { subjectColorForScheme } from '../../shared/lib/subjectColorScheme'
+import { usePrefersLightScheme } from '../../shared/lib/usePrefersLightScheme'
 import { formatPeriodRange, isOpenEnded, periodStatus } from '../domain/period'
 import { calculateProgramAverage } from '../domain/program'
 import { isPassed } from '../../materias/domain/subjectStatus'
@@ -88,6 +90,9 @@ function PeriodChip({ period, now }: { period: PeriodRecord; now: Date }): React
 
 export function ProgramCard({ program, now, onSelect }: ProgramCardProps): React.JSX.Element {
   const { t } = useTranslation('carreras')
+  // Stored carrera colours come from the same subject catalogue; inline
+  // styles cannot hear the light media query, so the mapping happens here.
+  const scheme = usePrefersLightScheme() ? 'light' : 'dark'
   // Finished periods collapse into a single counter chip: the card is a
   // summary, and a carrera of several years would otherwise push its own
   // active periods off the row.
@@ -111,7 +116,7 @@ export function ProgramCard({ program, now, onSelect }: ProgramCardProps): React
         <span className="flex items-center gap-3">
           <span
             aria-hidden="true"
-            style={{ backgroundColor: program.color }}
+            style={{ backgroundColor: subjectColorForScheme(program.color, scheme) }}
             className="h-9 w-[3px] shrink-0 rounded-sm"
           />
           <span className="flex flex-col gap-1">
