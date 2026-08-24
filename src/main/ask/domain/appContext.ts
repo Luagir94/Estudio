@@ -11,6 +11,7 @@
 // `contacto` is deliberately NOT part of `AppContextSubject`: it is usually a
 // professor's phone or email, which is a third party's personal data rather
 // than the student's own. Everything here belongs to the student.
+import mainI18n from '../../i18n'
 
 export interface AppContextSlot {
   dayOfWeek: number
@@ -58,7 +59,11 @@ export interface AppContext {
   periods: readonly AppContextPeriod[]
 }
 
-const DAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+// Sunday-first, matching JS `Date#getDay()` (0 = Sunday) — `slot.dayOfWeek`
+// is stored in that same order, so this must NOT be reordered to match the
+// renderer's Monday-first `common:weekdaysLong` (see `HorarioGrid.tsx`),
+// even though both ultimately render the same seven Spanish day names.
+const DAYS = mainI18n.t('appContext.days', { returnObjects: true }) as string[]
 
 function formatMinutes(minutes: number): string {
   const hours = Math.floor(minutes / 60)

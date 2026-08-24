@@ -6,8 +6,10 @@
 // so nothing changes on its own, and without this the subject would sit
 // there silently with no signal that a decision is owed.
 import { Calendar, CalendarOff, Info, Pause, Plus, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { countFinalsByResult, resolveFinalsVerdict, type FinalExamResult } from '../../materias/domain/subjectStatus'
 import { Button } from '../../shared/components/ui/button'
+import { formatTakenOn } from '../domain/finalDate'
 import { cn } from '../../shared/lib/cn'
 import { interactiveChip, interactiveGhostDestructive } from '../../shared/lib/interactive'
 import type { FinalExamRecord } from '../../../shared/ipc/materias'
@@ -17,14 +19,13 @@ interface FinalsCardProps {
   onAdd: () => void
   onSetResult: (final: FinalExamRecord, result: FinalExamResult) => void
   onDelete: (final: FinalExamRecord) => void
-  /** Records the subject as reprobada — only the student may do this. */
+  /**
+   * Requests recording the subject as reprobada — only the student may do
+   * this. This click only asks; the caller confirms
+   * (`finales/components/GiveUpConfirmDialog.tsx`) before the outcome
+   * actually changes.
+   */
   onGiveUp: () => void
-}
-
-const RESULT_LABELS: Record<FinalExamResult, string> = {
-  pendiente: 'Pendiente',
-  aprobado: 'Aprobado',
-  reprobado: 'Reprobado'
 }
 
 const RESULT_STYLES: Record<FinalExamResult, string> = {
@@ -36,6 +37,7 @@ const RESULT_STYLES: Record<FinalExamResult, string> = {
 const RESULTS: FinalExamResult[] = ['pendiente', 'aprobado', 'reprobado']
 
 export function FinalsCard({ finals, onAdd, onSetResult, onDelete, onGiveUp }: FinalsCardProps): React.JSX.Element {
+  const { t } = useTranslation('finales')
   const counts = countFinalsByResult(finals)
   const verdict = resolveFinalsVerdict(finals)
 
@@ -46,7 +48,7 @@ export function FinalsCard({ finals, onAdd, onSetResult, onDelete, onGiveUp }: F
           <span className="inline-flex items-center gap-2 rounded-md border border-primary bg-sidebar-accent px-3 py-2">
             <Pause className="h-3.5 w-3.5 text-primary-ink" aria-hidden="true" />
             <strong className="text-body-sm font-semibold text-primary-ink">
-              {verdict === 'aprobado' ? 'Aprobada por final' : 'Standby — final pendiente'}
+              {verdict === 'aprobado' ? t('finalsCard.approvedByFinal') : t('finalsCard.standbyPending')}
             </strong>
           </span>
           <ul className="flex items-center gap-2">
@@ -55,31 +57,25 @@ export function FinalsCard({ finals, onAdd, onSetResult, onDelete, onGiveUp }: F
                 key={result}
                 className="flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-caption text-secondary-foreground"
               >
-                {counts[result]} {RESULT_LABELS[result].toLowerCase()}
-                {counts[result] === 1 ? '' : 's'}
+                {t(`finalsCard.resultCounts.${result}`, { count: counts[result] })}
               </li>
             ))}
           </ul>
         </div>
-        <p className="text-body-sm leading-relaxed text-secondary-foreground">
-          Aprobás cualquier instancia y la materia queda Aprobada sola — aprobar es inequívoco. Si las reprobás todas,
-          sigue en standby: darla por reprobada es una decisión tuya, la app nunca la cierra por vos.
-        </p>
+        <p className="text-body-sm leading-relaxed text-secondary-foreground">{t('finalsCard.howItWorks')}</p>
       </div>
 
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-label font-semibold text-muted-foreground">INSTANCIAS DE FINAL</h2>
+          <h2 className="text-label font-semibold text-muted-foreground">{t('finalsCard.instancesHeading')}</h2>
           <Button type="button" size="sm" onClick={onAdd} className="gap-2">
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            Agregar instancia
+            {t('finalsCard.addInstance')}
           </Button>
         </div>
 
         {finals.length === 0 ? (
-          <p className="text-body-lg text-muted-foreground">
-            Todavía no anotaste ninguna mesa. Podés cargarla aunque no sepas la fecha.
-          </p>
+          <p className="text-body-lg text-muted-foreground">{t('finalsCard.empty')}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {finals.map((final) => (
@@ -93,12 +89,12 @@ export function FinalsCard({ finals, onAdd, onSetResult, onDelete, onGiveUp }: F
                   {final.takenOn === null ? (
                     <>
                       <CalendarOff className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                      <span className="text-muted-foreground">Sin fecha todavía</span>
+                      <span className="text-muted-foreground">{t('finalsCard.noDateYet')}</span>
                     </>
                   ) : (
                     <>
                       <Calendar className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                      <span className="text-secondary-foreground">{final.takenOn}</span>
+                      <span className="text-secondary-foreground">{formatTakenOn(final.takenOn)}</span>
                     </>
                   )}
                 </span>
@@ -117,14 +113,14 @@ export function FinalsCard({ finals, onAdd, onSetResult, onDelete, onGiveUp }: F
                         interactiveChip
                       )}
                     >
-                      {RESULT_LABELS[result]}
+                      {t(`finalsCard.resultLabels.${result}`)}
                     </button>
                   ))}
                 </span>
 
                 <button
                   type="button"
-                  aria-label={`Borrar ${final.label}`}
+                  aria-label={t('finalsCard.deleteInstance', { label: final.label })}
                   onClick={() => onDelete(final)}
                   className={cn('-m-2 rounded-md p-2 text-muted-foreground', interactiveGhostDestructive)}
                 >
@@ -142,20 +138,17 @@ export function FinalsCard({ finals, onAdd, onSetResult, onDelete, onGiveUp }: F
             <Info className="mt-px h-4 w-4 shrink-0 text-warn" aria-hidden="true" />
             <span className="flex flex-col gap-1">
               <strong className="text-body-sm font-semibold text-foreground">
-                Reprobaste {finals.length === 1 ? 'la instancia' : `las ${finals.length} instancias`} y no queda ninguna
-                abierta
+                {t('finalsCard.failedAll', { count: finals.length })}
               </strong>
-              <span className="text-caption text-secondary-foreground">
-                La materia sigue en standby hasta que vos decidas. Siempre podés anotar otra mesa.
-              </span>
+              <span className="text-caption text-secondary-foreground">{t('finalsCard.failedAllHint')}</span>
             </span>
           </span>
           <span className="flex items-center gap-2">
             <Button type="button" size="sm" variant="outline" onClick={onAdd}>
-              Agregar otra mesa
+              {t('finalsCard.addAnotherInstance')}
             </Button>
             <Button type="button" size="sm" variant="destructive" onClick={onGiveUp}>
-              Darla por reprobada
+              {t('finalsCard.giveUp')}
             </Button>
           </span>
         </div>

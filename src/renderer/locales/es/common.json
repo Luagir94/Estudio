@@ -1,0 +1,50 @@
+{
+  "weekdaysLong": ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"],
+  "weekdaysShort3": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+  "weekdaysCaps": ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"],
+  "monthsCaps": ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"],
+  "monthsShort": ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
+  "actions": {
+    "cancel": "Cancelar",
+    "saveChanges": "Guardar cambios"
+  },
+  "fields": {
+    "name": "Nombre"
+  },
+  "sidebar": {
+    "appTitle": "Mi Cursada",
+    "mainNavigation": "Navegación principal",
+    "nav": {
+      "hoy": "Hoy",
+      "materias": "Materias",
+      "horario": "Horario",
+      "entregas": "Entregas",
+      "carreras": "Carreras",
+      "ajustes": "Ajustes"
+    },
+    "expand": "Desplegar barra lateral",
+    "collapse": "Replegar barra lateral",
+    "windowTooNarrow": "La ventana es muy angosta para la barra completa",
+    "noActiveTerm": "Sin período activo",
+    "activeTerm": "{{program}} · {{period}}",
+    "activeTermsCount_one": "{{count}} período activo",
+    "activeTermsCount_other": "{{count}} períodos activos",
+    "exportData": "Exportar datos",
+    "localStorage": "Guardado local"
+  },
+  "slotEditor": {
+    "day": "Día",
+    "startTime": "Hora de inicio",
+    "endTime": "Hora de fin",
+    "location": "Lugar",
+    "removeSlot": "Quitar horario",
+    "addSlot": "Agregar horario"
+  },
+  "colorSwatchPicker": {
+    "colorOption": "Color {{color}}",
+    "customColor": "Color personalizado"
+  },
+  "dialog": {
+    "close": "Cerrar"
+  }
+}

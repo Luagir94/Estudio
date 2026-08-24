@@ -8,6 +8,7 @@
 // two different type steps (12px / 11px), and `items-center` centres each
 // text box independently, which lifts the smaller digit off the label's
 // baseline and reads as a superscript. Baseline puts both on one line.
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../shared/lib/cn'
 import { interactiveChip } from '../../shared/lib/interactive'
 import type { SubjectStatusFilter as FilterValue } from '../domain/subjectStatus'
@@ -18,26 +19,22 @@ interface SubjectStatusFilterProps {
   onChange: (value: FilterValue) => void
 }
 
-const FILTERS: { value: FilterValue; label: string }[] = [
-  { value: 'activas', label: 'Activas' },
-  { value: 'standby', label: 'Standby' },
-  { value: 'aprobadas', label: 'Aprobadas' },
-  { value: 'reprobadas', label: 'Reprobadas' },
-  { value: 'sinCerrar', label: 'Sin cerrar' },
-  { value: 'todas', label: 'Todas' }
-]
+// Labels live in the locale catalog under `subjectStatusFilter.filters.<value>`
+// — this only fixes the order.
+const FILTER_VALUES: FilterValue[] = ['activas', 'standby', 'aprobadas', 'reprobadas', 'sinCerrar', 'todas']
 
 export function SubjectStatusFilter({ value, counts, onChange }: SubjectStatusFilterProps): React.JSX.Element {
+  const { t } = useTranslation('materias')
   return (
-    <div role="group" aria-label="Filtrar por estado" className="flex flex-wrap items-center gap-2">
-      {FILTERS.map((filter) => {
-        const isActive = filter.value === value
+    <div role="group" aria-label={t('subjectStatusFilter.groupLabel')} className="flex flex-wrap items-center gap-2">
+      {FILTER_VALUES.map((filterValue) => {
+        const isActive = filterValue === value
         return (
           <button
-            key={filter.value}
+            key={filterValue}
             type="button"
             aria-pressed={isActive}
-            onClick={() => onChange(filter.value)}
+            onClick={() => onChange(filterValue)}
             className={cn(
               isActive
                 ? 'flex items-baseline gap-2 rounded-md border border-primary bg-sidebar-accent px-3 py-2 text-body-sm font-semibold text-primary-ink'
@@ -47,9 +44,9 @@ export function SubjectStatusFilter({ value, counts, onChange }: SubjectStatusFi
           >
             {/* The space is load-bearing: without it the button's accessible
                 name reads "Activas1" instead of "Activas 1". */}
-            {filter.label}{' '}
+            {t(`subjectStatusFilter.filters.${filterValue}`)}{' '}
             <span className={isActive ? 'text-caption text-primary-ink' : 'text-caption text-muted-foreground'}>
-              {counts[filter.value]}
+              {counts[filterValue]}
             </span>
           </button>
         )

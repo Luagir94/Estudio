@@ -7,6 +7,7 @@
 // groupDeadlines in entregas), and a component that reads the clock itself
 // cannot be tested against a fixed day.
 import { ChevronRight, Infinity as InfinityIcon } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../shared/lib/cn'
 import { interactiveSurface } from '../../shared/lib/interactive'
 import { formatPeriodRange, isOpenEnded, periodStatus } from '../domain/period'
@@ -20,15 +21,12 @@ interface ProgramCardProps {
   onSelect?: (id: number) => void
 }
 
-function pluralize(count: number, singular: string, plural: string): string {
-  return `${count} ${count === 1 ? singular : plural}`
-}
-
 function SchemeBadge({ program }: { program: ProgramWithPeriods }): React.JSX.Element {
+  const { t } = useTranslation('carreras')
   if (program.gradingScheme === 'binario') {
     return (
       <span className="rounded-md border border-border bg-muted px-2 py-1 text-caption font-semibold text-secondary-foreground">
-        Aprobado / Desaprobado
+        {t('gradingScheme.binario')}
       </span>
     )
   }
@@ -39,10 +37,12 @@ function SchemeBadge({ program }: { program: ProgramWithPeriods }): React.JSX.El
 
   return (
     <span
-      title={average.withFailed !== null ? 'Promedio con aplazos' : undefined}
+      title={average.withFailed !== null ? t('programCard.averageTooltip') : undefined}
       className="rounded-md border border-primary bg-sidebar-accent px-2 py-1 text-caption font-semibold text-primary-ink"
     >
-      {average.withFailed !== null ? `Promedio ${average.withFailed}` : 'Sin notas todavía'}
+      {average.withFailed !== null
+        ? t('programCard.average', { value: average.withFailed })
+        : t('programCard.noGradesYet')}
     </span>
   )
 }
@@ -54,6 +54,7 @@ function SchemeBadge({ program }: { program: ProgramWithPeriods }): React.JSX.El
 // and the infinity glyph have no baseline of their own (they are boxes, not
 // text), so they keep centring themselves against the line.
 function PeriodChip({ period, now }: { period: PeriodRecord; now: Date }): React.JSX.Element {
+  const { t } = useTranslation('carreras')
   const isActive = periodStatus(period, now) === 'activo'
   return (
     <li
@@ -76,13 +77,17 @@ function PeriodChip({ period, now }: { period: PeriodRecord; now: Date }): React
         {formatPeriodRange(period.startsOn, period.endsOn)}
       </span>
       {isOpenEnded(period) && (
-        <InfinityIcon className="h-3 w-3 shrink-0 self-center text-muted-foreground" aria-label="No termina" />
+        <InfinityIcon
+          className="h-3 w-3 shrink-0 self-center text-muted-foreground"
+          aria-label={t('period.neverEnds')}
+        />
       )}
     </li>
   )
 }
 
 export function ProgramCard({ program, now, onSelect }: ProgramCardProps): React.JSX.Element {
+  const { t } = useTranslation('carreras')
   // Finished periods collapse into a single counter chip: the card is a
   // summary, and a carrera of several years would otherwise push its own
   // active periods off the row.
@@ -118,8 +123,8 @@ export function ProgramCard({ program, now, onSelect }: ProgramCardProps): React
         <span className="flex items-center gap-3">
           <SchemeBadge program={program} />
           <span className="text-body-sm text-secondary-foreground">
-            {pluralize(program.subjectCount, 'materia', 'materias')} ·{' '}
-            {pluralize(program.periods.length, 'período', 'períodos')}
+            {t('counts.subjects', { count: program.subjectCount })} ·{' '}
+            {t('counts.periods', { count: program.periods.length })}
           </span>
           <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         </span>
@@ -134,7 +139,7 @@ export function ProgramCard({ program, now, onSelect }: ProgramCardProps): React
             ))}
             {finishedCount > 0 && (
               <li className="rounded-lg border border-border bg-muted px-3 py-2 text-body-sm font-semibold text-muted-foreground">
-                {pluralize(finishedCount, 'período finalizado', 'períodos finalizados')}
+                {t('programCard.finishedPeriods', { count: finishedCount })}
               </li>
             )}
           </ul>

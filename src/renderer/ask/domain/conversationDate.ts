@@ -4,8 +4,7 @@
 // over `parseISO`, never elapsed hours), so this mirrors that module's shape
 // rather than inventing a second date convention.
 import { differenceInCalendarDays, parseISO } from 'date-fns'
-
-const MONTH_LABELS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+import i18n from '../../i18n'
 
 function pad(value: number): string {
   return value.toString().padStart(2, '0')
@@ -17,10 +16,12 @@ export function formatConversationDate(updatedAt: string, now: Date): string {
   const daysAgo = differenceInCalendarDays(now, date)
 
   if (daysAgo === 0) {
-    return `Hoy, ${time}`
+    return i18n.t('ask:conversationDate.today', { time })
   }
   if (daysAgo === 1) {
-    return `Ayer, ${time}`
+    return i18n.t('ask:conversationDate.yesterday', { time })
   }
-  return `${date.getDate()} ${MONTH_LABELS[date.getMonth()]}`
+  // Same consolidated lowercase month table `carreras/domain/period.ts` reads.
+  const months = i18n.t('common:monthsShort', { returnObjects: true }) as string[]
+  return `${date.getDate()} ${months[date.getMonth()]}`
 }

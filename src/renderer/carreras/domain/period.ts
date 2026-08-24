@@ -1,5 +1,6 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { z } from 'zod'
+import i18n from '../../i18n'
 
 // Pure, framework-free domain module (design §4). MUST NOT import electron
 // or better-sqlite3 — enforced by tooling/dependencyGuard.mts's
@@ -174,11 +175,10 @@ export function pickDefaultPeriodId(periods: IdentifiedPeriod[], today: Date): n
   return best.id
 }
 
-const MONTH_ABBREVIATIONS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
-
 function formatDay(date: string): string {
+  const months = i18n.t('common:monthsShort', { returnObjects: true }) as string[]
   const [, month, day] = date.split('-')
-  return `${day} ${MONTH_ABBREVIATIONS[Number(month) - 1]}`
+  return `${day} ${months[Number(month) - 1]}`
 }
 
 /**
@@ -190,17 +190,27 @@ function formatDay(date: string): string {
  * An open-ended period reads "Desde 04 mar 2024" — an open phrase, never a
  * range with a blank or a placeholder end.
  *
- * The month table is local rather than a date-fns locale import: this copy
- * is design-fixed, so it must not shift under a locale-data update.
+ * The month table lives in the app's own locale resources
+ * (`common:monthsShort`) rather than a date-fns locale import: this copy is
+ * design-fixed, so it must not shift under a locale-data update.
  */
 export function formatPeriodRange(startsOn: string, endsOn: string | null): string {
   if (endsOn === null) {
-    return `Desde ${formatDay(startsOn)} ${startsOn.slice(0, 4)}`
+    return i18n.t('carreras:periodRange.openStart', { date: formatDay(startsOn), year: startsOn.slice(0, 4) })
   }
   const startYear = startsOn.slice(0, 4)
   const endYear = endsOn.slice(0, 4)
   if (startYear === endYear) {
-    return `${formatDay(startsOn)} – ${formatDay(endsOn)} ${endYear}`
+    return i18n.t('carreras:periodRange.sameYear', {
+      start: formatDay(startsOn),
+      end: formatDay(endsOn),
+      year: endYear
+    })
   }
-  return `${formatDay(startsOn)} ${startYear} – ${formatDay(endsOn)} ${endYear}`
+  return i18n.t('carreras:periodRange.crossYear', {
+    start: formatDay(startsOn),
+    startYear,
+    end: formatDay(endsOn),
+    endYear
+  })
 }

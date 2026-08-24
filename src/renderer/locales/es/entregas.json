@@ -1,0 +1,53 @@
+{
+  "entregasContainer": {
+    "title": "Entregas",
+    "pendingCount_one": "{{count}} pendiente",
+    "pendingCount_other": "{{count}} pendientes",
+    "overdueCount_one": "{{count}} atrasada",
+    "overdueCount_other": "{{count}} atrasadas",
+    "completedCount_one": "{{count}} completada",
+    "completedCount_other": "{{count}} completadas",
+    "summary": "{{pending}} · {{overdue}} · {{completed}} este cuatrimestre",
+    "loading": "Cargando entregas…",
+    "loadError": "No se pudieron cargar las entregas."
+  },
+  "entregasList": {
+    "empty": "Todavía no agregaste ninguna entrega.",
+    "bucketHeadings": {
+      "atrasadas": "ATRASADAS",
+      "proximos7": "PRÓXIMOS 7 DÍAS",
+      "masAdelante": "MÁS ADELANTE",
+      "completadas": "COMPLETADAS"
+    }
+  },
+  "deadlineRow": {
+    "markPending": "Marcar como pendiente",
+    "markDone": "Marcar como completada",
+    "delete": "Eliminar"
+  },
+  "deadlineStatus": {
+    "completed": "Completada",
+    "overdue_one": "{{count}} día de atraso",
+    "overdue_other": "{{count}} días de atraso",
+    "today": "Hoy",
+    "tomorrow": "Mañana",
+    "inDays": "En {{days}} días",
+    "inWeeks": "En {{weeks}} semanas"
+  },
+  "nuevaEntregaModal": {
+    "types": ["Trabajo práctico", "Parcial", "Informe", "Examen final", "Otro"],
+    "createTitle": "Nueva entrega",
+    "createSubtitle": "Un trabajo, parcial o informe con fecha límite",
+    "createSubmit": "Agregar entrega",
+    "editTitle": "Editar entrega",
+    "editSubtitle": "Corregí los datos y guardá los cambios",
+    "titleField": "Título",
+    "type": "Tipo",
+    "dueAt": "Fecha límite"
+  },
+  "deleteDeadlineConfirmDialog": {
+    "dialogLabel": "Eliminar {{title}}",
+    "confirmQuestion": "¿Eliminar la entrega \"{{title}}\"? Esta acción no se puede deshacer.",
+    "confirm": "Eliminar entrega"
+  }
+}

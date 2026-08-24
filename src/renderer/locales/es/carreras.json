@@ -1,0 +1,159 @@
+{
+  "counts": {
+    "programs_one": "{{count}} carrera",
+    "programs_other": "{{count}} carreras",
+    "periods_one": "{{count}} período",
+    "periods_other": "{{count}} períodos",
+    "subjects_one": "{{count}} materia",
+    "subjects_other": "{{count}} materias"
+  },
+  "periodStatus": {
+    "activo": "Activo",
+    "finalizado": "Finalizado",
+    "proximo": "Próximo"
+  },
+  "period": {
+    "neverEnds": "No termina",
+    "duration": "{{days}} días · {{weeks}} semanas"
+  },
+  "periodRange": {
+    "openStart": "Desde {{date}} {{year}}",
+    "sameYear": "{{start}} – {{end}} {{year}}",
+    "crossYear": "{{start}} {{startYear}} – {{end}} {{endYear}}"
+  },
+  "gradingScheme": {
+    "numerico": "Numérico",
+    "binario": "Aprobado / Desaprobado"
+  },
+  "carreraForm": {
+    "institution": "Institución",
+    "colorLegend": "COLOR",
+    "schemeLegend": "MÉTODO DE EVALUACIÓN",
+    "scale": "Escala",
+    "scaleOption": "1 a {{max}}",
+    "numericHasAverage": "Con evaluación numérica la carrera tiene promedio",
+    "binaryNoGrades": "Sin notas ni promedio",
+    "numericExplainer": "Cada materia lleva nota y vas a ver el promedio con y sin aplazos.",
+    "binaryExplainer": "Las materias solo quedan aprobadas o desaprobadas — es lo típico de un curso con certificado."
+  },
+  "carrerasContainer": {
+    "title": "Carreras",
+    "subtitle": "{{programs}} · cada una con su calendario y su método de evaluación",
+    "loadingCount": "Cargando…",
+    "addProgram": "Agregar carrera",
+    "loading": "Cargando carreras…",
+    "loadError": "No se pudieron cargar las carreras."
+  },
+  "carrerasList": {
+    "empty": "Todavía no agregaste ninguna carrera. Empezá por una: los períodos y las materias cuelgan de ella."
+  },
+  "programCard": {
+    "averageTooltip": "Promedio con aplazos",
+    "average": "Promedio {{value}}",
+    "noGradesYet": "Sin notas todavía",
+    "finishedPeriods_one": "{{count}} período finalizado",
+    "finishedPeriods_other": "{{count}} períodos finalizados"
+  },
+  "carreraDetailContainer": {
+    "backToList": "Carreras",
+    "loading": "Cargando carrera…",
+    "loadError": "No se pudo cargar la carrera.",
+    "editProgram": "Editar carrera",
+    "addPeriod": "Agregar período",
+    "addSubject": "Agregar materia",
+    "ownSubjectsHeading": "MATERIAS DE ESTA CARRERA",
+    "noSubjects": "Esta carrera todavía no tiene materias."
+  },
+  "periodsTable": {
+    "empty": "Esta carrera todavía no tiene períodos. Agregá uno para poder ubicar materias en el tiempo.",
+    "periodHeader": "PERÍODO",
+    "kindHeader": "TIPO",
+    "datesHeader": "FECHAS",
+    "subjectsHeader": "MATERIAS",
+    "statusHeader": "ESTADO",
+    "yearDerived": "año {{year}} · derivado de la fecha de inicio",
+    "noSubjects": "Sin materias",
+    "editPeriod": "Editar {{name}}",
+    "deletePeriod": "Eliminar {{name}}"
+  },
+  "periodTimeline": {
+    "heading": "LÍNEA DE TIEMPO",
+    "today": "hoy"
+  },
+  "periodDetail": {
+    "subtitle": "{{program}} · año {{year}} · derivado de la fecha de inicio",
+    "editPeriod": "Editar período",
+    "addSubject": "Agregar materia",
+    "kindLabel": "TIPO",
+    "datesLabel": "FECHAS",
+    "durationLabel": "DURACIÓN",
+    "subjectsLabel": "MATERIAS",
+    "statusLabel": "ESTADO",
+    "ownSubjectsHeading": "MATERIAS DE ESTE PERÍODO",
+    "noSubjects": "Este período todavía no tiene materias.",
+    "deleteNote": "Una materia pertenece a UN período. Si borrás este período sus materias no se borran: quedan sin período hasta que las asignes a otro."
+  },
+  "periodDetailContainer": {
+    "loading": "Cargando período…",
+    "loadError": "No se pudo cargar el período.",
+    "gone": "Este período ya no existe."
+  },
+  "nuevaCarreraModal": {
+    "dialogLabel": "Nueva carrera",
+    "title": "Nueva carrera o curso",
+    "subtitle": "Una carrera, un curso con fecha de fin o clases que no terminan: todo entra acá",
+    "scaleNote": "Se fija al crear la carrera. 1 a 10, 1 a 100 o la que use tu institución.",
+    "footerNote": "Los períodos y las materias se cargan después",
+    "submit": "Crear carrera"
+  },
+  "editarCarreraModal": {
+    "title": "Editar carrera",
+    "subtitle": "Cambiá el nombre, la institución o el color",
+    "lockedTitle": "El método de evaluación no se puede cambiar",
+    "lockedBody": "Esta carrera ya tiene notas cargadas. Cambiar la escala o pasarla a aprobado / desaprobado dejaría esas notas sin significado, así que queda fija en {{scheme}}.",
+    "lockedSchemeNumeric": "numérico, 1 a {{scale}}",
+    "lockedSchemeBinary": "aprobado / desaprobado",
+    "scaleNote": "Todavía se puede cambiar porque no hay ninguna nota cargada.",
+    "delete": "Eliminar carrera"
+  },
+  "nuevoPeriodoModal": {
+    "createTitle": "Nuevo período",
+    "editTitle": "Editar período",
+    "createSubtitle": "{{program}} · las fechas las definís vos, no el tipo",
+    "editSubtitle": "{{program}} · corregí las fechas y guardá los cambios",
+    "kind": "Tipo",
+    "kindPlaceholder": "Elegí un tipo",
+    "kindNoteStrong": "No define las fechas",
+    "kindNoteRest": " — esas las cargás vos. Decide en cuántas partes se divide el año, y con eso, los nombres posibles.",
+    "namePlaceholder": "Elegí un nombre",
+    "namePlaceholderNoKind": "Elegí un tipo primero",
+    "legacyNoticeLead": "Este período se guardó como",
+    "legacyNoticeRest": " ({{kind}}), de antes del catálogo de tipos. Elegí tipo y nombre para poder guardarlo. El año no va en el nombre: se deriva de la fecha de inicio.",
+    "from": "Desde",
+    "to": "Hasta",
+    "openEnded": "Sin fecha de fin",
+    "openEndedNote": "para clases que siguen indefinidamente — el período no termina nunca",
+    "derivedYear": "Año {{year}}",
+    "derivedYearNote": "derivado de la fecha de inicio · no se carga",
+    "overlapTitle": "Se solapa con {{names}}",
+    "overlapBody": "Está permitido y es intencional: los períodos pueden convivir. Una materia anual vive en su propio período, en paralelo a los cuatrimestres.",
+    "footerNote": "El año no se carga: se calcula desde la fecha de inicio",
+    "submitCreate": "Crear período"
+  },
+  "deletePeriodDialog": {
+    "dialogLabel": "Eliminar {{name}}",
+    "confirmQuestion": "¿Eliminar el período \"{{name}}\"? Esta acción no se puede deshacer.",
+    "subjectsWarning_one": "{{count}} materia queda sin período — no se elimina, pero sale de esta carrera hasta que la asignes a otro.",
+    "subjectsWarning_other": "{{count}} materias quedan sin período — no se eliminan, pero salen de esta carrera hasta que las asignes a otro.",
+    "confirm": "Eliminar período"
+  },
+  "deleteProgramDialog": {
+    "dialogLabel": "Eliminar {{name}}",
+    "confirmQuestion": "¿Eliminar la carrera \"{{name}}\"? Esta acción no se puede deshacer.",
+    "periodsWarning_one": "Se elimina también su período.",
+    "periodsWarning_other": "Se eliminan también sus {{count}} períodos.",
+    "subjectsWarning_one": "Su materia no se elimina: queda sin período hasta que la asignes a otra carrera.",
+    "subjectsWarning_other": "Sus {{count}} materias no se eliminan: quedan sin período hasta que las asignes a otra carrera.",
+    "confirm": "Eliminar carrera"
+  }
+}

@@ -3,21 +3,29 @@
 // Section [ESTA SEMANA strip]). No data fetching, no IPC — that lives in
 // HoyContainer. Read-only: Hoy is a "read-model... sin acciones primarias"
 // (design node `VQJO4`), so this component has zero click handlers.
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { ClassRow } from './ClassRow'
 import { DeadlineRow } from './DeadlineRow'
 import { WeekStrip } from './WeekStrip'
 import type { DashboardDeadline, FreeBlock, TodayClass, WeekStripDay } from '../domain/dashboard'
 
 /** "y" before most words, "e" before a word starting with an i/hi sound (Spanish grammar) — matches the design's own example: "...Bases de Datos e Ingeniería de Software". */
-function conjunction(nextWord: string): string {
-  return /^(i|hi)/i.test(nextWord) ? 'e' : 'y'
+function conjunction(t: TFunction, nextWord: string): string {
+  return /^(i|hi)/i.test(nextWord) ? t('dashboard.conjunctionBeforeISound') : t('dashboard.conjunctionDefault')
 }
 
-function formatFreeBlock(block: FreeBlock): string {
+function formatFreeBlock(t: TFunction, block: FreeBlock): string {
   const hours = Math.floor(block.gapMinutes / 60)
   const minutes = block.gapMinutes % 60
-  const duration = minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`
-  return `${duration} libres entre ${block.afterSubjectName} ${conjunction(block.beforeSubjectName)} ${block.beforeSubjectName}`
+  const duration =
+    minutes === 0 ? t('dashboard.durationHours', { hours }) : t('dashboard.durationHoursMinutes', { hours, minutes })
+  return t('dashboard.freeBlock', {
+    duration,
+    after: block.afterSubjectName,
+    conjunction: conjunction(t, block.beforeSubjectName),
+    before: block.beforeSubjectName
+  })
 }
 
 interface HoyDashboardProps {
@@ -42,6 +50,7 @@ export function HoyDashboard({
   todayMondayFirstIndex,
   now = new Date()
 }: HoyDashboardProps): React.JSX.Element {
+  const { t } = useTranslation('hoy')
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-1">
@@ -55,9 +64,9 @@ export function HoyDashboard({
           squeezed into unreadable strips (design: grupo "Responsive"). */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-10">
         <div className="flex flex-col gap-3">
-          <h2 className="text-label font-semibold text-muted-foreground">CLASES DE HOY</h2>
+          <h2 className="text-label font-semibold text-muted-foreground">{t('dashboard.todayClasses')}</h2>
           {todayClasses.length === 0 ? (
-            <p className="text-body-lg text-muted-foreground">No tenés clases hoy.</p>
+            <p className="text-body-lg text-muted-foreground">{t('dashboard.noClassesToday')}</p>
           ) : (
             <div className="flex flex-col gap-2">
               {todayClasses.map((classItem) => (
@@ -72,7 +81,7 @@ export function HoyDashboard({
               ))}
               {freeBlocks.map((block, index) => (
                 <p key={index} className="rounded-lg bg-muted px-4 py-3 text-body-sm text-muted-foreground">
-                  {formatFreeBlock(block)}
+                  {formatFreeBlock(t, block)}
                 </p>
               ))}
             </div>
@@ -80,9 +89,9 @@ export function HoyDashboard({
         </div>
 
         <div className="flex flex-col gap-3">
-          <h2 className="text-label font-semibold text-muted-foreground">PRÓXIMOS 7 DÍAS</h2>
+          <h2 className="text-label font-semibold text-muted-foreground">{t('dashboard.next7Days')}</h2>
           {deadlines.length === 0 ? (
-            <p className="text-body-lg text-muted-foreground">No tenés entregas próximas.</p>
+            <p className="text-body-lg text-muted-foreground">{t('dashboard.noUpcomingDeadlines')}</p>
           ) : (
             <div className="flex flex-col gap-2">
               {deadlines.map((deadline) => (
@@ -94,7 +103,7 @@ export function HoyDashboard({
       </div>
 
       <div className="flex flex-col gap-3">
-        <h2 className="text-label font-semibold text-muted-foreground">ESTA SEMANA</h2>
+        <h2 className="text-label font-semibold text-muted-foreground">{t('dashboard.thisWeek')}</h2>
         <WeekStrip days={weekStrip} todayMondayFirstIndex={todayMondayFirstIndex} />
       </div>
     </div>

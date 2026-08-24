@@ -14,6 +14,7 @@ import {
   Sparkles,
   Trash2
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { Attachment } from '../../../shared/ipc/adjuntos'
 import { cn } from '../../shared/lib/cn'
 import { interactiveGhost, interactiveGhostDestructive } from '../../shared/lib/interactive'
@@ -53,6 +54,7 @@ interface AttachmentRowProps {
 }
 
 export function AttachmentRow({ attachment, isMissing, onOpen, onDelete }: AttachmentRowProps): React.JSX.Element {
+  const { t } = useTranslation('adjuntos')
   const extension = getFileExtension(attachment.fileName) || '—'
   const kind = resolveAttachmentKind(attachment.fileName)
   const Icon = isMissing ? FileX : kind === 'image' ? Image : FileText
@@ -72,7 +74,7 @@ export function AttachmentRow({ attachment, isMissing, onOpen, onDelete }: Attac
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-body-lg font-semibold text-foreground">{attachment.fileName}</span>
         {isMissing ? (
-          <span className="text-body-sm text-destructive">No se encontró el archivo en disco</span>
+          <span className="text-body-sm text-destructive">{t('attachmentRow.missing')}</span>
         ) : (
           <span className="text-body-sm text-secondary-foreground">
             {formatAttachmentMeta(attachment.sizeBytes, attachment.createdAt)}
@@ -112,7 +114,7 @@ export function AttachmentRow({ attachment, isMissing, onOpen, onDelete }: Attac
       <div className="flex shrink-0 items-center gap-1.5">
         <button
           type="button"
-          aria-label="Abrir"
+          aria-label={t('attachmentRow.open')}
           onClick={() => onOpen(attachment)}
           className={cn(
             'flex h-[30px] w-[30px] items-center justify-center rounded-md bg-muted text-muted-foreground',
@@ -123,7 +125,7 @@ export function AttachmentRow({ attachment, isMissing, onOpen, onDelete }: Attac
         </button>
         <button
           type="button"
-          aria-label="Eliminar"
+          aria-label={t('attachmentRow.delete')}
           onClick={() => onDelete(attachment)}
           className={cn(
             'flex h-[30px] w-[30px] items-center justify-center rounded-md bg-muted text-muted-foreground',

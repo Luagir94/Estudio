@@ -9,9 +9,11 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { TriangleAlert } from 'lucide-react'
 import { Controller, useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { createSubjectInputSchema, type CreateSubjectInput } from '../../../shared/ipc/materias'
 import type { ProgramWithPeriods } from '../../../shared/ipc/carreras'
 import { SlotEditor } from '../../shared/components/SlotEditor'
+import { translateValidationMessage } from '../../shared/lib/translateValidationMessage'
 import { PeriodSelect } from './PeriodSelect'
 import { Button } from '../../shared/components/ui/button'
 import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogOverlay } from '../../shared/components/ui/dialog'
@@ -22,6 +24,16 @@ import { ColorSwatchPicker, SUBJECT_COLORS } from '../../shared/components/Color
 interface NuevaMateriaModalProps {
   onSubmit: (input: CreateSubjectInput) => void
   onClose: () => void
+  /**
+   * The way out of the "no periods yet" dead end (see `hasPeriods` below):
+   * navigates to Carreras, where the user can create the period this form
+   * is blocked on. Optional because this modal has two other call sites
+   * (`PeriodDetailContainer`, `CarreraDetailContainer`) that only ever open
+   * it already scoped to an existing período — the dead end is unreachable
+   * from them, so they have nothing to navigate to. Falls back to `onClose`
+   * when omitted, matching the old dismiss-only behavior.
+   */
+  onGoToCarreras?: () => void
   /** Programs with their periods, for the período picker. */
   programs?: ProgramWithPeriods[]
   /**
@@ -36,9 +48,11 @@ interface NuevaMateriaModalProps {
 export function NuevaMateriaModal({
   onSubmit,
   onClose,
+  onGoToCarreras,
   programs = [],
   defaultPeriodId = null
 }: NuevaMateriaModalProps): React.JSX.Element {
+  const { t } = useTranslation('materias')
   // No explicit useForm<T> generic: the zod preprocess fields (docente,
   // contacto) give the resolver an input type that diverges from
   // CreateSubjectInput (the post-parse output type) — letting TypeScript
@@ -69,10 +83,10 @@ export function NuevaMateriaModal({
   if (!hasPeriods) {
     return (
       <DialogOverlay>
-        <DialogContent role="dialog" aria-label="Nueva materia">
+        <DialogContent role="dialog" aria-label={t('nuevaMateriaModal.dialogLabel')}>
           <DialogHeader onClose={onClose}>
-            <h2 className="font-display text-title font-bold text-foreground">Nueva materia</h2>
-            <p className="text-body-sm text-muted-foreground">Primero hace falta un período donde ubicarla</p>
+            <h2 className="font-display text-title font-bold text-foreground">{t('nuevaMateriaModal.title')}</h2>
+            <p className="text-body-sm text-muted-foreground">{t('nuevaMateriaModal.noPeriodsSubtitle')}</p>
           </DialogHeader>
 
           <DialogBody>
@@ -80,20 +94,20 @@ export function NuevaMateriaModal({
               <TriangleAlert className="mt-px h-4 w-4 shrink-0 text-warn" aria-hidden="true" />
               <div className="flex flex-col gap-1">
                 <strong className="text-body-sm font-semibold text-foreground">
-                  Todavía no tenés ningún período cargado
+                  {t('nuevaMateriaModal.noPeriodsTitle')}
                 </strong>
                 <p className="text-caption leading-relaxed text-secondary-foreground">
-                  Una materia vive dentro de un período, y de ahí sale a qué carrera pertenece, si la estás cursando y
-                  cuándo hay que cerrarla. Creá una carrera y su primer período desde <strong>Carreras</strong>, y
-                  volvé.
+                  {t('nuevaMateriaModal.noPeriodsBodyLead')}{' '}
+                  <strong>{t('nuevaMateriaModal.noPeriodsBodyStrong')}</strong>
+                  {t('nuevaMateriaModal.noPeriodsBodyRest')}
                 </p>
               </div>
             </div>
           </DialogBody>
 
           <DialogFooter className="justify-end">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Entendido
+            <Button type="button" variant="outline" onClick={onGoToCarreras ?? onClose}>
+              {t('nuevaMateriaModal.goToCarreras')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -103,23 +117,25 @@ export function NuevaMateriaModal({
 
   return (
     <DialogOverlay>
-      <DialogContent role="dialog" aria-label="Nueva materia">
+      <DialogContent role="dialog" aria-label={t('nuevaMateriaModal.dialogLabel')}>
         <DialogHeader onClose={onClose}>
-          <h2 className="font-display text-title font-bold text-foreground">Nueva materia</h2>
-          <p className="text-body-sm text-muted-foreground">Cargala una vez y queda para todo el cuatrimestre</p>
+          <h2 className="font-display text-title font-bold text-foreground">{t('nuevaMateriaModal.title')}</h2>
+          <p className="text-body-sm text-muted-foreground">{t('nuevaMateriaModal.subtitle')}</p>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="contents">
           <DialogBody>
             <Label>
-              Nombre
+              {t('common:fields.name')}
               <Input type="text" {...register('name')} />
             </Label>
-            {errors.name && <p className="text-body-lg text-destructive">{errors.name.message}</p>}
+            {errors.name && (
+              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.name.message)}</p>
+            )}
 
             <div className="flex gap-4">
               <Label className="w-[170px] shrink-0">
-                Código
+                {t('nuevaMateriaModal.code')}
                 <Input type="text" {...register('code')} />
               </Label>
               {/* A fieldset, not a `Label`: this control is six buttons and an
@@ -127,7 +143,9 @@ export function NuevaMateriaModal({
                   legend borrows Label's own classes so the row still reads as
                   one pair of fields. */}
               <fieldset className="flex flex-1 flex-col">
-                <legend className="mb-1 block text-body-lg font-medium text-secondary-foreground">Color</legend>
+                <legend className="mb-1 block text-body-lg font-medium text-secondary-foreground">
+                  {t('nuevaMateriaModal.colorLegend')}
+                </legend>
                 <Controller
                   name="color"
                   control={control}
@@ -135,38 +153,46 @@ export function NuevaMateriaModal({
                 />
               </fieldset>
             </div>
-            {errors.code && <p className="text-body-lg text-destructive">{errors.code.message}</p>}
-            {errors.color && <p className="text-body-lg text-destructive">{errors.color.message}</p>}
+            {errors.code && (
+              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.code.message)}</p>
+            )}
+            {errors.color && (
+              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.color.message)}</p>
+            )}
 
             <div className="flex gap-4">
               <Label className="flex-1">
-                Docente
+                {t('nuevaMateriaModal.teacher')}
                 <Input type="text" {...register('docente')} />
               </Label>
               <Label className="flex-1">
-                Contacto
+                {t('nuevaMateriaModal.contact')}
                 <Input type="text" {...register('contacto')} />
               </Label>
             </div>
 
             <PeriodSelect programs={programs} registration={register('periodId')} allowNone={false} />
-            {errors.periodId && <p className="text-body-lg text-destructive">{errors.periodId.message}</p>}
+            {errors.periodId && (
+              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.periodId.message)}</p>
+            )}
 
             <Controller
               name="slots"
               control={control}
               render={({ field }) => <SlotEditor value={field.value} onChange={field.onChange} />}
             />
-            {errors.slots && <p className="text-body-lg text-destructive">{errors.slots.message}</p>}
+            {errors.slots && (
+              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.slots.message)}</p>
+            )}
           </DialogBody>
 
           <DialogFooter className="justify-between">
-            <p className="text-caption text-muted-foreground">Podés editar todo después</p>
+            <p className="text-caption text-muted-foreground">{t('nuevaMateriaModal.footerNote')}</p>
             <div className="flex items-center gap-3">
               <Button type="button" variant="outline" onClick={onClose}>
-                Cancelar
+                {t('common:actions.cancel')}
               </Button>
-              <Button type="submit">Crear materia</Button>
+              <Button type="submit">{t('nuevaMateriaModal.submit')}</Button>
             </div>
           </DialogFooter>
         </form>

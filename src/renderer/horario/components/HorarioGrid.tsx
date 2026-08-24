@@ -7,6 +7,7 @@
 // Read-only: the only interaction is clicking a class block, which routes
 // through the subject (spec: "Editing a class routes through the subject" —
 // there is no direct-edit affordance on this screen).
+import { useTranslation } from 'react-i18next'
 import type { WeekDayColumn, WeekProjectionSlot } from '../domain/weekProjection'
 import { cn } from '../../shared/lib/cn'
 import { interactive } from '../../shared/lib/interactive'
@@ -45,8 +46,6 @@ function percentSpan(minutes: number): string {
   return `${(minutes / GRID_TOTAL_MINUTES) * 100}%`
 }
 
-const WEEKDAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
-
 function formatTime(minutes: number): string {
   const hours = Math.floor(minutes / 60)
     .toString()
@@ -63,6 +62,7 @@ interface DayColumnProps {
 }
 
 function DayColumn({ slots, isToday, label, onSelectClass }: DayColumnProps): React.JSX.Element {
+  const { t } = useTranslation('horario')
   return (
     <div
       role="list"
@@ -120,7 +120,7 @@ function DayColumn({ slots, isToday, label, onSelectClass }: DayColumnProps): Re
                 (11px + 10px at leading-tight, plus the 4px gap = 30.25px) the
                 time is dropped and the name keeps the block to itself. */}
             <span className="truncate text-micro text-muted-foreground [@container(max-height:30px)]:hidden">
-              {formatTime(slot.startMinutes)} – {formatTime(slot.endMinutes)}
+              {t('grid.timeRange', { start: formatTime(slot.startMinutes), end: formatTime(slot.endMinutes) })}
             </span>
           </div>
         </button>
@@ -139,6 +139,9 @@ export interface HorarioGridProps {
 }
 
 export function HorarioGrid({ columns, todayMondayFirstIndex, onSelectClass }: HorarioGridProps): React.JSX.Element {
+  const { t } = useTranslation('horario')
+  // Monday-first, same order as `columns` (see `projectWeek`).
+  const weekdayLabels = t('common:weekdaysLong', { returnObjects: true }) as string[]
   const weekdayColumns = columns
 
   return (
@@ -151,7 +154,7 @@ export function HorarioGrid({ columns, todayMondayFirstIndex, onSelectClass }: H
       <div className="flex min-w-[720px] flex-1 flex-col gap-3" style={{ minHeight: MIN_HEIGHT_PX }}>
         <div className="flex shrink-0 gap-2">
           <div className="w-[52px] shrink-0" aria-hidden="true" />
-          {WEEKDAY_LABELS.map((label, index) => (
+          {weekdayLabels.map((label, index) => (
             <div
               key={label}
               className={cn(
@@ -178,7 +181,7 @@ export function HorarioGrid({ columns, todayMondayFirstIndex, onSelectClass }: H
               key={column.dayOfWeek}
               slots={column.slots}
               isToday={index === todayMondayFirstIndex}
-              label={WEEKDAY_LABELS[index]}
+              label={weekdayLabels[index]}
               onSelectClass={onSelectClass}
             />
           ))}

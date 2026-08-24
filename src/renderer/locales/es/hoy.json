@@ -1,0 +1,30 @@
+{
+  "container": {
+    "loading": "Cargando…",
+    "loadError": "No se pudo cargar el resumen de hoy.",
+    "dateHeadlineFormat": "EEEE d 'de' MMMM",
+    "daySummary": "{{classes}} · {{overdue}} · {{upcoming}}",
+    "classesToday_one": "{{count}} clase hoy",
+    "classesToday_other": "{{count}} clases hoy",
+    "overdueCount_one": "{{count}} atrasada",
+    "overdueCount_other": "{{count}} atrasadas",
+    "upcomingCount_one": "{{count}} entrega en los próximos 7 días",
+    "upcomingCount_other": "{{count}} entregas en los próximos 7 días"
+  },
+  "dashboard": {
+    "todayClasses": "CLASES DE HOY",
+    "noClassesToday": "No tenés clases hoy.",
+    "next7Days": "PRÓXIMOS 7 DÍAS",
+    "noUpcomingDeadlines": "No tenés entregas próximas.",
+    "thisWeek": "ESTA SEMANA",
+    "freeBlock": "{{duration}} libres entre {{after}} {{conjunction}} {{before}}",
+    "conjunctionDefault": "y",
+    "conjunctionBeforeISound": "e",
+    "durationHours": "{{hours}}h",
+    "durationHoursMinutes": "{{hours}}h {{minutes}}m"
+  },
+  "weekStrip": {
+    "dueCount_one": "{{count}} entrega",
+    "dueCount_other": "{{count}} entregas"
+  }
+}

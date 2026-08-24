@@ -43,7 +43,7 @@ describe('NuevaEntregaModal (design node HE9Wn — reused for create AND edit, s
 
     fireEvent.click(screen.getByRole('button', { name: 'Agregar entrega' }))
 
-    await waitFor(() => expect(screen.getByText('title is required')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Poné un título')).toBeInTheDocument())
     expect(onSubmit).not.toHaveBeenCalled()
   })
 

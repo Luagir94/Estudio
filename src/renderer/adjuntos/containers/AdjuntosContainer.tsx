@@ -11,6 +11,7 @@
 // local, ephemeral UI state, not server state.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { AddAttachmentFailure, Attachment } from '../../../shared/ipc/adjuntos'
 import { AdjuntosApiError, adjuntosApi } from '../adapters/adjuntosApi'
 import { indexadoApi } from '../adapters/indexadoApi'
@@ -29,6 +30,7 @@ interface AdjuntosContainerProps {
 }
 
 export function AdjuntosContainer({ subjectId, onOpenMarkdown }: AdjuntosContainerProps): React.JSX.Element {
+  const { t } = useTranslation('adjuntos')
   const queryClient = useQueryClient()
   const queryKey = ['adjuntos', subjectId]
 
@@ -74,7 +76,7 @@ export function AdjuntosContainer({ subjectId, onOpenMarkdown }: AdjuntosContain
       setActionError(null)
     },
     onError: () => {
-      setActionError('No se pudo sincronizar')
+      setActionError(t('adjuntosContainer.syncFailed'))
     }
   })
 
@@ -89,7 +91,7 @@ export function AdjuntosContainer({ subjectId, onOpenMarkdown }: AdjuntosContain
       }
     },
     onError: () => {
-      setActionError('No se pudo agregar el archivo')
+      setActionError(t('adjuntosContainer.addFailed'))
     }
   })
 
@@ -111,7 +113,7 @@ export function AdjuntosContainer({ subjectId, onOpenMarkdown }: AdjuntosContain
         setMissingIds((prev) => new Set(prev).add(attachment.id))
         return
       }
-      setActionError('No se pudo abrir el archivo')
+      setActionError(t('adjuntosContainer.openFailed'))
     }
   })
 
@@ -122,7 +124,7 @@ export function AdjuntosContainer({ subjectId, onOpenMarkdown }: AdjuntosContain
       invalidate()
     },
     onError: () => {
-      setActionError('No se pudo eliminar el adjunto')
+      setActionError(t('adjuntosContainer.deleteFailed'))
     }
   })
 

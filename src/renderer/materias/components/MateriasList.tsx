@@ -8,6 +8,7 @@
 // (`pendingDeadlines`) — a plain count, not the rows, because the number is
 // all this column ever shows.
 import { UserCheck } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../shared/lib/cn'
 import { interactiveSurface } from '../../shared/lib/interactive'
 import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
@@ -27,8 +28,6 @@ interface MateriasListProps {
   emptyMessage?: string
 }
 
-const DAY_ABBREVIATIONS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
-
 function formatTime(minutes: number): string {
   const hours = Math.floor(minutes / 60)
     .toString()
@@ -37,23 +36,20 @@ function formatTime(minutes: number): string {
   return `${hours}:${mins}`
 }
 
-function formatScheduleSummary(slots: ScheduleSlotRecord[]): string {
-  if (slots.length === 0) {
-    return 'Sin horario'
-  }
+// Empty slots are the caller's case (`noSchedule` copy) — this only formats.
+function formatScheduleSummary(slots: ScheduleSlotRecord[], dayAbbreviations: string[]): string {
   const uniqueDays = [...new Set(slots.map((slot) => toMondayFirstIndex(slot.dayOfWeek)))].sort((a, b) => a - b)
   const earliestStart = Math.min(...slots.map((slot) => slot.startMinutes))
-  return `${uniqueDays.map((day) => DAY_ABBREVIATIONS[day]).join(', ')} · ${formatTime(earliestStart)}`
+  return `${uniqueDays.map((day) => dayAbbreviations[day]).join(', ')} · ${formatTime(earliestStart)}`
 }
 
-export function MateriasList({
-  subjects,
-  now,
-  onSelect,
-  emptyMessage = 'No hay materias que coincidan con este filtro.'
-}: MateriasListProps): React.JSX.Element {
+export function MateriasList({ subjects, now, onSelect, emptyMessage }: MateriasListProps): React.JSX.Element {
+  const { t } = useTranslation('materias')
+  // Monday-first, same order as `toMondayFirstIndex` produces.
+  const dayAbbreviations = t('common:weekdaysShort3', { returnObjects: true }) as string[]
+
   if (subjects.length === 0) {
-    return <p className="text-body-lg text-muted-foreground">{emptyMessage}</p>
+    return <p className="text-body-lg text-muted-foreground">{emptyMessage ?? t('materiasList.emptyFiltered')}</p>
   }
 
   const rowClassName = 'flex w-full items-center gap-4 rounded-lg border border-border bg-card px-4 py-4 text-left'
@@ -72,18 +68,20 @@ export function MateriasList({
        * no header at all.
        */}
       <div className="flex items-center gap-4 px-4">
-        <span className="min-w-0 flex-1 text-overline font-semibold text-muted-foreground">MATERIA</span>
+        <span className="min-w-0 flex-1 text-overline font-semibold text-muted-foreground">
+          {t('materiasList.subjectHeader')}
+        </span>
         <span className="hidden w-[190px] shrink-0 text-overline font-semibold text-muted-foreground xl:block">
-          HORARIO SEMANAL
+          {t('materiasList.scheduleHeader')}
         </span>
         <span className="hidden w-[150px] shrink-0 text-overline font-semibold text-muted-foreground lg:block">
-          ASISTENCIA
+          {t('materiasList.attendanceHeader')}
         </span>
         <span className="w-[110px] shrink-0 text-overline font-semibold text-muted-foreground sm:w-[150px]">
-          ESTADO
+          {t('materiasList.statusHeader')}
         </span>
         <span className="hidden w-[95px] shrink-0 text-overline font-semibold text-muted-foreground md:block">
-          PENDIENTES
+          {t('materiasList.pendingHeader')}
         </span>
       </div>
 
@@ -107,10 +105,10 @@ export function MateriasList({
                       </span>
                     ) : (
                       <span
-                        title="Asignale un período para que la app pueda saber si la estás cursando"
+                        title={t('materiasList.noPeriodTooltip')}
                         className="rounded-md border border-warn bg-warn-soft px-2 py-px text-overline font-semibold text-warn"
                       >
-                        Sin período
+                        {t('materiasList.noPeriodBadge')}
                       </span>
                     )}
                   </span>
@@ -118,12 +116,16 @@ export function MateriasList({
               </span>
 
               <span className="hidden w-[190px] shrink-0 text-body-sm text-secondary-foreground xl:block">
-                {formatScheduleSummary(subject.slots)}
+                {subject.slots.length === 0
+                  ? t('materiasList.noSchedule')
+                  : formatScheduleSummary(subject.slots, dayAbbreviations)}
               </span>
 
               <span className="hidden w-[150px] shrink-0 items-center gap-2 text-body-sm font-medium text-foreground lg:flex">
                 <UserCheck className="h-3 w-3 text-secondary-foreground" aria-hidden />
-                {subject.attendanceMinPercent !== null ? `${subject.attendanceMinPercent}% requerido` : 'Libre'}
+                {subject.attendanceMinPercent !== null
+                  ? t('materiasList.attendanceRequired', { percent: subject.attendanceMinPercent })
+                  : t('materiasList.attendanceFree')}
               </span>
 
               <span className="w-[110px] shrink-0 sm:w-[150px]">
@@ -149,8 +151,8 @@ export function MateriasList({
                 )}
               >
                 {subject.pendingDeadlines === 0
-                  ? 'Sin pendientes'
-                  : `${subject.pendingDeadlines} pendiente${subject.pendingDeadlines === 1 ? '' : 's'}`}
+                  ? t('materiasList.noPending')
+                  : t('materiasList.pendingCount', { count: subject.pendingDeadlines })}
               </span>
             </>
           )

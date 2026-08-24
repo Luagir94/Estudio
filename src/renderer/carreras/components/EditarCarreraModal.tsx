@@ -18,6 +18,7 @@
 // happened instead.
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { Calculator, Lock, Trash2 } from 'lucide-react'
 import { Button } from '../../shared/components/ui/button'
 import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogOverlay } from '../../shared/components/ui/dialog'
@@ -27,6 +28,7 @@ import { Select } from '../../shared/components/ui/select'
 import { cn } from '../../shared/lib/cn'
 import { interactiveChip } from '../../shared/lib/interactive'
 import { ColorSwatchPicker, SUBJECT_COLORS } from '../../shared/components/ColorSwatchPicker'
+import { translateValidationMessage } from '../../shared/lib/translateValidationMessage'
 import {
   type ProgramWithPeriods,
   updateProgramInputSchema,
@@ -36,6 +38,7 @@ import { hasRecordedEvaluations } from '../domain/program'
 
 interface EditarCarreraModalProps {
   program: ProgramWithPeriods
+  /** Already app-owned Spanish copy (`shared/lib/ipcErrorCopy.ts`) — never the raw IPC message. */
   error?: string | null
   onSubmit: (input: UpdateProgramInput) => void
   onDelete: () => void
@@ -43,11 +46,7 @@ interface EditarCarreraModalProps {
 }
 
 // Same list as NuevaCarreraModal — the scale is a data choice, not a code one.
-const SCALES = [
-  { value: 10, label: '1 a 10' },
-  { value: 20, label: '1 a 20' },
-  { value: 100, label: '1 a 100' }
-]
+const SCALES = [10, 20, 100]
 
 export function EditarCarreraModal({
   program,
@@ -56,6 +55,7 @@ export function EditarCarreraModal({
   onDelete,
   onClose
 }: EditarCarreraModalProps): React.JSX.Element {
+  const { t } = useTranslation('carreras')
   // The lock is computed from the roll-up main already ships, so the form
   // never has to ask a second question to find out what it may offer.
   const locked = hasRecordedEvaluations(program.gradedSubjects)
@@ -94,27 +94,31 @@ export function EditarCarreraModal({
 
   return (
     <DialogOverlay>
-      <DialogContent role="dialog" aria-label="Editar carrera">
+      <DialogContent role="dialog" aria-label={t('editarCarreraModal.title')}>
         <DialogHeader onClose={onClose}>
-          <h2 className="font-display text-title font-bold text-foreground">Editar carrera</h2>
-          <p className="text-body-sm text-muted-foreground">Cambiá el nombre, la institución o el color</p>
+          <h2 className="font-display text-title font-bold text-foreground">{t('editarCarreraModal.title')}</h2>
+          <p className="text-body-sm text-muted-foreground">{t('editarCarreraModal.subtitle')}</p>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="contents">
           <DialogBody>
             <Label>
-              Nombre
+              {t('common:fields.name')}
               <Input type="text" {...register('name')} />
             </Label>
-            {errors.name && <p className="text-body-lg text-destructive">{errors.name.message}</p>}
+            {errors.name && (
+              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.name.message)}</p>
+            )}
 
             <Label>
-              Institución
+              {t('carreraForm.institution')}
               <Input type="text" {...register('institution')} />
             </Label>
 
             <fieldset className="flex flex-col gap-2">
-              <legend className="text-label font-semibold text-secondary-foreground">COLOR</legend>
+              <legend className="text-label font-semibold text-secondary-foreground">
+                {t('carreraForm.colorLegend')}
+              </legend>
               <ColorSwatchPicker value={color} onChange={(next) => setValue('color', next)} />
             </fieldset>
 
@@ -125,27 +129,29 @@ export function EditarCarreraModal({
                 <Lock className="mt-px h-4 w-4 shrink-0 text-secondary-foreground" aria-hidden="true" />
                 <div className="flex flex-col gap-1">
                   <strong className="text-body-sm font-semibold text-foreground">
-                    El método de evaluación no se puede cambiar
+                    {t('editarCarreraModal.lockedTitle')}
                   </strong>
                   <p className="text-caption leading-relaxed text-secondary-foreground">
-                    Esta carrera ya tiene notas cargadas. Cambiar la escala o pasarla a aprobado / desaprobado dejaría
-                    esas notas sin significado, así que queda fija en{' '}
-                    {program.gradingScheme === 'numerico'
-                      ? `numérico, 1 a ${program.gradeScale}`
-                      : 'aprobado / desaprobado'}
-                    .
+                    {t('editarCarreraModal.lockedBody', {
+                      scheme:
+                        program.gradingScheme === 'numerico'
+                          ? t('editarCarreraModal.lockedSchemeNumeric', { scale: program.gradeScale })
+                          : t('editarCarreraModal.lockedSchemeBinary')
+                    })}
                   </p>
                 </div>
               </div>
             ) : (
               <>
                 <fieldset className="flex flex-col gap-2">
-                  <legend className="text-label font-semibold text-secondary-foreground">MÉTODO DE EVALUACIÓN</legend>
+                  <legend className="text-label font-semibold text-secondary-foreground">
+                    {t('carreraForm.schemeLegend')}
+                  </legend>
                   <div className="flex w-fit items-center gap-1 rounded-lg border border-border bg-background p-1">
                     {(
                       [
-                        ['numerico', 'Numérico'],
-                        ['binario', 'Aprobado / Desaprobado']
+                        ['numerico', t('gradingScheme.numerico')],
+                        ['binario', t('gradingScheme.binario')]
                       ] as const
                     ).map(([scheme, label]) => (
                       <button
@@ -169,41 +175,43 @@ export function EditarCarreraModal({
                 {gradingScheme === 'numerico' && (
                   <div className="flex items-end gap-4">
                     <Label className="w-[170px] shrink-0">
-                      Escala
+                      {t('carreraForm.scale')}
                       <Select {...register('gradeScale', { valueAsNumber: true })}>
                         {SCALES.map((scale) => (
-                          <option key={scale.value} value={scale.value}>
-                            {scale.label}
+                          <option key={scale} value={scale}>
+                            {t('carreraForm.scaleOption', { max: scale })}
                           </option>
                         ))}
                       </Select>
                     </Label>
-                    <p className="pb-3 text-caption text-muted-foreground">
-                      Todavía se puede cambiar porque no hay ninguna nota cargada.
-                    </p>
+                    <p className="pb-3 text-caption text-muted-foreground">{t('editarCarreraModal.scaleNote')}</p>
                   </div>
                 )}
-                {errors.gradeScale && <p className="text-body-lg text-destructive">{errors.gradeScale.message}</p>}
+                {errors.gradeScale && (
+                  <p className="text-body-lg text-destructive">
+                    {translateValidationMessage(t, errors.gradeScale.message)}
+                  </p>
+                )}
 
                 <div className="flex items-start gap-3 rounded-lg border border-primary bg-sidebar-accent px-4 py-3">
                   <Calculator className="mt-px h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
                   <div className="flex flex-col gap-1">
                     <strong className="text-body-sm font-semibold text-foreground">
                       {gradingScheme === 'numerico'
-                        ? 'Con evaluación numérica la carrera tiene promedio'
-                        : 'Sin notas ni promedio'}
+                        ? t('carreraForm.numericHasAverage')
+                        : t('carreraForm.binaryNoGrades')}
                     </strong>
                     <p className="text-caption leading-relaxed text-secondary-foreground">
                       {gradingScheme === 'numerico'
-                        ? 'Cada materia lleva nota y vas a ver el promedio con y sin aplazos.'
-                        : 'Las materias sólo quedan aprobadas o desaprobadas — es lo típico de un curso con certificado.'}
+                        ? t('carreraForm.numericExplainer')
+                        : t('carreraForm.binaryExplainer')}
                     </p>
                   </div>
                 </div>
               </>
             )}
 
-            {error && <p className="text-body-lg text-destructive">No se pudo guardar la carrera: {error}</p>}
+            {error && <p className="text-body-lg text-destructive">{error}</p>}
           </DialogBody>
 
           <DialogFooter className="justify-between">
@@ -214,13 +222,13 @@ export function EditarCarreraModal({
               onClick={onDelete}
             >
               <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-              Eliminar carrera
+              {t('editarCarreraModal.delete')}
             </Button>
             <div className="flex items-center gap-3">
               <Button type="button" variant="outline" onClick={onClose}>
-                Cancelar
+                {t('common:actions.cancel')}
               </Button>
-              <Button type="submit">Guardar cambios</Button>
+              <Button type="submit">{t('common:actions.saveChanges')}</Button>
             </div>
           </DialogFooter>
         </form>

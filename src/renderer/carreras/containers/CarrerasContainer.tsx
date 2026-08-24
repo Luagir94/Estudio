@@ -4,6 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { carrerasApi } from '../adapters/carrerasApi'
 import { CarrerasList } from '../components/CarrerasList'
 import { NuevaCarreraModal } from '../components/NuevaCarreraModal'
@@ -21,6 +22,7 @@ interface CarrerasContainerProps {
 }
 
 export function CarrerasContainer({ onSelectProgram, now }: CarrerasContainerProps = {}): React.JSX.Element {
+  const { t } = useTranslation('carreras')
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
 
@@ -41,20 +43,21 @@ export function CarrerasContainer({ onSelectProgram, now }: CarrerasContainerPro
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="font-display text-display-lg font-bold text-foreground">Carreras</h1>
+          <h1 className="font-display text-display-lg font-bold text-foreground">{t('carrerasContainer.title')}</h1>
           <p className="text-body text-secondary-foreground">
-            {data ? `${data.length} carrera${data.length === 1 ? '' : 's'}` : 'Cargando'} · cada una con su calendario y
-            su método de evaluación
+            {t('carrerasContainer.subtitle', {
+              programs: data ? t('counts.programs', { count: data.length }) : t('carrerasContainer.loadingCount')
+            })}
           </p>
         </div>
         <Button type="button" onClick={() => setIsModalOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" aria-hidden="true" />
-          Agregar carrera
+          {t('carrerasContainer.addProgram')}
         </Button>
       </div>
 
-      {isLoading && <p className="text-body-lg text-muted-foreground">Cargando carreras…</p>}
-      {isError && <p className="text-body-lg text-destructive">No se pudieron cargar las carreras.</p>}
+      {isLoading && <p className="text-body-lg text-muted-foreground">{t('carrerasContainer.loading')}</p>}
+      {isError && <p className="text-body-lg text-destructive">{t('carrerasContainer.loadError')}</p>}
       {data && <CarrerasList programs={data} now={now ?? new Date()} onSelect={onSelectProgram} />}
 
       {isModalOpen && (

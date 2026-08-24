@@ -247,7 +247,7 @@ describe('CarreraDetailContainer', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Crear período' }))
 
     await waitFor(() => {
-      expect(screen.getByText('name is required')).toBeInTheDocument()
+      expect(screen.getByText('Poné un nombre')).toBeInTheDocument()
     })
     expect(carrerasApiMock.createPeriod).not.toHaveBeenCalled()
   })
@@ -262,7 +262,7 @@ describe('CarreraDetailContainer', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Crear período' }))
 
     await waitFor(() => {
-      expect(screen.getByText('endsOn must be after startsOn')).toBeInTheDocument()
+      expect(screen.getByText('La fecha de fin tiene que ser posterior a la de inicio')).toBeInTheDocument()
     })
     expect(carrerasApiMock.createPeriod).not.toHaveBeenCalled()
   })
@@ -399,7 +399,7 @@ describe('CarreraDetailContainer — editar y eliminar períodos', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     await waitFor(() => {
-      expect(screen.getByText('name is required')).toBeInTheDocument()
+      expect(screen.getByText('Poné un nombre')).toBeInTheDocument()
     })
     expect(carrerasApiMock.updatePeriod).not.toHaveBeenCalled()
   })
@@ -441,7 +441,7 @@ describe('CarreraDetailContainer — editar y eliminar períodos', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
-    expect(await screen.findByText(/No se pudo guardar el período/)).toBeInTheDocument()
+    expect(await screen.findByText('Ocurrió un error inesperado. Probá de nuevo en un momento.')).toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'Editar período' })).toBeInTheDocument()
   })
 
@@ -453,7 +453,7 @@ describe('CarreraDetailContainer — editar y eliminar períodos', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Eliminar Anual' }))
     await userEvent.click(screen.getByRole('button', { name: 'Eliminar período' }))
 
-    expect(await screen.findByText(/No se pudo eliminar el período: boom/)).toBeInTheDocument()
+    expect(await screen.findByText('Ocurrió un error inesperado. Probá de nuevo en un momento.')).toBeInTheDocument()
   })
 
   it('asks before deleting, and only deletes on confirmation', async () => {
@@ -614,7 +614,7 @@ describe('CarreraDetailContainer — eliminar carrera', () => {
 
     await userEvent.click(within(dialog).getByRole('button', { name: 'Eliminar carrera' }))
 
-    expect(await screen.findByText(/No se pudo eliminar la carrera: boom/)).toBeInTheDocument()
+    expect(await screen.findByText('Ocurrió un error inesperado. Probá de nuevo en un momento.')).toBeInTheDocument()
   })
 })
 
@@ -680,7 +680,7 @@ describe('CarreraDetailContainer — editar carrera', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     await waitFor(() => {
-      expect(screen.getByText('name is required')).toBeInTheDocument()
+      expect(screen.getByText('Poné un nombre')).toBeInTheDocument()
     })
     expect(carrerasApiMock.update).not.toHaveBeenCalled()
   })
@@ -691,7 +691,7 @@ describe('CarreraDetailContainer — editar carrera', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
-    expect(await screen.findByText(/No se pudo guardar la carrera/)).toBeInTheDocument()
+    expect(await screen.findByText('Ocurrió un error inesperado. Probá de nuevo en un momento.')).toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'Editar carrera' })).toBeInTheDocument()
   })
 

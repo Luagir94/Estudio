@@ -16,6 +16,7 @@ import {
   writeAttachmentTextInputSchema
 } from '../../../shared/ipc/adjuntos'
 import { ADJUNTOS_READ_CHANNEL, ADJUNTOS_WRITE_CHANNEL } from '../../../shared/ipc/channels'
+import mainI18n from '../../i18n'
 import type { AttachmentStorage } from '../adapters/fileAttachmentStorage'
 import type { AttachmentRecord, AttachmentRepository } from '../adapters/sqliteAttachmentRepository'
 import type { AttachmentService } from '../attachmentService'
@@ -86,9 +87,15 @@ export function registerAdjuntosHandlers({
       const { canceled, filePaths } = await dialog.showOpenDialog({
         properties: ['openFile', 'multiSelections'],
         filters: [
-          { name: 'Documentos', extensions: ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx', 'ppt', 'pptx'] },
-          { name: 'Imágenes', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] },
-          { name: 'Todos los archivos', extensions: ['*'] }
+          {
+            name: mainI18n.t('registerAdjuntosHandlers.documentsFilterName'),
+            extensions: ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx', 'ppt', 'pptx']
+          },
+          {
+            name: mainI18n.t('registerAdjuntosHandlers.imagesFilterName'),
+            extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp']
+          },
+          { name: mainI18n.t('registerAdjuntosHandlers.allFilesFilterName'), extensions: ['*'] }
         ]
       })
 

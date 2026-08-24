@@ -91,7 +91,7 @@ describe('EditarMateriaModal', () => {
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
-    expect(await screen.findByText('name is required')).toBeInTheDocument()
+    expect(await screen.findByText('Poné un nombre')).toBeInTheDocument()
   })
 
   it('Cancelar calls onClose', () => {

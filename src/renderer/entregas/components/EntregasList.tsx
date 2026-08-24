@@ -2,6 +2,7 @@
 // the Pencil MCP tools: ATRASADAS / PRÓXIMOS 7 DÍAS / MÁS ADELANTE /
 // COMPLETADAS, each an 11px/600 uppercase heading over a stack of
 // DeadlineRows). No data fetching, no IPC — that lives in EntregasContainer.
+import { useTranslation } from 'react-i18next'
 import type { DeadlineWithSubject } from '../../../shared/ipc/entregas'
 import { groupDeadlines, type DeadlineBucket } from '../domain/deadline'
 import { DeadlineRow } from './DeadlineRow'
@@ -15,13 +16,6 @@ interface EntregasListProps {
   onDelete: (deadline: DeadlineWithSubject) => void
 }
 
-const BUCKET_HEADINGS: Record<DeadlineBucket, string> = {
-  atrasadas: 'ATRASADAS',
-  proximos7: 'PRÓXIMOS 7 DÍAS',
-  masAdelante: 'MÁS ADELANTE',
-  completadas: 'COMPLETADAS'
-}
-
 // Design order (node `K6MVx`'s "Groups" children, top to bottom).
 const BUCKET_ORDER: DeadlineBucket[] = ['atrasadas', 'proximos7', 'masAdelante', 'completadas']
 
@@ -32,8 +26,10 @@ export function EntregasList({
   onToggleDone,
   onDelete
 }: EntregasListProps): React.JSX.Element {
+  const { t } = useTranslation('entregas')
+
   if (deadlines.length === 0) {
-    return <p className="text-body-lg text-muted-foreground">Todavía no agregaste ninguna entrega.</p>
+    return <p className="text-body-lg text-muted-foreground">{t('entregasList.empty')}</p>
   }
 
   const groups = groupDeadlines(deadlines, now)
@@ -49,7 +45,7 @@ export function EntregasList({
                 : 'text-caption font-semibold text-muted-foreground'
             }
           >
-            {BUCKET_HEADINGS[bucket]}
+            {t(`entregasList.bucketHeadings.${bucket}`)}
           </h3>
           <div className="flex flex-col gap-2">
             {groups[bucket].map((deadline) => (

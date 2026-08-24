@@ -13,7 +13,11 @@ import { finalExamResultSchema, ipcErr, ipcOk, type IpcResult } from './materias
 export { ipcErr, ipcOk, type IpcResult }
 
 // Calendar date, `YYYY-MM-DD` — a mesa is a day, not a moment.
-const localDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'must be a calendar date (YYYY-MM-DD)')
+//
+// Validation messages are STABLE MACHINE KEYS, not prose — see the
+// architecture note at the top of shared/ipc/materias.ts (this module stays
+// framework-free the same way).
+const localDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date.invalid')
 
 // `<input type="date">` emits '' when cleared, which means "no date yet" —
 // a first-class state here, not a validation failure.
@@ -24,7 +28,7 @@ const optionalDate = z.preprocess(
 
 export const createFinalExamInputSchema = z.object({
   subjectId: z.number().int().positive(),
-  label: z.string().trim().min(1, 'label is required').max(200, 'label is too long'),
+  label: z.string().trim().min(1, 'label.required').max(200, 'label.tooLong'),
   takenOn: optionalDate,
   result: finalExamResultSchema.default('pendiente')
 })
@@ -33,7 +37,7 @@ export type CreateFinalExamInput = z.infer<typeof createFinalExamInputSchema>
 
 export const updateFinalExamInputSchema = z.object({
   id: z.number().int().positive(),
-  label: z.string().trim().min(1, 'label is required').max(200, 'label is too long'),
+  label: z.string().trim().min(1, 'label.required').max(200, 'label.tooLong'),
   takenOn: optionalDate,
   result: finalExamResultSchema
 })

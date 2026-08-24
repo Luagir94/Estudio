@@ -289,7 +289,36 @@ describe('SubjectDetail (read-only)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Materias' }))
     expect(onBack).toHaveBeenCalledTimes(1)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Editar materia' }))
+    // Two "Editar materia" buttons live on this screen (header + NOTAS
+    // section) — both open the same whole-subject edit modal, so both
+    // honestly carry the same label. The header's is first in DOM order.
+    const editButtons = screen.getAllByRole('button', { name: 'Editar materia' })
+    expect(editButtons).toHaveLength(2)
+    fireEvent.click(editButtons[0])
+    expect(onEdit).toHaveBeenCalledTimes(1)
+  })
+
+  // The NOTAS section's edit button used to say bare "Editar", which read as
+  // if it opened a notes-only editor. It actually opens the same whole-subject
+  // edit modal as the header button, so its label says exactly that.
+  it("the NOTAS section's edit button is labeled for what it actually opens, and calls onEdit", () => {
+    const onEdit = vi.fn()
+    render(
+      <SubjectDetail
+        subject={baseSubject}
+        nextClass={null}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenCampusUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={onEdit}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+      />
+    )
+
+    const editButtons = screen.getAllByRole('button', { name: 'Editar materia' })
+    fireEvent.click(editButtons[1])
     expect(onEdit).toHaveBeenCalledTimes(1)
   })
 

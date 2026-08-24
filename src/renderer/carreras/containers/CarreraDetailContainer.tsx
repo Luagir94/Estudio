@@ -4,10 +4,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, Pencil, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { PeriodRecord } from '../../../shared/ipc/carreras'
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import { MateriasList } from '../../materias/components/MateriasList'
 import { NuevaMateriaModal } from '../../materias/components/NuevaMateriaModal'
+import { describeIpcError } from '../../shared/lib/ipcErrorCopy'
 import { carrerasApi } from '../adapters/carrerasApi'
 import { pickDefaultPeriodId } from '../domain/period'
 import { DeletePeriodConfirmDialog } from '../components/DeletePeriodConfirmDialog'
@@ -45,6 +47,7 @@ export function CarreraDetailContainer({
   onOpenSubject,
   now
 }: CarreraDetailContainerProps): React.JSX.Element {
+  const { t } = useTranslation('carreras')
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false)
@@ -184,11 +187,11 @@ export function CarreraDetailContainer({
         )}
       >
         <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        Carreras
+        {t('carreraDetailContainer.backToList')}
       </button>
 
-      {isLoading && <p className="text-body-lg text-muted-foreground">Cargando carrera…</p>}
-      {isError && <p className="text-body-lg text-destructive">No se pudo cargar la carrera.</p>}
+      {isLoading && <p className="text-body-lg text-muted-foreground">{t('carreraDetailContainer.loading')}</p>}
+      {isError && <p className="text-body-lg text-destructive">{t('carreraDetailContainer.loadError')}</p>}
 
       {data && (
         <>
@@ -205,8 +208,8 @@ export function CarreraDetailContainer({
               <p className="text-body text-secondary-foreground">
                 {[
                   data.institution,
-                  `${data.periods.length} período${data.periods.length === 1 ? '' : 's'}`,
-                  `${data.subjectCount} materia${data.subjectCount === 1 ? '' : 's'}`
+                  t('counts.periods', { count: data.periods.length }),
+                  t('counts.subjects', { count: data.subjectCount })
                 ]
                   .filter(Boolean)
                   .join(' · ')}
@@ -219,15 +222,15 @@ export function CarreraDetailContainer({
                   editar, eliminar, y dos "agregar" — is the alternative. */}
               <Button type="button" variant="outline" onClick={() => setIsEditOpen(true)} className="gap-2">
                 <Pencil className="h-4 w-4" aria-hidden="true" />
-                Editar carrera
+                {t('carreraDetailContainer.editProgram')}
               </Button>
               <Button type="button" variant="outline" onClick={() => setIsModalOpen(true)} className="gap-2">
                 <Plus className="h-4 w-4" aria-hidden="true" />
-                Agregar período
+                {t('carreraDetailContainer.addPeriod')}
               </Button>
               <Button type="button" onClick={() => setIsSubjectModalOpen(true)} className="gap-2">
                 <Plus className="h-4 w-4" aria-hidden="true" />
-                Agregar materia
+                {t('carreraDetailContainer.addSubject')}
               </Button>
             </div>
           </div>
@@ -243,12 +246,14 @@ export function CarreraDetailContainer({
           />
 
           <div className="flex flex-col gap-3">
-            <h2 className="text-label font-semibold text-muted-foreground">MATERIAS DE ESTA CARRERA</h2>
+            <h2 className="text-label font-semibold text-muted-foreground">
+              {t('carreraDetailContainer.ownSubjectsHeading')}
+            </h2>
             <MateriasList
               subjects={ownSubjects}
               now={today}
               onSelect={onOpenSubject}
-              emptyMessage="Esta carrera todavía no tiene materias."
+              emptyMessage={t('carreraDetailContainer.noSubjects')}
             />
           </div>
 
@@ -257,7 +262,7 @@ export function CarreraDetailContainer({
               programId={data.id}
               programName={data.name}
               existingPeriods={data.periods}
-              error={createPeriodMutation.error?.message}
+              error={describeIpcError(createPeriodMutation.error)}
               onSubmit={(input) => createPeriodMutation.mutate(input)}
               onClose={() => setIsModalOpen(false)}
             />
@@ -269,7 +274,7 @@ export function CarreraDetailContainer({
               programName={data.name}
               period={editingPeriod}
               existingPeriods={data.periods}
-              error={updatePeriodMutation.error?.message}
+              error={describeIpcError(updatePeriodMutation.error)}
               // `programId` comes back in the payload because the form
               // validates against the CREATE schema; the update command does
               // not take it (a period never changes carrera), so it is
@@ -285,7 +290,7 @@ export function CarreraDetailContainer({
             <DeletePeriodConfirmDialog
               periodName={deletingPeriod.name}
               subjectCount={ownSubjects.filter((subject) => subject.periodId === deletingPeriod.id).length}
-              error={deletePeriodMutation.error?.message}
+              error={describeIpcError(deletePeriodMutation.error)}
               onConfirm={() => deletePeriodMutation.mutate(deletingPeriod.id)}
               onCancel={() => setDeletingPeriod(null)}
             />
@@ -294,7 +299,7 @@ export function CarreraDetailContainer({
           {isEditOpen && (
             <EditarCarreraModal
               program={data}
-              error={updateProgramMutation.error?.message}
+              error={describeIpcError(updateProgramMutation.error)}
               onSubmit={(input) => updateProgramMutation.mutate(input)}
               // The confirmation REPLACES the form rather than stacking on it,
               // so the destructive question is never asked underneath an
@@ -315,7 +320,7 @@ export function CarreraDetailContainer({
               // count decides what the dialog PROMISES, so it has to come
               // from the same source the delete itself counts over.
               subjectCount={data.subjectCount}
-              error={deleteProgramMutation.error?.message}
+              error={describeIpcError(deleteProgramMutation.error)}
               onConfirm={() => deleteProgramMutation.mutate()}
               onCancel={() => setIsDeleteProgramOpen(false)}
             />

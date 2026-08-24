@@ -16,6 +16,7 @@
 // mutation directly from the row, independent of the edit modal.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { DeadlineWithSubject } from '../../../shared/ipc/entregas'
 import { entregasApi } from '../adapters/entregasApi'
 import { classifyDeadline } from '../domain/deadline'
@@ -28,11 +29,8 @@ interface EntregasContainerProps {
   now?: Date
 }
 
-function pluralize(count: number, singular: string, plural: string): string {
-  return count === 1 ? singular : plural
-}
-
 export function EntregasContainer({ now = new Date() }: EntregasContainerProps = {}): React.JSX.Element {
+  const { t } = useTranslation('entregas')
   const queryClient = useQueryClient()
   const [editingDeadline, setEditingDeadline] = useState<DeadlineWithSubject | null>(null)
   const [deletingDeadline, setDeletingDeadline] = useState<DeadlineWithSubject | null>(null)
@@ -74,16 +72,18 @@ export function EntregasContainer({ now = new Date() }: EntregasContainerProps =
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
-        <h1 className="font-display text-display-lg font-bold text-foreground">Entregas</h1>
+        <h1 className="font-display text-display-lg font-bold text-foreground">{t('entregasContainer.title')}</h1>
         <p className="text-body text-secondary-foreground">
-          {pendingCount} {pluralize(pendingCount, 'pendiente', 'pendientes')} · {overdueCount}{' '}
-          {pluralize(overdueCount, 'atrasada', 'atrasadas')} · {completedCount}{' '}
-          {pluralize(completedCount, 'completada', 'completadas')} este cuatrimestre
+          {t('entregasContainer.summary', {
+            pending: t('entregasContainer.pendingCount', { count: pendingCount }),
+            overdue: t('entregasContainer.overdueCount', { count: overdueCount }),
+            completed: t('entregasContainer.completedCount', { count: completedCount })
+          })}
         </p>
       </div>
 
-      {isLoading && <p className="text-body-lg text-muted-foreground">Cargando entregas…</p>}
-      {isError && <p className="text-body-lg text-destructive">No se pudieron cargar las entregas.</p>}
+      {isLoading && <p className="text-body-lg text-muted-foreground">{t('entregasContainer.loading')}</p>}
+      {isError && <p className="text-body-lg text-destructive">{t('entregasContainer.loadError')}</p>}
       {data && (
         <EntregasList
           deadlines={data}

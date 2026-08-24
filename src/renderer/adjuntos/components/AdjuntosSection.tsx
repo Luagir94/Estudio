@@ -4,6 +4,7 @@
 // states (vacío/cargando/error/lista/archivo no encontrado handled per-row).
 // No data fetching, no IPC — that lives in AdjuntosContainer.
 import { CircleAlert, Paperclip, Plus, RefreshCw, TriangleAlert } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { AddAttachmentFailure, Attachment } from '../../../shared/ipc/adjuntos'
 import { Button } from '../../shared/components/ui/button'
 import { cn } from '../../shared/lib/cn'
@@ -56,10 +57,11 @@ export function AdjuntosSection({
   onDelete,
   onSync
 }: AdjuntosSectionProps): React.JSX.Element {
+  const { t } = useTranslation('adjuntos')
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-label font-semibold text-muted-foreground">ADJUNTOS</h3>
+        <h3 className="text-label font-semibold text-muted-foreground">{t('adjuntosSection.heading')}</h3>
         <div className="flex items-center gap-2">
           {/* Secondary action (design "Approved design" — cornerRadius 8,
               padding 12px/16px, 16px icon, 13px semibold label, $surface-sunken
@@ -78,11 +80,11 @@ export function AdjuntosSection({
             )}
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
-            Sincronizar
+            {t('adjuntosSection.sync')}
           </button>
           <Button type="button" onClick={onAdd} className="gap-2">
             <Plus className="h-4 w-4" aria-hidden="true" />
-            Agregar archivo
+            {t('adjuntosSection.addFile')}
           </Button>
         </div>
       </div>
@@ -114,13 +116,13 @@ export function AdjuntosSection({
         <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
           <CircleAlert className="h-4 w-4 shrink-0 text-destructive" aria-hidden />
           <div className="flex flex-col items-start gap-1">
-            <p className="text-body font-semibold text-foreground">No se pudieron cargar los adjuntos</p>
+            <p className="text-body font-semibold text-foreground">{t('adjuntosSection.loadError')}</p>
             <button
               type="button"
               onClick={onRetry}
               className={cn('text-body-sm font-semibold text-primary-ink', interactiveLink)}
             >
-              Reintentar
+              {t('adjuntosSection.retry')}
             </button>
           </div>
         </div>
@@ -133,8 +135,8 @@ export function AdjuntosSection({
       ) : attachments.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-card p-7 text-center">
           <Paperclip className="h-5 w-5 text-muted-foreground" aria-hidden />
-          <p className="text-body font-semibold text-secondary-foreground">Todavía no hay archivos</p>
-          <p className="text-body-sm text-muted-foreground">Sumá apuntes, PDFs o fotos del pizarrón.</p>
+          <p className="text-body font-semibold text-secondary-foreground">{t('adjuntosSection.emptyTitle')}</p>
+          <p className="text-body-sm text-muted-foreground">{t('adjuntosSection.emptyHint')}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">

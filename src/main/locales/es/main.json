@@ -1,0 +1,21 @@
+{
+  "exportMenu": {
+    "archivo": "Archivo",
+    "exportarDatos": "Exportar datos…"
+  },
+  "registerAppHandlers": {
+    "exportDialogTitle": "Exportar datos",
+    "jsonFilterName": "JSON"
+  },
+  "registerAdjuntosHandlers": {
+    "documentsFilterName": "Documentos",
+    "imagesFilterName": "Imágenes",
+    "allFilesFilterName": "Todos los archivos"
+  },
+  "promptBuilder": {
+    "languageInstruction": "- Respondé en español."
+  },
+  "appContext": {
+    "days": ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"]
+  }
+}

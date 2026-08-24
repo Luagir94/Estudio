@@ -118,7 +118,7 @@ describe('CarrerasContainer', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Crear carrera' }))
 
     await waitFor(() => {
-      expect(screen.getByText('name is required')).toBeInTheDocument()
+      expect(screen.getByText('Poné un nombre')).toBeInTheDocument()
     })
     expect(carrerasApiMock.create).not.toHaveBeenCalled()
   })

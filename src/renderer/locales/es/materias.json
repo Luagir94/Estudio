@@ -1,0 +1,161 @@
+{
+  "materiasListContainer": {
+    "title": "Materias",
+    "subjectsCount_one": "{{count}} materia",
+    "subjectsCount_other": "{{count}} materias",
+    "loadingCount": "Cargando…",
+    "subtitle": "{{subjects}} · el estado sale del período y de los finales",
+    "addSubject": "Agregar materia",
+    "loading": "Cargando materias…",
+    "loadError": "No se pudieron cargar las materias."
+  },
+  "subjectDetailContainer": {
+    "loading": "Cargando materia…",
+    "loadError": "No se pudo cargar la materia."
+  },
+  "subjectDetail": {
+    "detailLabel": "Detalle de {{name}}",
+    "backToList": "Materias",
+    "attendanceRequired": "{{percent}}% de asistencia requerida",
+    "attendanceFree": "Asistencia libre",
+    "editSubject": "Editar materia",
+    "closeSubject": "Cerrar materia",
+    "weeklyScheduleHeading": "HORARIO SEMANAL",
+    "noSlots": "Sin clases cargadas. Agregalas desde Editar materia.",
+    "deadlinesHeading": "ENTREGAS",
+    "addDeadline": "Agregar entrega",
+    "noDeadlines": "Sin entregas cargadas. Agregá la primera con Agregar entrega.",
+    "notesHeading": "NOTAS",
+    "editNotes": "Editar materia",
+    "noNotes": "Sin notas. Agregalas desde Editar materia.",
+    "nextClassHeading": "PRÓXIMA CLASE",
+    "noClassroom": "Sin aula",
+    "noScheduledClasses": "Sin clases programadas",
+    "progressHeading": "PROGRESO",
+    "progressCount": "{{done}} de {{total}}",
+    "noDeadlinesRecorded": "Sin entregas registradas",
+    "pendingCount_one": "{{count}} pendiente",
+    "pendingCount_other": "{{count}} pendientes",
+    "completedCount_one": "{{count}} completada",
+    "completedCount_other": "{{count}} completadas",
+    "hoursPerWeek": "Horas por semana",
+    "weeklyHours": "{{value}} h",
+    "classesPerWeek": "Clases por semana",
+    "minAttendance": "Asistencia mínima",
+    "minAttendanceFree": "Libre",
+    "teacher": "Docente",
+    "contact": "Contacto",
+    "campus": "Campus",
+    "openCampus": "Abrir campus virtual",
+    "virtualClassroom": "Aula virtual"
+  },
+  "materiasList": {
+    "emptyFiltered": "No hay materias que coincidan con este filtro. Elegí otro filtro para ver más.",
+    "noSchedule": "Sin horario",
+    "subjectHeader": "MATERIA",
+    "scheduleHeader": "HORARIO SEMANAL",
+    "attendanceHeader": "ASISTENCIA",
+    "statusHeader": "ESTADO",
+    "pendingHeader": "PENDIENTES",
+    "noPeriodTooltip": "Asignale un período para que la app pueda saber si la estás cursando",
+    "noPeriodBadge": "Sin período",
+    "attendanceRequired": "{{percent}}% requerido",
+    "attendanceFree": "Libre",
+    "noPending": "Sin pendientes",
+    "pendingCount_one": "{{count}} pendiente",
+    "pendingCount_other": "{{count}} pendientes"
+  },
+  "nuevaMateriaModal": {
+    "dialogLabel": "Nueva materia",
+    "title": "Nueva materia",
+    "noPeriodsSubtitle": "Primero hace falta un período donde ubicarla",
+    "noPeriodsTitle": "Todavía no tenés ningún período cargado",
+    "noPeriodsBodyLead": "Una materia vive dentro de un período, y de ahí sale a qué carrera pertenece, si la estás cursando y cuándo hay que cerrarla. Creá una carrera y su primer período desde",
+    "noPeriodsBodyStrong": "Carreras",
+    "noPeriodsBodyRest": ", y volvé.",
+    "goToCarreras": "Ir a Carreras",
+    "subtitle": "Cargala una vez y queda para todo el cuatrimestre",
+    "code": "Código",
+    "colorLegend": "Color",
+    "teacher": "Docente",
+    "contact": "Contacto",
+    "footerNote": "Podés editar todo después",
+    "submit": "Crear materia"
+  },
+  "editarMateriaModal": {
+    "dialogLabel": "Editar materia",
+    "title": "Editar materia",
+    "generalTab": "General",
+    "horarioTab": "Horario",
+    "code": "Código",
+    "colorLegend": "Color",
+    "attendance": "Asistencia",
+    "attendanceFree": "Libre",
+    "attendanceRequiresMin": "Requiere mínimo",
+    "minAttendanceInput": "Asistencia mínima (%)",
+    "teacher": "Docente",
+    "contact": "Contacto",
+    "campusUrl": "Campus virtual (URL)",
+    "notes": "Notas",
+    "deleteSubject": "Eliminar materia"
+  },
+  "cerrarMateriaModal": {
+    "dialogLabel": "Cerrar materia",
+    "title": "Cerrar materia",
+    "noPeriod": "sin período",
+    "howItEndedLegend": "¿CÓMO TERMINÓ?",
+    "outcomes": {
+      "aprobada": {
+        "label": "Aprobada",
+        "hint": "La cerrás acá y no vuelve a aparecer como pendiente."
+      },
+      "finalPendiente": {
+        "label": "Final pendiente",
+        "hint": "Queda a la espera del final y podés cargarle mesas."
+      },
+      "reprobada": {
+        "label": "Reprobada",
+        "hint": "Solo vos podés marcar esto — la app nunca lo hace sola."
+      }
+    },
+    "gradeNotANumber": "La nota tiene que ser un número entre 0 y {{scale}}.",
+    "gradeLabel": "Nota (0 a {{scale}}) · opcional",
+    "failGradeNote": "Cargala solo si tu institución registra la nota del aplazo: cuenta en el promedio con aplazos, no en el otro.",
+    "binaryNoGrade": "Esta carrera evalúa aprobado / desaprobado, así que no lleva nota.",
+    "noProgramNoGrade": "Esta materia no pertenece a ninguna carrera todavía, así que no hay escala contra la cual cargar una nota.",
+    "footerNote": "Podés cambiarlo después"
+  },
+  "deleteSubjectConfirmDialog": {
+    "dialogLabel": "Eliminar {{name}}",
+    "confirmQuestion": "¿Eliminar la materia \"{{name}}\"? Esta acción no se puede deshacer.",
+    "deadlinesWarning_one": "Se eliminarán {{count}} entrega.",
+    "deadlinesWarning_other": "Se eliminarán {{count}} entregas.",
+    "confirm": "Eliminar materia"
+  },
+  "periodSelect": {
+    "label": "Período",
+    "noPeriodOption": "Sin período",
+    "helpHasPeriods": "Define de qué carrera es la materia, si está activa, y cuándo hay que cerrarla.",
+    "helpNoPeriods": "Todavía no cargaste ningún período. Creá uno desde Carreras para poder ubicar la materia en el tiempo."
+  },
+  "subjectStatusBadge": {
+    "statusLabels": {
+      "cursando": "Cursando",
+      "sinCerrar": "Sin cerrar",
+      "aprobada": "Aprobada",
+      "reprobada": "Reprobada",
+      "standby": "Final pendiente"
+    }
+  },
+  "subjectStatusFilter": {
+    "groupLabel": "Filtrar por estado",
+    "filters": {
+      "activas": "Activas",
+      "standby": "Final pendiente",
+      "aprobadas": "Aprobadas",
+      "reprobadas": "Reprobadas",
+      "sinCerrar": "Sin cerrar",
+      "todas": "Todas"
+    }
+  }
+}

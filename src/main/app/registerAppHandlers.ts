@@ -5,6 +5,7 @@ import path from 'node:path'
 import { writeFile } from 'node:fs/promises'
 import { type ExportJsonResult, openExternalInputSchema } from '../../shared/ipc/app'
 import { ipcErr, ipcOk, type IpcResult } from '../../shared/ipc/materias'
+import mainI18n from '../i18n'
 import type { DeadlineRepository } from '../entregas/adapters/sqliteDeadlineRepository'
 import type { SubjectRepository } from '../materias/adapters/sqliteSubjectRepository'
 import { isAllowedExternalUrl } from './campusUrlValidator'
@@ -87,9 +88,9 @@ export function registerAppHandlers({ subjectRepository, deadlineRepository }: R
     try {
       const defaultFileName = `course-companion-export-${format(new Date(), 'yyyy-MM-dd')}.json`
       const { canceled, filePath } = await dialog.showSaveDialog({
-        title: 'Exportar datos',
+        title: mainI18n.t('registerAppHandlers.exportDialogTitle'),
         defaultPath: path.join(app.getPath('documents'), defaultFileName),
-        filters: [{ name: 'JSON', extensions: ['json'] }]
+        filters: [{ name: mainI18n.t('registerAppHandlers.jsonFilterName'), extensions: ['json'] }]
       })
 
       if (canceled || !filePath) {

@@ -20,9 +20,11 @@
 // No container, no react-query, no IPC here — this component only reads the
 // DTO it is handed.
 import { RefreshCw, Unplug } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { CliProviderStatus } from '../../../shared/ipc/cli'
 import {
   capabilityRows,
+  describeCliFailureReason,
   DISCONNECT_ACTION,
   INERT_MESSAGE,
   isInertDespiteConnection,
@@ -54,15 +56,6 @@ const CHIP_DOT_STYLES: Record<ConnectionTone, string> = {
   urgent: 'bg-urgent'
 }
 
-// Only `connected`'s label ("Conectado") is drawn in the approved `.pen`.
-// The other two are inferred, disclosed Spanish labels that parallel the
-// spec's own "Three-State Status Classification" wording.
-const STATUS_LABELS: Record<CliProviderStatus['status'], string> = {
-  connected: 'Conectado',
-  'not-found': 'No encontrado',
-  unusable: 'No funciona'
-}
-
 interface ConnectionStatusCardProps {
   status: CliProviderStatus
   /** Reports a committed override for THIS provider — `null` clears it. */
@@ -82,6 +75,7 @@ export function ConnectionStatusCard({
   onDisconnect,
   isReprobing
 }: ConnectionStatusCardProps): React.JSX.Element {
+  const { t } = useTranslation('ajustes')
   const tone = resolveConnectionTone(status.status)
   // ONE boolean drives the path field AND its execution warning, so the two can
   // never drift apart — see `ConnectionStatusCard.test.tsx`, which asserts that
@@ -119,7 +113,11 @@ export function ConnectionStatusCard({
             ) : (
               <span aria-hidden="true" className={`h-2 w-2 rounded-full ${CHIP_DOT_STYLES[tone]}`} />
             )}
-            {STATUS_LABELS[status.status]}
+            {/* Only `connected`'s label ("Conectado") is drawn in the approved
+                `.pen`. The other two are inferred, disclosed Spanish labels
+                that parallel the spec's own "Three-State Status
+                Classification" wording. */}
+            {t(`connectionStatusCard.statusLabel.${status.status}`)}
           </button>
 
           {/* Connecting has to be reversible. Without this the opt-in would be
@@ -158,10 +156,12 @@ export function ConnectionStatusCard({
       {caveats.length > 0 && <p className="text-body-sm text-muted-foreground">{caveats.join(' ')}</p>}
 
       {status.status === 'unusable' && (
-        // `status.detail` is the main process's own wording, rendered VERBATIM
-        // — never reworded or truncated — after the friendlier sentence.
+        // `status.detail` stays on the payload for diagnostics/logs but is
+        // NEVER rendered here — `describeCliFailureReason` is the localized,
+        // app-owned account of the SAME failure (i18n phase 2 "CLI probe
+        // reasons"), never the main process's own English wording.
         <p className="text-body-sm text-muted-foreground">
-          {unusableFriendlyMessage(status.provider)} · {status.detail}
+          {unusableFriendlyMessage(status.provider)} · {describeCliFailureReason(status.failureReason)}
         </p>
       )}
 

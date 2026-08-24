@@ -8,8 +8,10 @@
 // first.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import { NuevaMateriaModal } from '../../materias/components/NuevaMateriaModal'
+import { describeIpcError } from '../../shared/lib/ipcErrorCopy'
 import { carrerasApi } from '../adapters/carrerasApi'
 import { NuevoPeriodoModal } from '../components/NuevoPeriodoModal'
 import { PeriodDetail } from '../components/PeriodDetail'
@@ -32,6 +34,7 @@ export function PeriodDetailContainer({
   onOpenSubject,
   now
 }: PeriodDetailContainerProps): React.JSX.Element {
+  const { t } = useTranslation('carreras')
   const queryClient = useQueryClient()
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false)
@@ -80,16 +83,16 @@ export function PeriodDetailContainer({
   )
 
   if (isLoading) {
-    return <p className="text-body-lg text-muted-foreground">Cargando período…</p>
+    return <p className="text-body-lg text-muted-foreground">{t('periodDetailContainer.loading')}</p>
   }
   if (isError) {
-    return <p className="text-body-lg text-destructive">No se pudo cargar el período.</p>
+    return <p className="text-body-lg text-destructive">{t('periodDetailContainer.loadError')}</p>
   }
   // The carrera loaded but this period is not in it — it was deleted from
   // another screen while this one was open. Saying so beats rendering a
   // detail for something that no longer exists.
   if (program === undefined || period === undefined) {
-    return <p className="text-body-lg text-muted-foreground">Este período ya no existe.</p>
+    return <p className="text-body-lg text-muted-foreground">{t('periodDetailContainer.gone')}</p>
   }
 
   return (
@@ -112,7 +115,7 @@ export function PeriodDetailContainer({
           programName={program.name}
           period={period}
           existingPeriods={program.periods}
-          error={updatePeriodMutation.error?.message}
+          error={describeIpcError(updatePeriodMutation.error)}
           // The form validates against the CREATE schema, so `programId`
           // comes back in the payload; the update command does not take it
           // (a period never changes carrera), so it is dropped here.

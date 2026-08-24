@@ -18,6 +18,10 @@
     "src/main/**/*",
     "src/preload/**/*",
     "src/shared/**/*",
+    // vitest.setup.ts imports the renderer's i18n module (composite projects
+    // must list every file in the program, so the import alone is not enough).
+    "src/renderer/i18n/**/*",
+    "src/renderer/locales/**/*.json",
     "tooling/**/*",
     "electron.vite.config.ts",
     "drizzle.config.ts",

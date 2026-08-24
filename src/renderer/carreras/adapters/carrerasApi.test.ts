@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ProgramWithPeriods } from '../../../shared/ipc/carreras'
-import { carrerasApi } from './carrerasApi'
+import { CarrerasApiError, carrerasApi } from './carrerasApi'
 
 const sampleProgram: ProgramWithPeriods = {
   id: 1,
@@ -64,6 +64,19 @@ describe('carrerasApi', () => {
     carreras.list.mockResolvedValue({ ok: false, error: { code: 'LIST_FAILED', message: 'boom' } })
 
     await expect(carrerasApi.list()).rejects.toThrow('boom')
+  })
+
+  // The renderer maps its Spanish copy off the CODE, never `message`
+  // (`shared/lib/ipcErrorCopy.ts`) — so the throw must carry it, exactly
+  // like `AdjuntosApiError`/`AjustesApiError`.
+  it('throws a CarrerasApiError carrying the envelope code', async () => {
+    carreras.list.mockResolvedValue({ ok: false, error: { code: 'LIST_FAILED', message: 'database is locked' } })
+
+    const error: unknown = await carrerasApi.list().catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(CarrerasApiError)
+    expect((error as CarrerasApiError).code).toBe('LIST_FAILED')
+    expect((error as Error).message).toBe('database is locked')
   })
 
   it('create forwards the input and parses the created program', async () => {

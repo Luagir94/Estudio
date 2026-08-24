@@ -1,0 +1,63 @@
+{
+  "adjuntosContainer": {
+    "syncFailed": "No se pudo sincronizar. Probá de nuevo.",
+    "addFailed": "No se pudieron agregar los archivos. Probá de nuevo.",
+    "openFailed": "No se pudo abrir el archivo. Probá de nuevo, o abrilo manualmente desde su carpeta.",
+    "deleteFailed": "No se pudo eliminar el adjunto. Actualizá la lista e intentá de nuevo."
+  },
+  "adjuntosSection": {
+    "heading": "ADJUNTOS",
+    "sync": "Sincronizar",
+    "addFile": "Agregar archivo",
+    "loadError": "No se pudieron cargar los adjuntos.",
+    "retry": "Reintentar",
+    "emptyTitle": "Todavía no hay archivos",
+    "emptyHint": "Sumá apuntes, PDFs o fotos del pizarrón."
+  },
+  "attachmentRow": {
+    "missing": "El archivo ya no está en el disco — puede que se haya movido o borrado fuera de la app.",
+    "open": "Abrir",
+    "delete": "Eliminar"
+  },
+  "attachmentViewer": {
+    "documentLabel": "Documento {{fileName}}",
+    "unsaved": "Sin guardar",
+    "vista": "Vista",
+    "edicion": "Edición",
+    "openWithSystem": "Abrir con la aplicación del sistema",
+    "missing": "El archivo ya no está en el disco — puede que se haya movido o borrado fuera de la app.",
+    "loadError": "No se pudo cargar el documento.",
+    "editorLabel": "Editor de markdown",
+    "reindexHint": "Al guardar, el adjunto se vuelve a indexar para Preguntar",
+    "lineCount_one": "Markdown · {{count}} línea",
+    "lineCount_other": "Markdown · {{count}} líneas",
+    "toolbar": {
+      "bold": "Negrita",
+      "italic": "Cursiva",
+      "strikethrough": "Tachado",
+      "list": "Lista",
+      "code": "Código",
+      "link": "Enlace"
+    }
+  },
+  "attachmentDisplay": {
+    "sizeMb": "{{value}} MB",
+    "sizeKb": "{{value}} KB",
+    "meta": "{{size}} · {{date}}",
+    "viewerMetaVista": "{{size}} · Editado {{date}}",
+    "viewerMetaEdicion": "{{size}} · Editando ahora",
+    "addFailureFile_one": "archivo",
+    "addFailureFile_other": "archivos",
+    "addFailureVerb_one": "no se agregó",
+    "addFailureVerb_other": "no se agregaron",
+    "addFailureSummary": "{{failureCount}} de {{attemptedCount}} {{file}} {{verb}}",
+    "addFailureTooLarge": "{{fileName}} supera el límite de 250 MB",
+    "addFailureCopyFailed": "{{fileName}} no se pudo copiar",
+    "indexBadge": {
+      "indexed": "Indexado",
+      "pending": "Pendiente",
+      "notIndexable": "No indexable"
+    },
+    "originBadgeAi": "IA"
+  }
+}

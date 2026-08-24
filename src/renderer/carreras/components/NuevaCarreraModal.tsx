@@ -7,8 +7,10 @@
 // there is no "change it later" affordance to build.
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { Calculator } from 'lucide-react'
 import { createProgramInputSchema, type CreateProgramInput } from '../../../shared/ipc/carreras'
+import { translateValidationMessage } from '../../shared/lib/translateValidationMessage'
 import { Button } from '../../shared/components/ui/button'
 import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogOverlay } from '../../shared/components/ui/dialog'
 import { Input } from '../../shared/components/ui/input'
@@ -26,13 +28,10 @@ interface NuevaCarreraModalProps {
 // The scale is the TOP of the range, not a fixed 1-10 — see
 // carreras/domain/program.ts. These are the common ones; the field stays a
 // number so an institution outside the list is a data change, not a code one.
-const SCALES = [
-  { value: 10, label: '1 a 10' },
-  { value: 20, label: '1 a 20' },
-  { value: 100, label: '1 a 100' }
-]
+const SCALES = [10, 20, 100]
 
 export function NuevaCarreraModal({ onSubmit, onClose }: NuevaCarreraModalProps): React.JSX.Element {
+  const { t } = useTranslation('carreras')
   // No explicit useForm<T> generic: `institution` is a zod preprocess field,
   // so the resolver's input type diverges from CreateProgramInput (the
   // post-parse output) — same reasoning as NuevaMateriaModal.
@@ -66,41 +65,45 @@ export function NuevaCarreraModal({ onSubmit, onClose }: NuevaCarreraModalProps)
 
   return (
     <DialogOverlay>
-      <DialogContent role="dialog" aria-label="Nueva carrera">
+      <DialogContent role="dialog" aria-label={t('nuevaCarreraModal.dialogLabel')}>
         <DialogHeader onClose={onClose}>
-          <h2 className="font-display text-title font-bold text-foreground">Nueva carrera o curso</h2>
-          <p className="text-body-sm text-muted-foreground">
-            Una carrera, un curso con fecha de fin o clases que no terminan: todo entra acá
-          </p>
+          <h2 className="font-display text-title font-bold text-foreground">{t('nuevaCarreraModal.title')}</h2>
+          <p className="text-body-sm text-muted-foreground">{t('nuevaCarreraModal.subtitle')}</p>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="contents">
           <DialogBody>
             <Label>
-              Nombre
+              {t('common:fields.name')}
               <Input type="text" {...register('name')} />
             </Label>
-            {errors.name && <p className="text-body-lg text-destructive">{errors.name.message}</p>}
+            {errors.name && (
+              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.name.message)}</p>
+            )}
 
             <Label>
-              Institución
+              {t('carreraForm.institution')}
               <Input type="text" {...register('institution')} />
             </Label>
 
             <fieldset className="flex flex-col gap-2">
-              <legend className="text-label font-semibold text-secondary-foreground">COLOR</legend>
+              <legend className="text-label font-semibold text-secondary-foreground">
+                {t('carreraForm.colorLegend')}
+              </legend>
               <ColorSwatchPicker value={color} onChange={(next) => setValue('color', next)} />
             </fieldset>
 
             <span aria-hidden="true" className="h-px w-full bg-border" />
 
             <fieldset className="flex flex-col gap-2">
-              <legend className="text-label font-semibold text-secondary-foreground">MÉTODO DE EVALUACIÓN</legend>
+              <legend className="text-label font-semibold text-secondary-foreground">
+                {t('carreraForm.schemeLegend')}
+              </legend>
               <div className="flex w-fit items-center gap-1 rounded-lg border border-border bg-background p-1">
                 {(
                   [
-                    ['numerico', 'Numérico'],
-                    ['binario', 'Aprobado / Desaprobado']
+                    ['numerico', t('gradingScheme.numerico')],
+                    ['binario', t('gradingScheme.binario')]
                   ] as const
                 ).map(([scheme, label]) => (
                   <button
@@ -124,46 +127,44 @@ export function NuevaCarreraModal({ onSubmit, onClose }: NuevaCarreraModalProps)
             {gradingScheme === 'numerico' && (
               <div className="flex items-end gap-4">
                 <Label className="w-[170px] shrink-0">
-                  Escala
+                  {t('carreraForm.scale')}
                   <Select {...register('gradeScale', { valueAsNumber: true })}>
                     {SCALES.map((scale) => (
-                      <option key={scale.value} value={scale.value}>
-                        {scale.label}
+                      <option key={scale} value={scale}>
+                        {t('carreraForm.scaleOption', { max: scale })}
                       </option>
                     ))}
                   </Select>
                 </Label>
-                <p className="pb-3 text-caption text-muted-foreground">
-                  Se fija al crear la carrera. 1 a 10, 1 a 100 o la que use tu institución.
-                </p>
+                <p className="pb-3 text-caption text-muted-foreground">{t('nuevaCarreraModal.scaleNote')}</p>
               </div>
             )}
-            {errors.gradeScale && <p className="text-body-lg text-destructive">{errors.gradeScale.message}</p>}
+            {errors.gradeScale && (
+              <p className="text-body-lg text-destructive">
+                {translateValidationMessage(t, errors.gradeScale.message)}
+              </p>
+            )}
 
             <div className="flex items-start gap-3 rounded-lg border border-primary bg-sidebar-accent px-4 py-3">
               <Calculator className="mt-px h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
               <div className="flex flex-col gap-1">
                 <strong className="text-body-sm font-semibold text-foreground">
-                  {gradingScheme === 'numerico'
-                    ? 'Con evaluación numérica la carrera tiene promedio'
-                    : 'Sin notas ni promedio'}
+                  {gradingScheme === 'numerico' ? t('carreraForm.numericHasAverage') : t('carreraForm.binaryNoGrades')}
                 </strong>
                 <p className="text-caption leading-relaxed text-secondary-foreground">
-                  {gradingScheme === 'numerico'
-                    ? 'Cada materia lleva nota y vas a ver el promedio con y sin aplazos.'
-                    : 'Las materias sólo quedan aprobadas o desaprobadas — es lo típico de un curso con certificado.'}
+                  {gradingScheme === 'numerico' ? t('carreraForm.numericExplainer') : t('carreraForm.binaryExplainer')}
                 </p>
               </div>
             </div>
           </DialogBody>
 
           <DialogFooter>
-            <p className="text-caption text-muted-foreground">Los períodos y las materias se cargan después</p>
+            <p className="text-caption text-muted-foreground">{t('nuevaCarreraModal.footerNote')}</p>
             <div className="flex items-center gap-3">
               <Button type="button" variant="outline" onClick={onClose}>
-                Cancelar
+                {t('common:actions.cancel')}
               </Button>
-              <Button type="submit">Crear carrera</Button>
+              <Button type="submit">{t('nuevaCarreraModal.submit')}</Button>
             </div>
           </DialogFooter>
         </form>

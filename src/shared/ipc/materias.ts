@@ -2,6 +2,13 @@
 // by BOTH main (parses incoming payloads before executing) and renderer
 // (parses responses before caching) — "one validation story, no new
 // dependency" per the design's decisions table.
+//
+// Because this module is shared with main, it MUST stay framework-free —
+// no i18n instance here. Every explicit validation message below is
+// therefore a STABLE MACHINE KEY (e.g. `name.required`), not prose. The
+// renderer translates the key at the render site, via the `validation`
+// i18next namespace (see `renderer/shared/lib/translateValidationMessage.ts`)
+// — that is the only place the user actually sees it.
 import { z } from 'zod'
 import { deadlineRecordSchema } from './deadlines'
 
@@ -17,7 +24,7 @@ export const scheduleSlotInputSchema = z
     location: z.string().trim().min(1).max(200).nullable().default(null)
   })
   .refine((slot) => slot.endMinutes > slot.startMinutes, {
-    message: 'endMinutes must be after startMinutes',
+    message: 'slots.endBeforeStart',
     path: ['endMinutes']
   })
 
@@ -67,17 +74,17 @@ const optionalPeriodId = z.preprocess((value) => {
 // different things, and only the first is forbidden.
 const requiredPeriodId = z.preprocess(
   (value) => (typeof value === 'string' && value !== '' ? Number(value) : value),
-  z.number({ error: 'periodId is required' }).int().positive()
+  z.number({ error: 'periodId.required' }).int().positive()
 )
 
 export const createSubjectInputSchema = z.object({
-  name: z.string().trim().min(1, 'name is required').max(200, 'name is too long'),
-  code: z.string().trim().min(1, 'code is required').max(200, 'code is too long'),
-  color: z.string().trim().min(1, 'color is required').max(200, 'color is too long'),
+  name: z.string().trim().min(1, 'name.required').max(200, 'name.tooLong'),
+  code: z.string().trim().min(1, 'code.required').max(200, 'code.tooLong'),
+  color: z.string().trim().min(1, 'color.required').max(200, 'color.tooLong'),
   docente: optionalTextField,
   contacto: optionalTextField,
   periodId: requiredPeriodId,
-  slots: z.array(scheduleSlotInputSchema).min(1, 'at least one schedule slot is required')
+  slots: z.array(scheduleSlotInputSchema).min(1, 'slots.required')
 })
 
 export type CreateSubjectInput = z.infer<typeof createSubjectInputSchema>
@@ -118,16 +125,16 @@ const optionalAttendanceMinPercent = z.preprocess((value) => {
 // Deviations for the explicit rationale).
 export const updateSubjectScheduleInputSchema = z.object({
   id: z.number().int().positive(),
-  name: z.string().trim().min(1, 'name is required').max(200, 'name is too long'),
-  code: z.string().trim().min(1, 'code is required').max(200, 'code is too long'),
-  color: z.string().trim().min(1, 'color is required').max(200, 'color is too long'),
+  name: z.string().trim().min(1, 'name.required').max(200, 'name.tooLong'),
+  code: z.string().trim().min(1, 'code.required').max(200, 'code.tooLong'),
+  color: z.string().trim().min(1, 'color.required').max(200, 'color.tooLong'),
   docente: optionalTextField,
   contacto: optionalTextField,
   campusUrl: optionalTextField,
   notas: optionalNotesField,
   attendanceMinPercent: optionalAttendanceMinPercent,
   periodId: optionalPeriodId,
-  slots: z.array(scheduleSlotInputSchema).min(1, 'at least one schedule slot is required')
+  slots: z.array(scheduleSlotInputSchema).min(1, 'slots.required')
 })
 
 export type UpdateSubjectScheduleInput = z.infer<typeof updateSubjectScheduleInputSchema>

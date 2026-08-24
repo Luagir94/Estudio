@@ -102,7 +102,9 @@ describe('AttachmentViewerContainer — vista', () => {
 
     renderViewer()
 
-    expect(await screen.findByText('No se encontró el archivo en disco')).toBeInTheDocument()
+    expect(
+      await screen.findByText('El archivo ya no está en el disco — puede que se haya movido o borrado fuera de la app.')
+    ).toBeInTheDocument()
   })
 
   it('shows the generic error state on any other read failure', async () => {
@@ -112,7 +114,7 @@ describe('AttachmentViewerContainer — vista', () => {
 
     renderViewer()
 
-    expect(await screen.findByText('No se pudo cargar el documento')).toBeInTheDocument()
+    expect(await screen.findByText('No se pudo cargar el documento.')).toBeInTheDocument()
   })
 
   it('renders the header from the FRESH list row when it differs from the prop snapshot', async () => {
@@ -184,13 +186,13 @@ describe('AttachmentViewerContainer — edición', () => {
     expect(screen.getByText('Sin guardar')).toBeInTheDocument()
   })
 
-  it('Guardar writes the draft, invalidates the list and the content, and returns to Vista', async () => {
+  it('Guardar cambios writes the draft, invalidates the list and the content, and returns to Vista', async () => {
     const { invalidateSpy } = await enterEdicion()
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Editor de markdown' }), {
       target: { value: '# Editado' }
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     await waitFor(() => expect(window.api.adjuntos.write).toHaveBeenCalledWith(1, '# Editado'))
     await waitFor(() => expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['adjuntos', 42] }))

@@ -12,6 +12,7 @@
 // `entregas:setDone`/`entregas:delete` without forcing every toggle/delete
 // through the modal — disclosed as a deviation in the apply-progress report.
 import { Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { formatDeadlineStatus } from '../domain/deadline'
 import type { DeadlineWithSubject } from '../../../shared/ipc/entregas'
 import { cn } from '../../shared/lib/cn'
@@ -25,9 +26,6 @@ interface DeadlineRowProps {
   onToggleDone: (done: boolean) => void
   onDelete: (deadline: DeadlineWithSubject) => void
 }
-
-// Exported for reuse by the read-only Hoy dashboard row (`hoy/components/DeadlineRow.tsx`) — same Date Chip month abbreviation, no duplication.
-export const MONTH_LABELS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
 
 function statusPillClassName(deadline: DeadlineWithSubject, daysOverdue: boolean): string {
   if (deadline.done) {
@@ -46,6 +44,9 @@ export function DeadlineRow({
   onToggleDone,
   onDelete
 }: DeadlineRowProps): React.JSX.Element {
+  const { t } = useTranslation('entregas')
+  // Same consolidated month table the read-only Hoy dashboard row reads (`hoy/components/DeadlineRow.tsx`) — no duplication.
+  const monthLabels = t('common:monthsCaps', { returnObjects: true }) as string[]
   const dueDate = new Date(deadline.dueAt)
   const status = formatDeadlineStatus(deadline.dueAt, deadline.done, now)
   const isOverdue = !deadline.done && status.endsWith('de atraso')
@@ -55,7 +56,7 @@ export function DeadlineRow({
       <input
         type="checkbox"
         role="checkbox"
-        aria-label={deadline.done ? 'Marcar como pendiente' : 'Marcar como completada'}
+        aria-label={deadline.done ? t('deadlineRow.markPending') : t('deadlineRow.markDone')}
         checked={deadline.done}
         onChange={(event) => onToggleDone(event.target.checked)}
         className={cn('h-4 w-4 shrink-0 rounded-sm border-border accent-(--color-violet)', interactive)}
@@ -76,7 +77,7 @@ export function DeadlineRow({
           >
             {dueDate.getDate().toString().padStart(2, '0')}
           </span>
-          <span className="text-overline font-semibold text-muted-foreground">{MONTH_LABELS[dueDate.getMonth()]}</span>
+          <span className="text-overline font-semibold text-muted-foreground">{monthLabels[dueDate.getMonth()]}</span>
         </span>
 
         <span className="flex flex-1 flex-col gap-1">
@@ -111,7 +112,7 @@ export function DeadlineRow({
       <button
         type="button"
         onClick={() => onDelete(deadline)}
-        aria-label="Eliminar"
+        aria-label={t('deadlineRow.delete')}
         className={cn('-m-2 shrink-0 rounded-md p-2 text-muted-foreground', interactiveGhostDestructive)}
       >
         <Trash2 className="h-4 w-4" aria-hidden />

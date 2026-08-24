@@ -1,5 +1,6 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { z } from 'zod'
+import i18n from '../../i18n'
 
 // Pure, framework-free domain module (design §4). MUST NOT import electron
 // or better-sqlite3 — enforced by tooling/dependencyGuard.mts's
@@ -15,14 +16,17 @@ import { z } from 'zod'
 // `fecha límite` is a LOCAL NAIVE datetime, `YYYY-MM-DDTHH:mm`, no timezone
 // offset (design §3a "the DST rule") — an offset-bearing string like a `Z`
 // suffix is rejected here, not silently accepted and reinterpreted.
-const localNaiveDateTimeSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'fecha límite must be a local date-time (YYYY-MM-DDTHH:mm)')
+//
+// Validation messages are STABLE MACHINE KEYS, not prose — same convention
+// as shared/ipc/entregas.ts's `createDeadlineInputSchema` (this module is
+// framework-free too, per the design §4 domain-module rule at the top of
+// this file — it must not assume an i18n instance is ever wired up).
+const localNaiveDateTimeSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'dateTime.invalid')
 
 export const deadlineSchema = z.object({
-  title: z.string().trim().min(1, 'title is required'),
+  title: z.string().trim().min(1, 'title.required'),
   subjectId: z.number().int(),
-  type: z.string().trim().min(1, 'type is required'),
+  type: z.string().trim().min(1, 'type.required'),
   dueAt: localNaiveDateTimeSchema,
   done: z.boolean().default(false)
 })
@@ -96,23 +100,22 @@ export function classifyDeadline(dueAt: string, done: boolean, now: Date): Deadl
  */
 export function formatDeadlineStatus(dueAt: string, done: boolean, now: Date): string {
   if (done) {
-    return 'Completada'
+    return i18n.t('entregas:deadlineStatus.completed')
   }
   const days = daysRemaining(dueAt, now)
   if (days < 0) {
-    const overdueDays = Math.abs(days)
-    return `${overdueDays} día${overdueDays === 1 ? '' : 's'} de atraso`
+    return i18n.t('entregas:deadlineStatus.overdue', { count: Math.abs(days) })
   }
   if (days === 0) {
-    return 'Hoy'
+    return i18n.t('entregas:deadlineStatus.today')
   }
   if (days === 1) {
-    return 'Mañana'
+    return i18n.t('entregas:deadlineStatus.tomorrow')
   }
   if (days < 14) {
-    return `En ${days} días`
+    return i18n.t('entregas:deadlineStatus.inDays', { days })
   }
-  return `En ${Math.round(days / 7)} semanas`
+  return i18n.t('entregas:deadlineStatus.inWeeks', { weeks: Math.round(days / 7) })
 }
 
 export interface DeadlineLike {

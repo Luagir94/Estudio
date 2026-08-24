@@ -12,7 +12,9 @@
 // MateriasList — a component that reads the clock itself cannot be tested
 // against a fixed day.
 import { differenceInCalendarDays, parseISO } from 'date-fns'
+import type { TFunction } from 'i18next'
 import { ChevronLeft, Pencil, Plus } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { PeriodRecord } from '../../../shared/ipc/carreras'
 import type { SubjectWithStatus } from '../../../shared/ipc/materias'
 import { MateriasList } from '../../materias/components/MateriasList'
@@ -35,12 +37,6 @@ interface PeriodDetailProps {
   onOpenSubject?: (id: number) => void
 }
 
-const STATUS_LABELS: Record<PeriodStatus, string> = {
-  activo: 'Activo',
-  finalizado: 'Finalizado',
-  proximo: 'Próximo'
-}
-
 const STATUS_STYLES: Record<PeriodStatus, string> = {
   activo: 'border-primary bg-sidebar-accent text-primary-ink',
   finalizado: 'border-border bg-muted text-muted-foreground',
@@ -55,12 +51,12 @@ const STATUS_STYLES: Record<PeriodStatus, string> = {
  * rather than a number counted from today, which would be a different fact
  * (how long it has run) wearing the label of this one.
  */
-function formatDuration(period: PeriodRecord): string {
+function formatDuration(period: PeriodRecord, t: TFunction): string {
   if (isOpenEnded(period)) {
-    return 'No termina'
+    return t('period.neverEnds')
   }
   const days = differenceInCalendarDays(parseISO(period.endsOn as string), parseISO(period.startsOn)) + 1
-  return `${days} días · ${Math.round(days / 7)} semanas`
+  return t('period.duration', { days, weeks: Math.round(days / 7) })
 }
 
 /**
@@ -95,6 +91,7 @@ export function PeriodDetail({
   onAddSubject,
   onOpenSubject
 }: PeriodDetailProps): React.JSX.Element {
+  const { t } = useTranslation('carreras')
   const status = periodStatus(period, now)
 
   return (
@@ -127,17 +124,17 @@ export function PeriodDetail({
           {/* The same sentence the periods table prints, for the same reason:
               it is the app explaining why no screen ever asked for a year. */}
           <p className="text-body text-secondary-foreground">
-            {programName} · año {derivePeriodYear(period.startsOn)} · derivado de la fecha de inicio
+            {t('periodDetail.subtitle', { program: programName, year: derivePeriodYear(period.startsOn) })}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           <Button type="button" variant="outline" onClick={onEdit} className="gap-2">
             <Pencil className="h-4 w-4" aria-hidden="true" />
-            Editar período
+            {t('periodDetail.editPeriod')}
           </Button>
           <Button type="button" onClick={onAddSubject} className="gap-2">
             <Plus className="h-4 w-4" aria-hidden="true" />
-            Agregar materia
+            {t('periodDetail.addSubject')}
           </Button>
         </div>
       </div>
@@ -148,41 +145,36 @@ export function PeriodDetail({
             period IS RIGHT NOW and changes on its own as dates pass, so it
             earns a coloured pill. The kind is a flat fact that never moves.
             Badging both says they are the same kind of thing. */}
-        <MetaCell label="TIPO">
+        <MetaCell label={t('periodDetail.kindLabel')}>
           <MetaValue>{period.kind}</MetaValue>
         </MetaCell>
-        <MetaCell label="FECHAS">
+        <MetaCell label={t('periodDetail.datesLabel')}>
           <MetaValue>{formatPeriodRange(period.startsOn, period.endsOn)}</MetaValue>
         </MetaCell>
-        <MetaCell label="DURACIÓN">
-          <MetaValue>{formatDuration(period)}</MetaValue>
+        <MetaCell label={t('periodDetail.durationLabel')}>
+          <MetaValue>{formatDuration(period, t)}</MetaValue>
         </MetaCell>
-        <MetaCell label="MATERIAS">
-          <MetaValue>
-            {subjects.length} materia{subjects.length === 1 ? '' : 's'}
-          </MetaValue>
+        <MetaCell label={t('periodDetail.subjectsLabel')}>
+          <MetaValue>{t('counts.subjects', { count: subjects.length })}</MetaValue>
         </MetaCell>
-        <MetaCell label="ESTADO">
+        <MetaCell label={t('periodDetail.statusLabel')}>
           <span className={`w-fit rounded-md border px-2 py-1 text-caption font-semibold ${STATUS_STYLES[status]}`}>
-            {STATUS_LABELS[status]}
+            {t(`periodStatus.${status}`)}
           </span>
         </MetaCell>
       </section>
 
       <div className="flex flex-col gap-3">
-        <h2 className="text-label font-semibold text-muted-foreground">MATERIAS DE ESTE PERÍODO</h2>
+        <h2 className="text-label font-semibold text-muted-foreground">{t('periodDetail.ownSubjectsHeading')}</h2>
         <MateriasList
           subjects={subjects}
           now={now}
           onSelect={onOpenSubject}
-          emptyMessage="Este período todavía no tiene materias."
+          emptyMessage={t('periodDetail.noSubjects')}
         />
       </div>
 
-      <p className="text-caption leading-relaxed text-muted-foreground">
-        Una materia pertenece a UN período. Si borrás este período sus materias no se borran: quedan sin período hasta
-        que las asignes a otro.
-      </p>
+      <p className="text-caption leading-relaxed text-muted-foreground">{t('periodDetail.deleteNote')}</p>
     </div>
   )
 }

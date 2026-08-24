@@ -6,6 +6,7 @@
 // already owns, opened directly on its Horario tab.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import { EditarMateriaModal } from '../../materias/components/EditarMateriaModal'
 import { computeWeeklyMinutes } from '../../materias/domain/subjectDetail'
@@ -20,6 +21,7 @@ interface HorarioContainerProps {
 }
 
 export function HorarioContainer({ now = new Date() }: HorarioContainerProps = {}): React.JSX.Element {
+  const { t } = useTranslation('horario')
   const queryClient = useQueryClient()
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null)
 
@@ -58,14 +60,14 @@ export function HorarioContainer({ now = new Date() }: HorarioContainerProps = {
     // bottom of the window instead of stopping at a fixed row height.
     <div className="flex h-full flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="font-display text-display-lg font-bold text-foreground">Horario semanal</h1>
+        <h1 className="font-display text-display-lg font-bold text-foreground">{t('container.title')}</h1>
         <p className="text-body text-secondary-foreground">
-          Se arma solo con las materias del cuatrimestre · {Math.round(weeklyMinutes / 60)} horas de clase por semana
+          {t('container.subtitle', { hours: Math.round(weeklyMinutes / 60) })}
         </p>
       </div>
 
-      {isLoading && <p className="text-body-lg text-muted-foreground">Cargando horario…</p>}
-      {isError && <p className="text-body-lg text-destructive">No se pudo cargar el horario.</p>}
+      {isLoading && <p className="text-body-lg text-muted-foreground">{t('container.loading')}</p>}
+      {isError && <p className="text-body-lg text-destructive">{t('container.loadError')}</p>}
       {data && (
         <HorarioGrid
           columns={columns}

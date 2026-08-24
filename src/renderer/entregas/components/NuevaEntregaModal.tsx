@@ -19,20 +19,21 @@
 // ("native selects keep full keyboard/a11y behavior with zero extra
 // dependency surface").
 //
-// TIPO's option set (Trabajo práctico/Parcial/Informe/Examen final/Otro) is
-// NOT specified by the spec or design — the mockup shows only one example
-// value ("Trabajo práctico"). This is an inferred, disclosed judgment call
-// from the row titles visible in the design (TP.../Parcial.../Informe...).
+// TIPO's option set (`entregas:nuevaEntregaModal.types` — Trabajo práctico/
+// Parcial/Informe/Examen final/Otro) is NOT specified by the spec or design —
+// the mockup shows only one example value ("Trabajo práctico"). This is an
+// inferred, disclosed judgment call from the row titles visible in the design
+// (TP.../Parcial.../Informe...).
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { createDeadlineInputSchema, type CreateDeadlineInput } from '../../../shared/ipc/entregas'
+import { translateValidationMessage } from '../../shared/lib/translateValidationMessage'
 import { Button } from '../../shared/components/ui/button'
 import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogOverlay } from '../../shared/components/ui/dialog'
 import { Input } from '../../shared/components/ui/input'
 import { Label } from '../../shared/components/ui/label'
 import { Select } from '../../shared/components/ui/select'
-
-const DEADLINE_TYPES = ['Trabajo práctico', 'Parcial', 'Informe', 'Examen final', 'Otro'] as const
 
 // Visible-field-only form schema (title/type/dueAt) — derived from the same
 // shared IPC schema `createDeadlineInputSchema` minus `subjectId`, so
@@ -57,19 +58,20 @@ export function NuevaEntregaModal({
   onSubmit,
   onClose
 }: NuevaEntregaModalProps): React.JSX.Element {
+  const { t } = useTranslation('entregas')
+  const deadlineTypes = t('nuevaEntregaModal.types', { returnObjects: true }) as string[]
   const {
     register,
     handleSubmit,
     formState: { errors }
   } = useForm({
     resolver: zodResolver(deadlineFormSchema),
-    defaultValues: defaultValues ?? { title: '', type: DEADLINE_TYPES[0], dueAt: '' }
+    defaultValues: defaultValues ?? { title: '', type: deadlineTypes[0], dueAt: '' }
   })
 
-  const title = mode === 'create' ? 'Nueva entrega' : 'Editar entrega'
-  const subtitle =
-    mode === 'create' ? 'Un trabajo, parcial o informe con fecha límite' : 'Corregí los datos y guardá los cambios'
-  const submitLabel = mode === 'create' ? 'Agregar entrega' : 'Guardar cambios'
+  const title = mode === 'create' ? t('nuevaEntregaModal.createTitle') : t('nuevaEntregaModal.editTitle')
+  const subtitle = mode === 'create' ? t('nuevaEntregaModal.createSubtitle') : t('nuevaEntregaModal.editSubtitle')
+  const submitLabel = mode === 'create' ? t('nuevaEntregaModal.createSubmit') : t('common:actions.saveChanges')
 
   return (
     <DialogOverlay>
@@ -82,16 +84,18 @@ export function NuevaEntregaModal({
         <form onSubmit={handleSubmit((values) => onSubmit({ ...values, subjectId }))} className="contents">
           <DialogBody>
             <Label>
-              Título
+              {t('nuevaEntregaModal.titleField')}
               <Input type="text" {...register('title')} />
             </Label>
-            {errors.title && <p className="text-body-lg text-destructive">{errors.title.message}</p>}
+            {errors.title && (
+              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.title.message)}</p>
+            )}
 
             <div className="flex gap-3">
               <Label className="flex-1">
-                Tipo
+                {t('nuevaEntregaModal.type')}
                 <Select {...register('type')}>
-                  {DEADLINE_TYPES.map((type) => (
+                  {deadlineTypes.map((type) => (
                     <option key={type} value={type}>
                       {type}
                     </option>
@@ -99,17 +103,21 @@ export function NuevaEntregaModal({
                 </Select>
               </Label>
               <Label className="flex-1">
-                Fecha límite
+                {t('nuevaEntregaModal.dueAt')}
                 <Input type="datetime-local" {...register('dueAt')} />
               </Label>
             </div>
-            {errors.type && <p className="text-body-lg text-destructive">{errors.type.message}</p>}
-            {errors.dueAt && <p className="text-body-lg text-destructive">{errors.dueAt.message}</p>}
+            {errors.type && (
+              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.type.message)}</p>
+            )}
+            {errors.dueAt && (
+              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.dueAt.message)}</p>
+            )}
           </DialogBody>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
+              {t('common:actions.cancel')}
             </Button>
             <Button type="submit">{submitLabel}</Button>
           </DialogFooter>

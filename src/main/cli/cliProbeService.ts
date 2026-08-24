@@ -10,7 +10,7 @@ import {
 import { createCapabilityProbe, type CapabilityProbe, type ProbedCapabilities } from './capabilityProbe'
 import { PROVIDER_SPECS } from './providerSpec'
 import { CLI_PROBE_TIMEOUT_MS } from './probeLimits'
-import type { CliProvider, CliProviderStatus } from '../../shared/ipc/cli'
+import type { CliProbeFailureReason, CliProvider, CliProviderStatus } from '../../shared/ipc/cli'
 
 // Orchestrates the three-state probe (spec "Three-State Status
 // Classification", "Hard Timeout", "Probe Audit Log") for EVERY supported CLI
@@ -151,7 +151,8 @@ export function createCliProbeService({
         status: 'unusable',
         source,
         overridePath,
-        detail: `${who} is not a valid executable: ${candidatePath}`
+        detail: `${who} is not a valid executable: ${candidatePath}`,
+        failureReason: { code: 'invalid-executable', path: candidatePath }
       })
     }
 
@@ -177,7 +178,8 @@ export function createCliProbeService({
         source,
         overridePath,
         resolvedPath: validated,
-        detail: `Probe timed out after ${timeoutMs}ms`
+        detail: `Probe timed out after ${timeoutMs}ms`,
+        failureReason: { code: 'timeout', timeoutMs }
       })
     }
     if (outcome.exitCode !== 0) {
@@ -188,7 +190,8 @@ export function createCliProbeService({
         source,
         overridePath,
         resolvedPath: validated,
-        detail: `Exited with code ${outcome.exitCode ?? 'unknown'}`
+        detail: `Exited with code ${outcome.exitCode ?? 'unknown'}`,
+        failureReason: { code: 'exit-code', exitCode: outcome.exitCode }
       })
     }
 
@@ -201,7 +204,8 @@ export function createCliProbeService({
         source,
         overridePath,
         resolvedPath: validated,
-        detail: firstLine(outcome.stderr) ?? firstLine(outcome.stdout) ?? 'Unrecognized output'
+        detail: firstLine(outcome.stderr) ?? firstLine(outcome.stdout) ?? 'Unrecognized output',
+        failureReason: { code: 'unrecognized-output' }
       })
     }
 
@@ -283,6 +287,7 @@ function buildStatus(params: {
   resolvedPath?: string | null
   version?: string | null
   detail?: string | null
+  failureReason?: CliProbeFailureReason | null
   capabilities?: ProbedCapabilities | null
 }): CliProviderStatus {
   return {
@@ -293,6 +298,7 @@ function buildStatus(params: {
     source: params.source,
     overridePath: params.overridePath,
     detail: params.detail ?? null,
+    failureReason: params.failureReason ?? null,
     capabilities: params.capabilities ?? null
   }
 }

@@ -258,7 +258,7 @@ describe('PeriodDetailContainer — editar el período', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
-    expect(await screen.findByText(/No se pudo guardar el período: boom/)).toBeInTheDocument()
+    expect(await screen.findByText('Ocurrió un error inesperado. Probá de nuevo en un momento.')).toBeInTheDocument()
   })
 })
 

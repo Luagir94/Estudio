@@ -1,5 +1,6 @@
 import { ArrowUp, CircleStop, History, MessageCircle, X } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { ModelSelection } from '../../../shared/ipc/cli'
 import { cn } from '../../shared/lib/cn'
 import { interactiveGhost } from '../../shared/lib/interactive'
@@ -74,6 +75,7 @@ export function AskPanel({
   conversationCount,
   children
 }: AskPanelProps): React.JSX.Element {
+  const { t } = useTranslation('ask')
   // Browsing replaces the transcript with the conversation list, so there is
   // no thread on screen and the composer has no target. Left live it would
   // send into whatever thread sat behind the list — the very thread the user
@@ -107,8 +109,8 @@ export function AskPanel({
             aria-expanded={historyOpen}
             aria-label={
               conversationCount !== null
-                ? `Ver conversaciones anteriores (${conversationCount})`
-                : 'Ver conversaciones anteriores'
+                ? t('askPanel.historyWithCount', { total: conversationCount })
+                : t('askPanel.history')
             }
             className={cn('flex items-center gap-3 rounded-md text-muted-foreground', interactiveGhost)}
           >
@@ -118,7 +120,7 @@ export function AskPanel({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Cerrar"
+            aria-label={t('common:dialog.close')}
             className="text-muted-foreground transition-colors hover:text-foreground"
           >
             <X className="size-4" aria-hidden="true" />
@@ -184,13 +186,18 @@ export function AskPanel({
             // second one. `type="button"` so a click can never re-submit the
             // form, and never disabled — canceling is precisely the action
             // that must work while everything else in the composer is locked.
-            <button type="button" aria-label="Cancelar" onClick={onCancel} className="text-primary-ink">
+            <button
+              type="button"
+              aria-label={t('common:actions.cancel')}
+              onClick={onCancel}
+              className="text-primary-ink"
+            >
               <CircleStop className="size-4" aria-hidden="true" />
             </button>
           ) : (
             <button
               type="submit"
-              aria-label="Enviar"
+              aria-label={t('askPanel.send')}
               disabled={composerDisabled || value.trim().length === 0}
               className="text-primary-ink transition-opacity disabled:opacity-40"
             >

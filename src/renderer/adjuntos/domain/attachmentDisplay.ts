@@ -5,6 +5,7 @@
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { AddAttachmentFailure, Attachment } from '../../../shared/ipc/adjuntos'
+import i18n from '../../i18n'
 
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'])
 
@@ -31,7 +32,7 @@ export function resolveAttachmentKind(fileName: string): AttachmentKind {
 export function formatAttachmentSize(sizeBytes: number): string {
   const megabytes = sizeBytes / BYTES_PER_MB
   const rounded = Math.round(megabytes * 10) / 10
-  return `${rounded.toFixed(1).replace('.', ',')} MB`
+  return i18n.t('adjuntos:attachmentDisplay.sizeMb', { value: rounded.toFixed(1).replace('.', ',') })
 }
 
 /** Local-naive `createdAt` (same convention as `entregas/domain/deadline.ts`) → `"12 ago"`. */
@@ -41,7 +42,10 @@ export function formatAttachmentDate(createdAt: string): string {
 
 /** `"2,4 MB · 12 ago"` — the row's meta line. */
 export function formatAttachmentMeta(sizeBytes: number, createdAt: string): string {
-  return `${formatAttachmentSize(sizeBytes)} · ${formatAttachmentDate(createdAt)}`
+  return i18n.t('adjuntos:attachmentDisplay.meta', {
+    size: formatAttachmentSize(sizeBytes),
+    date: formatAttachmentDate(createdAt)
+  })
 }
 
 // --- viewer header meta (markdown-attachment-viewer design) ---------------
@@ -56,7 +60,7 @@ const BYTES_PER_KB = 1024
 export function formatViewerSize(sizeBytes: number): string {
   if (sizeBytes < BYTES_PER_MB) {
     const kilobytes = Math.round((sizeBytes / BYTES_PER_KB) * 10) / 10
-    return `${kilobytes.toFixed(1).replace('.', ',')} KB`
+    return i18n.t('adjuntos:attachmentDisplay.sizeKb', { value: kilobytes.toFixed(1).replace('.', ',') })
   }
   return formatAttachmentSize(sizeBytes)
 }
@@ -65,27 +69,32 @@ export type ViewerMode = 'vista' | 'edicion'
 
 /** `"8,2 KB · Editado 18 ago"` (vista) / `"8,2 KB · Editando ahora"` (edición) — the viewer header's meta line. */
 export function formatViewerMeta(sizeBytes: number, createdAt: string, mode: ViewerMode): string {
-  const suffix = mode === 'edicion' ? 'Editando ahora' : `Editado ${formatAttachmentDate(createdAt)}`
-  return `${formatViewerSize(sizeBytes)} · ${suffix}`
-}
-
-function pluralize(count: number, singular: string, plural: string): string {
-  return count === 1 ? singular : plural
+  const size = formatViewerSize(sizeBytes)
+  if (mode === 'edicion') {
+    return i18n.t('adjuntos:attachmentDisplay.viewerMetaEdicion', { size })
+  }
+  return i18n.t('adjuntos:attachmentDisplay.viewerMetaVista', { size, date: formatAttachmentDate(createdAt) })
 }
 
 /** "Alta parcial" banner's count line, e.g. `"1 de 3 archivos no se agregó"` — built from the real counts, never hardcoded. */
 export function formatAddFailureSummary(failureCount: number, attemptedCount: number): string {
-  const archivoWord = pluralize(attemptedCount, 'archivo', 'archivos')
-  const verb = pluralize(failureCount, 'no se agregó', 'no se agregaron')
-  return `${failureCount} de ${attemptedCount} ${archivoWord} ${verb}`
+  // Two independent plurals in one sentence: "archivo(s)" follows the
+  // attempted count while the verb follows the failure count, so each word is
+  // resolved through its own `_one`/`_other` pair before the sentence joins.
+  return i18n.t('adjuntos:attachmentDisplay.addFailureSummary', {
+    failureCount,
+    attemptedCount,
+    file: i18n.t('adjuntos:attachmentDisplay.addFailureFile', { count: attemptedCount }),
+    verb: i18n.t('adjuntos:attachmentDisplay.addFailureVerb', { count: failureCount })
+  })
 }
 
 /** "Alta parcial" banner's per-file detail line, built from the real `failures` entry. */
 export function formatAddFailureDetail(failure: AddAttachmentFailure): string {
   if (failure.code === 'FILE_TOO_LARGE') {
-    return `${failure.fileName} supera el límite de 250 MB`
+    return i18n.t('adjuntos:attachmentDisplay.addFailureTooLarge', { fileName: failure.fileName })
   }
-  return `${failure.fileName} no se pudo copiar`
+  return i18n.t('adjuntos:attachmentDisplay.addFailureCopyFailed', { fileName: failure.fileName })
 }
 
 // --- index status badge (attachment-fts-index design "Renderer Delta") ----
@@ -107,9 +116,21 @@ export interface IndexBadgeInfo {
 }
 
 const INDEX_BADGES: Record<IndexStatus, IndexBadgeInfo> = {
-  indexed: { label: 'Indexado', icon: 'check', classes: 'bg-ok-soft text-ok' },
-  pending: { label: 'Pendiente', icon: 'hourglass', classes: 'bg-warn-soft text-warn' },
-  'not-indexable': { label: 'No indexable', icon: 'search-x', classes: 'bg-surface-sunken text-muted-foreground' }
+  indexed: {
+    label: i18n.t('adjuntos:attachmentDisplay.indexBadge.indexed'),
+    icon: 'check',
+    classes: 'bg-ok-soft text-ok'
+  },
+  pending: {
+    label: i18n.t('adjuntos:attachmentDisplay.indexBadge.pending'),
+    icon: 'hourglass',
+    classes: 'bg-warn-soft text-warn'
+  },
+  'not-indexable': {
+    label: i18n.t('adjuntos:attachmentDisplay.indexBadge.notIndexable'),
+    icon: 'search-x',
+    classes: 'bg-surface-sunken text-muted-foreground'
+  }
 }
 
 /** Closed 3-state mapping (spec "Index status badge") — matches the approved .pen tokens exactly. */
@@ -134,7 +155,11 @@ export interface OriginBadgeInfo {
 
 /** Only `'ai-generated'` gets a badge — a normal upload renders nothing extra. */
 const ORIGIN_BADGES: Partial<Record<AttachmentOrigin, OriginBadgeInfo>> = {
-  'ai-generated': { label: 'IA', icon: 'sparkles', classes: 'bg-violet-soft text-primary-ink' }
+  'ai-generated': {
+    label: i18n.t('adjuntos:attachmentDisplay.originBadgeAi'),
+    icon: 'sparkles',
+    classes: 'bg-violet-soft text-primary-ink'
+  }
 }
 
 /**

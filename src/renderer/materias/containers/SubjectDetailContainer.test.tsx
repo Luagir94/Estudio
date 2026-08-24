@@ -241,7 +241,10 @@ describe('SubjectDetailContainer', () => {
     renderWithClient(<SubjectDetailContainer subjectId={1} onBack={vi.fn()} now={new Date('2026-03-04T09:00:00')} />)
     await screen.findByText('1 de 2')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Editar materia' }))
+    // Two "Editar materia" buttons live on this screen (header + NOTAS
+    // section) — both open the same modal, so both honestly carry the same
+    // label (see SubjectDetail.test.tsx). Either works; this uses the header's.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Editar materia' })[0])
     fireEvent.click(screen.getByText('stub-edit-submit'))
 
     await waitFor(() => expect(materiasApi.updateSchedule).toHaveBeenCalledTimes(1))
@@ -255,8 +258,9 @@ describe('SubjectDetailContainer', () => {
 
     // Design puts "Eliminar materia" in the Editar materia modal's footer,
     // not as a standalone button on the detail screen — open the modal
-    // first, same as any other edit entry point.
-    fireEvent.click(screen.getByRole('button', { name: 'Editar materia' }))
+    // first, same as any other edit entry point. Two "Editar materia"
+    // buttons live on this screen (header + NOTAS section); either opens it.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Editar materia' })[0])
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar materia' }))
     expect(screen.getByText('2 entregas')).toBeInTheDocument()
 
@@ -330,7 +334,7 @@ describe('SubjectDetailContainer', () => {
       await openCloseForm({ ...sampleDetail, program: numericProgram })
 
       fireEvent.change(screen.getByLabelText(/Nota/), { target: { value: '7' } })
-      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
       await waitFor(() => {
         expect(vi.mocked(materiasApi.setOutcome).mock.calls[0]?.[0]).toEqual({ id: 1, outcome: 'aprobada', grade: 7 })
@@ -342,7 +346,7 @@ describe('SubjectDetailContainer', () => {
       await openCloseForm({ ...sampleDetail, program: numericProgram })
 
       fireEvent.click(screen.getByRole('button', { name: /Final pendiente/ }))
-      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
       await waitFor(() => {
         expect(vi.mocked(materiasApi.setOutcome).mock.calls[0]?.[0]).toEqual({
@@ -361,7 +365,7 @@ describe('SubjectDetailContainer', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /Reprobada/ }))
       fireEvent.change(screen.getByLabelText(/Nota/), { target: { value: '3' } })
-      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
       await waitFor(() => {
         expect(vi.mocked(materiasApi.setOutcome).mock.calls[0]?.[0]).toEqual({ id: 1, outcome: 'reprobada', grade: 3 })
@@ -372,7 +376,7 @@ describe('SubjectDetailContainer', () => {
       await openCloseForm({ ...sampleDetail, program: numericProgram })
 
       fireEvent.click(screen.getByRole('button', { name: /Reprobada/ }))
-      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
       await waitFor(() => {
         expect(vi.mocked(materiasApi.setOutcome).mock.calls[0]?.[0]).toEqual({
@@ -396,8 +400,8 @@ describe('SubjectDetailContainer', () => {
 
       fireEvent.change(screen.getByLabelText(/Nota/), { target: { value: '11' } })
 
-      expect(await screen.findByText('grade must be between 0 and 10')).toBeInTheDocument()
-      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+      expect(await screen.findByText('La nota tiene que ser un número entre 0 y 10.')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
       expect(materiasApi.setOutcome).not.toHaveBeenCalled()
     })
 

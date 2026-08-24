@@ -3,6 +3,7 @@
 // emits `slots[]` via onChange and persists nothing itself (design §4).
 import type { ChangeEvent } from 'react'
 import { Plus, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
@@ -25,17 +26,11 @@ interface SlotEditorProps {
 
 // dayOfWeek matches JS `Date.getDay()` (0=Sunday..6=Saturday) so the
 // weekly-schedule projection (slice 3) can compose occurrences directly
-// with date-fns without a translation table. The select below still lists
-// options Monday-first for the UI (design's Monday-start week convention).
-const DAY_OPTIONS: Array<{ value: number; label: string }> = [
-  { value: 1, label: 'Lunes' },
-  { value: 2, label: 'Martes' },
-  { value: 3, label: 'Miércoles' },
-  { value: 4, label: 'Jueves' },
-  { value: 5, label: 'Viernes' },
-  { value: 6, label: 'Sábado' },
-  { value: 0, label: 'Domingo' }
-]
+// with date-fns without a translation table. The values below still list
+// options Monday-first for the UI (design's Monday-start week convention) —
+// which is exactly `common:weekdaysLong`'s order, so value n pairs with
+// label n by index alone.
+const DAY_OPTION_VALUES = [1, 2, 3, 4, 5, 6, 0]
 
 function minutesToTime(minutes: number): string {
   const hours = Math.floor(minutes / 60)
@@ -51,6 +46,9 @@ function timeToMinutes(time: string): number {
 }
 
 export function SlotEditor({ value, onChange }: SlotEditorProps): React.JSX.Element {
+  const { t } = useTranslation('common')
+  const weekdayLabels = t('weekdaysLong', { returnObjects: true }) as string[]
+
   function updateSlot(index: number, patch: Partial<SlotEditorValue>): void {
     onChange(value.map((slot, i) => (i === index ? { ...slot, ...patch } : slot)))
   }
@@ -72,22 +70,22 @@ export function SlotEditor({ value, onChange }: SlotEditorProps): React.JSX.Elem
           className="grid grid-cols-[1.3fr_1fr_1fr_1fr_auto] items-end gap-3 rounded-lg border border-border p-3"
         >
           <Label className="mb-0 flex flex-col gap-1">
-            Día
+            {t('slotEditor.day')}
             <Select
               value={slot.dayOfWeek}
               onChange={(event: ChangeEvent<HTMLSelectElement>) =>
                 updateSlot(index, { dayOfWeek: Number(event.target.value) })
               }
             >
-              {DAY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+              {DAY_OPTION_VALUES.map((dayValue, dayIndex) => (
+                <option key={dayValue} value={dayValue}>
+                  {weekdayLabels[dayIndex]}
                 </option>
               ))}
             </Select>
           </Label>
           <Label className="mb-0 flex flex-col gap-1">
-            Hora de inicio
+            {t('slotEditor.startTime')}
             <Input
               type="time"
               value={minutesToTime(slot.startMinutes)}
@@ -97,7 +95,7 @@ export function SlotEditor({ value, onChange }: SlotEditorProps): React.JSX.Elem
             />
           </Label>
           <Label className="mb-0 flex flex-col gap-1">
-            Hora de fin
+            {t('slotEditor.endTime')}
             <Input
               type="time"
               value={minutesToTime(slot.endMinutes)}
@@ -107,7 +105,7 @@ export function SlotEditor({ value, onChange }: SlotEditorProps): React.JSX.Elem
             />
           </Label>
           <Label className="mb-0 flex flex-col gap-1">
-            Lugar
+            {t('slotEditor.location')}
             <Input
               type="text"
               value={slot.location ?? ''}
@@ -121,7 +119,7 @@ export function SlotEditor({ value, onChange }: SlotEditorProps): React.JSX.Elem
             variant="ghost"
             size="icon"
             onClick={() => removeSlot(index)}
-            aria-label="Quitar horario"
+            aria-label={t('slotEditor.removeSlot')}
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </Button>
@@ -129,7 +127,7 @@ export function SlotEditor({ value, onChange }: SlotEditorProps): React.JSX.Elem
       ))}
       <Button type="button" variant="outline" size="sm" onClick={addSlot} className="self-start">
         <Plus className="h-4 w-4" aria-hidden="true" />
-        Agregar horario
+        {t('slotEditor.addSlot')}
       </Button>
     </div>
   )

@@ -10,6 +10,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Folder, Loader, Plug, SearchX } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { AskArtifactReport } from '../../../shared/ipc/ask'
 import type { ModelSelection } from '../../../shared/ipc/cli'
 import {
@@ -53,6 +54,7 @@ function conversationQueryKey(id: number | null): readonly [string, string, numb
 }
 
 export function AskPanelContainer({ onGoToAjustes }: AskPanelContainerProps): React.JSX.Element {
+  const { t } = useTranslation('ask')
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState('')
   // Read once from storage, then persisted on every change so the next
@@ -340,7 +342,7 @@ export function AskPanelContainer({ onGoToAjustes }: AskPanelContainerProps): Re
               icon={Plug}
               title={degradedCopy.title}
               detail={degradedCopy.detail}
-              actionLabel="Ir a Ajustes"
+              actionLabel={t('askPanelContainer.goToAjustes')}
               onAction={onGoToAjustes}
             />
           ) : (
@@ -348,8 +350,8 @@ export function AskPanelContainer({ onGoToAjustes }: AskPanelContainerProps): Re
               {entries.length === 0 && !mutation.isPending && (
                 <AskStateCard
                   icon={Folder}
-                  title="Preguntá sobre tu cursada"
-                  detail="Respondo solo con lo que subiste, y siempre te digo de qué archivo lo saqué."
+                  title={t('askPanelContainer.emptyTitle')}
+                  detail={t('askPanelContainer.emptyDetail')}
                 />
               )}
               <AskTranscript entries={entries} liveArtifact={liveArtifact} />

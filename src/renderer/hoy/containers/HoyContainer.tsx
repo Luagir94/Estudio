@@ -8,6 +8,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { useTranslation } from 'react-i18next'
 import { classifyDeadline } from '../../entregas/domain/deadline'
 import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
 import { hoyApi } from '../adapters/hoyApi'
@@ -19,15 +20,12 @@ interface HoyContainerProps {
   now?: Date
 }
 
-function pluralize(count: number, singular: string, plural: string): string {
-  return count === 1 ? singular : plural
-}
-
 function capitalize(text: string): string {
   return text.length === 0 ? text : text.charAt(0).toUpperCase() + text.slice(1)
 }
 
 export function HoyContainer({ now = new Date() }: HoyContainerProps = {}): React.JSX.Element {
+  const { t } = useTranslation('hoy')
   const { data, isLoading, isError } = useQuery({ queryKey: ['hoy', 'dashboard'], queryFn: hoyApi.dashboard })
 
   const subjects = data?.subjects ?? []
@@ -44,13 +42,17 @@ export function HoyContainer({ now = new Date() }: HoyContainerProps = {}): Reac
   ).length
   const upcoming7Count = dashboardDeadlines.length - overdueCount
 
-  const dateHeadline = capitalize(format(now, "EEEE d 'de' MMMM", { locale: es }))
-  const daySummary = `${todayClasses.length} ${pluralize(todayClasses.length, 'clase', 'clases')} hoy · ${overdueCount} ${pluralize(overdueCount, 'atrasada', 'atrasadas')} · ${upcoming7Count} ${pluralize(upcoming7Count, 'entrega', 'entregas')} en los próximos 7 días`
+  const dateHeadline = capitalize(format(now, t('container.dateHeadlineFormat'), { locale: es }))
+  const daySummary = t('container.daySummary', {
+    classes: t('container.classesToday', { count: todayClasses.length }),
+    overdue: t('container.overdueCount', { count: overdueCount }),
+    upcoming: t('container.upcomingCount', { count: upcoming7Count })
+  })
 
   return (
     <div className="flex flex-col gap-6">
-      {isLoading && <p className="text-body-lg text-muted-foreground">Cargando…</p>}
-      {isError && <p className="text-body-lg text-destructive">No se pudo cargar el resumen de hoy.</p>}
+      {isLoading && <p className="text-body-lg text-muted-foreground">{t('container.loading')}</p>}
+      {isError && <p className="text-body-lg text-destructive">{t('container.loadError')}</p>}
       {data && (
         <HoyDashboard
           dateHeadline={dateHeadline}

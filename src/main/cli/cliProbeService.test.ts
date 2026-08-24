@@ -80,6 +80,7 @@ describe('createCliProbeService — three-state classification', () => {
       source: 'auto',
       overridePath: null,
       detail: null,
+      failureReason: null,
       capabilities: ALL_SUPPORTED
     })
   })
@@ -119,6 +120,7 @@ describe('createCliProbeService — three-state classification', () => {
 
     expect(status.status).toBe('unusable')
     expect(status.detail).toContain('9')
+    expect(status.failureReason).toEqual({ code: 'exit-code', exitCode: 9 })
   })
 
   it('resolves to unusable when the process exits 0 but prints no parseable version', async () => {
@@ -132,6 +134,7 @@ describe('createCliProbeService — three-state classification', () => {
 
     expect(status.status).toBe('unusable')
     expect(status.detail).toBe('command not recognized')
+    expect(status.failureReason).toEqual({ code: 'unrecognized-output' })
   })
 
   it('kills the process and resolves to unusable when the hard timeout elapses', async () => {
@@ -157,6 +160,7 @@ describe('createCliProbeService — three-state classification', () => {
     expect(child.kill).toHaveBeenCalledWith('SIGKILL')
     expect(status.status).toBe('unusable')
     expect(status.detail).toContain('5000')
+    expect(status.failureReason).toEqual({ code: 'timeout', timeoutMs: 5000 })
   })
 
   // The injected budget above proves the timeout PATH; this proves the budget
@@ -201,6 +205,7 @@ describe('createCliProbeService — three-state classification', () => {
     expect(status.status).toBe('unusable')
     expect(status.source).toBe('override')
     expect(status.overridePath).toBe('not-absolute')
+    expect(status.failureReason).toEqual({ code: 'invalid-executable', path: 'not-absolute' })
     expect(spawn).not.toHaveBeenCalled()
   })
 })

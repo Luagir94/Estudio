@@ -24,6 +24,7 @@ import {
   SearchX,
   Strikethrough
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { Attachment } from '../../../shared/ipc/adjuntos'
 import { cn } from '../../shared/lib/cn'
 import { focusRing, interactive, interactiveChip, interactiveGhost } from '../../shared/lib/interactive'
@@ -46,14 +47,16 @@ const INDEX_BADGE_ICON_COMPONENTS: Record<IndexBadgeIcon, LucideIcon> = {
   'search-x': SearchX
 }
 
-// The six toolbar buttons, in the approved design's order.
-const TOOLBAR_BUTTONS: Array<{ action: ToolbarAction; label: string; Icon: LucideIcon }> = [
-  { action: 'bold', label: 'Negrita', Icon: Bold },
-  { action: 'italic', label: 'Cursiva', Icon: Italic },
-  { action: 'strikethrough', label: 'Tachado', Icon: Strikethrough },
-  { action: 'list', label: 'Lista', Icon: List },
-  { action: 'code', label: 'Código', Icon: Code },
-  { action: 'link', label: 'Enlace', Icon: Link }
+// The six toolbar buttons, in the approved design's order. Labels resolve at
+// render time from `adjuntos:attachmentViewer.toolbar.<action>` — the action
+// ids double as catalog keys.
+const TOOLBAR_BUTTONS: Array<{ action: ToolbarAction; Icon: LucideIcon }> = [
+  { action: 'bold', Icon: Bold },
+  { action: 'italic', Icon: Italic },
+  { action: 'strikethrough', Icon: Strikethrough },
+  { action: 'list', Icon: List },
+  { action: 'code', Icon: Code },
+  { action: 'link', Icon: Link }
 ]
 
 export interface AttachmentViewerProps {
@@ -106,6 +109,7 @@ export function AttachmentViewer({
   onOpenExternal,
   onToolbarAction
 }: AttachmentViewerProps): React.JSX.Element {
+  const { t } = useTranslation('adjuntos')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Applies the container's post-transformation selection once the new draft
@@ -131,7 +135,10 @@ export function AttachmentViewer({
   }
 
   return (
-    <section aria-label={`Documento ${attachment.fileName}`} className="flex h-full min-h-0 flex-col gap-4">
+    <section
+      aria-label={t('attachmentViewer.documentLabel', { fileName: attachment.fileName })}
+      className="flex h-full min-h-0 flex-col gap-4"
+    >
       {/* Back link (design: chevron 14px + subject name, 12px/500 muted). */}
       <button
         type="button"
@@ -177,7 +184,7 @@ export function AttachmentViewer({
               dirty && (
                 <span className="inline-flex shrink-0 items-center gap-[5px] rounded-md bg-warn-soft px-2 py-1 text-micro font-semibold text-warn">
                   <Pencil className="h-[11px] w-[11px]" aria-hidden="true" />
-                  Sin guardar
+                  {t('attachmentViewer.unsaved')}
                 </span>
               )
             )}
@@ -204,7 +211,7 @@ export function AttachmentViewer({
                     interactiveChip
                   )}
                 >
-                  {segment === 'vista' ? 'Vista' : 'Edición'}
+                  {segment === 'vista' ? t('attachmentViewer.vista') : t('attachmentViewer.edicion')}
                 </button>
               )
             })}
@@ -213,7 +220,7 @@ export function AttachmentViewer({
           {mode === 'vista' ? (
             <button
               type="button"
-              aria-label="Abrir con la aplicación del sistema"
+              aria-label={t('attachmentViewer.openWithSystem')}
               onClick={onOpenExternal}
               className={cn(
                 'flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-muted text-muted-foreground',
@@ -233,7 +240,7 @@ export function AttachmentViewer({
                   'hover:bg-secondary/80 active:bg-secondary/70'
                 )}
               >
-                Cancelar
+                {t('common:actions.cancel')}
               </button>
               <button
                 type="button"
@@ -245,7 +252,7 @@ export function AttachmentViewer({
                 )}
               >
                 <Check className="h-[13px] w-[13px]" aria-hidden />
-                Guardar
+                {t('common:actions.saveChanges')}
               </button>
             </>
           )}
@@ -265,7 +272,7 @@ export function AttachmentViewer({
                     <CircleAlert className="h-4 w-4 shrink-0 text-destructive" aria-hidden />
                   )}
                   <p className="text-body font-semibold text-foreground">
-                    {isMissing ? 'No se encontró el archivo en disco' : 'No se pudo cargar el documento'}
+                    {isMissing ? t('attachmentViewer.missing') : t('attachmentViewer.loadError')}
                   </p>
                 </div>
               ) : isLoading || content === undefined ? (
@@ -283,11 +290,11 @@ export function AttachmentViewer({
         ) : (
           <>
             <div className="flex items-center gap-1 border-b border-border px-3 py-2">
-              {TOOLBAR_BUTTONS.map(({ action, label, Icon }) => (
+              {TOOLBAR_BUTTONS.map(({ action, Icon }) => (
                 <button
                   key={action}
                   type="button"
-                  aria-label={label}
+                  aria-label={t(`attachmentViewer.toolbar.${action}`)}
                   onClick={() => handleToolbarClick(action)}
                   className={cn(
                     'flex h-[26px] w-[26px] items-center justify-center rounded-md text-secondary-foreground',
@@ -302,7 +309,7 @@ export function AttachmentViewer({
             <div className="flex min-h-0 flex-1 px-6 py-5">
               <textarea
                 ref={textareaRef}
-                aria-label="Editor de markdown"
+                aria-label={t('attachmentViewer.editorLabel')}
                 value={draft}
                 onChange={(event) => onDraftChange(event.target.value)}
                 spellCheck={false}
@@ -316,10 +323,10 @@ export function AttachmentViewer({
             <div className="flex items-center justify-between gap-4 border-t border-border px-4 py-2.5">
               <span className="flex items-center gap-1.5 text-caption text-muted-foreground">
                 <RefreshCw className="h-3 w-3 shrink-0" aria-hidden />
-                Al guardar, el adjunto se vuelve a indexar para Preguntar
+                {t('attachmentViewer.reindexHint')}
               </span>
               <span className="shrink-0 text-caption text-muted-foreground">
-                Markdown · {lineCount} {lineCount === 1 ? 'línea' : 'líneas'}
+                {t('attachmentViewer.lineCount', { count: lineCount })}
               </span>
             </div>
           </>

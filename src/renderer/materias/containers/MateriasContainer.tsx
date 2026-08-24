@@ -17,14 +17,19 @@ interface MateriasContainerProps {
    * able to leave the detail without App overriding it.
    */
   initialSubjectId?: number | null
+  /** Navigates to Carreras — threaded down to the "no periods yet" dead end. */
+  onGoToCarreras?: () => void
 }
 
-export function MateriasContainer({ initialSubjectId = null }: MateriasContainerProps = {}): React.JSX.Element {
+export function MateriasContainer({
+  initialSubjectId = null,
+  onGoToCarreras
+}: MateriasContainerProps = {}): React.JSX.Element {
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(initialSubjectId)
 
   if (selectedSubjectId !== null) {
     return <SubjectDetailContainer subjectId={selectedSubjectId} onBack={() => setSelectedSubjectId(null)} />
   }
 
-  return <MateriasListContainer onSelectSubject={setSelectedSubjectId} />
+  return <MateriasListContainer onSelectSubject={setSelectedSubjectId} onGoToCarreras={onGoToCarreras} />
 }

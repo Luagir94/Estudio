@@ -11,6 +11,7 @@
 // looks like a normal row. Editing keeps the option because a subject can
 // legitimately become orphaned when its period is deleted, and you need a
 // way to see and fix that.
+import { useTranslation } from 'react-i18next'
 import { Label } from '../../shared/components/ui/label'
 import { Select } from '../../shared/components/ui/select'
 import type { ProgramWithPeriods } from '../../../shared/ipc/carreras'
@@ -24,14 +25,15 @@ interface PeriodSelectProps {
 }
 
 export function PeriodSelect({ programs, registration, allowNone = true }: PeriodSelectProps): React.JSX.Element {
+  const { t } = useTranslation('materias')
   const hasPeriods = programs.some((program) => program.periods.length > 0)
 
   return (
     <div className="flex flex-col gap-2">
       <Label>
-        Período
+        {t('periodSelect.label')}
         <Select disabled={!hasPeriods} {...registration}>
-          {allowNone && <option value="">Sin período</option>}
+          {allowNone && <option value="">{t('periodSelect.noPeriodOption')}</option>}
           {programs.map((program) => (
             <optgroup key={program.id} label={program.name}>
               {program.periods.map((period) => (
@@ -44,9 +46,7 @@ export function PeriodSelect({ programs, registration, allowNone = true }: Perio
         </Select>
       </Label>
       <p className="text-caption text-muted-foreground">
-        {hasPeriods
-          ? 'Define de qué carrera es la materia, si está activa, y cuándo hay que cerrarla.'
-          : 'Todavía no cargaste ningún período. Creá uno desde Carreras para poder ubicar la materia en el tiempo.'}
+        {hasPeriods ? t('periodSelect.helpHasPeriods') : t('periodSelect.helpNoPeriods')}
       </p>
     </div>
   )

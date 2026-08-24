@@ -9,6 +9,7 @@
 // `DeadlineRow`/`AttachmentRow` already ship (`Trash2` +
 // `interactiveGhostDestructive`) rather than inventing a new one.
 import { Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { ConversationSummary } from '../../../shared/ipc/ask'
 import { cn } from '../../shared/lib/cn'
 import { interactiveChip, interactiveGhostDestructive, interactiveSurface } from '../../shared/lib/interactive'
@@ -33,6 +34,7 @@ export function AskHistoryList({
   onNewConversation,
   onDelete
 }: AskHistoryListProps): React.JSX.Element {
+  const { t } = useTranslation('ask')
   return (
     <div className="flex flex-col gap-0.5">
       <button
@@ -69,7 +71,7 @@ export function AskHistoryList({
             </button>
             <button
               type="button"
-              aria-label={`Eliminar "${conversation.title}"`}
+              aria-label={t('askHistoryList.deleteConversation', { title: conversation.title })}
               onClick={() => onDelete(conversation.id)}
               className={cn('shrink-0 rounded-md p-1.5 text-muted-foreground', interactiveGhostDestructive)}
             >

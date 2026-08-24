@@ -2,10 +2,9 @@
 // with a Day Head [abbr + number], stacked Class Bars [one per class,
 // subject-colored], and a Due Marker on days with a pending deadline).
 // Monday-first (spec: "Week Strip Starts Monday").
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../shared/lib/cn'
 import type { WeekStripDay } from '../domain/dashboard'
-
-const DAY_ABBR = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM']
 
 interface WeekStripProps {
   /** Exactly 7 entries, Monday-first (see `getWeekStrip`). */
@@ -15,6 +14,10 @@ interface WeekStripProps {
 }
 
 export function WeekStrip({ days, todayMondayFirstIndex }: WeekStripProps): React.JSX.Element {
+  const { t } = useTranslation('hoy')
+  // Monday-first, matching `mondayFirstIndex` — same indexing the old
+  // hardcoded DAY_ABBR table had.
+  const dayAbbr = t('common:weekdaysCaps', { returnObjects: true }) as string[]
   return (
     // A grid with `minmax(0,1fr)` tracks, not a flex row: flex items refuse to
     // shrink below their content, so on a narrow window the seven days pushed
@@ -39,7 +42,7 @@ export function WeekStrip({ days, todayMondayFirstIndex }: WeekStripProps): Reac
                 above the date. */}
             <div className="flex flex-col items-start lg:flex-row lg:items-baseline lg:justify-between">
               <span className={cn('text-overline font-medium', isToday ? 'text-primary-ink' : 'text-muted-foreground')}>
-                {DAY_ABBR[day.mondayFirstIndex]}
+                {dayAbbr[day.mondayFirstIndex]}
               </span>
               <span className="text-body font-semibold text-foreground">{day.date.getDate()}</span>
             </div>
@@ -53,7 +56,7 @@ export function WeekStrip({ days, todayMondayFirstIndex }: WeekStripProps): Reac
             {day.dueCount > 0 && (
               <div className="flex items-center gap-2 text-micro font-medium text-(--color-urgent)">
                 <span aria-hidden="true" className="h-[5px] w-[5px] shrink-0 rounded-full bg-(--color-urgent)" />
-                {day.dueCount} {day.dueCount === 1 ? 'entrega' : 'entregas'}
+                {t('weekStrip.dueCount', { count: day.dueCount })}
               </div>
             )}
           </div>

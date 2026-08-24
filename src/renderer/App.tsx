@@ -112,7 +112,10 @@ function Shell(): React.JSX.Element {
           ) : activeDomain === 'entregas' ? (
             <EntregasContainer />
           ) : activeDomain === 'materias' ? (
-            <MateriasContainer initialSubjectId={handedOverSubjectId} />
+            <MateriasContainer
+              initialSubjectId={handedOverSubjectId}
+              onGoToCarreras={() => handleNavigate('carreras')}
+            />
           ) : activeDomain === 'carreras' ? (
             <CarrerasScreenContainer onOpenSubject={handleOpenSubject} />
           ) : activeDomain === 'ajustes' ? (

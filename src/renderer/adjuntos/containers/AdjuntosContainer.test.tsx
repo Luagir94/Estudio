@@ -125,7 +125,7 @@ describe('AdjuntosContainer', () => {
 
     renderWithClient(<AdjuntosContainer subjectId={42} />)
 
-    expect(await screen.findByText('No se pudieron cargar los adjuntos')).toBeInTheDocument()
+    expect(await screen.findByText('No se pudieron cargar los adjuntos.')).toBeInTheDocument()
     expect(window.api.adjuntos.list).toHaveBeenCalledTimes(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
@@ -206,7 +206,9 @@ describe('AdjuntosContainer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir' }))
 
-    expect(await screen.findByText('No se encontró el archivo en disco')).toBeInTheDocument()
+    expect(
+      await screen.findByText('El archivo ya no está en el disco — puede que se haya movido o borrado fuera de la app.')
+    ).toBeInTheDocument()
     // The row itself — file name and its Abrir/Eliminar actions — is still rendered, never auto-deleted.
     expect(screen.getByText('apuntes.pdf')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Eliminar' })).toBeInTheDocument()
@@ -224,7 +226,7 @@ describe('AdjuntosContainer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Agregar archivo' }))
 
-    expect(await screen.findByText('No se pudo agregar el archivo')).toBeInTheDocument()
+    expect(await screen.findByText('No se pudieron agregar los archivos. Probá de nuevo.')).toBeInTheDocument()
   })
 
   it('shows a channel-level failure message when adjuntos:delete rejects, and the row stays listed', async () => {
@@ -239,7 +241,9 @@ describe('AdjuntosContainer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
 
-    expect(await screen.findByText('No se pudo eliminar el adjunto')).toBeInTheDocument()
+    expect(
+      await screen.findByText('No se pudo eliminar el adjunto. Actualizá la lista e intentá de nuevo.')
+    ).toBeInTheDocument()
     // The row must still be there — nothing was actually removed.
     expect(screen.getByText('apuntes.pdf')).toBeInTheDocument()
   })
@@ -256,8 +260,12 @@ describe('AdjuntosContainer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir' }))
 
-    expect(await screen.findByText('No se pudo abrir el archivo')).toBeInTheDocument()
-    expect(screen.queryByText('No se encontró el archivo en disco')).not.toBeInTheDocument()
+    expect(
+      await screen.findByText('No se pudo abrir el archivo. Probá de nuevo, o abrilo manualmente desde su carpeta.')
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('El archivo ya no está en el disco — puede que se haya movido o borrado fuera de la app.')
+    ).not.toBeInTheDocument()
   })
 
   it('ATTACHMENT_FILE_MISSING still shows only the per-row missing state, never the generic open failure message', async () => {
@@ -273,8 +281,12 @@ describe('AdjuntosContainer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir' }))
 
-    expect(await screen.findByText('No se encontró el archivo en disco')).toBeInTheDocument()
-    expect(screen.queryByText('No se pudo abrir el archivo')).not.toBeInTheDocument()
+    expect(
+      await screen.findByText('El archivo ya no está en el disco — puede que se haya movido o borrado fuera de la app.')
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('No se pudo abrir el archivo. Probá de nuevo, o abrilo manualmente desde su carpeta.')
+    ).not.toBeInTheDocument()
   })
 
   it('clears a channel-level failure message once a later action succeeds', async () => {
@@ -289,10 +301,16 @@ describe('AdjuntosContainer', () => {
     await screen.findByText('apuntes.pdf')
 
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
-    expect(await screen.findByText('No se pudo eliminar el adjunto')).toBeInTheDocument()
+    expect(
+      await screen.findByText('No se pudo eliminar el adjunto. Actualizá la lista e intentá de nuevo.')
+    ).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
-    await waitFor(() => expect(screen.queryByText('No se pudo eliminar el adjunto')).not.toBeInTheDocument())
+    await waitFor(() =>
+      expect(
+        screen.queryByText('No se pudo eliminar el adjunto. Actualizá la lista e intentá de nuevo.')
+      ).not.toBeInTheDocument()
+    )
   })
 
   it('clicking "Sincronizar" invokes indexado:sync', async () => {

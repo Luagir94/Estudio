@@ -29,6 +29,7 @@ import {
   Sun
 } from 'lucide-react'
 import type { ComponentType } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/cn'
 import { interactive, interactiveGhost } from '../lib/interactive'
 
@@ -73,24 +74,24 @@ interface SidebarProps {
 
 interface NavItem {
   domain: SidebarDomain
-  label: string
   icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
   /** Set once the domain's screen is built (slices 4-5 will flip the rest). */
   available: boolean
 }
 
+// Labels come from `common:sidebar.nav.<domain>` at render time.
 const NAV_ITEMS: NavItem[] = [
-  { domain: 'hoy', label: 'Hoy', icon: Sun, available: true },
-  { domain: 'materias', label: 'Materias', icon: BookOpen, available: true },
-  { domain: 'horario', label: 'Horario', icon: Calendar, available: true },
-  { domain: 'entregas', label: 'Entregas', icon: CircleCheck, available: true },
+  { domain: 'hoy', icon: Sun, available: true },
+  { domain: 'materias', icon: BookOpen, available: true },
+  { domain: 'horario', icon: Calendar, available: true },
+  { domain: 'entregas', icon: CircleCheck, available: true },
   // Last on purpose (design node `wx0uR`): carreras is setup you touch a few
   // times a term, not a daily screen. The brand block's period switcher is
   // the frequent path into it.
-  { domain: 'carreras', label: 'Carreras', icon: GraduationCap, available: true },
+  { domain: 'carreras', icon: GraduationCap, available: true },
   // Sixth and final item (PR7, approved `.pen`): settings is the least
   // frequent screen in the app, so it sits after carreras, not before it.
-  { domain: 'ajustes', label: 'Ajustes', icon: Settings, available: true }
+  { domain: 'ajustes', icon: Settings, available: true }
 ]
 
 export function Sidebar({
@@ -102,18 +103,19 @@ export function Sidebar({
   terms = [],
   canToggle = true
 }: SidebarProps): React.JSX.Element {
+  const { t } = useTranslation('common')
   const ToggleIcon = collapsed ? PanelLeftOpen : PanelLeftClose
-  const toggleLabel = collapsed ? 'Desplegar barra lateral' : 'Replegar barra lateral'
+  const toggleLabel = collapsed ? t('sidebar.expand') : t('sidebar.collapse')
   const termLabel =
     terms.length === 0
-      ? 'Sin período activo'
+      ? t('sidebar.noActiveTerm')
       : terms.length === 1
-        ? `${terms[0].programName} · ${terms[0].periodName}`
-        : `${terms.length} períodos activos`
+        ? t('sidebar.activeTerm', { program: terms[0].programName, period: terms[0].periodName })
+        : t('sidebar.activeTermsCount', { count: terms.length })
 
   return (
     <nav
-      aria-label="Navegación principal"
+      aria-label={t('sidebar.mainNavigation')}
       data-collapsed={collapsed}
       className={cn(
         'flex h-full shrink-0 flex-col gap-6 border-r border-sidebar-border bg-sidebar py-6',
@@ -123,7 +125,9 @@ export function Sidebar({
       <div className={cn('flex items-center gap-2', collapsed ? 'justify-center' : 'px-2')}>
         {!collapsed && (
           <div className="flex min-w-0 flex-1 flex-col gap-px">
-            <p className="truncate font-display text-body-lg font-semibold text-sidebar-foreground">Mi Cursada</p>
+            <p className="truncate font-display text-body-lg font-semibold text-sidebar-foreground">
+              {t('sidebar.appTitle')}
+            </p>
             {/* Was the hardcoded string "2027 · Primer cuatrimestre", which
                 named a cuatrimestre no row in the database had ever agreed
                 to. Carrera first, then período, in the design's order. */}
@@ -135,7 +139,7 @@ export function Sidebar({
           onClick={onToggleCollapsed}
           disabled={!canToggle}
           aria-expanded={!collapsed}
-          title={canToggle ? toggleLabel : 'La ventana es muy angosta para la barra completa'}
+          title={canToggle ? toggleLabel : t('sidebar.windowTooNarrow')}
           className={cn(
             'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-secondary-foreground',
             interactive,
@@ -148,7 +152,8 @@ export function Sidebar({
       </div>
 
       <ul className="flex flex-col gap-1">
-        {NAV_ITEMS.map(({ domain, label, icon: Icon, available }) => {
+        {NAV_ITEMS.map(({ domain, icon: Icon, available }) => {
+          const label = t(`sidebar.nav.${domain}`)
           const isActive = domain === active
           const itemClassName = cn(
             'flex w-full items-center rounded-lg py-2 text-body',
@@ -203,7 +208,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={onExport}
-          title={collapsed ? 'Exportar datos' : undefined}
+          title={collapsed ? t('sidebar.exportData') : undefined}
           className={cn(
             'flex items-center rounded-lg py-2 text-left text-secondary-foreground',
             collapsed ? 'justify-center px-0' : 'gap-3 px-3',
@@ -211,14 +216,14 @@ export function Sidebar({
           )}
         >
           <Download className="h-4 w-4 shrink-0" aria-hidden />
-          <span className={cn('text-body font-medium', collapsed && 'sr-only')}>Exportar datos</span>
+          <span className={cn('text-body font-medium', collapsed && 'sr-only')}>{t('sidebar.exportData')}</span>
         </button>
         <div
-          title={collapsed ? 'Guardado local' : undefined}
+          title={collapsed ? t('sidebar.localStorage') : undefined}
           className={cn('flex items-center text-muted-foreground', collapsed ? 'justify-center' : 'gap-2 px-3')}
         >
           <HardDrive className="h-3 w-3 shrink-0" aria-hidden />
-          <span className={cn('text-caption', collapsed && 'sr-only')}>Guardado local</span>
+          <span className={cn('text-caption', collapsed && 'sr-only')}>{t('sidebar.localStorage')}</span>
         </div>
       </div>
     </nav>

@@ -130,6 +130,36 @@ export const cliStatusValueSchema = z.enum(['connected', 'not-found', 'unusable'
 
 export type CliStatusValue = z.infer<typeof cliStatusValueSchema>
 
+/**
+ * The STRUCTURED reason behind an `unusable` status — the part of the outcome
+ * the RENDERER is allowed to turn into prose (i18n phase 2 "CLI probe
+ * reasons"). It lives alongside `detail` below, never replacing it: `detail`
+ * stays the main process's own English wording, kept on the payload for
+ * diagnostics and logs, but it must never reach a screen glued onto Spanish
+ * prose. This union is what the renderer localizes instead — one literal per
+ * distinct failure `cliProbeService` can produce, carrying only the data (a
+ * path, a timeout budget, an exit code) needed to phrase it, never English
+ * text of its own.
+ *
+ * Modeled on `askArtifactReportSchema` (`src/shared/ipc/ask.ts`): a Zod
+ * discriminated union on a `code` field, one object per case. No i18n import
+ * here — this module stays framework-free and is parsed on BOTH processes.
+ */
+export const cliProbeFailureReasonSchema = z.discriminatedUnion('code', [
+  // The resolved or overridden path failed pre-spawn validation — nothing was
+  // ever spawned.
+  z.object({ code: z.literal('invalid-executable'), path: z.string() }),
+  // The process was killed after the hard timeout budget elapsed.
+  z.object({ code: z.literal('timeout'), timeoutMs: z.number() }),
+  // The process exited non-zero. `exitCode` is `null` only when the runtime
+  // itself never reported one, mirroring `ChildProcess`'s own `close` event.
+  z.object({ code: z.literal('exit-code'), exitCode: z.number().nullable() }),
+  // Exit 0, but stdout carried nothing that parses as a version.
+  z.object({ code: z.literal('unrecognized-output') })
+])
+
+export type CliProbeFailureReason = z.infer<typeof cliProbeFailureReasonSchema>
+
 // Same three-state classification the single-provider probe already used
 // (spec "Three-State Status Classification"), now carried per provider. The
 // renderer still never sees a raw exit code or spawn error.
@@ -141,6 +171,13 @@ export const cliProviderStatusSchema = z.object({
   source: z.enum(['auto', 'override']),
   overridePath: z.string().nullable(),
   detail: z.string().nullable(),
+  /**
+   * The structured counterpart of `detail` — see `cliProbeFailureReasonSchema`
+   * above. `null` whenever `status` is not `unusable`, and also whenever the
+   * failure predates this field or does not fit a known case; the renderer
+   * falls back to generic Spanish in either case, never to `detail`.
+   */
+  failureReason: cliProbeFailureReasonSchema.nullable(),
   /**
    * What the INSTALLED binary was observed to support, rather than what its
    * documentation claims. Null until a capability probe has run.

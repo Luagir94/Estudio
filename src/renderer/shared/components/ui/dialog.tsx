@@ -11,6 +11,7 @@
 // is no single uniform panel padding.
 import type { HTMLAttributes } from 'react'
 import { X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/cn'
 import { interactiveGhost } from '../../lib/interactive'
 
@@ -45,6 +46,7 @@ interface DialogHeaderProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 export function DialogHeader({ className, onClose, children, ...props }: DialogHeaderProps) {
+  const { t } = useTranslation('common')
   return (
     <div
       className={cn('flex shrink-0 items-center justify-between gap-4 border-b border-border px-6 py-4', className)}
@@ -58,7 +60,7 @@ export function DialogHeader({ className, onClose, children, ...props }: DialogH
         <button
           type="button"
           onClick={onClose}
-          aria-label="Cerrar"
+          aria-label={t('dialog.close')}
           className={cn('-m-2 rounded-md p-2 text-muted-foreground', interactiveGhost)}
         >
           <X className="h-4 w-4" aria-hidden />

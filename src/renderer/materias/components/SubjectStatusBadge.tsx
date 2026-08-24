@@ -2,15 +2,8 @@
 //
 // Shared by the list and the detail screens so a subject never reads as one
 // state in one place and another somewhere else.
+import { useTranslation } from 'react-i18next'
 import type { SubjectStatus } from '../domain/subjectStatus'
-
-const STATUS_LABELS: Record<SubjectStatus, string> = {
-  cursando: 'Cursando',
-  sinCerrar: 'Sin cerrar',
-  aprobada: 'Aprobada',
-  reprobada: 'Reprobada',
-  standby: 'Final pendiente'
-}
 
 const STATUS_STYLES: Record<SubjectStatus, string> = {
   cursando: 'border-primary bg-sidebar-accent text-primary-ink',
@@ -35,14 +28,13 @@ interface SubjectStatusBadgeProps {
 }
 
 export function SubjectStatusBadge({ status }: SubjectStatusBadgeProps): React.JSX.Element {
+  const { t } = useTranslation('materias')
   return (
     <span
       className={`inline-flex w-fit items-center gap-2 rounded-md border px-2 py-1 text-caption font-semibold ${STATUS_STYLES[status]}`}
     >
       <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${DOT_STYLES[status]}`} />
-      {STATUS_LABELS[status]}
+      {t(`subjectStatusBadge.statusLabels.${status}`)}
     </span>
   )
 }
-
-export { STATUS_LABELS }

@@ -24,7 +24,9 @@
 // not hold three independent answers — connecting one CLI would have forced
 // invented values for the two nobody touched.
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { TFunction } from 'i18next'
 import { Info } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { CLI_PROVIDERS, type CliPreference, type CliProvider } from '../../../shared/ipc/cli'
 import { ajustesApi, CLI_PREFERENCES_QUERY_KEY, cliStatusQueryKey } from '../adapters/ajustesApi'
 import { ConnectionStatusCard } from '../components/ConnectionStatusCard'
@@ -33,6 +35,7 @@ import { IdleProviderCard } from '../components/IdleProviderCard'
 import { PROVIDER_COMMANDS } from '../domain/connectionDisplay'
 
 export function AjustesContainer(): React.JSX.Element {
+  const { t } = useTranslation('ajustes')
   const queryClient = useQueryClient()
 
   // A settings read, not a probe: it starts no process, which is the only
@@ -94,10 +97,8 @@ export function AjustesContainer(): React.JSX.Element {
           one button that re-probed every CLI is exactly the fan-out this
           screen no longer does. Retrying is per row now. */}
       <div className="flex flex-col gap-1">
-        <h1 className="font-display text-display-lg font-bold text-foreground">Ajustes</h1>
-        <p className="text-body text-secondary-foreground">
-          La app nunca ejecuta nada por su cuenta · todo queda en tu máquina
-        </p>
+        <h1 className="font-display text-display-lg font-bold text-foreground">{t('ajustesContainer.title')}</h1>
+        <p className="text-body text-secondary-foreground">{t('ajustesContainer.subtitle')}</p>
       </div>
 
       {/* One row per CLI (approved `.pen`), in one of three honest states:
@@ -154,9 +155,7 @@ export function AjustesContainer(): React.JSX.Element {
       <div className="flex items-start gap-2 rounded-lg bg-muted px-4 py-3">
         <Info className="mt-px h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
         <p className="text-body-sm text-muted-foreground">
-          Esta pantalla solo detecta los CLI que conectes y corre {formatCommands()}, más su página de ayuda para ver
-          qué opciones acepta la versión instalada. No envía tus materias, tus adjuntos ni tus notas a ningún lado, y no
-          ejecuta ningún otro comando.
+          {t('ajustesContainer.policyNote', { commands: formatCommands(t) })}
         </p>
       </div>
     </div>
@@ -164,11 +163,11 @@ export function AjustesContainer(): React.JSX.Element {
 }
 
 /** Names every command a probe can run, so the policy note stays literally true. */
-function formatCommands(): string {
+function formatCommands(t: TFunction): string {
   const quoted = (Object.keys(PROVIDER_COMMANDS) as CliProvider[]).map(
     (provider) => `\`${PROVIDER_COMMANDS[provider]}\``
   )
   // Spanish joins the final item with "y", not another comma — the approved
   // copy in the `.pen` reads "…, … y …".
-  return `${quoted.slice(0, -1).join(', ')} y ${quoted[quoted.length - 1]}`
+  return `${quoted.slice(0, -1).join(', ')} ${t('ajustesContainer.commandsJoiner')} ${quoted[quoted.length - 1]}`
 }

@@ -12,6 +12,7 @@
 // drawn on the button, and the 4px of padding is the gap between ring and
 // colour. Doing it with `ring-offset` instead would need the offset colour
 // declared per call site — and this renders on a card AND inside a dialog.
+import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/cn'
 import { interactive, interactiveSwatch } from '../lib/interactive'
 
@@ -37,6 +38,7 @@ export function ColorSwatchPicker({
   onChange,
   options = SUBJECT_COLORS
 }: ColorSwatchPickerProps): React.JSX.Element {
+  const { t } = useTranslation('common')
   // Anything the catalogue does not contain is a custom colour, including the
   // empty string a brand-new form starts with — which is why the ring is
   // gated on a non-empty value rather than on `isCustom` alone.
@@ -48,7 +50,7 @@ export function ColorSwatchPicker({
         <button
           key={option}
           type="button"
-          aria-label={`Color ${option}`}
+          aria-label={t('colorSwatchPicker.colorOption', { color: option })}
           aria-pressed={value === option}
           onClick={() => onChange(option)}
           className={cn(
@@ -81,7 +83,7 @@ export function ColorSwatchPicker({
         />
         <input
           type="color"
-          aria-label="Color personalizado"
+          aria-label={t('colorSwatchPicker.customColor')}
           value={isCustom ? value : (options[0] ?? '#000000')}
           onChange={(event) => onChange(event.target.value)}
           className="sr-only"

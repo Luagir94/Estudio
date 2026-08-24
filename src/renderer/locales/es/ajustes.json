@@ -1,0 +1,55 @@
+{
+  "connectionDisplay": {
+    "providerLabel": {
+      "claude": "Claude Code",
+      "antigravity": "Antigravity CLI",
+      "codex": "Codex CLI"
+    },
+    "detectingLabel": "Detectando…",
+    "connectAction": "Conectar",
+    "retryAction": "Reintentar",
+    "disconnectAction": "Desconectar",
+    "pathInputPlaceholder": "Ruta del ejecutable (opcional)",
+    "inertMessage": "Encontramos este CLI, pero la versión instalada no acepta las opciones que la app necesita. Todavía no se puede preguntar con él.",
+    "executionWarning": "La app va a EJECUTAR el archivo que indiques acá. Apuntá solo a un ejecutable de {{provider}} en el que confíes.",
+    "unusableFriendlyMessage": "Encontramos {{provider}}, pero no pudimos usarlo.",
+    "failureReason": {
+      "invalidExecutable": "La ruta {{path}} no es un ejecutable válido. Revisá la ruta en Ajustes.",
+      "timeout": "El CLI tardó más de {{timeoutMs}} ms en responder. Probá de nuevo.",
+      "exitCode": "El CLI terminó con un error (código {{code}}). Probá de nuevo.",
+      "unrecognizedOutput": "No entendimos lo que devolvió el CLI. Probá de nuevo, o revisá la ruta en Ajustes.",
+      "generic": "No pudimos determinar qué pasó. Probá de nuevo, o revisá la ruta en Ajustes.",
+      "unknownExitCode": "desconocido"
+    },
+    "capability": {
+      "structuredOutput": {
+        "label": "Respuestas estructuradas",
+        "caveat": "Este CLI no acepta las opciones que la app necesita para leer sus respuestas."
+      },
+      "warmSession": {
+        "label": "Proceso reutilizable",
+        "caveat": "Cada pregunta arranca el CLI de cero, así que tarda bastante más."
+      },
+      "readOnlyTools": {
+        "label": "Solo lectura garantizada",
+        "caveat": "Este CLI no permite limitar sus herramientas, así que la app no puede garantizarlo."
+      }
+    }
+  },
+  "connectionStatusCard": {
+    "statusLabel": {
+      "connected": "Conectado",
+      "not-found": "No encontrado",
+      "unusable": "No funciona"
+    }
+  },
+  "inlinePathInput": {
+    "ariaLabel": "Ruta manual del ejecutable de {{provider}}"
+  },
+  "ajustesContainer": {
+    "title": "Ajustes",
+    "subtitle": "La app nunca ejecuta nada por su cuenta · todo queda en tu máquina",
+    "policyNote": "Esta pantalla solo detecta los CLI que conectes y corre {{commands}}, más su página de ayuda para ver qué opciones acepta la versión instalada. No envía tus materias, tus adjuntos ni tus notas a ningún lado, y no ejecuta ningún otro comando.",
+    "commandsJoiner": "y"
+  }
+}

@@ -6,6 +6,10 @@
 // period}.ts rather than importing them: `shared/ipc` is imported by main,
 // and main must not reach into a renderer slice. Same precedent as
 // shared/ipc/materias.ts vs renderer/materias/domain/subject.ts.
+//
+// Validation messages are STABLE MACHINE KEYS, not prose — see the
+// architecture note at the top of shared/ipc/materias.ts (this module stays
+// framework-free the same way).
 import { z } from 'zod'
 import { ipcErr, ipcOk, type IpcResult } from './materias'
 
@@ -13,7 +17,7 @@ export { ipcErr, ipcOk, type IpcResult }
 
 // Calendar date, `YYYY-MM-DD` — no time, no offset (a period boundary is a
 // whole day, unlike a deadline's due moment).
-const localDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'must be a calendar date (YYYY-MM-DD)')
+const localDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date.invalid')
 
 // HTML text inputs emit '' rather than undefined when left blank (same
 // treatment as materias.ts's docente/contacto).
@@ -34,9 +38,9 @@ export type GradingScheme = z.infer<typeof gradingSchemeSchema>
 // The fields a program is MADE of, shared by create and update so the two
 // commands can never drift apart (same rule as periodFieldsSchema below).
 const programFieldsSchema = z.object({
-  name: z.string().trim().min(1, 'name is required').max(200, 'name is too long'),
+  name: z.string().trim().min(1, 'name.required').max(200, 'name.tooLong'),
   institution: optionalTextField,
-  color: z.string().trim().min(1, 'color is required').max(200, 'color is too long'),
+  color: z.string().trim().min(1, 'color.required').max(200, 'color.tooLong'),
   gradingScheme: gradingSchemeSchema,
   gradeScale: z.number().int().min(2).max(100).nullable().default(null)
 })
@@ -51,14 +55,14 @@ function refineSchemeAndScale(
     ctx.addIssue({
       code: 'custom',
       path: ['gradeScale'],
-      message: 'gradeScale is required when gradingScheme is numerico'
+      message: 'gradeScale.required'
     })
   }
   if (program.gradingScheme === 'binario' && program.gradeScale !== null) {
     ctx.addIssue({
       code: 'custom',
       path: ['gradeScale'],
-      message: 'gradeScale must be absent when gradingScheme is binario'
+      message: 'gradeScale.mustBeAbsent'
     })
   }
 }
@@ -107,7 +111,7 @@ export type PeriodKindValue = z.infer<typeof periodKindSchema>
 // commands can never drift apart (same rule as entregas.ts's
 // `updateDeadlineInputSchema`: editing reuses the creation contract).
 const periodFieldsSchema = z.object({
-  name: z.string().trim().min(1, 'name is required').max(200, 'name is too long'),
+  name: z.string().trim().min(1, 'name.required').max(200, 'name.tooLong'),
   kind: periodKindSchema,
   startsOn: localDateSchema,
   // NULL means open-ended — "clases de inglés" that do not stop. The refines
@@ -118,7 +122,7 @@ const periodFieldsSchema = z.object({
 export const createPeriodInputSchema = periodFieldsSchema
   .extend({ programId: z.number().int().positive() })
   .refine((period) => period.endsOn === null || period.endsOn > period.startsOn, {
-    message: 'endsOn must be after startsOn',
+    message: 'period.endBeforeStart',
     path: ['endsOn']
   })
 
@@ -131,7 +135,7 @@ export type CreatePeriodInput = z.infer<typeof createPeriodInputSchema>
 export const updatePeriodInputSchema = periodFieldsSchema
   .extend({ id: z.number().int().positive() })
   .refine((period) => period.endsOn === null || period.endsOn > period.startsOn, {
-    message: 'endsOn must be after startsOn',
+    message: 'period.endBeforeStart',
     path: ['endsOn']
   })
 

@@ -17,9 +17,11 @@ export { ipcErr, ipcOk, type IpcResult }
 // offset (design §3a "the DST rule") — matches the HTML5 `datetime-local`
 // input's native value format exactly, so the renderer form needs no
 // reformatting before submit.
-const localNaiveDateTimeSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'fecha límite must be a local date-time (YYYY-MM-DDTHH:mm)')
+//
+// Validation messages are STABLE MACHINE KEYS, not prose — see the
+// architecture note at the top of shared/ipc/materias.ts (this module stays
+// framework-free the same way).
+const localNaiveDateTimeSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'dateTime.invalid')
 
 // --- entregas:create / entregas:update request --------------------------
 
@@ -31,12 +33,12 @@ export const createDeadlineInputSchema = z.object({
   // stops a compromised or buggy renderer from writing an unbounded blob into
   // the local DB (and, downstream, into the `ask:*` prompt corpus). The caps
   // are deliberately generous — no legitimate value comes near them.
-  title: z.string().trim().min(1, 'title is required').max(200, 'title is too long'),
+  title: z.string().trim().min(1, 'title.required').max(200, 'title.tooLong'),
   subjectId: z.number().int().positive(),
   // `type` is a free string ON PURPOSE (its option set is an inferred UI
   // judgment call, not a spec catalogue — see NuevaEntregaModal.tsx), so it
   // stays a string; the cap only bounds its length.
-  type: z.string().trim().min(1, 'type is required').max(100, 'type is too long'),
+  type: z.string().trim().min(1, 'type.required').max(100, 'type.tooLong'),
   dueAt: localNaiveDateTimeSchema
 })
 

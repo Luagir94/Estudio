@@ -1,4 +1,5 @@
 import type { MenuItemConstructorOptions } from 'electron'
+import mainI18n from '../i18n'
 
 /**
  * Builds the native "Archivo" (File) menu template (spec: "Export from File
@@ -17,9 +18,9 @@ import type { MenuItemConstructorOptions } from 'electron'
 export function buildFileMenuTemplate(onExport: () => void): MenuItemConstructorOptions[] {
   return [
     {
-      label: 'Archivo',
+      label: mainI18n.t('exportMenu.archivo'),
       submenu: [
-        { label: 'Exportar datos…', accelerator: 'CmdOrCtrl+E', click: () => onExport() },
+        { label: mainI18n.t('exportMenu.exportarDatos'), accelerator: 'CmdOrCtrl+E', click: () => onExport() },
         { type: 'separator' },
         { role: 'quit' }
       ]

@@ -13,10 +13,12 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import type { SubjectDetailResult } from '../../../shared/ipc/materias'
 import { updateSubjectScheduleInputSchema, type UpdateSubjectScheduleInput } from '../../../shared/ipc/materias'
 import type { ProgramWithPeriods } from '../../../shared/ipc/carreras'
 import { SlotEditor } from '../../shared/components/SlotEditor'
+import { translateValidationMessage } from '../../shared/lib/translateValidationMessage'
 import { PeriodSelect } from './PeriodSelect'
 import { cn } from '../../shared/lib/cn'
 import { interactive, interactiveChip } from '../../shared/lib/interactive'
@@ -53,6 +55,7 @@ export function EditarMateriaModal({
   initialTab = 'general',
   programs = []
 }: EditarMateriaModalProps): React.JSX.Element {
+  const { t } = useTranslation('materias')
   const [activeTab, setActiveTab] = useState<Tab>(initialTab)
 
   // No explicit useForm<T> generic — same reasoning as NuevaMateriaModal:
@@ -88,9 +91,9 @@ export function EditarMateriaModal({
 
   return (
     <DialogOverlay>
-      <DialogContent role="dialog" aria-label="Editar materia" className="max-w-[688px]">
+      <DialogContent role="dialog" aria-label={t('editarMateriaModal.dialogLabel')} className="max-w-[688px]">
         <DialogHeader onClose={onClose}>
-          <h2 className="font-display text-title font-bold text-foreground">Editar materia</h2>
+          <h2 className="font-display text-title font-bold text-foreground">{t('editarMateriaModal.title')}</h2>
           <p className="text-body-sm text-muted-foreground">
             {subject.name} · {subject.code}
           </p>
@@ -113,7 +116,7 @@ export function EditarMateriaModal({
                 : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
             )}
           >
-            General
+            {t('editarMateriaModal.generalTab')}
           </button>
           <button
             type="button"
@@ -128,7 +131,7 @@ export function EditarMateriaModal({
                 : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
             )}
           >
-            Horario
+            {t('editarMateriaModal.horarioTab')}
           </button>
         </div>
 
@@ -139,14 +142,16 @@ export function EditarMateriaModal({
           <DialogBody>
             <div hidden={activeTab !== 'general'} className="flex flex-col gap-4">
               <Label>
-                Nombre
+                {t('common:fields.name')}
                 <Input type="text" {...register('name')} />
               </Label>
-              {errors.name && <p className="text-body-lg text-destructive">{errors.name.message}</p>}
+              {errors.name && (
+                <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.name.message)}</p>
+              )}
 
               <div className="flex gap-4">
                 <Label className="w-[170px] shrink-0">
-                  Código
+                  {t('editarMateriaModal.code')}
                   <Input type="text" {...register('code')} />
                 </Label>
                 {/* A fieldset, not a `Label`: this control is six buttons and
@@ -154,7 +159,9 @@ export function EditarMateriaModal({
                     The legend borrows Label's own classes so the row still
                     reads as one pair of fields. */}
                 <fieldset className="flex flex-1 flex-col">
-                  <legend className="mb-1 block text-body-lg font-medium text-secondary-foreground">Color</legend>
+                  <legend className="mb-1 block text-body-lg font-medium text-secondary-foreground">
+                    {t('editarMateriaModal.colorLegend')}
+                  </legend>
                   <Controller
                     name="color"
                     control={control}
@@ -162,8 +169,12 @@ export function EditarMateriaModal({
                   />
                 </fieldset>
               </div>
-              {errors.code && <p className="text-body-lg text-destructive">{errors.code.message}</p>}
-              {errors.color && <p className="text-body-lg text-destructive">{errors.color.message}</p>}
+              {errors.code && (
+                <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.code.message)}</p>
+              )}
+              {errors.color && (
+                <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.color.message)}</p>
+              )}
 
               <Controller
                 name="attendanceMinPercent"
@@ -172,7 +183,7 @@ export function EditarMateriaModal({
                   const isRequired = field.value !== null && field.value !== undefined
                   return (
                     <Label>
-                      Asistencia
+                      {t('editarMateriaModal.attendance')}
                       <div className="mt-2 flex items-center gap-3">
                         <div className="flex gap-1 rounded-lg border border-border bg-background p-1">
                           <button
@@ -184,7 +195,7 @@ export function EditarMateriaModal({
                               interactiveChip
                             )}
                           >
-                            Libre
+                            {t('editarMateriaModal.attendanceFree')}
                           </button>
                           <button
                             type="button"
@@ -195,14 +206,14 @@ export function EditarMateriaModal({
                               interactiveChip
                             )}
                           >
-                            Requiere mínimo
+                            {t('editarMateriaModal.attendanceRequiresMin')}
                           </button>
                         </div>
                         {isRequired && (
                           <div className="flex w-24 items-center gap-1 rounded-lg border border-border bg-background px-3 py-3">
                             <input
                               type="number"
-                              aria-label="Asistencia mínima (%)"
+                              aria-label={t('editarMateriaModal.minAttendanceInput')}
                               value={field.value == null ? '' : String(field.value)}
                               onChange={(event) =>
                                 field.onChange(event.target.value === '' ? null : Number(event.target.value))
@@ -222,22 +233,22 @@ export function EditarMateriaModal({
 
               <div className="flex gap-4">
                 <Label className="flex-1">
-                  Docente
+                  {t('editarMateriaModal.teacher')}
                   <Input type="text" {...register('docente')} />
                 </Label>
                 <Label className="flex-1">
-                  Contacto
+                  {t('editarMateriaModal.contact')}
                   <Input type="text" {...register('contacto')} />
                 </Label>
               </div>
 
               <Label>
-                Campus virtual (URL)
+                {t('editarMateriaModal.campusUrl')}
                 <Input type="text" {...register('campusUrl')} />
               </Label>
 
               <Label>
-                Notas
+                {t('editarMateriaModal.notes')}
                 <Textarea {...register('notas')} />
               </Label>
 
@@ -250,7 +261,9 @@ export function EditarMateriaModal({
                 control={control}
                 render={({ field }) => <SlotEditor value={field.value} onChange={field.onChange} />}
               />
-              {errors.slots && <p className="text-body-lg text-destructive">{errors.slots.message}</p>}
+              {errors.slots && (
+                <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.slots.message)}</p>
+              )}
             </div>
           </DialogBody>
 
@@ -263,16 +276,16 @@ export function EditarMateriaModal({
                 onClick={onDelete}
               >
                 <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                Eliminar materia
+                {t('editarMateriaModal.deleteSubject')}
               </Button>
             ) : (
               <span />
             )}
             <div className="flex items-center gap-3">
               <Button type="button" variant="outline" onClick={onClose}>
-                Cancelar
+                {t('common:actions.cancel')}
               </Button>
-              <Button type="submit">Guardar cambios</Button>
+              <Button type="submit">{t('common:actions.saveChanges')}</Button>
             </div>
           </DialogFooter>
         </form>

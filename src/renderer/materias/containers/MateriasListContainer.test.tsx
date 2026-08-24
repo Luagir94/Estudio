@@ -99,7 +99,7 @@ describe('MateriasListContainer', () => {
     await screen.findByText('Derecho Constitucional')
 
     expect(screen.getByRole('button', { name: 'Activas 1' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Standby 1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Final pendiente 1' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Aprobadas 1' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sin cerrar 1' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Todas 4' })).toBeInTheDocument()
@@ -109,7 +109,7 @@ describe('MateriasListContainer', () => {
     renderContainer()
     await screen.findByText('Derecho Constitucional')
 
-    await userEvent.click(screen.getByRole('button', { name: 'Standby 1' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Final pendiente 1' }))
 
     expect(screen.getByText('Teoría del Estado')).toBeInTheDocument()
     expect(screen.queryByText('Derecho Constitucional')).not.toBeInTheDocument()
@@ -249,5 +249,27 @@ describe('MateriasListContainer — período picker', () => {
     expect(await screen.findByText('Todavía no tenés ningún período cargado')).toBeInTheDocument()
     expect(screen.queryByLabelText('Nombre')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Crear materia' })).not.toBeInTheDocument()
+  })
+
+  // The dead end used to offer only "Entendido" — a body that says "go to
+  // Carreras" next to a button that just dismisses. "Ir a Carreras" now
+  // actually takes the user there, and closes this modal on the way out.
+  it('offers a way out of the no-period dead end that actually navigates to Carreras', async () => {
+    carrerasApiMock.list.mockResolvedValue([])
+    const onGoToCarreras = vi.fn()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MateriasListContainer now={today} onGoToCarreras={onGoToCarreras} />
+      </QueryClientProvider>
+    )
+    await screen.findByText('Derecho Constitucional')
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar materia' }))
+    await screen.findByText('Todavía no tenés ningún período cargado')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ir a Carreras' }))
+
+    expect(onGoToCarreras).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

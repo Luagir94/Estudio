@@ -1,0 +1,54 @@
+{
+  "name": {
+    "required": "Poné un nombre",
+    "tooLong": "El nombre no puede superar los 200 caracteres"
+  },
+  "code": {
+    "required": "Poné un código",
+    "tooLong": "El código no puede superar los 200 caracteres"
+  },
+  "color": {
+    "required": "Elegí un color",
+    "tooLong": "El color no puede superar los 200 caracteres"
+  },
+  "slots": {
+    "required": "Agregá al menos un horario",
+    "endBeforeStart": "La hora de fin tiene que ser posterior a la de inicio"
+  },
+  "periodId": {
+    "required": "Elegí un período"
+  },
+  "period": {
+    "endBeforeStart": "La fecha de fin tiene que ser posterior a la de inicio"
+  },
+  "date": {
+    "invalid": "Poné una fecha válida"
+  },
+  "dateTime": {
+    "invalid": "Poné una fecha y una hora válidas"
+  },
+  "gradeScale": {
+    "required": "Elegí la escala de notas",
+    "mustBeAbsent": "Un programa binario no puede tener escala de notas"
+  },
+  "label": {
+    "required": "Poné un nombre",
+    "tooLong": "El nombre no puede superar los 200 caracteres"
+  },
+  "title": {
+    "required": "Poné un título",
+    "tooLong": "El título no puede superar los 200 caracteres"
+  },
+  "type": {
+    "required": "Elegí un tipo",
+    "tooLong": "El tipo no puede superar los 100 caracteres"
+  },
+  "generic": {
+    "invalidType": "Ese valor no es válido",
+    "tooSmall": "Ese valor es menor al mínimo permitido",
+    "tooBig": "Ese valor supera el máximo permitido",
+    "invalidFormat": "Ese valor no tiene el formato correcto",
+    "invalidValue": "Elegí una opción válida",
+    "fallback": "Revisá este campo"
+  }
+}

@@ -14,6 +14,7 @@
 // not a fabricated list; status pills are computed from the real `dueAt`/
 // `done` fields, never invented.
 import { ChevronLeft, CircleCheck, ExternalLink, MapPin, Pencil, Plus } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
 import type { DeadlineRecord } from '../../../shared/ipc/deadlines'
 // Deadline status wording is owned by the entregas domain. This screen used to
@@ -56,9 +57,6 @@ interface SubjectDetailProps {
   adjuntosSlot?: React.ReactNode
 }
 
-const DAY_LABELS_MONDAY_FIRST = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
-const MONTH_LABELS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
-
 function formatTime(minutes: number): string {
   const hours = Math.floor(minutes / 60)
     .toString()
@@ -67,14 +65,15 @@ function formatTime(minutes: number): string {
   return `${hours}:${mins}`
 }
 
-function formatWeeklyHours(totalMinutes: number): string {
+// Number part only — the "{{value}} h" wrapping is the locale's business.
+function formatWeeklyHoursValue(totalMinutes: number): string {
   const hours = totalMinutes / 60
   const rounded = Math.round(hours * 10) / 10
-  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)} h`
+  return Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)
 }
 
-function formatNextClass(nextClass: Date): string {
-  const dayLabel = DAY_LABELS_MONDAY_FIRST[toMondayFirstIndex(nextClass.getDay())]
+function formatNextClass(nextClass: Date, weekdayLabels: string[]): string {
+  const dayLabel = weekdayLabels[toMondayFirstIndex(nextClass.getDay())]
   const hours = nextClass.getHours().toString().padStart(2, '0')
   const minutes = nextClass.getMinutes().toString().padStart(2, '0')
   return `${dayLabel} ${hours}:${minutes}`
@@ -93,6 +92,10 @@ export function SubjectDetail({
   onCloseSubject,
   adjuntosSlot
 }: SubjectDetailProps): React.JSX.Element {
+  const { t } = useTranslation('materias')
+  // Monday-first, same order as `toMondayFirstIndex` produces.
+  const weekdayLabels = t('common:weekdaysLong', { returnObjects: true }) as string[]
+  const monthLabels = t('common:monthsCaps', { returnObjects: true }) as string[]
   const orderedSlots = [...subject.slots].sort(
     (a, b) => toMondayFirstIndex(a.dayOfWeek) - toMondayFirstIndex(b.dayOfWeek)
   )
@@ -103,7 +106,7 @@ export function SubjectDetail({
   const progressPercent = progreso.total === 0 ? 0 : Math.round((progreso.done / progreso.total) * 100)
 
   return (
-    <section aria-label={`Detalle de ${subject.name}`} className="flex flex-col gap-4">
+    <section aria-label={t('subjectDetail.detailLabel', { name: subject.name })} className="flex flex-col gap-4">
       <Button
         type="button"
         variant="ghost"
@@ -112,7 +115,7 @@ export function SubjectDetail({
         className="w-fit gap-2 px-0 text-secondary-foreground"
       >
         <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
-        Materias
+        {t('subjectDetail.backToList')}
       </Button>
 
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -129,8 +132,8 @@ export function SubjectDetail({
               <span aria-hidden="true" className="h-[3px] w-[3px] rounded-full bg-muted-foreground" />
               <span className="text-secondary-foreground">
                 {subject.attendanceMinPercent !== null
-                  ? `${subject.attendanceMinPercent}% de asistencia requerida`
-                  : 'Asistencia libre'}
+                  ? t('subjectDetail.attendanceRequired', { percent: subject.attendanceMinPercent })
+                  : t('subjectDetail.attendanceFree')}
               </span>
             </div>
           </div>
@@ -138,11 +141,11 @@ export function SubjectDetail({
         <div className="flex items-center gap-2">
           <Button type="button" variant="outline" onClick={onEdit} className="gap-2 bg-card">
             <Pencil className="h-3.5 w-3.5" aria-hidden />
-            Editar materia
+            {t('subjectDetail.editSubject')}
           </Button>
           <Button type="button" onClick={onCloseSubject} className="gap-2">
             <CircleCheck className="h-3.5 w-3.5" aria-hidden />
-            Cerrar materia
+            {t('subjectDetail.closeSubject')}
           </Button>
         </div>
       </header>
@@ -153,8 +156,12 @@ export function SubjectDetail({
       <div className="flex flex-col gap-6 xl:flex-row">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <div className="flex flex-col gap-3">
-            <h3 className="text-label font-semibold text-muted-foreground">HORARIO SEMANAL</h3>
-            {orderedSlots.length === 0 && <p className="text-body-lg text-muted-foreground">Sin clases cargadas.</p>}
+            <h3 className="text-label font-semibold text-muted-foreground">
+              {t('subjectDetail.weeklyScheduleHeading')}
+            </h3>
+            {orderedSlots.length === 0 && (
+              <p className="text-body-lg text-muted-foreground">{t('subjectDetail.noSlots')}</p>
+            )}
             {orderedSlots.map((slot) => (
               <div
                 key={slot.id}
@@ -162,7 +169,7 @@ export function SubjectDetail({
                 className="flex items-center gap-4 rounded-lg border border-border bg-card px-4 py-3"
               >
                 <span className="text-body font-semibold text-foreground">
-                  {DAY_LABELS_MONDAY_FIRST[toMondayFirstIndex(slot.dayOfWeek)]}
+                  {weekdayLabels[toMondayFirstIndex(slot.dayOfWeek)]}
                 </span>
                 <span className="text-body text-secondary-foreground">
                   {formatTime(slot.startMinutes)} – {formatTime(slot.endMinutes)}
@@ -180,14 +187,14 @@ export function SubjectDetail({
 
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-label font-semibold text-muted-foreground">ENTREGAS</h3>
+              <h3 className="text-label font-semibold text-muted-foreground">{t('subjectDetail.deadlinesHeading')}</h3>
               <Button type="button" onClick={onAddEntrega} className="gap-2">
                 <Plus className="h-4 w-4" aria-hidden="true" />
-                Agregar entrega
+                {t('subjectDetail.addDeadline')}
               </Button>
             </div>
             {orderedDeadlines.length === 0 && (
-              <p className="text-body-lg text-muted-foreground">Sin entregas cargadas.</p>
+              <p className="text-body-lg text-muted-foreground">{t('subjectDetail.noDeadlines')}</p>
             )}
             {orderedDeadlines.map((deadline) => {
               const dueDate = new Date(deadline.dueAt)
@@ -204,7 +211,7 @@ export function SubjectDetail({
                       {dueDate.getDate().toString().padStart(2, '0')}
                     </span>
                     <span className="text-overline font-semibold text-muted-foreground">
-                      {MONTH_LABELS[dueDate.getMonth()]}
+                      {monthLabels[dueDate.getMonth()]}
                     </span>
                   </div>
                   <div className="flex flex-1 flex-col gap-1">
@@ -236,7 +243,7 @@ export function SubjectDetail({
 
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-label font-semibold text-muted-foreground">NOTAS</h3>
+              <h3 className="text-label font-semibold text-muted-foreground">{t('subjectDetail.notesHeading')}</h3>
               <button
                 type="button"
                 onClick={onEdit}
@@ -246,7 +253,7 @@ export function SubjectDetail({
                 )}
               >
                 <Pencil className="h-3 w-3" aria-hidden />
-                Editar
+                {t('subjectDetail.editNotes')}
               </button>
             </div>
             <div className="rounded-lg border border-border bg-card p-4">
@@ -260,7 +267,7 @@ export function SubjectDetail({
                   </dd>
                 </dl>
               ) : (
-                <p className="text-body-sm text-muted-foreground">Sin notas.</p>
+                <p className="text-body-sm text-muted-foreground">{t('subjectDetail.noNotes')}</p>
               )}
             </div>
           </div>
@@ -270,26 +277,32 @@ export function SubjectDetail({
 
         <div className="flex w-full flex-col gap-4 xl:w-[336px] xl:shrink-0">
           <div className="flex flex-col gap-2 rounded-xl border border-primary bg-(--color-violet-soft) p-4">
-            <span className="text-overline font-semibold text-primary-ink">PRÓXIMA CLASE</span>
+            <span className="text-overline font-semibold text-primary-ink">{t('subjectDetail.nextClassHeading')}</span>
             {nextClass ? (
               <>
-                <span className="text-heading font-bold text-foreground">{formatNextClass(nextClass)}</span>
+                <span className="text-heading font-bold text-foreground">
+                  {formatNextClass(nextClass, weekdayLabels)}
+                </span>
                 <span className="text-body-sm text-secondary-foreground">
                   {subject.slots.find(
                     (slot) => toMondayFirstIndex(slot.dayOfWeek) === toMondayFirstIndex(nextClass.getDay())
-                  )?.location ?? 'Sin aula'}
+                  )?.location ?? t('subjectDetail.noClassroom')}
                 </span>
               </>
             ) : (
-              <span className="text-body-lg font-medium text-secondary-foreground">Sin clases programadas</span>
+              <span className="text-body-lg font-medium text-secondary-foreground">
+                {t('subjectDetail.noScheduledClasses')}
+              </span>
             )}
           </div>
 
           <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
             <div className="flex items-center justify-between">
-              <span className="text-overline font-semibold text-muted-foreground">PROGRESO</span>
+              <span className="text-overline font-semibold text-muted-foreground">
+                {t('subjectDetail.progressHeading')}
+              </span>
               <span className="text-body-sm font-semibold text-foreground">
-                {progreso.done} de {progreso.total}
+                {t('subjectDetail.progressCount', { done: progreso.done, total: progreso.total })}
               </span>
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -297,47 +310,51 @@ export function SubjectDetail({
             </div>
             <span className="text-label text-muted-foreground">
               {progreso.total === 0
-                ? 'Sin entregas registradas'
-                : `${pending} pendiente${pending === 1 ? '' : 's'} · ${progreso.done} completada${progreso.done === 1 ? '' : 's'}`}
+                ? t('subjectDetail.noDeadlinesRecorded')
+                : `${t('subjectDetail.pendingCount', { count: pending })} · ${t('subjectDetail.completedCount', { count: progreso.done })}`}
             </span>
           </div>
 
           <div className="flex flex-col rounded-xl border border-border bg-card px-4 py-1">
             <div className="flex items-center justify-between border-b border-border py-3 last:border-b-0">
-              <span className="text-body-sm text-secondary-foreground">Horas por semana</span>
-              <span className="text-body-sm font-semibold text-foreground">{formatWeeklyHours(weeklyMinutes)}</span>
+              <span className="text-body-sm text-secondary-foreground">{t('subjectDetail.hoursPerWeek')}</span>
+              <span className="text-body-sm font-semibold text-foreground">
+                {t('subjectDetail.weeklyHours', { value: formatWeeklyHoursValue(weeklyMinutes) })}
+              </span>
             </div>
             <div className="flex items-center justify-between border-b border-border py-3 last:border-b-0">
-              <span className="text-body-sm text-secondary-foreground">Clases por semana</span>
+              <span className="text-body-sm text-secondary-foreground">{t('subjectDetail.classesPerWeek')}</span>
               <span className="text-body-sm font-semibold text-foreground">{subject.slots.length}</span>
             </div>
             <div className="flex items-center justify-between py-3">
-              <span className="text-body-sm text-secondary-foreground">Asistencia mínima</span>
+              <span className="text-body-sm text-secondary-foreground">{t('subjectDetail.minAttendance')}</span>
               <span className="text-body-sm font-semibold text-foreground">
-                {subject.attendanceMinPercent !== null ? `${subject.attendanceMinPercent}%` : 'Libre'}
+                {subject.attendanceMinPercent !== null
+                  ? `${subject.attendanceMinPercent}%`
+                  : t('subjectDetail.minAttendanceFree')}
               </span>
             </div>
           </div>
 
           <div className="flex flex-col rounded-xl border border-border bg-card px-4 py-1">
             <div className="flex items-center justify-between border-b border-border py-3 last:border-b-0">
-              <span className="text-body-sm text-secondary-foreground">Docente</span>
+              <span className="text-body-sm text-secondary-foreground">{t('subjectDetail.teacher')}</span>
               <span className="text-body-sm font-semibold text-foreground">{subject.docente ?? '—'}</span>
             </div>
             <div className="flex items-center justify-between border-b border-border py-3 last:border-b-0">
-              <span className="text-body-sm text-secondary-foreground">Contacto</span>
+              <span className="text-body-sm text-secondary-foreground">{t('subjectDetail.contact')}</span>
               <span className="text-body-sm font-semibold text-foreground">{subject.contacto ?? '—'}</span>
             </div>
             <div className="flex items-center justify-between py-3">
-              <span className="text-body-sm text-secondary-foreground">Campus</span>
+              <span className="text-body-sm text-secondary-foreground">{t('subjectDetail.campus')}</span>
               {subject.campusUrl ? (
                 <button
                   type="button"
-                  aria-label="Abrir campus virtual"
+                  aria-label={t('subjectDetail.openCampus')}
                   onClick={() => onOpenCampusUrl(subject.campusUrl as string)}
                   className={cn('flex items-center gap-1 text-body-sm font-semibold text-primary-ink', interactiveLink)}
                 >
-                  Aula virtual
+                  {t('subjectDetail.virtualClassroom')}
                   <ExternalLink className="h-3 w-3" aria-hidden />
                 </button>
               ) : (

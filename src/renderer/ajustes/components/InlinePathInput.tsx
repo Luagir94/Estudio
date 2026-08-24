@@ -11,6 +11,7 @@
 // input. Its callers render both from one boolean instead — see
 // `ConnectionStatusCard` and `IdleProviderCard`.
 import { useEffect, useState, type KeyboardEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { CliProvider } from '../../../shared/ipc/cli'
 import { PATH_INPUT_PLACEHOLDER, PROVIDER_LABELS } from '../domain/connectionDisplay'
 
@@ -23,6 +24,7 @@ interface InlinePathInputProps {
 }
 
 export function InlinePathInput({ provider, overridePath, onCommit }: InlinePathInputProps): React.JSX.Element {
+  const { t } = useTranslation('ajustes')
   const [value, setValue] = useState(overridePath ?? '')
 
   // Re-syncs only when the persisted override moves from OUTSIDE this
@@ -53,7 +55,7 @@ export function InlinePathInput({ provider, overridePath, onCommit }: InlinePath
       // The visible row names the CLI, but a screen reader reading controls out
       // of context would meet three identical path fields, so the accessible
       // name carries the CLI itself.
-      aria-label={`Ruta manual del ejecutable de ${PROVIDER_LABELS[provider]}`}
+      aria-label={t('inlinePathInput.ariaLabel', { provider: PROVIDER_LABELS[provider] })}
       className="w-[280px] rounded-lg border border-border bg-background px-3 py-2 text-body text-foreground placeholder:text-muted-foreground"
     />
   )

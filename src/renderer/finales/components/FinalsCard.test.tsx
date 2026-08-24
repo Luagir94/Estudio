@@ -28,16 +28,16 @@ describe('FinalsCard', () => {
     expect(screen.getByText('Sin fecha todavía')).toBeInTheDocument()
   })
 
-  it('shows the date when the mesa has one', () => {
+  it('shows the date when the mesa has one, formatted with the shared month table', () => {
     renderCard([final({ id: 1, takenOn: '2026-08-05' })])
 
-    expect(screen.getByText('2026-08-05')).toBeInTheDocument()
+    expect(screen.getByText('05 ago 2026')).toBeInTheDocument()
   })
 
   it('stays in standby while an instance is still open', () => {
     renderCard([final({ id: 1, result: 'reprobado' }), final({ id: 2, result: 'pendiente' })])
 
-    expect(screen.getByText('Standby — final pendiente')).toBeInTheDocument()
+    expect(screen.getByText('Final pendiente')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Darla por reprobada' })).not.toBeInTheDocument()
   })
 
@@ -88,7 +88,7 @@ describe('FinalsCard', () => {
   it('opens the add form', async () => {
     const handlers = renderCard([])
 
-    await userEvent.click(screen.getByRole('button', { name: 'Agregar instancia' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar mesa' }))
 
     expect(handlers.onAdd).toHaveBeenCalled()
   })

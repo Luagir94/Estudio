@@ -3,9 +3,10 @@
 // `entregas/components/DeadlineRow.tsx`, this row has no checkbox, no click-
 // to-edit, and no delete affordance (design node `VQJO4`: Hoy is a
 // "read-model... sin acciones primarias"). Reuses `formatDeadlineStatus`
-// (never re-derives status text) and the entregas domain's `MONTH_LABELS`.
+// (never re-derives status text) and the consolidated `common:monthsCaps`
+// table.
+import { useTranslation } from 'react-i18next'
 import { formatDeadlineStatus } from '../../entregas/domain/deadline'
-import { MONTH_LABELS } from '../../entregas/components/DeadlineRow'
 import { cn } from '../../shared/lib/cn'
 import type { DashboardDeadline } from '../domain/dashboard'
 
@@ -16,6 +17,8 @@ interface HoyDeadlineRowProps {
 }
 
 export function DeadlineRow({ deadline, now = new Date() }: HoyDeadlineRowProps): React.JSX.Element {
+  const { t } = useTranslation('common')
+  const monthLabels = t('monthsCaps', { returnObjects: true }) as string[]
   const dueDate = new Date(deadline.dueAt)
   const status = formatDeadlineStatus(deadline.dueAt, deadline.done, now)
   const isOverdue = status.endsWith('de atraso')
@@ -26,7 +29,7 @@ export function DeadlineRow({ deadline, now = new Date() }: HoyDeadlineRowProps)
         <span className="text-body-lg font-semibold text-foreground">
           {dueDate.getDate().toString().padStart(2, '0')}
         </span>
-        <span className="text-overline font-semibold text-muted-foreground">{MONTH_LABELS[dueDate.getMonth()]}</span>
+        <span className="text-overline font-semibold text-muted-foreground">{monthLabels[dueDate.getMonth()]}</span>
       </span>
 
       <span className="flex flex-1 flex-col gap-1">

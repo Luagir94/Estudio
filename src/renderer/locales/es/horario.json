@@ -1,0 +1,11 @@
+{
+  "container": {
+    "title": "Horario semanal",
+    "subtitle": "Se arma solo con las materias del cuatrimestre · {{hours}} horas de clase por semana",
+    "loading": "Cargando horario…",
+    "loadError": "No se pudo cargar el horario."
+  },
+  "grid": {
+    "timeRange": "{{start}} – {{end}}"
+  }
+}

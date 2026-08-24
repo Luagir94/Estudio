@@ -1,7 +1,13 @@
 // Pure, framework-free domain module (design D7/D9) — the mapping from a
 // `CliProviderStatus` to what the settings screen shows. No electron/IPC
 // import, same convention as `materias/domain/subjectStatus.ts`.
-import type { CliProvider, CliProviderStatus } from '../../../shared/ipc/cli'
+//
+// Text is sourced from the `ajustes` i18next namespace via the shared
+// singleton, same convention as `adjuntos/domain/attachmentDisplay.ts`: the
+// singleton initializes synchronously (`initAsync: false`), so `i18n.t()` is
+// safe to call at module-eval time as well as from inside these functions.
+import type { CliProbeFailureReason, CliProvider, CliProviderStatus } from '../../../shared/ipc/cli'
+import i18n from '../../i18n'
 
 /**
  * Semantic chip color, decoupled from any Tailwind class name — the
@@ -32,9 +38,9 @@ export function resolveConnectionTone(status: CliProviderStatus['status']): Conn
 
 /** Display name for each supported CLI. */
 export const PROVIDER_LABELS: Record<CliProvider, string> = {
-  claude: 'Claude Code',
-  antigravity: 'Antigravity CLI',
-  codex: 'Codex CLI'
+  claude: i18n.t('ajustes:connectionDisplay.providerLabel.claude'),
+  antigravity: i18n.t('ajustes:connectionDisplay.providerLabel.antigravity'),
+  codex: i18n.t('ajustes:connectionDisplay.providerLabel.codex')
 }
 
 /**
@@ -49,7 +55,7 @@ export const PROVIDER_LABELS: Record<CliProvider, string> = {
  * can say anything true, and rendering nothing in the meantime is indistinguishable
  * from a settings page that is broken or empty.
  */
-export const DETECTING_LABEL = 'Detectando…'
+export const DETECTING_LABEL = i18n.t('ajustes:connectionDisplay.detectingLabel')
 
 /**
  * Starts the FIRST probe of a CLI; `RETRY_ACTION` re-runs one that already
@@ -63,8 +69,8 @@ export const DETECTING_LABEL = 'Detectando…'
  * one element on the row that cannot say the first without being mistaken for
  * the second.
  */
-export const CONNECT_ACTION = 'Conectar'
-export const RETRY_ACTION = 'Reintentar'
+export const CONNECT_ACTION = i18n.t('ajustes:connectionDisplay.connectAction')
+export const RETRY_ACTION = i18n.t('ajustes:connectionDisplay.retryAction')
 
 /**
  * Withdraws the opt-in for one CLI, returning its row to idle.
@@ -78,7 +84,7 @@ export const RETRY_ACTION = 'Reintentar'
  * manual path override survives, so reconnecting does not mean finding an
  * install location again.
  */
-export const DISCONNECT_ACTION = 'Desconectar'
+export const DISCONNECT_ACTION = i18n.t('ajustes:connectionDisplay.disconnectAction')
 
 /**
  * Placeholder of the inline path field, exact per the approved `.pen` (node
@@ -89,7 +95,7 @@ export const DISCONNECT_ACTION = 'Desconectar'
  * field would think they have to hunt down an install location before the
  * button does anything.
  */
-export const PATH_INPUT_PLACEHOLDER = 'Ruta del ejecutable (opcional)'
+export const PATH_INPUT_PLACEHOLDER = i18n.t('ajustes:connectionDisplay.pathInputPlaceholder')
 
 /**
  * The command each card's probe actually runs, named in its own policy note.
@@ -116,14 +122,14 @@ export const PROVIDER_COMMANDS: Record<CliProvider, string> = {
  * gated on status, override presence, or focus.
  */
 export function executionWarningCopy(provider: CliProvider): string {
-  return `La app va a EJECUTAR el archivo que indiques acá. Apuntá solo a un ejecutable de ${PROVIDER_LABELS[provider]} en el que confíes.`
+  return i18n.t('ajustes:connectionDisplay.executionWarning', { provider: PROVIDER_LABELS[provider] })
 }
 
 /**
  * Friendly Spanish message for the `unusable` state (spec "Unusable Detail
- * Copy"): shown alongside one technical detail line. The technical line is
- * `CliProviderStatus.detail` used verbatim — the main process's own wording
- * is not altered here, only prefaced by this friendlier sentence.
+ * Copy"): shown alongside one localized reason line — see
+ * `describeCliFailureReason` below, which is what supplies that second line
+ * now that `CliProviderStatus.detail` is no longer rendered.
  *
  * Deliberately says nothing about WHERE the executable came from. `unusable`
  * covers both an override the user typed and a binary autodetected on PATH,
@@ -131,7 +137,43 @@ export function executionWarningCopy(provider: CliProvider): string {
  * the setting looking for a setting they never changed.
  */
 export function unusableFriendlyMessage(provider: CliProvider): string {
-  return `Encontramos ${PROVIDER_LABELS[provider]}, pero no pudimos usarlo.`
+  return i18n.t('ajustes:connectionDisplay.unusableFriendlyMessage', { provider: PROVIDER_LABELS[provider] })
+}
+
+/**
+ * Localizes the structured reason behind an `unusable` status
+ * (`CliProbeFailureReason`, `src/shared/ipc/cli.ts`) into the screen's own
+ * Spanish, in place of `unusableFriendlyMessage`'s former companion line.
+ *
+ * This is the fix for "warm Spanish sentence followed by raw English": that
+ * companion used to be `status.detail` rendered VERBATIM — the main
+ * process's own wording, e.g. `Probe timed out after 4000ms`. `detail` still
+ * arrives on the payload (kept for diagnostics and logs) but this function
+ * never reads it; only the typed `reason` may become copy here, the same
+ * discipline `describeAskArtifact` holds for generated-artifact outcomes.
+ *
+ * `null` covers both a status that never carried a structured reason (an
+ * older cached observation) and a code this map has not been taught yet —
+ * both fall back to the SAME generic sentence, never to `status.detail` and
+ * never to a bare code, matching `describeIpcErrorCode`'s standing rule for
+ * IPC error codes.
+ */
+export function describeCliFailureReason(reason: CliProbeFailureReason | null): string {
+  if (reason === null) {
+    return i18n.t('ajustes:connectionDisplay.failureReason.generic')
+  }
+  if (reason.code === 'invalid-executable') {
+    return i18n.t('ajustes:connectionDisplay.failureReason.invalidExecutable', { path: reason.path })
+  }
+  if (reason.code === 'timeout') {
+    return i18n.t('ajustes:connectionDisplay.failureReason.timeout', { timeoutMs: reason.timeoutMs })
+  }
+  if (reason.code === 'exit-code') {
+    return i18n.t('ajustes:connectionDisplay.failureReason.exitCode', {
+      code: reason.exitCode ?? i18n.t('ajustes:connectionDisplay.failureReason.unknownExitCode')
+    })
+  }
+  return i18n.t('ajustes:connectionDisplay.failureReason.unrecognizedOutput')
 }
 
 /**
@@ -172,21 +214,21 @@ export function capabilityRows(status: CliProviderStatus): CapabilityRow[] {
   return [
     {
       key: 'structuredOutput' as const,
-      label: 'Respuestas estructuradas',
+      label: i18n.t('ajustes:connectionDisplay.capability.structuredOutput.label'),
       supported: status.capabilities.structuredOutput,
-      caveat: 'Este CLI no acepta las opciones que la app necesita para leer sus respuestas.'
+      caveat: i18n.t('ajustes:connectionDisplay.capability.structuredOutput.caveat')
     },
     {
       key: 'warmSession' as const,
-      label: 'Proceso reutilizable',
+      label: i18n.t('ajustes:connectionDisplay.capability.warmSession.label'),
       supported: status.capabilities.warmSession,
-      caveat: 'Cada pregunta arranca el CLI de cero, así que tarda bastante más.'
+      caveat: i18n.t('ajustes:connectionDisplay.capability.warmSession.caveat')
     },
     {
       key: 'readOnlyTools' as const,
-      label: 'Solo lectura garantizada',
+      label: i18n.t('ajustes:connectionDisplay.capability.readOnlyTools.label'),
       supported: status.capabilities.readOnlyTools,
-      caveat: 'Este CLI no permite limitar sus herramientas, así que la app no puede garantizarlo.'
+      caveat: i18n.t('ajustes:connectionDisplay.capability.readOnlyTools.caveat')
     }
   ]
 }
@@ -205,8 +247,7 @@ export function isInertDespiteConnection(status: CliProviderStatus): boolean {
   return status.status === 'connected' && status.capabilities?.structuredOutput === false
 }
 
-export const INERT_MESSAGE =
-  'Encontramos este CLI, pero la versión instalada no acepta las opciones que la app necesita. Todavía no se puede preguntar con él.'
+export const INERT_MESSAGE = i18n.t('ajustes:connectionDisplay.inertMessage')
 
 // --- manual path visibility --------------------------------------------------
 

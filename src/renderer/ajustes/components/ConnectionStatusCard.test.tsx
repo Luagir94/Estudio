@@ -24,6 +24,7 @@ function status(overrides: Partial<CliProviderStatus>): CliProviderStatus {
     source: 'auto',
     overridePath: null,
     detail: null,
+    failureReason: null,
     capabilities: null,
     ...overrides
   }
@@ -147,17 +148,82 @@ describe('ConnectionStatusCard — Status Display', () => {
   })
 })
 
-describe('ConnectionStatusCard — Unusable Detail Copy', () => {
-  it('shows the friendly Spanish message plus the exit-code detail when unusable', () => {
-    renderCard({ status: 'unusable', detail: 'exit code 1' })
+// `status.detail` is the main process's own English wording; these prove it
+// is NEVER what actually renders — `describeCliFailureReason` (localized
+// Spanish, one case per `CliProbeFailureReason` variant) is (i18n phase 2
+// "CLI probe reasons").
+describe('ConnectionStatusCard — Unusable Failure Reason Copy', () => {
+  it('shows the friendly Spanish message plus the localized invalid-executable reason', () => {
+    renderCard({
+      status: 'unusable',
+      detail: 'Configured override is not a valid executable: C:\\bad\\claude.exe',
+      failureReason: { code: 'invalid-executable', path: 'C:\\bad\\claude.exe' }
+    })
 
-    expect(screen.getByText(`${UNUSABLE_FRIENDLY_MESSAGE} · exit code 1`)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        `${UNUSABLE_FRIENDLY_MESSAGE} · La ruta C:\\bad\\claude.exe no es un ejecutable válido. Revisá la ruta en Ajustes.`
+      )
+    ).toBeInTheDocument()
   })
 
-  it('shows the technical detail verbatim, unaltered — a first-stderr-line example', () => {
-    renderCard({ status: 'unusable', detail: 'Error: no se pudo leer la salida' })
+  it('shows the localized timeout reason', () => {
+    renderCard({
+      status: 'unusable',
+      detail: 'Probe timed out after 4000ms',
+      failureReason: { code: 'timeout', timeoutMs: 4000 }
+    })
 
-    expect(screen.getByText(/Error: no se pudo leer la salida$/)).toBeInTheDocument()
+    expect(
+      screen.getByText(`${UNUSABLE_FRIENDLY_MESSAGE} · El CLI tardó más de 4000 ms en responder. Probá de nuevo.`)
+    ).toBeInTheDocument()
+  })
+
+  it('shows the localized exit-code reason', () => {
+    renderCard({
+      status: 'unusable',
+      detail: 'Exited with code 9',
+      failureReason: { code: 'exit-code', exitCode: 9 }
+    })
+
+    expect(
+      screen.getByText(`${UNUSABLE_FRIENDLY_MESSAGE} · El CLI terminó con un error (código 9). Probá de nuevo.`)
+    ).toBeInTheDocument()
+  })
+
+  it('shows the localized unrecognized-output reason', () => {
+    renderCard({
+      status: 'unusable',
+      detail: 'Unrecognized output',
+      failureReason: { code: 'unrecognized-output' }
+    })
+
+    expect(
+      screen.getByText(
+        `${UNUSABLE_FRIENDLY_MESSAGE} · No entendimos lo que devolvió el CLI. Probá de nuevo, o revisá la ruta en Ajustes.`
+      )
+    ).toBeInTheDocument()
+  })
+
+  it('falls back to a generic Spanish sentence, never the raw English detail, when no structured reason is present', () => {
+    renderCard({ status: 'unusable', detail: 'Exited with code 1', failureReason: null })
+
+    expect(screen.queryByText(/Exited with code 1/)).not.toBeInTheDocument()
+    expect(
+      screen.getByText(
+        `${UNUSABLE_FRIENDLY_MESSAGE} · No pudimos determinar qué pasó. Probá de nuevo, o revisá la ruta en Ajustes.`
+      )
+    ).toBeInTheDocument()
+  })
+
+  it('never renders the raw English detail even when a structured reason is present', () => {
+    renderCard({
+      status: 'unusable',
+      detail: 'Exited with code 9',
+      failureReason: { code: 'exit-code', exitCode: 9 }
+    })
+
+    expect(screen.queryByText(/Exited with code 9/)).not.toBeInTheDocument()
   })
 
   it('does not show the unusable message when connected', () => {

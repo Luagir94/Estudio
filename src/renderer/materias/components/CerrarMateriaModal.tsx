@@ -12,6 +12,7 @@
 // `finalPendiente` is set here, the finales section was unreachable too.
 import { Info } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { validateGrade } from '../../../shared/domain/grading'
 import type { SubjectOutcome, SubjectWithStatus } from '../../../shared/ipc/materias'
 
@@ -37,13 +38,12 @@ interface CerrarMateriaModalProps {
   onClose: () => void
 }
 
-const OUTCOMES: { value: SubjectOutcome; label: string; hint: string }[] = [
-  { value: 'aprobada', label: 'Aprobada', hint: 'La cerrás acá y no vuelve a aparecer como pendiente.' },
-  { value: 'finalPendiente', label: 'Final pendiente', hint: 'Queda en standby y podés cargarle instancias de final.' },
-  { value: 'reprobada', label: 'Reprobada', hint: 'Sólo vos podés marcar esto — la app nunca lo hace sola.' }
-]
+// Labels and hints live in the locale catalog under
+// `cerrarMateriaModal.outcomes.<value>` — this only fixes the order.
+const OUTCOME_VALUES: SubjectOutcome[] = ['aprobada', 'finalPendiente', 'reprobada']
 
 export function CerrarMateriaModal({ subject, onSubmit, onClose }: CerrarMateriaModalProps): React.JSX.Element {
+  const { t } = useTranslation('materias')
   const [outcome, setOutcome] = useState<SubjectOutcome>(subject.outcome ?? 'aprobada')
   const [grade, setGrade] = useState(subject.grade === null ? '' : String(subject.grade))
 
@@ -62,10 +62,14 @@ export function CerrarMateriaModal({ subject, onSubmit, onClose }: CerrarMateria
     showsGrade && parsedGrade !== null && subject.program
       ? (() => {
           if (Number.isNaN(parsedGrade)) {
-            return 'La nota tiene que ser un número'
+            return t('cerrarMateriaModal.gradeNotANumber', { scale: subject.program.gradeScale })
           }
           const validation = validateGrade(subject.program, parsedGrade)
-          return validation.ok ? null : validation.error
+          // `validation.error` is an internal, English-only string (shared domain
+          // module, not i18n-aware) — never rendered directly. Both failure modes
+          // collapse onto the same app-owned Spanish copy, since "not a number"
+          // and "out of range" are really the same user-facing rule.
+          return validation.ok ? null : t('cerrarMateriaModal.gradeNotANumber', { scale: subject.program.gradeScale })
         })()
       : null
 
@@ -78,33 +82,39 @@ export function CerrarMateriaModal({ subject, onSubmit, onClose }: CerrarMateria
 
   return (
     <DialogOverlay>
-      <DialogContent role="dialog" aria-label="Cerrar materia">
+      <DialogContent role="dialog" aria-label={t('cerrarMateriaModal.dialogLabel')}>
         <DialogHeader onClose={onClose}>
-          <h2 className="font-display text-title font-bold text-foreground">Cerrar materia</h2>
+          <h2 className="font-display text-title font-bold text-foreground">{t('cerrarMateriaModal.title')}</h2>
           <p className="text-body-sm text-muted-foreground">
-            {subject.name} · {subject.period?.name ?? 'sin período'}
+            {subject.name} · {subject.period?.name ?? t('cerrarMateriaModal.noPeriod')}
           </p>
         </DialogHeader>
 
         <DialogBody>
           <fieldset className="flex flex-col gap-2">
-            <legend className="text-label font-semibold text-secondary-foreground">¿CÓMO TERMINÓ?</legend>
+            <legend className="text-label font-semibold text-secondary-foreground">
+              {t('cerrarMateriaModal.howItEndedLegend')}
+            </legend>
             <div className="flex flex-col gap-2">
-              {OUTCOMES.map((option) => (
+              {OUTCOME_VALUES.map((value) => (
                 <button
-                  key={option.value}
+                  key={value}
                   type="button"
-                  aria-pressed={outcome === option.value}
-                  onClick={() => setOutcome(option.value)}
+                  aria-pressed={outcome === value}
+                  onClick={() => setOutcome(value)}
                   className={cn(
-                    outcome === option.value
+                    outcome === value
                       ? 'flex flex-col gap-1 rounded-lg border border-primary bg-sidebar-accent px-4 py-3 text-left'
                       : 'flex flex-col gap-1 rounded-lg border border-border bg-background px-4 py-3 text-left',
                     interactiveChip
                   )}
                 >
-                  <strong className="text-body font-semibold text-foreground">{option.label}</strong>
-                  <span className="text-caption text-muted-foreground">{option.hint}</span>
+                  <strong className="text-body font-semibold text-foreground">
+                    {t(`cerrarMateriaModal.outcomes.${value}.label`)}
+                  </strong>
+                  <span className="text-caption text-muted-foreground">
+                    {t(`cerrarMateriaModal.outcomes.${value}.hint`)}
+                  </span>
                 </button>
               ))}
             </div>
@@ -113,7 +123,7 @@ export function CerrarMateriaModal({ subject, onSubmit, onClose }: CerrarMateria
           {showsGrade && (
             <div className="flex flex-col gap-1">
               <Label className="w-[180px]">
-                Nota (0 a {subject.program?.gradeScale}) · opcional
+                {t('cerrarMateriaModal.gradeLabel', { scale: subject.program?.gradeScale })}
                 <Input
                   type="number"
                   value={grade}
@@ -123,10 +133,7 @@ export function CerrarMateriaModal({ subject, onSubmit, onClose }: CerrarMateria
                 />
               </Label>
               {outcome === 'reprobada' && (
-                <p className="text-caption text-muted-foreground">
-                  Cargala sólo si tu institución registra la nota del aplazo: cuenta en el promedio con aplazos, no en
-                  el otro.
-                </p>
+                <p className="text-caption text-muted-foreground">{t('cerrarMateriaModal.failGradeNote')}</p>
               )}
             </div>
           )}
@@ -136,22 +143,20 @@ export function CerrarMateriaModal({ subject, onSubmit, onClose }: CerrarMateria
             <div className="flex items-start gap-3 rounded-lg bg-muted px-4 py-3">
               <Info className="mt-px h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
               <p className="text-body-sm leading-relaxed text-secondary-foreground">
-                {subject.program
-                  ? 'Esta carrera evalúa aprobado / desaprobado, así que no lleva nota.'
-                  : 'Esta materia no pertenece a ninguna carrera todavía, así que no hay escala contra la cual cargar una nota.'}
+                {subject.program ? t('cerrarMateriaModal.binaryNoGrade') : t('cerrarMateriaModal.noProgramNoGrade')}
               </p>
             </div>
           )}
         </DialogBody>
 
         <DialogFooter>
-          <p className="text-caption text-muted-foreground">Podés cambiarlo después</p>
+          <p className="text-caption text-muted-foreground">{t('cerrarMateriaModal.footerNote')}</p>
           <div className="flex items-center gap-3">
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
+              {t('common:actions.cancel')}
             </Button>
             <Button type="button" onClick={submit} disabled={gradeError !== null}>
-              Guardar
+              {t('common:actions.saveChanges')}
             </Button>
           </div>
         </DialogFooter>

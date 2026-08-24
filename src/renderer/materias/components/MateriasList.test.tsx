@@ -57,7 +57,9 @@ describe('MateriasList', () => {
   it('says so when the filter matched nothing', () => {
     renderList([])
 
-    expect(screen.getByText('No hay materias que coincidan con este filtro.')).toBeInTheDocument()
+    expect(
+      screen.getByText('No hay materias que coincidan con este filtro. Elegí otro filtro para ver más.')
+    ).toBeInTheDocument()
   })
 
   it('shows the subject with its schedule and attendance rule', () => {

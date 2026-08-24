@@ -28,6 +28,7 @@
 // is not stale the next time it mounts).
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Attachment } from '../../../shared/ipc/adjuntos'
 import { AdjuntosContainer } from '../../adjuntos/containers/AdjuntosContainer'
 import { AttachmentViewerContainer } from '../../adjuntos/containers/AttachmentViewerContainer'
@@ -55,6 +56,7 @@ export function SubjectDetailContainer({
   onBack,
   now = new Date()
 }: SubjectDetailContainerProps): React.JSX.Element {
+  const { t } = useTranslation('materias')
   const queryClient = useQueryClient()
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
@@ -117,10 +119,10 @@ export function SubjectDetailContainer({
   })
 
   if (isLoading) {
-    return <p className="text-body-lg text-muted-foreground">Cargando materia…</p>
+    return <p className="text-body-lg text-muted-foreground">{t('subjectDetailContainer.loading')}</p>
   }
   if (isError || !data) {
-    return <p className="text-body-lg text-destructive">No se pudo cargar la materia.</p>
+    return <p className="text-body-lg text-destructive">{t('subjectDetailContainer.loadError')}</p>
   }
 
   const nextClass = getNextClassOccurrence(data.slots, now)

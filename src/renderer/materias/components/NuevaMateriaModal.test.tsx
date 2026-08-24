@@ -32,7 +32,15 @@ const programs: ProgramWithPeriods[] = [
 describe('NuevaMateriaModal', () => {
   it('submits successfully with only the required fields plus one schedule slot', async () => {
     const onSubmit = vi.fn()
-    render(<NuevaMateriaModal programs={programs} defaultPeriodId={7} onSubmit={onSubmit} onClose={vi.fn()} />)
+    render(
+      <NuevaMateriaModal
+        programs={programs}
+        defaultPeriodId={7}
+        onSubmit={onSubmit}
+        onClose={vi.fn()}
+        onGoToCarreras={vi.fn()}
+      />
+    )
 
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Algoritmos' } })
     fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ALG-101' } })
@@ -50,22 +58,55 @@ describe('NuevaMateriaModal', () => {
 
   it('does not submit when name is missing and a slot is missing', async () => {
     const onSubmit = vi.fn()
-    render(<NuevaMateriaModal programs={programs} defaultPeriodId={7} onSubmit={onSubmit} onClose={vi.fn()} />)
+    render(
+      <NuevaMateriaModal
+        programs={programs}
+        defaultPeriodId={7}
+        onSubmit={onSubmit}
+        onClose={vi.fn()}
+        onGoToCarreras={vi.fn()}
+      />
+    )
 
     fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ALG-101' } })
     fireEvent.click(screen.getByRole('button', { name: 'Color #A78BFA' }))
     fireEvent.click(screen.getByRole('button', { name: 'Crear materia' }))
 
-    await waitFor(() => expect(screen.getByText('name is required')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Poné un nombre')).toBeInTheDocument())
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
   it('calls onClose when the cancel button is clicked', () => {
     const onClose = vi.fn()
-    render(<NuevaMateriaModal programs={programs} defaultPeriodId={7} onSubmit={vi.fn()} onClose={onClose} />)
+    render(
+      <NuevaMateriaModal
+        programs={programs}
+        defaultPeriodId={7}
+        onSubmit={vi.fn()}
+        onClose={onClose}
+        onGoToCarreras={vi.fn()}
+      />
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
 
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+})
+
+// "Todavía no tenés ningún período cargado" — the ONLY control used to be
+// "Entendido", which just dismissed the modal even though the body tells the
+// user to go create a period in Carreras. "Ir a Carreras" now actually takes
+// them there.
+describe('NuevaMateriaModal — no periods yet', () => {
+  it('offers "Ir a Carreras" instead of a dead-end dismissal', () => {
+    const onGoToCarreras = vi.fn()
+    render(<NuevaMateriaModal programs={[]} onSubmit={vi.fn()} onClose={vi.fn()} onGoToCarreras={onGoToCarreras} />)
+
+    expect(screen.getByText('Todavía no tenés ningún período cargado')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ir a Carreras' }))
+
+    expect(onGoToCarreras).toHaveBeenCalledTimes(1)
   })
 })

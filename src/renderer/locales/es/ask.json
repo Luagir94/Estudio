@@ -1,0 +1,119 @@
+{
+  "panelTitle": "Preguntar sobre mi cursada",
+  "modelLabel": "Modelo",
+  "recommendedLabel": "Recomendado",
+  "providerLabels": {
+    "claude": "Claude Code",
+    "antigravity": "Antigravity CLI",
+    "codex": "Codex CLI"
+  },
+  "composerPlaceholder": "Preguntá sobre tu cursada…",
+  "composerPlaceholderDegraded": "Conectá un CLI para preguntar",
+  "composerPlaceholderBrowsing": "Elegí una conversación para seguir preguntando",
+  "disclaimer": "Esta función usa tu propio uso de Claude",
+  "noCliConnected": {
+    "title": "Conectá un CLI para preguntar",
+    "detail": "Todavía no conectaste ninguno. Elegí el que uses en Ajustes."
+  },
+  "citationsLabel": "FUENTES",
+  "generalMarker": "Respuesta general · no salió de tus datos",
+  "memoryBoundaryMarker": "El modelo ya no ve los mensajes anteriores a esta línea",
+  "newConversationLabel": "+  Conversación nueva",
+  "sectionLabels": {
+    "materias": "Materias",
+    "horario": "Horario",
+    "entregas": "Entregas",
+    "finales": "Finales",
+    "carreras": "Carreras"
+  },
+  "pending": {
+    "title": "Buscando en tu cursada…",
+    "detail": "Puede tardar. Podés cancelar cuando quieras."
+  },
+  "notFound": {
+    "title": "No encontré eso en tu cursada.",
+    "detail": "Probá reformular la pregunta, o revisá si eso está cargado en la app o subido como archivo."
+  },
+  "notSaved": "Esta respuesta no se guardó en el historial",
+  "errors": {
+    "validationError": {
+      "title": "Esa pregunta no se puede enviar",
+      "detail": "Tiene que tener texto y no superar los 4000 caracteres."
+    },
+    "cliNotFound": {
+      "title": "No encontramos ese CLI",
+      "detail": "El CLI que elegiste no está en tu equipo. Revisá su ruta en Ajustes."
+    },
+    "cliUnusable": {
+      "title": "El CLI configurado no se puede usar",
+      "detail": "La ruta guardada no apunta a un ejecutable válido. Revisala en Ajustes."
+    },
+    "oversizedAttachment": {
+      "title": "Hay archivos que superan los 32 MB",
+      "detail": "Claude no puede leerlos. Sacalos o reemplazalos por versiones más chicas."
+    },
+    "oversizedAttachmentNamed": "{{names}} — {{detail}}",
+    "busy": {
+      "title": "Ya hay una pregunta en curso",
+      "detail": "Esperá a que termine, o cancelala antes de mandar otra."
+    },
+    "timeout": {
+      "title": "La consulta tardó demasiado",
+      "detail": "Se cortó a los 5 minutos. Probá con una pregunta más acotada."
+    },
+    "outputTooLarge": {
+      "title": "La respuesta era demasiado larga",
+      "detail": "Se cortó para proteger la app. Probá con una pregunta más específica."
+    },
+    "promptTooLarge": {
+      "title": "La consulta quedó demasiado grande para este CLI",
+      "detail": "Este CLI recibe la pregunta como argumento y tiene un límite. Probá acotarla, o preguntá con otro CLI."
+    },
+    "malformedResponse": {
+      "title": "La respuesta no vino en el formato esperado",
+      "detail": "No la muestro porque no puedo garantizar que tenga sus fuentes. Probá de nuevo."
+    },
+    "executionFailed": {
+      "title": "No se pudo completar la consulta",
+      "detail": "Puede ser un problema del CLI, o un PDF de más de 100 páginas, que Claude no puede leer de una vez."
+    },
+    "canceled": {
+      "title": "Cancelaste la consulta",
+      "detail": "No se envió ninguna respuesta."
+    },
+    "notFound": {
+      "title": "Esa conversación ya no existe",
+      "detail": "Puede que la hayas borrado. Empezá una conversación nueva."
+    }
+  },
+  "artifact": {
+    "saved": "Se guardó \"{{fileName}}\" en {{subjectName}}.",
+    "failed": "No se pudo guardar \"{{fileName}}\" en {{subjectName}}.",
+    "drop": {
+      "malformedBlock": "El modelo intentó generar un documento con un formato inválido. No se guardó.",
+      "invalidHeader": "El modelo intentó generar un documento con datos inválidos. No se guardó.",
+      "emptyContent": "El modelo intentó generar un documento vacío. No se guardó.",
+      "oversize": "El modelo intentó generar un documento demasiado grande. No se guardó.",
+      "invalidFilename": "El modelo intentó generar un documento con un nombre de archivo inválido. No se guardó.",
+      "unknownSubject": "El modelo intentó generar un documento para una materia que no encontré. No se guardó.",
+      "ambiguousSubject": "El modelo intentó generar un documento para una materia ambigua. No se guardó."
+    }
+  },
+  "conversationDate": {
+    "today": "Hoy, {{time}}",
+    "yesterday": "Ayer, {{time}}"
+  },
+  "askPanel": {
+    "historyWithCount": "Ver conversaciones anteriores ({{total}})",
+    "history": "Ver conversaciones anteriores",
+    "send": "Enviar"
+  },
+  "askHistoryList": {
+    "deleteConversation": "Eliminar \"{{title}}\""
+  },
+  "askPanelContainer": {
+    "goToAjustes": "Ir a Ajustes",
+    "emptyTitle": "Preguntá sobre tu cursada",
+    "emptyDetail": "Respondo solo con lo que subiste, y siempre te digo de qué archivo lo saqué."
+  }
+}

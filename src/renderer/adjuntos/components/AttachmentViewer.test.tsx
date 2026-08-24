@@ -103,7 +103,7 @@ describe('AttachmentViewer — header', () => {
     expect(props.onOpenExternal).toHaveBeenCalledTimes(1)
   })
 
-  it('edición mode replaces the OS-open button with Cancelar and Guardar', () => {
+  it('edición mode replaces the OS-open button with Cancelar and Guardar cambios', () => {
     const { props } = renderViewer({ mode: 'edicion' })
 
     expect(screen.queryByRole('button', { name: 'Abrir con la aplicación del sistema' })).not.toBeInTheDocument()
@@ -111,7 +111,7 @@ describe('AttachmentViewer — header', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
     expect(props.onCancel).toHaveBeenCalledTimes(1)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
     expect(props.onSave).toHaveBeenCalledTimes(1)
   })
 })
@@ -133,13 +133,15 @@ describe('AttachmentViewer — vista content states', () => {
   it('renders the error state when the read fails', () => {
     renderViewer({ content: undefined, isError: true })
 
-    expect(screen.getByText('No se pudo cargar el documento')).toBeInTheDocument()
+    expect(screen.getByText('No se pudo cargar el documento.')).toBeInTheDocument()
   })
 
   it('renders the missing-file state when the stored file is gone', () => {
     renderViewer({ content: undefined, isMissing: true })
 
-    expect(screen.getByText('No se encontró el archivo en disco')).toBeInTheDocument()
+    expect(
+      screen.getByText('El archivo ya no está en el disco — puede que se haya movido o borrado fuera de la app.')
+    ).toBeInTheDocument()
   })
 })
 

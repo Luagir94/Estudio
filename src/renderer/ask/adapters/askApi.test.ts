@@ -18,6 +18,7 @@ const connected: CliProviderStatus = {
   source: 'auto',
   overridePath: null,
   detail: null,
+  failureReason: null,
   capabilities: { structuredOutput: true, warmSession: true, readOnlyTools: true }
 }
 

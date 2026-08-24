@@ -12,6 +12,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { carrerasApi } from '../../carreras/adapters/carrerasApi'
 import { pickDefaultPeriodId } from '../../carreras/domain/period'
 import { materiasApi } from '../adapters/materiasApi'
@@ -30,6 +31,11 @@ import type { SubjectWithStatus } from '../../../shared/ipc/materias'
 interface MateriasListContainerProps {
   /** Navigates to the subject detail view. Omit for a static list. */
   onSelectSubject?: (id: number) => void
+  /**
+   * Navigates to Carreras. Threaded down to `NuevaMateriaModal`'s "no
+   * periods yet" dead end, its only consumer. Omit for a static list.
+   */
+  onGoToCarreras?: () => void
   /** Injected only by tests — status depends on the clock at render time. */
   now?: Date
 }
@@ -48,7 +54,12 @@ function statusOf(subject: SubjectWithStatus, now: Date): SubjectStatus {
   )
 }
 
-export function MateriasListContainer({ onSelectSubject, now }: MateriasListContainerProps = {}): React.JSX.Element {
+export function MateriasListContainer({
+  onSelectSubject,
+  onGoToCarreras,
+  now
+}: MateriasListContainerProps = {}): React.JSX.Element {
+  const { t } = useTranslation('materias')
   const queryClient = useQueryClient()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [filter, setFilter] = useState<FilterValue>('activas')
@@ -109,22 +120,25 @@ export function MateriasListContainer({ onSelectSubject, now }: MateriasListCont
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="font-display text-display-lg font-bold text-foreground">Materias</h1>
+          <h1 className="font-display text-display-lg font-bold text-foreground">{t('materiasListContainer.title')}</h1>
           <p className="text-body text-secondary-foreground">
-            {data ? `${data.length} materia${data.length === 1 ? '' : 's'}` : 'Cargando'} · el estado sale del período y
-            de los finales
+            {t('materiasListContainer.subtitle', {
+              subjects: data
+                ? t('materiasListContainer.subjectsCount', { count: data.length })
+                : t('materiasListContainer.loadingCount')
+            })}
           </p>
         </div>
         <Button type="button" onClick={() => setIsCreateOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" aria-hidden="true" />
-          Agregar materia
+          {t('materiasListContainer.addSubject')}
         </Button>
       </div>
 
       {data && <SubjectStatusFilter value={filter} counts={counts} onChange={setFilter} />}
 
-      {isLoading && <p className="text-body-lg text-muted-foreground">Cargando materias…</p>}
-      {isError && <p className="text-body-lg text-destructive">No se pudieron cargar las materias.</p>}
+      {isLoading && <p className="text-body-lg text-muted-foreground">{t('materiasListContainer.loading')}</p>}
+      {isError && <p className="text-body-lg text-destructive">{t('materiasListContainer.loadError')}</p>}
       {data && <MateriasList subjects={visible} now={today} onSelect={onSelectSubject} />}
 
       {isCreateOpen && (
@@ -133,6 +147,10 @@ export function MateriasListContainer({ onSelectSubject, now }: MateriasListCont
           defaultPeriodId={defaultPeriodId}
           onSubmit={(input) => createMutation.mutate(input)}
           onClose={() => setIsCreateOpen(false)}
+          onGoToCarreras={() => {
+            setIsCreateOpen(false)
+            onGoToCarreras?.()
+          }}
         />
       )}
     </div>

@@ -8,6 +8,7 @@
 // materias" would cancel a delete that never threatened them, and a user
 // who reads nothing at all would be surprised to find those materias out of
 // the carrera afterwards.
+import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/ui/button'
 import { DialogBody, DialogContent, DialogFooter, DialogOverlay } from '../../shared/components/ui/dialog'
 
@@ -15,7 +16,11 @@ interface DeletePeriodConfirmDialogProps {
   periodName: string
   /** Materias currently living in this period — they survive, unassigned. */
   subjectCount: number
-  /** Why the delete did not go through. A dead confirm button explains nothing. */
+  /**
+   * Why the delete did not go through. A dead confirm button explains
+   * nothing. Already app-owned Spanish copy (`shared/lib/ipcErrorCopy.ts`) —
+   * never the raw IPC message.
+   */
   error?: string | null
   onConfirm: () => void
   onCancel: () => void
@@ -28,31 +33,34 @@ export function DeletePeriodConfirmDialog({
   onConfirm,
   onCancel
 }: DeletePeriodConfirmDialogProps): React.JSX.Element {
+  const { t } = useTranslation('carreras')
   return (
     <DialogOverlay>
-      <DialogContent role="dialog" aria-label={`Eliminar ${periodName}`} className="max-w-[420px]">
+      <DialogContent
+        role="dialog"
+        aria-label={t('deletePeriodDialog.dialogLabel', { name: periodName })}
+        className="max-w-[420px]"
+      >
         <DialogBody className="gap-2">
           <p className="text-body-lg text-foreground">
-            ¿Eliminar el período &quot;{periodName}&quot;? Esta acción no se puede deshacer.
+            {t('deletePeriodDialog.confirmQuestion', { name: periodName })}
           </p>
           {/* A zero-subject period says nothing rather than "0 materias",
               which reads like something was left out (same rule as the
               subject-delete dialog's deadline count). */}
           {subjectCount > 0 && (
             <p className="text-body-lg text-secondary-foreground">
-              {subjectCount === 1 ? '1 materia queda' : `${subjectCount} materias quedan`} sin período — no se
-              {subjectCount === 1 ? ' elimina' : ' eliminan'}, pero {subjectCount === 1 ? 'sale' : 'salen'} de esta
-              carrera hasta que {subjectCount === 1 ? 'la asignes' : 'las asignes'} a otro.
+              {t('deletePeriodDialog.subjectsWarning', { count: subjectCount })}
             </p>
           )}
-          {error && <p className="text-body-lg text-destructive">No se pudo eliminar el período: {error}</p>}
+          {error && <p className="text-body-lg text-destructive">{error}</p>}
         </DialogBody>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>
-            Cancelar
+            {t('common:actions.cancel')}
           </Button>
           <Button type="button" variant="destructive" onClick={onConfirm}>
-            Eliminar período
+            {t('deletePeriodDialog.confirm')}
           </Button>
         </DialogFooter>
       </DialogContent>

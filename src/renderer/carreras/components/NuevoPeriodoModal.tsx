@@ -26,9 +26,11 @@ import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { Infinity as InfinityIcon, Layers, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { createPeriodInputSchema, type CreatePeriodInput, type PeriodRecord } from '../../../shared/ipc/carreras'
 import { derivePeriodYear, periodsOverlap } from '../domain/period'
 import { PERIOD_KINDS, isPeriodKind, periodNameOptions, type PeriodKind } from '../domain/periodKind'
+import { translateValidationMessage } from '../../shared/lib/translateValidationMessage'
 import { Button } from '../../shared/components/ui/button'
 import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogOverlay } from '../../shared/components/ui/dialog'
 import { Input } from '../../shared/components/ui/input'
@@ -53,7 +55,8 @@ interface NuevoPeriodoModalProps {
    * Why the last submit did not go through. Without this the form just sits
    * there on a failed write and the button reads as broken — which is exactly
    * how a stale preload bridge (no `updatePeriod` on `window.api`) presents
-   * itself to the user.
+   * itself to the user. Already app-owned Spanish copy
+   * (`shared/lib/ipcErrorCopy.ts`) — never the raw IPC message.
    */
   error?: string | null
   onSubmit: (input: CreatePeriodInput) => void
@@ -74,6 +77,7 @@ export function NuevoPeriodoModal({
   onSubmit,
   onClose
 }: NuevoPeriodoModalProps): React.JSX.Element {
+  const { t } = useTranslation('carreras')
   const isEditing = period !== undefined
   // An edited open-ended period must open with the checkbox already ticked —
   // otherwise the form would silently offer to give it an end it never had.
@@ -154,7 +158,7 @@ export function NuevoPeriodoModal({
         .filter((candidate) => periodsOverlap({ startsOn, endsOn: isOpenEnded ? null : validEnd }, candidate))
     : []
 
-  const title = isEditing ? 'Editar período' : 'Nuevo período'
+  const title = isEditing ? t('nuevoPeriodoModal.editTitle') : t('nuevoPeriodoModal.createTitle')
 
   return (
     <DialogOverlay>
@@ -163,8 +167,8 @@ export function NuevoPeriodoModal({
           <h2 className="font-display text-title font-bold text-foreground">{title}</h2>
           <p className="text-body-sm text-muted-foreground">
             {isEditing
-              ? `${programName} · corregí las fechas y guardá los cambios`
-              : `${programName} · las fechas las definís vos, no el tipo`}
+              ? t('nuevoPeriodoModal.editSubtitle', { program: programName })
+              : t('nuevoPeriodoModal.createSubtitle', { program: programName })}
           </p>
         </DialogHeader>
 
@@ -175,10 +179,10 @@ export function NuevoPeriodoModal({
                 options are not decided yet. */}
             <div className="flex items-end gap-4">
               <Label className="w-[210px] shrink-0">
-                Tipo
+                {t('nuevoPeriodoModal.kind')}
                 <Select {...kindField} onChange={handleKindChange}>
                   <option value="" disabled>
-                    Elegí un tipo
+                    {t('nuevoPeriodoModal.kindPlaceholder')}
                   </option>
                   {PERIOD_KINDS.map((option) => (
                     <option key={option} value={option}>
@@ -188,17 +192,23 @@ export function NuevoPeriodoModal({
                 </Select>
               </Label>
               <p className="pb-3 text-caption text-muted-foreground">
-                <strong className="font-semibold text-secondary-foreground">No define las fechas</strong> — esas las
-                cargás vos. Decide en cuántas partes se divide el año, y con eso, los nombres posibles.
+                <strong className="font-semibold text-secondary-foreground">
+                  {t('nuevoPeriodoModal.kindNoteStrong')}
+                </strong>
+                {t('nuevoPeriodoModal.kindNoteRest')}
               </p>
             </div>
-            {errors.kind && <p className="text-body-lg text-destructive">{errors.kind.message}</p>}
+            {errors.kind && (
+              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.kind.message)}</p>
+            )}
 
             <Label>
-              Nombre
+              {t('common:fields.name')}
               <Select {...register('name')} disabled={nameOptions.length === 0}>
                 <option value="" disabled>
-                  {nameOptions.length === 0 ? 'Elegí un tipo primero' : 'Elegí un nombre'}
+                  {nameOptions.length === 0
+                    ? t('nuevoPeriodoModal.namePlaceholderNoKind')
+                    : t('nuevoPeriodoModal.namePlaceholder')}
                 </option>
                 {nameOptions.map((option) => (
                   <option key={option} value={option}>
@@ -207,32 +217,37 @@ export function NuevoPeriodoModal({
                 ))}
               </Select>
             </Label>
-            {errors.name && <p className="text-body-lg text-destructive">{errors.name.message}</p>}
+            {errors.name && (
+              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.name.message)}</p>
+            )}
 
             {/* The year is NOT in these names, and this is where the user
                 finds that out — otherwise "1er cuatrimestre" reads like the
                 app lost the 2026 that used to be there. */}
             {legacyNotice && (
               <p className="rounded-lg bg-muted px-4 py-3 text-caption leading-relaxed text-secondary-foreground">
-                Este período se guardó como{' '}
-                <strong className="font-semibold text-foreground">{legacyNotice.name}</strong> ({legacyNotice.kind}), de
-                antes del catálogo de tipos. Elegí tipo y nombre para poder guardarlo. El año no va en el nombre: se
-                deriva de la fecha de inicio.
+                {t('nuevoPeriodoModal.legacyNoticeLead')}{' '}
+                <strong className="font-semibold text-foreground">{legacyNotice.name}</strong>
+                {t('nuevoPeriodoModal.legacyNoticeRest', { kind: legacyNotice.kind })}
               </p>
             )}
 
             <div className="flex gap-3">
               <Label className="flex-1">
-                Desde
+                {t('nuevoPeriodoModal.from')}
                 <Input type="date" {...register('startsOn')} />
               </Label>
               <Label className="flex-1">
-                Hasta
+                {t('nuevoPeriodoModal.to')}
                 <Input type="date" disabled={isOpenEnded} {...register('endsOn', emptyToNull)} />
               </Label>
             </div>
-            {errors.startsOn && <p className="text-body-lg text-destructive">{errors.startsOn.message}</p>}
-            {errors.endsOn && <p className="text-body-lg text-destructive">{errors.endsOn.message}</p>}
+            {errors.startsOn && (
+              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.startsOn.message)}</p>
+            )}
+            {errors.endsOn && (
+              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.endsOn.message)}</p>
+            )}
 
             {/* `accent-*` matches the entregas checkbox: a checked box is the
                 design's violet everywhere, not the OS blue in half the app. */}
@@ -244,11 +259,9 @@ export function NuevoPeriodoModal({
                 className={cn('h-4 w-4 rounded-sm border-border accent-(--color-violet)', interactive)}
               />
               <span className="text-body-sm font-semibold text-secondary-foreground transition-colors duration-150 group-hover:text-foreground">
-                Sin fecha de fin
+                {t('nuevoPeriodoModal.openEnded')}
               </span>
-              <span className="text-caption text-muted-foreground">
-                para clases que siguen indefinidamente — el período no termina nunca
-              </span>
+              <span className="text-caption text-muted-foreground">{t('nuevoPeriodoModal.openEndedNote')}</span>
             </label>
 
             {hasValidStart && (
@@ -260,21 +273,19 @@ export function NuevoPeriodoModal({
                 <span className="flex items-baseline gap-2">
                   <Sparkles className="h-3.5 w-3.5 shrink-0 self-center text-secondary-foreground" aria-hidden="true" />
                   <strong className="text-body-sm font-semibold text-foreground">
-                    Año {derivePeriodYear(startsOn)}
+                    {t('nuevoPeriodoModal.derivedYear', { year: derivePeriodYear(startsOn) })}
                   </strong>
-                  <span className="text-caption text-muted-foreground">
-                    derivado de la fecha de inicio · no se carga
-                  </span>
+                  <span className="text-caption text-muted-foreground">{t('nuevoPeriodoModal.derivedYearNote')}</span>
                 </span>
                 {isOpenEnded ? (
                   <span className="flex items-center gap-2 text-caption text-muted-foreground">
                     <InfinityIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                    No termina
+                    {t('period.neverEnds')}
                   </span>
                 ) : (
                   durationDays !== null && (
                     <span className="text-caption text-muted-foreground">
-                      {durationDays} días · {Math.round(durationDays / 7)} semanas
+                      {t('period.duration', { days: durationDays, weeks: Math.round(durationDays / 7) })}
                     </span>
                   )
                 )}
@@ -286,11 +297,12 @@ export function NuevoPeriodoModal({
                 <Layers className="mt-px h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
                 <div className="flex flex-col gap-1">
                   <strong className="text-body-sm font-semibold text-foreground">
-                    Se solapa con {overlapping.map((candidate) => candidate.name).join(', ')}
+                    {t('nuevoPeriodoModal.overlapTitle', {
+                      names: overlapping.map((candidate) => candidate.name).join(', ')
+                    })}
                   </strong>
                   <p className="text-caption leading-relaxed text-secondary-foreground">
-                    Está permitido y es intencional: los períodos pueden convivir. Una materia anual vive en su propio
-                    período, en paralelo a los cuatrimestres.
+                    {t('nuevoPeriodoModal.overlapBody')}
                   </p>
                 </div>
               </div>
@@ -299,17 +311,17 @@ export function NuevoPeriodoModal({
 
           <DialogFooter>
             {error ? (
-              <p className="text-caption text-destructive">No se pudo guardar el período: {error}</p>
+              <p className="text-caption text-destructive">{error}</p>
             ) : (
-              <p className="text-caption text-muted-foreground">
-                El año no se carga: se calcula desde la fecha de inicio
-              </p>
+              <p className="text-caption text-muted-foreground">{t('nuevoPeriodoModal.footerNote')}</p>
             )}
             <div className="flex items-center gap-3">
               <Button type="button" variant="outline" onClick={onClose}>
-                Cancelar
+                {t('common:actions.cancel')}
               </Button>
-              <Button type="submit">{isEditing ? 'Guardar cambios' : 'Crear período'}</Button>
+              <Button type="submit">
+                {isEditing ? t('common:actions.saveChanges') : t('nuevoPeriodoModal.submitCreate')}
+              </Button>
             </div>
           </DialogFooter>
         </form>

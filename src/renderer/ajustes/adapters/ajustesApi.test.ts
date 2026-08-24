@@ -9,6 +9,7 @@ const sampleStatus = {
   source: 'auto' as const,
   overridePath: null,
   detail: null,
+  failureReason: null,
   capabilities: { structuredOutput: true, warmSession: true, readOnlyTools: true }
 }
 

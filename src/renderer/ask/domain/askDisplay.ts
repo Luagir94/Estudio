@@ -1,11 +1,14 @@
 import type { AskArtifactDropReason, AskArtifactReport, AskErrorCode, CitationSection } from '../../../shared/ipc/ask'
 import type { CliProvider, ModelSelection } from '../../../shared/ipc/cli'
+import i18n from '../../i18n'
 
 // Every user-facing string for the ask panel (design D7). Main sends a typed
 // CODE and, for the size gate, the offending file names — nothing else from
-// the process or the model is ever rendered as guidance. Keeping the copy
-// here rather than at the call sites is what makes "the app owns the words"
-// checkable in one place.
+// the process or the model is ever rendered as guidance. The copy itself
+// lives in the `ask` locale catalog; this module keeps the single mapping
+// from typed codes to that catalog, which is what makes "the app owns the
+// words" checkable in one place. The i18n singleton initializes synchronously
+// on import, so the module-level constants below resolve at load time.
 //
 // Wording is the approved `design/course-companion` → `Grupo — Preguntar`
 // spec; the codes that group does not illustrate follow its voice.
@@ -33,8 +36,8 @@ export interface AskErrorCopy {
  * placeholder and `ASK_PENDING.title`) move together or not at all: one
  * alone contradicts the others (design #273 §2).
  */
-export const ASK_PANEL_TITLE = 'Preguntar sobre mi cursada'
-export const ASK_MODEL_LABEL = 'Modelo'
+export const ASK_PANEL_TITLE = i18n.t('ask:panelTitle')
+export const ASK_MODEL_LABEL = i18n.t('ask:modelLabel')
 
 /**
  * One row of the model menu (design `Screen — Preguntar · Modelo`).
@@ -101,17 +104,17 @@ export const ASK_RECOMMENDED_MODELS: readonly string[] = [
   'claude-haiku-4-5-20251001'
 ]
 
-export const ASK_RECOMMENDED_LABEL = 'Recomendado'
+export const ASK_RECOMMENDED_LABEL = i18n.t('ask:recommendedLabel')
 
 /** Label for each CLI — the heading of its section in the model menu. */
 export const ASK_PROVIDER_LABEL: Record<CliProvider, string> = {
-  claude: 'Claude Code',
-  antigravity: 'Antigravity CLI',
-  codex: 'Codex CLI'
+  claude: i18n.t('ask:providerLabels.claude'),
+  antigravity: i18n.t('ask:providerLabels.antigravity'),
+  codex: i18n.t('ask:providerLabels.codex')
 }
 
-export const ASK_COMPOSER_PLACEHOLDER = 'Preguntá sobre tu cursada…'
-export const ASK_COMPOSER_PLACEHOLDER_DEGRADED = 'Conectá un CLI para preguntar'
+export const ASK_COMPOSER_PLACEHOLDER = i18n.t('ask:composerPlaceholder')
+export const ASK_COMPOSER_PLACEHOLDER_DEGRADED = i18n.t('ask:composerPlaceholderDegraded')
 /**
  * Browsing the conversation list: no thread is on screen, so the composer has
  * nothing to send INTO. It says what to do next rather than going silently
@@ -119,8 +122,8 @@ export const ASK_COMPOSER_PLACEHOLDER_DEGRADED = 'Conectá un CLI para preguntar
  * above would send a user whose CLI is perfectly healthy to Ajustes to fix
  * nothing.
  */
-export const ASK_COMPOSER_PLACEHOLDER_BROWSING = 'Elegí una conversación para seguir preguntando'
-export const ASK_DISCLAIMER = 'Esta función usa tu propio uso de Claude'
+export const ASK_COMPOSER_PLACEHOLDER_BROWSING = i18n.t('ask:composerPlaceholderBrowsing')
+export const ASK_DISCLAIMER = i18n.t('ask:disclaimer')
 
 /**
  * The panel with NO CLI connected at all — not an error, and deliberately not
@@ -135,11 +138,11 @@ export const ASK_DISCLAIMER = 'Esta función usa tu propio uso de Claude'
  * the student chose and did not find it. Here nobody chose one yet.
  */
 export const ASK_NO_CLI_CONNECTED: AskErrorCopy = {
-  title: 'Conectá un CLI para preguntar',
-  detail: 'Todavía no conectaste ninguno. Elegí el que uses en Ajustes.',
+  title: i18n.t('ask:noCliConnected.title'),
+  detail: i18n.t('ask:noCliConnected.detail'),
   action: 'ajustes'
 }
-export const ASK_CITATIONS_LABEL = 'FUENTES'
+export const ASK_CITATIONS_LABEL = i18n.t('ask:citationsLabel')
 
 /**
  * Shown on every `general` answer. This label is the ONLY thing separating an
@@ -147,7 +150,7 @@ export const ASK_CITATIONS_LABEL = 'FUENTES'
  * its own, so it is not decoration — remove it and the panel silently starts
  * mixing the two.
  */
-export const ASK_GENERAL_MARKER = 'Respuesta general · no salió de tus datos'
+export const ASK_GENERAL_MARKER = i18n.t('ask:generalMarker')
 
 /**
  * Shown once per transcript, at the exact point `computeTranscriptWindow`
@@ -157,29 +160,29 @@ export const ASK_GENERAL_MARKER = 'Respuesta general · no salió de tus datos'
  * pinned verbatim from the approved `.pen` (obs #268 §1) — a NEUTRAL pill,
  * never amber: this is information, not an error.
  */
-export const ASK_MEMORY_BOUNDARY_MARKER = 'El modelo ya no ve los mensajes anteriores a esta línea'
+export const ASK_MEMORY_BOUNDARY_MARKER = i18n.t('ask:memoryBoundaryMarker')
 
 /** The "+ Conversación nueva" row atop the history list (design #268 §3, node
- * `L0zOG`) — two spaces after the plus, pinned verbatim. */
-export const ASK_NEW_CONVERSATION_LABEL = '+  Conversación nueva'
+ * `L0zOG`) — two spaces after the plus, pinned verbatim in the catalog. */
+export const ASK_NEW_CONVERSATION_LABEL = i18n.t('ask:newConversationLabel')
 
 /** Section key → the word shown on a data citation chip. */
 export const ASK_SECTION_LABELS: Record<CitationSection, string> = {
-  materias: 'Materias',
-  horario: 'Horario',
-  entregas: 'Entregas',
-  finales: 'Finales',
-  carreras: 'Carreras'
+  materias: i18n.t('ask:sectionLabels.materias'),
+  horario: i18n.t('ask:sectionLabels.horario'),
+  entregas: i18n.t('ask:sectionLabels.entregas'),
+  finales: i18n.t('ask:sectionLabels.finales'),
+  carreras: i18n.t('ask:sectionLabels.carreras')
 }
 export const ASK_PENDING = {
-  title: 'Buscando en tu cursada…',
-  detail: 'Puede tardar. Podés cancelar cuando quieras.'
+  title: i18n.t('ask:pending.title'),
+  detail: i18n.t('ask:pending.detail')
 }
 
 /** The not-found OUTCOME is not an error — the model found nothing, and the app says so in its own words. */
 export const ASK_NOT_FOUND: AskErrorCopy = {
-  title: 'No encontré eso en tu cursada.',
-  detail: 'Probá reformular la pregunta, o revisá si eso está cargado en la app o subido como archivo.'
+  title: i18n.t('ask:notFound.title'),
+  detail: i18n.t('ask:notFound.detail')
 }
 
 /**
@@ -189,69 +192,69 @@ export const ASK_NOT_FOUND: AskErrorCopy = {
  * the neutral boundary marker, this one IS a warning, and the asymmetry is
  * deliberate (approved). The answer itself is never dimmed or replaced.
  */
-export const ASK_NOT_SAVED = 'Esta respuesta no se guardó en el historial'
+export const ASK_NOT_SAVED = i18n.t('ask:notSaved')
 
 const COPY: Record<AskErrorCode, AskErrorCopy> = {
   VALIDATION_ERROR: {
-    title: 'Esa pregunta no se puede enviar',
-    detail: 'Tiene que tener texto y no superar los 4000 caracteres.'
+    title: i18n.t('ask:errors.validationError.title'),
+    detail: i18n.t('ask:errors.validationError.detail')
   },
   CLI_NOT_FOUND: {
     // Names no CLI in particular. With three selectable providers, copy that
     // said 'Claude' sent a student whose Codex install is the missing one off
     // to install a CLI they were never going to use.
-    title: 'No encontramos ese CLI',
-    detail: 'El CLI que elegiste no está en tu equipo. Revisá su ruta en Ajustes.',
+    title: i18n.t('ask:errors.cliNotFound.title'),
+    detail: i18n.t('ask:errors.cliNotFound.detail'),
     action: 'ajustes'
   },
   CLI_UNUSABLE: {
-    title: 'El CLI configurado no se puede usar',
-    detail: 'La ruta guardada no apunta a un ejecutable válido. Revisala en Ajustes.',
+    title: i18n.t('ask:errors.cliUnusable.title'),
+    detail: i18n.t('ask:errors.cliUnusable.detail'),
     action: 'ajustes'
   },
   OVERSIZED_ATTACHMENT: {
-    title: 'Hay archivos que superan los 32 MB',
-    detail: 'Claude no puede leerlos. Sacalos o reemplazalos por versiones más chicas.'
+    title: i18n.t('ask:errors.oversizedAttachment.title'),
+    detail: i18n.t('ask:errors.oversizedAttachment.detail')
   },
   BUSY: {
-    title: 'Ya hay una pregunta en curso',
-    detail: 'Esperá a que termine, o cancelala antes de mandar otra.'
+    title: i18n.t('ask:errors.busy.title'),
+    detail: i18n.t('ask:errors.busy.detail')
   },
   TIMEOUT: {
-    title: 'La consulta tardó demasiado',
-    detail: 'Se cortó a los 5 minutos. Probá con una pregunta más acotada.'
+    title: i18n.t('ask:errors.timeout.title'),
+    detail: i18n.t('ask:errors.timeout.detail')
   },
   OUTPUT_TOO_LARGE: {
-    title: 'La respuesta era demasiado larga',
-    detail: 'Se cortó para proteger la app. Probá con una pregunta más específica.'
+    title: i18n.t('ask:errors.outputTooLarge.title'),
+    detail: i18n.t('ask:errors.outputTooLarge.detail')
   },
   // Deliberately NOT worded like VALIDATION_ERROR: what did not fit is the
   // question plus every piece of course context the app sends alongside it, so
   // blaming the question alone would send the student off to shorten something
   // that was never the problem.
   PROMPT_TOO_LARGE: {
-    title: 'La consulta quedó demasiado grande para este CLI',
-    detail: 'Este CLI recibe la pregunta como argumento y tiene un límite. Probá acotarla, o preguntá con otro CLI.'
+    title: i18n.t('ask:errors.promptTooLarge.title'),
+    detail: i18n.t('ask:errors.promptTooLarge.detail')
   },
   MALFORMED_RESPONSE: {
-    title: 'La respuesta no vino en el formato esperado',
-    detail: 'No la muestro porque no puedo garantizar que tenga sus fuentes. Probá de nuevo.'
+    title: i18n.t('ask:errors.malformedResponse.title'),
+    detail: i18n.t('ask:errors.malformedResponse.detail')
   },
   EXECUTION_FAILED: {
-    title: 'No se pudo completar la consulta',
+    title: i18n.t('ask:errors.executionFailed.title'),
     // The 100-page ceiling is undetectable app-side, so it is named as a
     // possible cause rather than pretended away.
-    detail: 'Puede ser un problema del CLI, o un PDF de más de 100 páginas, que Claude no puede leer de una vez.'
+    detail: i18n.t('ask:errors.executionFailed.detail')
   },
   CANCELED: {
-    title: 'Cancelaste la consulta',
-    detail: 'No se envió ninguna respuesta.'
+    title: i18n.t('ask:errors.canceled.title'),
+    detail: i18n.t('ask:errors.canceled.detail')
   },
   // The thread the question tried to continue no longer exists (design D1) —
   // distinct from ASK_NOT_FOUND above, which is a model OUTCOME, not an error.
   NOT_FOUND: {
-    title: 'Esa conversación ya no existe',
-    detail: 'Puede que la hayas borrado. Empezá una conversación nueva.'
+    title: i18n.t('ask:errors.notFound.title'),
+    detail: i18n.t('ask:errors.notFound.detail')
   }
 }
 
@@ -264,7 +267,7 @@ export function describeAskError(code: AskErrorCode, detail?: string): AskErrorC
   const copy = COPY[code]
 
   if (code === 'OVERSIZED_ATTACHMENT' && detail) {
-    return { ...copy, detail: `${detail} — ${copy.detail}` }
+    return { ...copy, detail: i18n.t('ask:errors.oversizedAttachmentNamed', { names: detail, detail: copy.detail }) }
   }
 
   return copy
@@ -277,13 +280,13 @@ export function describeAskError(code: AskErrorCode, detail?: string): AskErrorC
  * here, it only supplies the typed reason this maps from.
  */
 const ARTIFACT_DROP_COPY: Record<AskArtifactDropReason, string> = {
-  'malformed-block': 'El modelo intentó generar un documento con un formato inválido. No se guardó.',
-  'invalid-header': 'El modelo intentó generar un documento con datos inválidos. No se guardó.',
-  'empty-content': 'El modelo intentó generar un documento vacío. No se guardó.',
-  oversize: 'El modelo intentó generar un documento demasiado grande. No se guardó.',
-  'invalid-filename': 'El modelo intentó generar un documento con un nombre de archivo inválido. No se guardó.',
-  'unknown-subject': 'El modelo intentó generar un documento para una materia que no encontré. No se guardó.',
-  'ambiguous-subject': 'El modelo intentó generar un documento para una materia ambigua. No se guardó.'
+  'malformed-block': i18n.t('ask:artifact.drop.malformedBlock'),
+  'invalid-header': i18n.t('ask:artifact.drop.invalidHeader'),
+  'empty-content': i18n.t('ask:artifact.drop.emptyContent'),
+  oversize: i18n.t('ask:artifact.drop.oversize'),
+  'invalid-filename': i18n.t('ask:artifact.drop.invalidFilename'),
+  'unknown-subject': i18n.t('ask:artifact.drop.unknownSubject'),
+  'ambiguous-subject': i18n.t('ask:artifact.drop.ambiguousSubject')
 }
 
 /**
@@ -298,10 +301,10 @@ const ARTIFACT_DROP_COPY: Record<AskArtifactDropReason, string> = {
  */
 export function describeAskArtifact(report: AskArtifactReport): string {
   if (report.status === 'saved') {
-    return `Se guardó "${report.fileName}" en ${report.subjectName}.`
+    return i18n.t('ask:artifact.saved', { fileName: report.fileName, subjectName: report.subjectName })
   }
   if (report.status === 'failed') {
-    return `No se pudo guardar "${report.fileName}" en ${report.subjectName}.`
+    return i18n.t('ask:artifact.failed', { fileName: report.fileName, subjectName: report.subjectName })
   }
   return ARTIFACT_DROP_COPY[report.reason]
 }

@@ -8,6 +8,7 @@
 // The question — and the transcript — travel in the prompt BODY, never in
 // argv — that is what keeps arbitrary user text away from the cmd.exe
 // command line.
+import mainI18n from '../../i18n'
 import { ARTIFACT_END_SENTINEL, ARTIFACT_START_SENTINEL } from './artifactBlock'
 import type { RetrievedAttachmentChunk } from './retrievalWindow'
 import { serializeTranscriptTurn, type TranscriptSourceTurn } from './transcriptWindow'
@@ -117,9 +118,17 @@ export function buildAskPrompt(
     lines.push(TRANSCRIPT_START_SENTINEL, ...transcript.map(serializeTranscriptTurn), TRANSCRIPT_END_SENTINEL, '')
   }
 
+  // Only the answer-language line is sourced from the catalog
+  // (`main.json`'s `promptBuilder.languageInstruction`): it is the one
+  // instruction that is actually ABOUT locale, so it must follow the app's
+  // active language once a switcher exists. Every other literal in this
+  // function — JSON shapes, citation kinds, sentinel wording — is prompt
+  // engineering: it constrains how the model must format output for THIS
+  // app's parser (see `responseParser.ts`), not what a user reads, so it
+  // stays a fixed literal even after a second locale ships.
   lines.push(
     'Instrucciones:',
-    '- Respondé en español.',
+    mainI18n.t('promptBuilder.languageInstruction'),
     '- Preferí siempre los datos y archivos de arriba por sobre tu conocimiento general.',
     '- Citá cada afirmación que salga de ellos.'
   )

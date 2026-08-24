@@ -1,0 +1,54 @@
+{
+  "finalsCard": {
+    "approvedByFinal": "Aprobada por final",
+    "standbyPending": "Final pendiente",
+    "resultCounts": {
+      "pendiente_one": "{{count}} pendiente",
+      "pendiente_other": "{{count}} pendientes",
+      "aprobado_one": "{{count}} aprobado",
+      "aprobado_other": "{{count}} aprobados",
+      "reprobado_one": "{{count}} reprobado",
+      "reprobado_other": "{{count}} reprobados"
+    },
+    "howItWorks": "Aprobás cualquier mesa y la materia queda Aprobada sola — aprobar es inequívoco. Si las reprobás todas, sigue con el final pendiente: darla por reprobada es una decisión tuya, la app nunca la cierra por vos.",
+    "instancesHeading": "MESAS DE FINAL",
+    "addInstance": "Agregar mesa",
+    "empty": "Todavía no anotaste ninguna mesa. Podés cargarla aunque no sepas la fecha.",
+    "noDateYet": "Sin fecha todavía",
+    "resultLabels": {
+      "pendiente": "Pendiente",
+      "aprobado": "Aprobado",
+      "reprobado": "Reprobado"
+    },
+    "deleteInstance": "Borrar {{label}}",
+    "failedAll_one": "Reprobaste la mesa y no queda ninguna abierta",
+    "failedAll_other": "Reprobaste las {{count}} mesas y no queda ninguna abierta",
+    "failedAllHint": "La materia sigue con el final pendiente hasta que vos decidas. Siempre podés anotar otra mesa.",
+    "addAnotherInstance": "Agregar otra mesa",
+    "giveUp": "Darla por reprobada"
+  },
+  "nuevaInstanciaModal": {
+    "dialogLabel": "Nueva mesa de final",
+    "title": "Nueva mesa de final",
+    "labelField": "Nombre de la mesa",
+    "labelPlaceholder": "3ra mesa — Turno diciembre",
+    "date": "Fecha",
+    "optionalBadge": "opcional",
+    "dateHint": "Dejala vacía si la institución todavía no publicó el calendario. La cargás después y listo.",
+    "result": "Resultado",
+    "resultOptions": {
+      "pendiente": "Pendiente",
+      "aprobado": "Aprobado",
+      "reprobado": "Reprobado"
+    },
+    "standbyNote": "Al guardarla, la materia vuelve a final pendiente esperando esta mesa. No se pisa ningún resultado anterior.",
+    "footerNote": "Podés cargar todas las mesas que necesites",
+    "submit": "Agregar mesa"
+  },
+  "giveUpConfirmDialog": {
+    "dialogLabel": "Dar por reprobada {{name}}",
+    "confirmQuestion": "¿Dar por reprobada \"{{name}}\"? La materia queda marcada como reprobada.",
+    "reversibleHint": "No es definitivo: después podés abrir \"Cerrar materia\" de nuevo y elegir otro resultado.",
+    "confirm": "Darla por reprobada"
+  }
+}
