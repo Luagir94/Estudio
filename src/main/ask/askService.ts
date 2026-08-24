@@ -623,7 +623,6 @@ export function createAskService({
       let stdout = ''
       let stderr = ''
       let settled = false
-      let timer: TimeoutHandle
 
       const base = (): ExecutionOutcome => ({
         exitCode: null,
@@ -642,7 +641,9 @@ export function createAskService({
         resolveOutcome(outcome)
       }
 
-      timer = scheduleTimeout(() => {
+      // `finish` closes over `timer`, but nothing can call it before this
+      // line runs: every caller is an async callback registered below.
+      const timer = scheduleTimeout(() => {
         if (settled) return
         terminate(child)
         finish({ ...base(), timedOut: true })

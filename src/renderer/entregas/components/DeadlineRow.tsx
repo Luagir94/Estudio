@@ -55,7 +55,6 @@ export function DeadlineRow({
     <div className="flex items-center gap-4 rounded-lg border border-border bg-card px-4 py-3">
       <input
         type="checkbox"
-        role="checkbox"
         aria-label={deadline.done ? t('deadlineRow.markPending') : t('deadlineRow.markDone')}
         checked={deadline.done}
         onChange={(event) => onToggleDone(event.target.checked)}

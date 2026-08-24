@@ -20,6 +20,7 @@ npm install
 | ------------------------------------ | ---------------------- |
 | Dev server with hot reload           | `npm run dev`          |
 | Type checking (node + web tsconfigs) | `npm run typecheck`    |
+| Lint (ESLint, flat config)           | `npm run lint`         |
 | Format                               | `npm run format`       |
 | Format check only                    | `npm run format:check` |
 
@@ -55,7 +56,13 @@ Note: `claude-connection.spec.ts` expects a locally installed Claude Code CLI to
 
 ### What `npm test` runs
 
-`npm test` = `format:check` + `test:unit` + `lint:deps`. It does **not** run `typecheck` or `test:e2e` — run those explicitly before considering a change done.
+`npm test` = `format:check` + `test:unit` + `lint:deps` + `lint`. It does **not** run `typecheck` or `test:e2e` — run those explicitly before considering a change done.
+
+### Linting (ESLint)
+
+`npm run lint` runs ESLint over the repo with the flat config in `eslint.config.mjs`: `@eslint/js` + `typescript-eslint` recommended (non-type-checked — typechecking is `npm run typecheck`'s job), `eslint-plugin-react-hooks` recommended on renderer/preload code, `eslint-plugin-jsx-a11y` recommended on TSX, and `eslint-config-prettier` last so formatting stays Prettier's. Unused `eslint-disable` directives are errors, so every suppression in the codebase is load-bearing.
+
+One wrinkle: typescript-eslint's parser needs the classic TypeScript compiler API, which the native TS 7 package no longer ships. The `overrides` block in `package.json` pins a classic `typescript@6.0.3` for the lint toolchain only — it nests under `node_modules/typescript-eslint/` and does not affect `tsc`, which stays on the native TS 7 at the root.
 
 ## Database workflow
 

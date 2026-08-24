@@ -16,7 +16,8 @@
     "test:unit": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "electron-vite build && playwright test",
-    "test": "npm run format:check && npm run test:unit && npm run lint:deps",
+    "test": "npm run format:check && npm run test:unit && npm run lint:deps && npm run lint",
+    "lint": "eslint .",
     "lint:deps": "node tooling/dependencyGuard.mts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -62,11 +63,39 @@
     "electron": "43.4.0",
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
+    "eslint": "9.39.5",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react-hooks": "7.1.1",
     "jsdom": "^30.0.1",
     "prettier": "^3.9.6",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
+    "typescript-eslint": "8.67.0",
     "vite": "^7.3.6",
     "vitest": "4.1.10"
+  },
+  "overrides": {
+    "typescript-eslint": {
+      "typescript": "$typescript"
+    },
+    "@typescript-eslint/eslint-plugin": {
+      "typescript": "6.0.3"
+    },
+    "@typescript-eslint/parser": {
+      "typescript": "6.0.3"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "typescript": "6.0.3"
+    },
+    "@typescript-eslint/type-utils": {
+      "typescript": "6.0.3"
+    },
+    "@typescript-eslint/utils": {
+      "typescript": "6.0.3"
+    },
+    "ts-api-utils": {
+      "typescript": "6.0.3"
+    }
   }
 }

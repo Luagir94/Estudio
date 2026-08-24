@@ -8,6 +8,7 @@ import path from 'node:path'
 const RESERVED_CHARS = /[<>:"/\\|?*]/g
 // 0x00-0x1F covers NUL plus every other ASCII control character (tab,
 // newline, escape, …) that a filename must never carry on Windows.
+// eslint-disable-next-line no-control-regex -- matching control chars is this sanitizer's whole job
 const CONTROL_CHARS = /[\x00-\x1F]/g
 const TRAILING_DOTS_OR_SPACES = /[. ]+$/
 const RESERVED_STEMS = new Set([

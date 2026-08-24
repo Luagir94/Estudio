@@ -16,7 +16,6 @@
 import { ChevronLeft, CircleCheck, ExternalLink, MapPin, Pencil, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
-import type { DeadlineRecord } from '../../../shared/ipc/deadlines'
 // Deadline status wording is owned by the entregas domain. This screen used to
 // hand-roll its own copy, which drifted ("Vencida" here vs "N días de atraso"
 // on Entregas) — one formatter, one source of truth.

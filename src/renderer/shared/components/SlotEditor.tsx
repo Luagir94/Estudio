@@ -64,7 +64,6 @@ export function SlotEditor({ value, onChange }: SlotEditorProps): React.JSX.Elem
   return (
     <div className="flex flex-col gap-3">
       {value.map((slot, index) => (
-        // eslint-disable-next-line react/no-array-index-key -- slots have no stable id until persisted
         <div
           key={index}
           className="grid grid-cols-[1.3fr_1fr_1fr_1fr_auto] items-end gap-3 rounded-lg border border-border p-3"

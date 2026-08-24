@@ -30,6 +30,7 @@ export function useMediaQuery(query: string): boolean {
     const mediaQueryList = window.matchMedia(query)
     // Re-read on subscribe: the window can have been resized between the
     // initial state and this effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate one-shot re-sync with an external system on subscribe
     setIsMatch(mediaQueryList.matches)
 
     const handleChange = (event: MediaQueryListEvent): void => setIsMatch(event.matches)

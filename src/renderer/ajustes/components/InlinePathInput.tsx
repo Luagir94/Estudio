@@ -30,6 +30,7 @@ export function InlinePathInput({ provider, overridePath, onCommit }: InlinePath
   // Re-syncs only when the persisted override moves from OUTSIDE this
   // component (e.g. the mutation wrote a new one), never on every keystroke.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate re-sync from the persisted override, guarded by the dep array
     setValue(overridePath ?? '')
   }, [overridePath])
 
