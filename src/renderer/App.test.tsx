@@ -28,8 +28,18 @@ vi.mock('./entregas/containers/EntregasContainer', () => ({
   EntregasContainer: () => <div>stub-entregas-screen</div>
 }))
 
+// Mutable on purpose: the crash-fallback test flips it to make the default
+// screen throw during render. Safe with vi.mock hoisting because the stub
+// only READS it at render time, long after this module finished evaluating.
+let hoyShouldThrow = false
+
 vi.mock('./hoy/containers/HoyContainer', () => ({
-  HoyContainer: () => <div>stub-hoy-screen</div>
+  HoyContainer: () => {
+    if (hoyShouldThrow) {
+      throw new Error('render boom')
+    }
+    return <div>stub-hoy-screen</div>
+  }
 }))
 
 vi.mock('./ajustes/containers/AjustesContainer', () => ({
@@ -54,6 +64,7 @@ vi.mock('./shared/adapters/appApi', () => ({
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    hoyShouldThrow = false
     vi.mocked(appApi.exportJson).mockResolvedValue({ canceled: true, filePath: null })
     vi.mocked(appApi.onExportRequested).mockReturnValue(vi.fn())
   })
@@ -136,6 +147,21 @@ describe('App', () => {
     render(<App />)
 
     expect(appApi.onExportRequested).toHaveBeenCalledTimes(1)
+  })
+
+  // Before the root boundary landed, a render throw anywhere in the tree
+  // blanked the whole window — the worst possible failure mode for a local
+  // desktop app. The boundary must catch it and show translated copy.
+  it('shows the Spanish crash fallback instead of a blank window when a screen render throws', () => {
+    hoyShouldThrow = true
+    // React reports the caught error via console.error even though the
+    // boundary handles it — silence that expected noise for this test only.
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(<App />)
+
+    expect(screen.getByText('Algo salió mal')).toBeInTheDocument()
+    consoleError.mockRestore()
   })
 
   it('the File-menu push event triggers the SAME exportJson() call as the sidebar button', async () => {

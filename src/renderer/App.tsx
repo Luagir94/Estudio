@@ -8,7 +8,7 @@
 // File menu's `menu:export-requested` push event both call the exact SAME
 // `appApi.exportJson()` mutation here — "the identical flow" (spec: "Export
 // from File menu").
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { AjustesContainer } from './ajustes/containers/AjustesContainer'
 import { AskPanelContainer } from './ask/containers/AskPanelContainer'
@@ -19,11 +19,13 @@ import { HorarioContainer } from './horario/containers/HorarioContainer'
 import { HoyContainer } from './hoy/containers/HoyContainer'
 import { MateriasContainer } from './materias/containers/MateriasContainer'
 import { appApi } from './shared/adapters/appApi'
+import { ErrorBoundary } from './shared/components/ErrorBoundary'
 import { Sidebar, type SidebarDomain } from './shared/components/Sidebar'
+import { createQueryClient } from './shared/lib/queryClient'
 import { useMediaQuery } from './shared/lib/useMediaQuery'
 import { readSidebarCollapsed, writeSidebarCollapsed, SIDEBAR_FORCED_RAIL_QUERY } from './shared/lib/sidebarPreference'
 
-const queryClient = new QueryClient()
+const queryClient = createQueryClient()
 
 function useExport(): () => void {
   const handleExport = (): void => {
@@ -32,7 +34,6 @@ function useExport(): () => void {
 
   useEffect(() => {
     return appApi.onExportRequested(handleExport)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return handleExport
@@ -134,10 +135,17 @@ function Shell(): React.JSX.Element {
   )
 }
 
+// The boundary sits OUTSIDE the QueryClientProvider: a crash in the provider
+// or any query plumbing is exactly the failure it must survive. Nothing
+// needs to sit above it — i18next is a synchronous singleton (see
+// i18n/index.ts), not a provider, so the fallback can translate from the
+// very top of the tree.
 export function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <Shell />
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <Shell />
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }

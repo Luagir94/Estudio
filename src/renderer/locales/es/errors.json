@@ -1,5 +1,9 @@
 {
   "generic": "Ocurrió un error inesperado. Probá de nuevo en un momento.",
+  "boundary": {
+    "title": "Algo salió mal",
+    "body": "Reiniciá la aplicación para volver a intentarlo."
+  },
   "codes": {
     "VALIDATION_ERROR": "Los datos no pasaron la validación. Revisalos e intentá de nuevo.",
     "NOT_FOUND": "Ya no existe — puede que se haya eliminado desde otra pantalla. Actualizá para ver el estado actual.",
