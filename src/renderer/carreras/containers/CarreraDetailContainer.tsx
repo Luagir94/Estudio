@@ -10,8 +10,10 @@ import { materiasApi } from '../../materias/adapters/materiasApi'
 import { MateriasList } from '../../materias/components/MateriasList'
 import { NuevaMateriaModal } from '../../materias/components/NuevaMateriaModal'
 import { describeIpcError } from '../../shared/lib/ipcErrorCopy'
+import { isPassed } from '../../materias/domain/subjectStatus'
 import { carrerasApi } from '../adapters/carrerasApi'
-import { pickDefaultPeriodId } from '../domain/period'
+import { derivePeriodYear, formatPeriodRange, listCurrentPeriods, pickDefaultPeriodId } from '../domain/period'
+import { approvedProgressPercent, calculateProgramAverage, formatAverage } from '../domain/program'
 import { DeletePeriodConfirmDialog } from '../components/DeletePeriodConfirmDialog'
 import { DeleteProgramConfirmDialog } from '../components/DeleteProgramConfirmDialog'
 import { EditarCarreraModal } from '../components/EditarCarreraModal'
@@ -149,6 +151,32 @@ export function CarreraDetailContainer({
   // must not re-open that question with every other program's periods.
   const defaultPeriodId = useMemo(() => pickDefaultPeriodId(data?.periods ?? [], today), [data, today])
 
+  // Everything the right rail shows is derived from data this screen already
+  // fetches — the "PERÍODO EN CURSO" card reads the active periods (plural on
+  // purpose, see domain/period.ts) and the "AVANCE ACADÉMICO" card reads the
+  // same detail payload the header subtitle prints from.
+  const currentPeriods = useMemo(() => listCurrentPeriods(data?.periods ?? [], today), [data, today])
+  const currentPeriod = currentPeriods[0]
+  const companionPeriods = currentPeriods.slice(1)
+
+  // The avance card's numbers (design node `ghb9r`): the promedio over
+  // `gradedSubjects` and the approved count against `subjectCount`, both
+  // resolved through the SAME domain rules the rest of the app answers with
+  // (calculateProgramAverage, isPassed) — never re-derived here.
+  const academicProgress = useMemo(() => {
+    const gradedSubjects = data?.gradedSubjects ?? []
+    const approved = gradedSubjects.filter(isPassed).length
+    const total = data?.subjectCount ?? 0
+    return {
+      average: calculateProgramAverage(
+        gradedSubjects.map((subject) => ({ grade: subject.grade, passed: isPassed(subject) }))
+      ),
+      approved,
+      total,
+      percent: approvedProgressPercent(approved, total)
+    }
+  }, [data])
+
   // A subject reaches this carrera THROUGH its period, so one that lost its
   // period (`program: null`) belongs to no carrera and is not listed here —
   // the Materias screen is where it stays visible and fixable.
@@ -241,25 +269,113 @@ export function CarreraDetailContainer({
           </div>
 
           <PeriodTimeline periods={data.periods} now={today} />
-          <PeriodsTable
-            periods={data.periods}
-            now={today}
-            subjectCounts={subjectCounts}
-            onSelect={onSelectPeriod && ((period) => onSelectPeriod(period.id))}
-            onEdit={setEditingPeriod}
-            onDelete={setDeletingPeriod}
-          />
 
-          <div className="flex flex-col gap-3">
-            <h2 className="text-label font-semibold text-muted-foreground">
-              {t('carreraDetailContainer.ownSubjectsHeading')}
-            </h2>
-            <MateriasList
-              subjects={ownSubjects}
-              now={today}
-              onSelect={onOpenSubject}
-              emptyMessage={t('carreraDetailContainer.noSubjects')}
-            />
+          {/* Two-column body, same layout language as SubjectDetail: the rail
+              is a SIDE panel only while there is a side to put it on — below
+              820px it becomes the bottom of the page, stacked, full width. */}
+          <div className="flex flex-col gap-6 min-[820px]:flex-row">
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
+              <PeriodsTable
+                periods={data.periods}
+                now={today}
+                subjectCounts={subjectCounts}
+                onSelect={onSelectPeriod && ((period) => onSelectPeriod(period.id))}
+                onEdit={setEditingPeriod}
+                onDelete={setDeletingPeriod}
+              />
+
+              <div className="flex flex-col gap-2">
+                {/* Count appended outside the translation, same pattern as
+                    the PERÍODOS and ADJUNTOS headings. */}
+                <h2 className="text-label font-semibold text-muted-foreground">
+                  {t('carreraDetailContainer.ownSubjectsHeading')}
+                  {ownSubjects.length > 0 && ` · ${ownSubjects.length}`}
+                </h2>
+                <MateriasList
+                  subjects={ownSubjects}
+                  now={today}
+                  onSelect={onOpenSubject}
+                  emptyMessage={t('carreraDetailContainer.noSubjects')}
+                  compact
+                />
+              </div>
+            </div>
+
+            <div className="flex w-full flex-col gap-3 min-[820px]:w-[336px] min-[820px]:shrink-0">
+              <div className="flex flex-col gap-2 rounded-xl border border-primary bg-(--color-violet-soft) p-4">
+                <span className="text-overline font-semibold text-primary-ink">
+                  {t('carreraDetailContainer.currentPeriodHeading')}
+                </span>
+                {currentPeriod ? (
+                  <>
+                    <span className="font-display text-heading font-bold text-foreground">
+                      {currentPeriod.name} {derivePeriodYear(currentPeriod.startsOn)}
+                    </span>
+                    <span className="text-body-sm text-secondary-foreground">
+                      {formatPeriodRange(currentPeriod.startsOn, currentPeriod.endsOn)}
+                      {companionPeriods.length > 0 &&
+                        ` · ${t('carreraDetailContainer.alongside', {
+                          names: companionPeriods.map((period) => period.name).join(', ')
+                        })}`}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-body-lg font-medium text-secondary-foreground">
+                    {t('carreraDetailContainer.noCurrentPeriod')}
+                  </span>
+                )}
+              </div>
+
+              {/* "AVANCE ACADÉMICO" (design node `ghb9r`): the promedio con
+                  aplazos as the hero number — the honest average, see
+                  domain/program.ts — over an approved-share progress bar,
+                  keeping the period rows of the old numbers card. The plain
+                  Materias row is gone: the count already reads in the header
+                  subtitle and in the pill's own total. */}
+              <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-card p-4">
+                <span className="text-overline font-semibold text-muted-foreground">
+                  {t('carreraDetailContainer.academicProgressHeading')}
+                </span>
+                <div className="flex items-end justify-between">
+                  <div className="flex flex-col gap-0.5">
+                    {/* 28px is the design's hero-number size, deliberately off
+                        the type scale (display-lg is 30, heading 20), with the
+                        heading step's -0.5px tracking. */}
+                    <span className="font-display text-[28px] font-bold tracking-[-0.5px] text-foreground">
+                      {academicProgress.average.withFailed !== null
+                        ? formatAverage(academicProgress.average.withFailed)
+                        : '—'}
+                    </span>
+                    <span className="text-body-sm text-secondary-foreground">
+                      {t('carreraDetailContainer.averageLabel')}
+                    </span>
+                  </div>
+                  {/* 11px is off the scale too — the design's pill step. */}
+                  <span className="rounded-full bg-ok-soft px-2.5 py-1 text-[11px] font-semibold text-ok">
+                    {t('carreraDetailContainer.approvedOfTotal', {
+                      count: academicProgress.approved,
+                      total: academicProgress.total
+                    })}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-ok" style={{ width: `${academicProgress.percent}%` }} />
+                </div>
+                <span aria-hidden="true" className="h-px w-full bg-border" />
+                <div className="flex items-center justify-between">
+                  <span className="text-body-sm text-secondary-foreground">
+                    {t('carreraDetailContainer.statPeriods')}
+                  </span>
+                  <span className="text-body-sm font-semibold text-foreground">{data.periods.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-body-sm text-secondary-foreground">
+                    {t('carreraDetailContainer.statActive')}
+                  </span>
+                  <span className="text-body-sm font-semibold text-foreground">{currentPeriods.length}</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           {isModalOpen && (

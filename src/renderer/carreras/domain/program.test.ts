@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { calculateProgramAverage, createProgram, hasRecordedEvaluations, validateGrade } from './program'
+import {
+  approvedProgressPercent,
+  calculateProgramAverage,
+  createProgram,
+  formatAverage,
+  hasRecordedEvaluations,
+  validateGrade
+} from './program'
 
 const numericProgram = {
   name: 'Abogacía',
@@ -188,6 +195,41 @@ describe('calculateProgramAverage', () => {
       gradedSubjects: 2,
       failedSubjects: 2
     })
+  })
+})
+
+// How a promedio is PRINTED, fixed in the domain for the same reason
+// calculateProgramAverage fixes its rounding: one screen must not read
+// "8,5" while another says "8.50".
+describe('formatAverage', () => {
+  it('prints comma decimals, always two places', () => {
+    expect(formatAverage(8.5)).toBe('8,50')
+  })
+
+  it('keeps the two decimals the domain rounding produces', () => {
+    expect(formatAverage(7.33)).toBe('7,33')
+  })
+
+  it('pads a whole-number average to the same shape', () => {
+    expect(formatAverage(10)).toBe('10,00')
+  })
+})
+
+describe('approvedProgressPercent', () => {
+  it('reports the approved share of the total as a whole percent', () => {
+    expect(approvedProgressPercent(3, 6)).toBe(50)
+  })
+
+  it('rounds to a whole percent', () => {
+    expect(approvedProgressPercent(1, 3)).toBe(33)
+  })
+
+  it('reads 0 when the carrera has no subjects — no share of nothing', () => {
+    expect(approvedProgressPercent(0, 0)).toBe(0)
+  })
+
+  it('never overflows the track', () => {
+    expect(approvedProgressPercent(7, 6)).toBe(100)
   })
 })
 

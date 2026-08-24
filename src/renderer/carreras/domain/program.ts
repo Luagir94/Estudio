@@ -164,3 +164,29 @@ export function calculateProgramAverage(subjects: GradedSubject[]): ProgramAvera
     failedSubjects: graded.length - passed.length
   }
 }
+
+// es-AR because the copy is: the whole app speaks rioplatense Spanish, and a
+// promedio is quoted "8,50", never "8.5".
+const averageFormat = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+/**
+ * How a promedio is PRINTED — comma decimal, always two places ("8,50").
+ * Fixed here for the same reason `mean` fixes its rounding: one screen must
+ * not read "8,5" while another says "8.50".
+ */
+export function formatAverage(value: number): string {
+  return averageFormat.format(value)
+}
+
+/**
+ * Share of the carrera's subjects already passed, as a whole 0-100 percent
+ * for the avance card's progress fill. An empty carrera reads 0 — there is
+ * no share of nothing — and the value is clamped so an approved count ahead
+ * of a stale total can never overflow the track.
+ */
+export function approvedProgressPercent(approved: number, total: number): number {
+  if (total <= 0) {
+    return 0
+  }
+  return Math.min(100, Math.max(0, Math.round((approved / total) * 100)))
+}

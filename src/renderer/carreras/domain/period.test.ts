@@ -3,6 +3,7 @@ import {
   createPeriod,
   derivePeriodYear,
   formatPeriodRange,
+  listCurrentPeriods,
   periodStatus,
   periodsOverlap,
   pickDefaultPeriodId
@@ -240,5 +241,26 @@ describe('pickDefaultPeriodId', () => {
 
   it('still picks an open-ended period when it is the only active one', () => {
     expect(pickDefaultPeriodId([cuatri1, abiertoViejo], today)).toBe(abiertoViejo.id)
+  })
+})
+
+describe('listCurrentPeriods', () => {
+  const today = new Date(2026, 5, 15)
+  const cuatri1 = { id: 1, startsOn: '2026-03-09', endsOn: '2026-07-18' }
+  const anual = { id: 2, startsOn: '2026-03-09', endsOn: '2026-11-20' }
+  const pasado = { id: 3, startsOn: '2026-01-05', endsOn: '2026-02-27' }
+  const proximo = { id: 4, startsOn: '2026-08-12', endsOn: '2026-12-04' }
+  const abierto = { id: 5, startsOn: '2024-03-04', endsOn: null }
+
+  it('lists only the periods covering today, the one ending soonest first', () => {
+    expect(listCurrentPeriods([anual, pasado, cuatri1, proximo], today).map((period) => period.id)).toEqual([1, 2])
+  })
+
+  it('sorts an open-ended period last — it frames the year, it does not name the moment', () => {
+    expect(listCurrentPeriods([abierto, cuatri1], today).map((period) => period.id)).toEqual([1, 5])
+  })
+
+  it('lists nothing when nothing is active', () => {
+    expect(listCurrentPeriods([pasado, proximo], today)).toEqual([])
   })
 })

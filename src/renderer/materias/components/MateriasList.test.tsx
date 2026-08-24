@@ -133,6 +133,45 @@ describe('MateriasList', () => {
   })
 })
 
+// The carrera detail renders the same list compact (approved design — same
+// layout language as its periods list): one meta line built from the same
+// sources as the table cells, no column header row.
+describe('MateriasList — compact (carrera detail)', () => {
+  it('merges the table columns into one meta line and drops the header row', () => {
+    render(<MateriasList subjects={[base]} now={today} compact />)
+
+    expect(screen.getByText('Derecho Constitucional')).toBeInTheDocument()
+    expect(screen.getByText('DC-201 · 2do Cuatrimestre 2026 · 75% requerido · Sin pendientes')).toBeInTheDocument()
+    expect(screen.queryByText('MATERIA')).not.toBeInTheDocument()
+    expect(screen.queryByText('HORARIO SEMANAL')).not.toBeInTheDocument()
+  })
+
+  it('prints Libre and the pending count from the same sources as the table', () => {
+    render(
+      <MateriasList subjects={[{ ...base, attendanceMinPercent: null, pendingDeadlines: 2 }]} now={today} compact />
+    )
+
+    expect(screen.getByText('DC-201 · 2do Cuatrimestre 2026 · Libre · 2 pendientes')).toBeInTheDocument()
+  })
+
+  it('keeps the estado badge and the click-through', async () => {
+    const onSelect = vi.fn()
+    render(<MateriasList subjects={[base]} now={today} onSelect={onSelect} compact />)
+
+    expect(screen.getByText('Cursando')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /Derecho Constitucional/ }))
+
+    expect(onSelect).toHaveBeenCalledWith(1)
+  })
+
+  it('renders plain rows when no onSelect is given, same rule as the table', () => {
+    render(<MateriasList subjects={[base]} now={today} compact />)
+
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+})
+
 describe('MateriasList — pendientes', () => {
   it('counts the open deadlines the payload reported', () => {
     renderList([{ ...base, pendingDeadlines: 2 }])

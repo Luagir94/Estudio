@@ -175,6 +175,23 @@ export function pickDefaultPeriodId(periods: IdentifiedPeriod[], today: Date): n
   return best.id
 }
 
+/**
+ * The períodos running today, ordered for the "PERÍODO EN CURSO" card: the
+ * one ending SOONEST first, because it is the most specific answer to "what
+ * am I cursando right now" — an anual (or an open-ended period) frames the
+ * year, it does not name the moment. An open-ended period therefore sorts
+ * last, the same reason `pickDefaultPeriodId` never lets one win.
+ *
+ * Returns every active period, not one winner: the model allows several at
+ * once on purpose (see activeTerms.ts), and the card names the companions
+ * after the first.
+ */
+export function listCurrentPeriods<T extends PeriodInterval>(periods: T[], today: Date): T[] {
+  return periods
+    .filter((period) => periodStatus(period, today) === 'activo')
+    .sort((a, b) => (a.endsOn ?? '9999-12-31').localeCompare(b.endsOn ?? '9999-12-31'))
+}
+
 function formatDay(date: string): string {
   const months = i18n.t('common:monthsShort', { returnObjects: true }) as string[]
   const [, month, day] = date.split('-')

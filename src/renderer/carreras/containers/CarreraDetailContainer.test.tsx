@@ -92,13 +92,20 @@ describe('CarreraDetailContainer', () => {
 
     expect(await screen.findByRole('heading', { name: 'Abogacía' })).toBeInTheDocument()
     expect(screen.getByText(/Universidad de Buenos Aires · 2 períodos · 3 materias/)).toBeInTheDocument()
+    expect(screen.getByText('PERÍODOS · 2')).toBeInTheDocument()
   })
 
-  it('explains that the year is derived rather than stored', async () => {
+  // The compact rows print the derived year next to the name (the "derivado
+  // de la fecha de inicio" explainer lives in the period form and the period
+  // detail, not on every row).
+  it('prints each period with its derived year next to the name', async () => {
     renderDetail()
     await screen.findByRole('heading', { name: 'Abogacía' })
 
-    expect(screen.getAllByText('año 2026 · derivado de la fecha de inicio')).toHaveLength(2)
+    expect(screen.getByText('1er cuatrimestre 2026')).toBeInTheDocument()
+    // Twice: the row and the "PERÍODO EN CURSO" card — the Anual is the one
+    // period still running on 2026-08-15.
+    expect(screen.getAllByText('Anual 2026')).toHaveLength(2)
   })
 
   it('reports a failed fetch', async () => {
@@ -518,6 +525,190 @@ describe('CarreraDetailContainer — editar y eliminar períodos', () => {
   })
 })
 
+// The right rail mirrors SubjectDetail's: a "PERÍODO EN CURSO" card and a
+// numbers card, both derived from data this screen already fetches — no
+// extra IPC.
+describe('CarreraDetailContainer — right rail cards', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    carrerasApiMock.detail.mockResolvedValue(abogacia)
+    materiasApiMock.list.mockResolvedValue([])
+  })
+
+  it('shows the active period with its range in the PERÍODO EN CURSO card', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+
+    // Scoped to the card: the timeline prints the same range for its bars.
+    const card = screen.getByText('PERÍODO EN CURSO').parentElement!
+    // On 2026-08-15 only the Anual is running: the card prints its range
+    // with no "junto con" companion.
+    expect(within(card).getByText('09 mar – 20 nov 2026')).toBeInTheDocument()
+    expect(screen.queryByText(/junto con/)).not.toBeInTheDocument()
+  })
+
+  // Two periods can run at once (an anual alongside a cuatrimestre): the
+  // card shows the one ending SOONEST and names the other as a companion.
+  it('shows the sooner-ending period and names the other when two run at once', async () => {
+    carrerasApiMock.detail.mockResolvedValue({
+      ...abogacia,
+      periods: [
+        { id: 2, programId: 1, name: 'Anual', kind: 'anual', startsOn: '2026-03-09', endsOn: '2026-11-20' },
+        {
+          id: 1,
+          programId: 1,
+          name: '2do cuatrimestre',
+          kind: 'cuatrimestre',
+          startsOn: '2026-08-03',
+          endsOn: '2026-11-01'
+        }
+      ]
+    })
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+
+    // Twice = row + card: the cuatrimestre ends before the Anual, so it is
+    // the one the card names even though it is listed second.
+    expect(screen.getAllByText('2do cuatrimestre 2026')).toHaveLength(2)
+    expect(screen.getByText(/junto con Anual/)).toBeInTheDocument()
+  })
+
+  it('says so when no period is active', async () => {
+    carrerasApiMock.detail.mockResolvedValue({
+      ...abogacia,
+      periods: [
+        {
+          id: 1,
+          programId: 1,
+          name: '1er cuatrimestre',
+          kind: 'cuatrimestre',
+          startsOn: '2026-03-09',
+          endsOn: '2026-07-18'
+        }
+      ]
+    })
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+
+    expect(screen.getByText('Sin período en curso')).toBeInTheDocument()
+  })
+
+  it('counts períodos and períodos en curso in the avance card', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+
+    const periodsRow = screen.getByText('Períodos').parentElement!
+    expect(within(periodsRow).getByText('2')).toBeInTheDocument()
+    const activeRow = screen.getByText('En curso').parentElement!
+    expect(within(activeRow).getByText('1')).toBeInTheDocument()
+  })
+})
+
+// The numbers card became the "AVANCE ACADÉMICO" card (design node `ghb9r`):
+// the promedio con aplazos as the hero number and the approved count as a
+// pill over a progress bar — all still derived from the detail payload the
+// screen already fetches. The plain Materias count is gone: it already reads
+// in the header subtitle and in the pill's own total.
+describe('CarreraDetailContainer — avance académico', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    carrerasApiMock.detail.mockResolvedValue(abogacia)
+    materiasApiMock.list.mockResolvedValue([])
+  })
+
+  async function findCard() {
+    await screen.findByRole('heading', { name: 'Abogacía' })
+    return screen.getByText('AVANCE ACADÉMICO').parentElement!
+  }
+
+  it('prints the promedio general with comma decimals, always two places', async () => {
+    carrerasApiMock.detail.mockResolvedValue({
+      ...abogacia,
+      gradedSubjects: [
+        { grade: 8, outcome: 'aprobada' as const, hasApprovedFinal: false },
+        { grade: 9, outcome: 'aprobada' as const, hasApprovedFinal: false }
+      ]
+    })
+    renderDetail()
+
+    const card = await findCard()
+    expect(within(card).getByText('8,50')).toBeInTheDocument()
+    expect(within(card).getByText('promedio general')).toBeInTheDocument()
+  })
+
+  // Nothing graded — the empty numerico case and the whole binario scheme —
+  // has no number to show, and a fabricated 0,00 would read as an aplazo.
+  it('prints a dash rather than a number while nothing is graded', async () => {
+    renderDetail()
+
+    const card = await findCard()
+    expect(within(card).getByText('—')).toBeInTheDocument()
+    expect(within(card).getByText('promedio general')).toBeInTheDocument()
+  })
+
+  // The pill counts by the SAME rule the estado badges use (isPassed): an
+  // approved final closes a finalPendiente subject, but an explicit
+  // `reprobada` wins even when an approved final exists.
+  it('counts the approved subjects against the carrera total in the pill', async () => {
+    carrerasApiMock.detail.mockResolvedValue({
+      ...abogacia,
+      subjectCount: 6,
+      gradedSubjects: [
+        { grade: 8, outcome: 'aprobada' as const, hasApprovedFinal: false },
+        { grade: null, outcome: 'finalPendiente' as const, hasApprovedFinal: true },
+        { grade: 2, outcome: 'reprobada' as const, hasApprovedFinal: true },
+        { grade: null, outcome: null, hasApprovedFinal: false }
+      ]
+    })
+    renderDetail()
+
+    const card = await findCard()
+    expect(within(card).getByText('2 de 6 aprobadas')).toBeInTheDocument()
+  })
+
+  it('reads singular when exactly one subject is approved', async () => {
+    carrerasApiMock.detail.mockResolvedValue({
+      ...abogacia,
+      gradedSubjects: [{ grade: 9, outcome: 'aprobada' as const, hasApprovedFinal: false }]
+    })
+    renderDetail()
+
+    const card = await findCard()
+    expect(within(card).getByText('1 de 3 aprobada')).toBeInTheDocument()
+  })
+
+  it('fills the progress bar with the approved share of the subjects', async () => {
+    carrerasApiMock.detail.mockResolvedValue({
+      ...abogacia,
+      subjectCount: 6,
+      gradedSubjects: [
+        { grade: 8, outcome: 'aprobada' as const, hasApprovedFinal: false },
+        { grade: 7, outcome: 'aprobada' as const, hasApprovedFinal: false },
+        { grade: 9, outcome: 'aprobada' as const, hasApprovedFinal: false }
+      ]
+    })
+    renderDetail()
+
+    const card = await findCard()
+    expect(card.querySelector('.bg-ok')).toHaveStyle({ width: '50%' })
+  })
+
+  it('keeps the fill empty when the carrera has no subjects at all', async () => {
+    carrerasApiMock.detail.mockResolvedValue({ ...abogacia, subjectCount: 0, gradedSubjects: [] })
+    renderDetail()
+
+    const card = await findCard()
+    expect(card.querySelector('.bg-ok')).toHaveStyle({ width: '0%' })
+  })
+
+  it('no longer prints the plain Materias row', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+
+    expect(screen.queryByText('Materias')).not.toBeInTheDocument()
+  })
+})
+
 // There is no `carreras:update` channel — a carrera cannot be corrected after
 // the fact — so deleting it is the ONLY way out of one created wrong. The
 // whole stack for it already existed (main handler, repository, adapter); the
@@ -879,7 +1070,10 @@ describe('CarreraDetailContainer — materias de la carrera', () => {
     renderDetail()
     await screen.findByRole('heading', { name: 'Abogacía' })
 
-    expect(screen.getAllByText('—')).toHaveLength(2)
+    // Scoped to the periods table: the AVANCE ACADÉMICO card prints its own
+    // dash while nothing is graded, and that one is not a loading state.
+    const table = screen.getByText('PERÍODOS · 2').parentElement!
+    expect(within(table).getAllByText('—')).toHaveLength(2)
     expect(screen.queryByText('Sin materias')).not.toBeInTheDocument()
   })
 
@@ -889,6 +1083,9 @@ describe('CarreraDetailContainer — materias de la carrera', () => {
     expect(await screen.findByText('Derecho Constitucional')).toBeInTheDocument()
     expect(screen.queryByText('Anatomía')).not.toBeInTheDocument()
     expect(screen.queryByText('Materia suelta')).not.toBeInTheDocument()
+    // The heading counts what the list shows — the count is appended outside
+    // the translation, same pattern as the PERÍODOS heading.
+    expect(screen.getByText('MATERIAS DE ESTA CARRERA · 1')).toBeInTheDocument()
   })
 
   it('says so when the carrera has no subjects yet', async () => {

@@ -62,16 +62,20 @@
     "addPeriod": "Agregar período",
     "addSubject": "Agregar materia",
     "ownSubjectsHeading": "MATERIAS DE ESTA CARRERA",
-    "noSubjects": "Esta carrera todavía no tiene materias."
+    "noSubjects": "Esta carrera todavía no tiene materias.",
+    "currentPeriodHeading": "PERÍODO EN CURSO",
+    "noCurrentPeriod": "Sin período en curso",
+    "alongside": "junto con {{names}}",
+    "academicProgressHeading": "AVANCE ACADÉMICO",
+    "averageLabel": "promedio general",
+    "approvedOfTotal_one": "{{count}} de {{total}} aprobada",
+    "approvedOfTotal_other": "{{count}} de {{total}} aprobadas",
+    "statPeriods": "Períodos",
+    "statActive": "En curso"
   },
   "periodsTable": {
+    "heading": "PERÍODOS",
     "empty": "Esta carrera todavía no tiene períodos. Agregá uno para poder ubicar materias en el tiempo.",
-    "periodHeader": "PERÍODO",
-    "kindHeader": "TIPO",
-    "datesHeader": "FECHAS",
-    "subjectsHeader": "MATERIAS",
-    "statusHeader": "ESTADO",
-    "yearDerived": "año {{year}} · derivado de la fecha de inicio",
     "noSubjects": "Sin materias",
     "editPeriod": "Editar {{name}}",
     "deletePeriod": "Eliminar {{name}}"

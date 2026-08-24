@@ -1,8 +1,9 @@
 // Presentational (design §4, nodes `dw1W7`/`fyX07`, `U8nLud`): a TABLE
-// (MATERIA / HORARIO SEMANAL / ESTADO / PENDIENTES). No data fetching, no
-// IPC, and no `new Date()` — `now` arrives as a prop because the status of a
-// subject depends on the clock, and a component that reads it itself cannot
-// be tested against a fixed day.
+// (MATERIA / HORARIO SEMANAL / ESTADO / PENDIENTES), plus a `compact`
+// variant (approved design — carrera detail) that merges the cells into one
+// meta line. No data fetching, no IPC, and no `new Date()` — `now` arrives
+// as a prop because the status of a subject depends on the clock, and a
+// component that reads it itself cannot be tested against a fixed day.
 //
 // PENDIENTES counts OPEN deadlines and comes from the payload
 // (`pendingDeadlines`) — a plain count, not the rows, because the number is
@@ -28,6 +29,13 @@ interface MateriasListProps {
   onSelect?: (id: number) => void
   /** Empty-state copy. Defaults to the filtered-list wording. */
   emptyMessage?: string
+  /**
+   * Compact rows for the carrera detail's left column (approved design —
+   * same layout language as its periods list): no column header row, one
+   * meta line instead of the table cells, and a short-viewport cap. The
+   * Materias screen and the period detail keep the full table.
+   */
+  compact?: boolean
 }
 
 function formatTime(minutes: number): string {
@@ -45,7 +53,29 @@ function formatScheduleSummary(slots: ScheduleSlotRecord[], dayAbbreviations: st
   return `${uniqueDays.map((day) => dayAbbreviations[day]).join(', ')} · ${formatTime(earliestStart)}`
 }
 
-export function MateriasList({ subjects, now, onSelect, emptyMessage }: MateriasListProps): React.JSX.Element {
+// One resolution for both variants, so the compact rows cannot drift away
+// from the table's ESTADO cell.
+function statusFor(subject: SubjectWithStatus, now: Date): ReturnType<typeof resolveSubjectStatus> {
+  return resolveSubjectStatus(
+    {
+      outcome: subject.outcome,
+      // A subject with no period cannot be "sin cerrar" — there is no end
+      // date to have passed. An open-ended interval starting today keeps it
+      // reading as cursando.
+      period: subject.period ?? { startsOn: '1970-01-01', endsOn: null },
+      finals: subject.finals
+    },
+    now
+  )
+}
+
+export function MateriasList({
+  subjects,
+  now,
+  onSelect,
+  emptyMessage,
+  compact = false
+}: MateriasListProps): React.JSX.Element {
   const { t } = useTranslation('materias')
   // Stored subject colours are the dark palette; inline styles cannot hear
   // the light media query, so the scheme mapping happens here.
@@ -55,6 +85,70 @@ export function MateriasList({ subjects, now, onSelect, emptyMessage }: Materias
 
   if (subjects.length === 0) {
     return <p className="text-body-lg text-muted-foreground">{emptyMessage ?? t('materiasList.emptyFiltered')}</p>
+  }
+
+  if (compact) {
+    const compactRowClassName =
+      'flex w-full items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-left'
+
+    return (
+      // The cap applies ONLY below 900px of viewport height (design
+      // responsive rule) — with vertical room the list grows freely; when
+      // capped, overflow scrolls inside the list, never the page.
+      <ul className="flex flex-col gap-2 [@media(max-height:900px)]:max-h-[173px] [@media(max-height:900px)]:overflow-y-auto">
+        {subjects.map((subject) => {
+          // The same sources the table's cells print, merged into one line.
+          // A subject only loses its period segment when it has none — the
+          // carrera screen never shows one (a subject reaches its carrera
+          // THROUGH its period).
+          const meta = [
+            subject.code,
+            subject.period?.name,
+            subject.attendanceMinPercent !== null
+              ? t('materiasList.attendanceRequired', { percent: subject.attendanceMinPercent })
+              : t('materiasList.attendanceFree'),
+            subject.pendingDeadlines === 0
+              ? t('materiasList.noPending')
+              : t('materiasList.pendingCount', { count: subject.pendingDeadlines })
+          ]
+            .filter(Boolean)
+            .join(' · ')
+
+          const row = (
+            <>
+              <span
+                aria-hidden="true"
+                style={{ backgroundColor: subjectColorForScheme(subject.color, scheme) }}
+                className="h-[26px] w-[3px] shrink-0 rounded-sm"
+              />
+              <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
+                <strong className="truncate text-body-lg font-semibold text-foreground">{subject.name}</strong>
+                <span className="truncate text-body-sm text-muted-foreground">{meta}</span>
+              </span>
+              <span className="shrink-0">
+                <SubjectStatusBadge status={statusFor(subject, now)} />
+              </span>
+            </>
+          )
+
+          return (
+            <li key={subject.id}>
+              {onSelect ? (
+                <button
+                  type="button"
+                  onClick={() => onSelect(subject.id)}
+                  className={cn(compactRowClassName, interactiveSurface)}
+                >
+                  {row}
+                </button>
+              ) : (
+                <div className={compactRowClassName}>{row}</div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    )
   }
 
   const rowClassName = 'flex w-full items-center gap-4 rounded-lg border border-border bg-card px-4 py-4 text-left'
@@ -134,19 +228,7 @@ export function MateriasList({ subjects, now, onSelect, emptyMessage }: Materias
               </span>
 
               <span className="w-[110px] shrink-0 sm:w-[150px]">
-                <SubjectStatusBadge
-                  status={resolveSubjectStatus(
-                    {
-                      outcome: subject.outcome,
-                      // A subject with no period cannot be "sin cerrar" —
-                      // there is no end date to have passed. An open-ended
-                      // interval starting today keeps it reading as cursando.
-                      period: subject.period ?? { startsOn: '1970-01-01', endsOn: null },
-                      finals: subject.finals
-                    },
-                    now
-                  )}
-                />
+                <SubjectStatusBadge status={statusFor(subject, now)} />
               </span>
 
               <span
