@@ -12,6 +12,7 @@ import {
   type ProbeCliInput,
   type SetCliOverrideInput
 } from '../../../shared/ipc/cli'
+import { themePreferenceSchema, type SetThemePreferenceInput, type ThemePreference } from '../../../shared/ipc/theme'
 import { assertIpcOk, IpcApiError, unwrapIpcResult } from '../../shared/adapters/ipcApiError'
 
 /**
@@ -50,6 +51,9 @@ export class AjustesApiError extends IpcApiError {
  */
 export const CLI_PREFERENCES_QUERY_KEY = ['cli', 'preferences'] as const
 
+/** The persisted theme preference. A settings read like the entry above — it starts no process. */
+export const THEME_PREFERENCE_QUERY_KEY = ['theme', 'preference'] as const
+
 export interface AjustesApi {
   /** Probes ONE CLI. Called from a button, or on open for a CLI already connected. */
   probe(input: ProbeCliInput): Promise<CliProviderStatus>
@@ -59,6 +63,10 @@ export interface AjustesApi {
   preferences(): Promise<CliPreference[]>
   /** Withdraws the opt-in for one provider. */
   disconnect(input: DisconnectCliInput): Promise<void>
+  /** The persisted theme preference — `system` for a profile that never chose. */
+  themePreference(): Promise<ThemePreference>
+  /** Applies AND persists in one round trip, echoing the persisted value. */
+  setThemePreference(input: SetThemePreferenceInput): Promise<ThemePreference>
 }
 
 export const ajustesApi: AjustesApi = {
@@ -73,5 +81,11 @@ export const ajustesApi: AjustesApi = {
   },
   async disconnect(input) {
     assertIpcOk(await window.api.cli.disconnect(input), AjustesApiError)
+  },
+  async themePreference() {
+    return unwrapIpcResult(await window.api.theme.getPreference(), themePreferenceSchema, AjustesApiError)
+  },
+  async setThemePreference(input) {
+    return unwrapIpcResult(await window.api.theme.setPreference(input), themePreferenceSchema, AjustesApiError)
   }
 }

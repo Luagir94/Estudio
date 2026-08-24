@@ -1,6 +1,6 @@
 import * as nodeFs from 'node:fs/promises'
 import path from 'node:path'
-import { app, BrowserWindow, dialog, Menu } from 'electron'
+import { app, BrowserWindow, dialog, Menu, nativeTheme } from 'electron'
 import log from 'electron-log'
 import { MENU_EXPORT_REQUESTED_CHANNEL } from '../shared/ipc/app'
 import { INDEXADO_STATUS_CHANGED_CHANNEL } from '../shared/ipc/channels'
@@ -41,6 +41,8 @@ import { registerIndexadoHandlers } from './indexado/ipc/registerIndexadoHandler
 import { createSqliteSubjectRepository } from './materias/adapters/sqliteSubjectRepository'
 import { registerMateriasHandlers } from './materias/ipc/registerMateriasHandlers'
 import { registerHorarioHandlers } from './horario/ipc/registerHorarioHandlers'
+import { createThemeService } from './theme/themeService'
+import { registerThemeHandlers } from './theme/ipc/registerThemeHandlers'
 import { applyContentSecurityPolicy, createMainWindow } from './window'
 
 const isMac = process.platform === 'darwin'
@@ -185,6 +187,25 @@ async function bootstrap(): Promise<void> {
   // instances would mean the settings screen and the ask panel disagreeing
   // about which CLIs work.
   const appSettingsRepository = createSqliteAppSettingsRepository(db)
+
+  // Theme preference (Ajustes "Apariencia"). The renderer's entire theming
+  // hangs off `prefers-color-scheme`, and `nativeTheme.themeSource` is the one
+  // Electron switch that changes how that media query resolves — so the whole
+  // feature is this service plus two `theme:*` channels, and no renderer CSS
+  // changes. Applied HERE, before `createWindow()` below, so the first paint
+  // already resolves the way the student chose last session instead of
+  // flashing the OS theme first. The setter is injected as a function to keep
+  // `themeService.ts` free of any Electron import (same convention as
+  // `notifyStatusChanged` above).
+  const themeService = createThemeService({
+    settings: appSettingsRepository,
+    applyThemeSource: (source) => {
+      nativeTheme.themeSource = source
+    }
+  })
+  themeService.applyStoredPreference()
+  registerThemeHandlers({ themeService })
+
   const cliProbeService = createCliProbeService({ settings: appSettingsRepository })
   registerCliHandlers({
     probeService: cliProbeService,

@@ -28,7 +28,14 @@ import type { TFunction } from 'i18next'
 import { Info } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { CLI_PROVIDERS, type CliPreference, type CliProvider } from '../../../shared/ipc/cli'
-import { ajustesApi, CLI_PREFERENCES_QUERY_KEY, cliStatusQueryKey } from '../adapters/ajustesApi'
+import type { ThemePreference } from '../../../shared/ipc/theme'
+import {
+  ajustesApi,
+  CLI_PREFERENCES_QUERY_KEY,
+  cliStatusQueryKey,
+  THEME_PREFERENCE_QUERY_KEY
+} from '../adapters/ajustesApi'
+import { AppearanceCard } from '../components/AppearanceCard'
 import { ConnectionStatusCard } from '../components/ConnectionStatusCard'
 import { DetectingProviderCard } from '../components/DetectingProviderCard'
 import { IdleProviderCard } from '../components/IdleProviderCard'
@@ -49,6 +56,24 @@ export function AjustesContainer(): React.JSX.Element {
 
   const preferenceFor = (provider: CliProvider): CliPreference | undefined =>
     preferences?.find((entry) => entry.provider === provider)
+
+  // Another settings read — it starts no process either. `undefined` until the
+  // read answers, and the card waits for it: painting the default meanwhile
+  // would show 'Sistema' pressed to a student who chose something else.
+  const { data: themePreference } = useQuery({
+    queryKey: THEME_PREFERENCE_QUERY_KEY,
+    queryFn: ajustesApi.themePreference
+  })
+
+  const themeMutation = useMutation({
+    mutationFn: (preference: ThemePreference) => ajustesApi.setThemePreference({ preference }),
+    // Same write-the-echo pattern as `overrideMutation` below: the handler
+    // already returned the persisted value, so it goes straight into the cache
+    // instead of costing a second settings read.
+    onSuccess: (preference) => {
+      queryClient.setQueryData(THEME_PREFERENCE_QUERY_KEY, preference)
+    }
+  })
 
   // `useQueries` rather than a query per child component: the container/
   // presentational split in this domain says fetching lives HERE, and the
@@ -100,6 +125,13 @@ export function AjustesContainer(): React.JSX.Element {
         <h1 className="font-display text-display-lg font-bold text-foreground">{t('ajustesContainer.title')}</h1>
         <p className="text-body text-secondary-foreground">{t('ajustesContainer.subtitle')}</p>
       </div>
+
+      {/* First card of the screen (approved `.pen` ordering), before the CLI
+          rows. Rendered only once the persisted preference has answered — the
+          same no-claims-before-the-read rule the provider rows follow. */}
+      {themePreference && (
+        <AppearanceCard value={themePreference} onChange={(preference) => themeMutation.mutate(preference)} />
+      )}
 
       {/* One row per CLI (approved `.pen`), in one of three honest states:
             idle      — not connected, so nothing is claimed;

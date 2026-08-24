@@ -60,6 +60,7 @@ import type {
   SubjectWithStatus,
   UpdateSubjectScheduleInput
 } from '../../shared/ipc/materias'
+import type { SetThemePreferenceInput, ThemePreference } from '../../shared/ipc/theme'
 
 declare global {
   interface Window {
@@ -114,6 +115,12 @@ declare global {
         sync: () => Promise<IpcResult<SyncResult>>
         /** Pushed whenever a background indexing job finishes. Returns an unsubscribe function. */
         onStatusChanged: (callback: (payload: IndexStatusChangedPayload) => void) => () => void
+      }
+      theme: {
+        /** The persisted preference — `system` for a profile that never chose. */
+        getPreference: () => Promise<IpcResult<ThemePreference>>
+        /** Applies `nativeTheme.themeSource` AND persists in one round trip, echoing the persisted value. */
+        setPreference: (input: SetThemePreferenceInput) => Promise<IpcResult<ThemePreference>>
       }
       app: {
         openExternal: (input: OpenExternalInput) => Promise<IpcResult<undefined>>

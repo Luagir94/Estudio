@@ -46,6 +46,15 @@
   "inlinePathInput": {
     "ariaLabel": "Ruta manual del ejecutable de {{provider}}"
   },
+  "appearanceCard": {
+    "title": "Apariencia",
+    "description": "Elegí el tema de la aplicación",
+    "option": {
+      "system": "Sistema",
+      "light": "Claro",
+      "dark": "Oscuro"
+    }
+  },
   "ajustesContainer": {
     "title": "Ajustes",
     "subtitle": "La app nunca ejecuta nada por su cuenta · todo queda en tu máquina",

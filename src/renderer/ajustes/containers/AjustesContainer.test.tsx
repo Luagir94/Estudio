@@ -79,6 +79,10 @@ beforeEach(() => {
       disconnect: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
       models: vi.fn()
     },
+    theme: {
+      getPreference: vi.fn().mockResolvedValue({ ok: true, data: 'system' }),
+      setPreference: vi.fn().mockResolvedValue({ ok: true, data: 'system' })
+    },
     materias: {
       create: vi.fn(),
       list: vi.fn(),
@@ -361,6 +365,63 @@ describe('AjustesContainer', () => {
     expect(await screen.findByText('Conectado')).toBeInTheDocument()
     // Cache was updated directly by the mutation, not by a second probe.
     expect(window.api.cli.probe).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('AjustesContainer — apariencia', () => {
+  it('shows the persisted preference as the pressed segment', async () => {
+    window.api.theme.getPreference = vi.fn().mockResolvedValue({ ok: true, data: 'dark' })
+
+    renderWithClient(<AjustesContainer />)
+
+    expect(await screen.findByRole('button', { name: 'Oscuro' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Sistema' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  // The card renders FIRST, right after the header block and before the CLI
+  // provider cards (approved `.pen` ordering).
+  it('renders the appearance card before every provider card', async () => {
+    renderWithClient(<AjustesContainer />)
+
+    await screen.findByRole('heading', { name: 'Apariencia' })
+    const cardTitles = screen.getAllByRole('heading', { level: 3 })
+    expect(cardTitles[0]).toHaveTextContent('Apariencia')
+  })
+
+  // The card claims nothing until the settings read answers — a default
+  // painted while the real choice loads would show 'Sistema' pressed to a
+  // student who chose 'Oscuro', for exactly as long as the read takes.
+  it('renders no appearance card while the preference is still being read', () => {
+    window.api.theme.getPreference = vi.fn().mockReturnValue(new Promise(() => {}))
+
+    renderWithClient(<AjustesContainer />)
+
+    expect(screen.queryByRole('heading', { name: 'Apariencia' })).not.toBeInTheDocument()
+  })
+
+  it('persists the pressed theme and updates the cache from the echoed value without a re-read', async () => {
+    window.api.theme.setPreference = vi.fn().mockResolvedValue({ ok: true, data: 'light' })
+
+    renderWithClient(<AjustesContainer />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Claro' }))
+
+    await waitFor(() => expect(window.api.theme.setPreference).toHaveBeenCalledWith({ preference: 'light' }))
+    expect(await screen.findByRole('button', { name: 'Claro' })).toHaveAttribute('aria-pressed', 'true')
+    // Cache was updated directly by the mutation, not by a second settings read.
+    expect(window.api.theme.getPreference).toHaveBeenCalledTimes(1)
+  })
+
+  // A settings read and a native-theme write — never a probe. The theme
+  // control must not become a back door into the fan-out this screen removed.
+  it('spawns no probe when the theme changes', async () => {
+    renderWithClient(<AjustesContainer />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Oscuro' }))
+
+    await waitFor(() => expect(window.api.theme.setPreference).toHaveBeenCalledTimes(1))
+    expect(window.api.cli.probe).not.toHaveBeenCalled()
+    expect(window.api.cli.setOverride).not.toHaveBeenCalled()
   })
 })
 

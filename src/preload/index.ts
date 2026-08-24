@@ -72,6 +72,7 @@ import type {
   SubjectWithStatus,
   UpdateSubjectScheduleInput
 } from '../shared/ipc/materias'
+import type { SetThemePreferenceInput, ThemePreference } from '../shared/ipc/theme'
 
 // Per-domain command/query bridges are added here as each domain slice
 // lands (design §2: "one typed `api` object per domain via
@@ -175,6 +176,13 @@ const api = {
       ipcRenderer.invoke('ask:getConversation', input),
     deleteConversation: (input: DeleteConversationInput): Promise<IpcResult<DeleteConversationResult>> =>
       ipcRenderer.invoke('ask:deleteConversation', input)
+  },
+  theme: {
+    getPreference: (): Promise<IpcResult<ThemePreference>> => ipcRenderer.invoke('theme:getPreference'),
+    // Applies `nativeTheme.themeSource` AND persists in one round trip; the
+    // echoed value is what the renderer writes into its cache.
+    setPreference: (input: SetThemePreferenceInput): Promise<IpcResult<ThemePreference>> =>
+      ipcRenderer.invoke('theme:setPreference', input)
   },
   app: {
     openExternal: (input: OpenExternalInput): Promise<IpcResult<undefined>> =>

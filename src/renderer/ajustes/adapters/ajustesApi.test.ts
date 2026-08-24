@@ -26,6 +26,7 @@ describe('ajustesApi', () => {
           deleteConversation: vi.fn()
         },
         cli: { probe: vi.fn(), setOverride: vi.fn(), preferences: vi.fn(), disconnect: vi.fn(), models: vi.fn() },
+        theme: { getPreference: vi.fn(), setPreference: vi.fn() },
         materias: {
           create: vi.fn(),
           list: vi.fn(),
@@ -121,6 +122,50 @@ describe('ajustesApi', () => {
       await expect(ajustesApi.setOverride({ provider: 'claude', path: 'C:\\bin\\claude.cmd' })).rejects.toThrow(
         'disk is full'
       )
+    })
+  })
+
+  describe('themePreference', () => {
+    it('parses and returns the preference on a successful envelope', async () => {
+      window.api.theme.getPreference = vi.fn().mockResolvedValue({ ok: true, data: 'dark' })
+
+      await expect(ajustesApi.themePreference()).resolves.toBe('dark')
+    })
+
+    it('throws an AjustesApiError carrying the envelope code when ok is false', async () => {
+      window.api.theme.getPreference = vi
+        .fn()
+        .mockResolvedValue({ ok: false, error: { code: 'THEME_READ_FAILED', message: 'settings table exploded' } })
+
+      const error: unknown = await ajustesApi.themePreference().catch((caught: unknown) => caught)
+
+      expect(error).toBeInstanceOf(AjustesApiError)
+      expect((error as AjustesApiError).code).toBe('THEME_READ_FAILED')
+    })
+
+    // The renderer side of the two-directional parsing rule: a value outside
+    // the shared enum must fail loudly here, never reach react-query's cache.
+    it('throws when the envelope data is not a known preference', async () => {
+      window.api.theme.getPreference = vi.fn().mockResolvedValue({ ok: true, data: 'sepia' })
+
+      await expect(ajustesApi.themePreference()).rejects.toThrow()
+    })
+  })
+
+  describe('setThemePreference', () => {
+    it('names the preference it is setting and returns the echoed value', async () => {
+      window.api.theme.setPreference = vi.fn().mockResolvedValue({ ok: true, data: 'light' })
+
+      await expect(ajustesApi.setThemePreference({ preference: 'light' })).resolves.toBe('light')
+      expect(window.api.theme.setPreference).toHaveBeenCalledWith({ preference: 'light' })
+    })
+
+    it('throws an AjustesApiError when ok is false', async () => {
+      window.api.theme.setPreference = vi
+        .fn()
+        .mockResolvedValue({ ok: false, error: { code: 'THEME_WRITE_FAILED', message: 'disk is full' } })
+
+      await expect(ajustesApi.setThemePreference({ preference: 'dark' })).rejects.toThrow('disk is full')
     })
   })
 })
