@@ -326,20 +326,14 @@ describe('SubjectDetail (read-only)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Materias' }))
     expect(onBack).toHaveBeenCalledTimes(1)
 
-    // Two "Editar materia" buttons live on this screen (header + NOTAS
-    // section) — both open the same whole-subject edit modal, so both
-    // honestly carry the same label. The header's is first in DOM order.
-    const editButtons = screen.getAllByRole('button', { name: 'Editar materia' })
-    expect(editButtons).toHaveLength(2)
-    fireEvent.click(editButtons[0]!)
+    fireEvent.click(screen.getByRole('button', { name: 'Editar materia' }))
     expect(onEdit).toHaveBeenCalledTimes(1)
   })
 
-  // The NOTAS section's edit button used to say bare "Editar", which read as
-  // if it opened a notes-only editor. It actually opens the same whole-subject
-  // edit modal as the header button, so its label says exactly that.
-  it("the NOTAS section's edit button is labeled for what it actually opens, and calls onEdit", () => {
-    const onEdit = vi.fn()
+  // The NOTAS section used to carry its own "Editar materia" ghost button;
+  // the approved compaction removed it, so the header button is the ONLY
+  // whole-subject edit entry point on this screen.
+  it('the header holds the only "Editar materia" button — the NOTAS section has none', () => {
     render(
       <SubjectDetail
         subject={baseSubject}
@@ -348,15 +342,13 @@ describe('SubjectDetail (read-only)', () => {
         weeklyMinutes={120}
         onOpenCampusUrl={vi.fn()}
         onBack={vi.fn()}
-        onEdit={onEdit}
+        onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
       />
     )
 
-    const editButtons = screen.getAllByRole('button', { name: 'Editar materia' })
-    fireEvent.click(editButtons[1]!)
-    expect(onEdit).toHaveBeenCalledTimes(1)
+    expect(screen.getAllByRole('button', { name: 'Editar materia' })).toHaveLength(1)
   })
 
   // The detail screen is the ONLY place a subject can be closed: the Materias

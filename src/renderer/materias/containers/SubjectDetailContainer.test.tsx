@@ -241,10 +241,10 @@ describe('SubjectDetailContainer', () => {
     renderWithClient(<SubjectDetailContainer subjectId={1} onBack={vi.fn()} now={new Date('2026-03-04T09:00:00')} />)
     await screen.findByText('1 de 2')
 
-    // Two "Editar materia" buttons live on this screen (header + NOTAS
-    // section) — both open the same modal, so both honestly carry the same
-    // label (see SubjectDetail.test.tsx). Either works; this uses the header's.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Editar materia' })[0]!)
+    // The header's "Editar materia" button is the only edit entry point on
+    // this screen (the NOTAS section's duplicate was removed by the approved
+    // compaction — see SubjectDetail.test.tsx).
+    fireEvent.click(screen.getByRole('button', { name: 'Editar materia' }))
     fireEvent.click(screen.getByText('stub-edit-submit'))
 
     await waitFor(() => expect(materiasApi.updateSchedule).toHaveBeenCalledTimes(1))
@@ -258,9 +258,9 @@ describe('SubjectDetailContainer', () => {
 
     // Design puts "Eliminar materia" in the Editar materia modal's footer,
     // not as a standalone button on the detail screen — open the modal
-    // first, same as any other edit entry point. Two "Editar materia"
-    // buttons live on this screen (header + NOTAS section); either opens it.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Editar materia' })[0]!)
+    // first via the header's "Editar materia" button (the screen's only
+    // edit entry point).
+    fireEvent.click(screen.getByRole('button', { name: 'Editar materia' }))
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar materia' }))
     expect(screen.getByText('2 entregas')).toBeInTheDocument()
 

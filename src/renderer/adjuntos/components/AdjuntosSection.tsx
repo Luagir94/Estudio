@@ -32,7 +32,7 @@ function AttachmentRowSkeleton(): React.JSX.Element {
   return (
     <div
       data-testid="adjuntos-skeleton-row"
-      className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5"
+      className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-1.5"
     >
       <span className="h-11 w-11 shrink-0 rounded-lg bg-muted" aria-hidden />
       <div className="flex flex-1 flex-col gap-1.5">
@@ -59,12 +59,17 @@ export function AdjuntosSection({
 }: AdjuntosSectionProps): React.JSX.Element {
   const { t } = useTranslation('adjuntos')
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-label font-semibold text-muted-foreground">{t('adjuntosSection.heading')}</h3>
+        {/* Approved design: the heading carries the total count ("ADJUNTOS · 5")
+            — appended outside the translation so the i18n key stays intact. */}
+        <h3 className="text-label font-semibold text-muted-foreground">
+          {t('adjuntosSection.heading')}
+          {attachments.length > 0 && ` · ${attachments.length}`}
+        </h3>
         <div className="flex items-center gap-2">
           {/* Secondary action (design "Approved design" — cornerRadius 8,
-              padding 12px/16px, 16px icon, 13px semibold label, $surface-sunken
+              padding 7px/12px, 14px icon, 12px semibold label, $surface-sunken
               bg + $border border + $text-secondary text/icon). Hand-styled
               rather than the shared `Button` primitive: `Button`'s base
               classes hardcode `text-body-lg font-medium` (14px/medium), and
@@ -74,16 +79,22 @@ export function AdjuntosSection({
             type="button"
             onClick={onSync}
             className={cn(
-              'inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-4 py-3 text-body font-semibold text-secondary-foreground',
+              'inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-[7px] text-body font-semibold text-secondary-foreground',
               interactive,
               'hover:bg-secondary/80 active:bg-secondary/70'
             )}
           >
-            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
             {t('adjuntosSection.sync')}
           </button>
-          <Button type="button" onClick={onAdd} className="gap-2">
-            <Plus className="h-4 w-4" aria-hidden="true" />
+          {/* Compact primary action — same treatment (and same tailwind-merge
+              ink caveat) as SubjectDetail's "Agregar entrega" button. */}
+          <Button
+            type="button"
+            onClick={onAdd}
+            className="h-auto gap-2 px-3 py-[7px] text-body-sm font-semibold [color:var(--color-primary-foreground)]"
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
             {t('adjuntosSection.addFile')}
           </Button>
         </div>
@@ -127,7 +138,7 @@ export function AdjuntosSection({
           </div>
         </div>
       ) : isLoading ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5">
           <AttachmentRowSkeleton />
           <AttachmentRowSkeleton />
           <AttachmentRowSkeleton />
@@ -139,7 +150,12 @@ export function AdjuntosSection({
           <p className="text-body-sm text-muted-foreground">{t('adjuntosSection.emptyHint')}</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
+        // Approved design: the cap applies ONLY below 900px of viewport
+        // height (design responsive rule) — with vertical room the list
+        // grows freely. When capped: at most 4 rows visible (232px =
+        // 4 x 50px rows + 3 x 6px gaps + an 8px sliver of row 5 as the
+        // scroll cue); overflow scrolls inside the list, never the page.
+        <div className="flex flex-col gap-1.5 [@media(max-height:900px)]:max-h-[232px] [@media(max-height:900px)]:overflow-y-auto">
           {attachments.map((attachment) => (
             <AttachmentRow
               key={attachment.id}

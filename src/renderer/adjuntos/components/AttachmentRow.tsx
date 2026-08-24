@@ -65,8 +65,8 @@ export function AttachmentRow({ attachment, isMissing, onOpen, onDelete }: Attac
   const OriginBadgeIconComponent = originBadge ? ORIGIN_BADGE_ICON_COMPONENTS[originBadge.icon] : null
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5">
-      <span className="flex w-11 shrink-0 flex-col items-center justify-center gap-1 rounded-lg bg-muted py-2">
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-1.5">
+      <span className="flex w-11 shrink-0 flex-col items-center justify-center gap-1 rounded-lg bg-muted py-[5px]">
         <Icon className={cn('h-3.5 w-3.5', chipColor)} aria-hidden />
         <span className={cn('text-[9px] font-semibold tracking-wide uppercase', chipColor)}>{extension}</span>
       </span>

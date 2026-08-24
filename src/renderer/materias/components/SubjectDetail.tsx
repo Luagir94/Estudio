@@ -24,7 +24,7 @@ import type { DeadlineUrgency } from '../../entregas/domain/deadline'
 import type { SubjectDetailResult } from '../../../shared/ipc/materias'
 import { Button } from '../../shared/components/ui/button'
 import { cn } from '../../shared/lib/cn'
-import { interactiveGhost, interactiveLink } from '../../shared/lib/interactive'
+import { interactiveLink } from '../../shared/lib/interactive'
 import { subjectColorForScheme } from '../../shared/lib/subjectColorScheme'
 import { usePrefersLightScheme } from '../../shared/lib/usePrefersLightScheme'
 
@@ -128,7 +128,7 @@ export function SubjectDetail({
   const progressPercent = progreso.total === 0 ? 0 : Math.round((progreso.done / progreso.total) * 100)
 
   return (
-    <section aria-label={t('subjectDetail.detailLabel', { name: subject.name })} className="flex flex-col gap-4">
+    <section aria-label={t('subjectDetail.detailLabel', { name: subject.name })} className="flex flex-col gap-3">
       <Button
         type="button"
         variant="ghost"
@@ -173,45 +173,61 @@ export function SubjectDetail({
       </header>
 
       {/* The right rail is a SIDE panel only while there is a side to put it
-          on. Below `xl` it becomes the bottom of the page — stacked, full
-          width — instead of a 336px column squeezing the schedule next to it. */}
-      <div className="flex flex-col gap-6 xl:flex-row">
-        <div className="flex min-w-0 flex-1 flex-col gap-4">
-          <div className="flex flex-col gap-3">
+          on. The design's responsive rules stack the two columns below a
+          820px viewport; `xl` (1280px) never triggered at the default window
+          size, whose client area is ~1264px, so the rail always stacked. */}
+      <div className="flex flex-col gap-6 min-[820px]:flex-row">
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <h3 className="text-label font-semibold text-muted-foreground">
               {t('subjectDetail.weeklyScheduleHeading')}
             </h3>
             {orderedSlots.length === 0 && (
               <p className="text-body-lg text-muted-foreground">{t('subjectDetail.noSlots')}</p>
             )}
-            {orderedSlots.map((slot) => (
-              <div
-                key={slot.id}
-                data-testid="subject-detail-slot"
-                className="flex items-center gap-4 rounded-lg border border-border bg-card px-4 py-3"
-              >
-                <span className="text-body font-semibold text-foreground">
-                  {weekdayLabels[toMondayFirstIndex(slot.dayOfWeek)]}
-                </span>
-                <span className="text-body text-secondary-foreground">
-                  {formatTime(slot.startMinutes)} – {formatTime(slot.endMinutes)}
-                </span>
-                <span className="flex-1" />
-                {slot.location && (
-                  <span className="flex items-center gap-1 text-body-sm text-muted-foreground">
-                    <MapPin className="h-3 w-3" aria-hidden />
-                    {slot.location}
-                  </span>
-                )}
+            {orderedSlots.length > 0 && (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-2">
+                {orderedSlots.map((slot) => (
+                  <div
+                    key={slot.id}
+                    data-testid="subject-detail-slot"
+                    className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-1.5"
+                  >
+                    <span className="text-body font-semibold text-foreground">
+                      {weekdayLabels[toMondayFirstIndex(slot.dayOfWeek)]}
+                    </span>
+                    <span className="text-body text-secondary-foreground">
+                      {formatTime(slot.startMinutes)} – {formatTime(slot.endMinutes)}
+                    </span>
+                    <span className="flex-1" />
+                    {slot.location && (
+                      <span className="flex items-center gap-1 text-body-sm text-muted-foreground">
+                        <MapPin className="h-3 w-3" aria-hidden />
+                        {slot.location}
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <h3 className="text-label font-semibold text-muted-foreground">{t('subjectDetail.deadlinesHeading')}</h3>
-              <Button type="button" onClick={onAddEntrega} className="gap-2">
-                <Plus className="h-4 w-4" aria-hidden="true" />
+              {/* Compact primary action (approved design: 7px/12px padding,
+                  12px/600 label, 14px icon, content-driven height). Default
+                  tailwind-merge classifies `text-body-sm` and the variant's
+                  `text-primary-foreground` into the same text-color group, so
+                  the size override alone would strip the ink — it is
+                  re-asserted via the arbitrary `color` property, which merges
+                  in its own group. */}
+              <Button
+                type="button"
+                onClick={onAddEntrega}
+                className="h-auto gap-2 px-3 py-[7px] text-body-sm font-semibold [color:var(--color-primary-foreground)]"
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                 {t('subjectDetail.addDeadline')}
               </Button>
             </div>
@@ -224,9 +240,9 @@ export function SubjectDetail({
                 <div
                   key={deadline.id}
                   data-testid="subject-detail-deadline"
-                  className="flex items-center gap-4 rounded-lg border border-border bg-card px-4 py-3"
+                  className="flex items-center gap-4 rounded-lg border border-border bg-card px-3 py-2"
                 >
-                  <div className="flex w-11 shrink-0 flex-col items-center gap-1 rounded-lg bg-muted py-2">
+                  <div className="flex w-11 shrink-0 flex-col items-center gap-1 rounded-lg bg-muted py-[5px]">
                     {/* Day numeral in the display face (type consolidation
                         pass) — the chip's month label stays in the UI face. */}
                     <span
@@ -238,7 +254,7 @@ export function SubjectDetail({
                       {monthLabels[dueDate.getMonth()]}
                     </span>
                   </div>
-                  <div className="flex flex-1 flex-col gap-1">
+                  <div className="flex flex-1 flex-col gap-[3px]">
                     <span
                       className={`text-body-lg font-semibold ${deadline.done ? 'text-muted-foreground' : 'text-foreground'}`}
                     >
@@ -267,22 +283,9 @@ export function SubjectDetail({
             })}
           </div>
 
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-label font-semibold text-muted-foreground">{t('subjectDetail.notesHeading')}</h3>
-              <button
-                type="button"
-                onClick={onEdit}
-                className={cn(
-                  '-m-1 flex items-center gap-1 rounded-md p-1 text-label font-medium text-muted-foreground',
-                  interactiveGhost
-                )}
-              >
-                <Pencil className="h-3 w-3" aria-hidden />
-                {t('subjectDetail.editNotes')}
-              </button>
-            </div>
-            <div className="rounded-lg border border-border bg-card p-4">
+          <div className="flex flex-col gap-2">
+            <h3 className="text-label font-semibold text-muted-foreground">{t('subjectDetail.notesHeading')}</h3>
+            <div className="rounded-lg border border-border bg-card p-3">
               {subject.notas ? (
                 <dl>
                   <dd
@@ -301,7 +304,7 @@ export function SubjectDetail({
           {adjuntosSlot}
         </div>
 
-        <div className="flex w-full flex-col gap-4 xl:w-[336px] xl:shrink-0">
+        <div className="flex w-full flex-col gap-3 min-[820px]:w-[336px] min-[820px]:shrink-0">
           <div className="flex flex-col gap-2 rounded-xl border border-primary bg-(--color-violet-soft) p-4">
             <span className="text-overline font-semibold text-primary-ink">{t('subjectDetail.nextClassHeading')}</span>
             {nextClass ? (
