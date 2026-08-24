@@ -65,7 +65,7 @@ export function NuevaCarreraModal({ onSubmit, onClose }: NuevaCarreraModalProps)
 
   return (
     <DialogOverlay>
-      <DialogContent role="dialog" aria-label={t('nuevaCarreraModal.dialogLabel')}>
+      <DialogContent role="dialog" aria-label={t('nuevaCarreraModal.dialogLabel')} onDismiss={onClose}>
         <DialogHeader onClose={onClose}>
           <h2 className="font-display text-title font-bold text-foreground">{t('nuevaCarreraModal.title')}</h2>
           <p className="text-body-sm text-muted-foreground">{t('nuevaCarreraModal.subtitle')}</p>

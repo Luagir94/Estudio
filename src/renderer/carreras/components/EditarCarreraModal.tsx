@@ -27,7 +27,7 @@ import { Label } from '../../shared/components/ui/label'
 import { Select } from '../../shared/components/ui/select'
 import { cn } from '../../shared/lib/cn'
 import { interactiveChip } from '../../shared/lib/interactive'
-import { ColorSwatchPicker, SUBJECT_COLORS } from '../../shared/components/ColorSwatchPicker'
+import { ColorSwatchPicker } from '../../shared/components/ColorSwatchPicker'
 import { translateValidationMessage } from '../../shared/lib/translateValidationMessage'
 import {
   type ProgramWithPeriods,
@@ -94,7 +94,7 @@ export function EditarCarreraModal({
 
   return (
     <DialogOverlay>
-      <DialogContent role="dialog" aria-label={t('editarCarreraModal.title')}>
+      <DialogContent role="dialog" aria-label={t('editarCarreraModal.title')} onDismiss={onClose}>
         <DialogHeader onClose={onClose}>
           <h2 className="font-display text-title font-bold text-foreground">{t('editarCarreraModal.title')}</h2>
           <p className="text-body-sm text-muted-foreground">{t('editarCarreraModal.subtitle')}</p>

@@ -40,6 +40,7 @@ export function DeletePeriodConfirmDialog({
         role="dialog"
         aria-label={t('deletePeriodDialog.dialogLabel', { name: periodName })}
         className="max-w-[420px]"
+        onDismiss={onCancel}
       >
         <DialogBody className="gap-2">
           <p className="text-body-lg text-foreground">

@@ -48,6 +48,7 @@ export function DeleteProgramConfirmDialog({
         role="dialog"
         aria-label={t('deleteProgramDialog.dialogLabel', { name: programName })}
         className="max-w-[420px]"
+        onDismiss={onCancel}
       >
         <DialogBody className="gap-2">
           <p className="text-body-lg text-foreground">

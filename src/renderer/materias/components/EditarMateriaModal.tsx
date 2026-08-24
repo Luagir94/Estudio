@@ -91,7 +91,12 @@ export function EditarMateriaModal({
 
   return (
     <DialogOverlay>
-      <DialogContent role="dialog" aria-label={t('editarMateriaModal.dialogLabel')} className="max-w-[688px]">
+      <DialogContent
+        role="dialog"
+        aria-label={t('editarMateriaModal.dialogLabel')}
+        className="max-w-[688px]"
+        onDismiss={onClose}
+      >
         <DialogHeader onClose={onClose}>
           <h2 className="font-display text-title font-bold text-foreground">{t('editarMateriaModal.title')}</h2>
           <p className="text-body-sm text-muted-foreground">

@@ -75,7 +75,7 @@ export function NuevaEntregaModal({
 
   return (
     <DialogOverlay>
-      <DialogContent role="dialog" aria-label={title}>
+      <DialogContent role="dialog" aria-label={title} onDismiss={onClose}>
         <DialogHeader onClose={onClose}>
           <h2 className="font-display text-title font-bold text-foreground">{title}</h2>
           <p className="text-body-sm text-muted-foreground">{subtitle}</p>

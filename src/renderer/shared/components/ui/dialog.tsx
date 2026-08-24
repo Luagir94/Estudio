@@ -1,7 +1,8 @@
-// Shadcn/ui-style Dialog shell — presentational only, no focus-trap/portal
-// logic (out of scope for this styling-only corrective unit; the existing
-// `role="dialog"` + `aria-label` markup on the consuming component is
-// preserved unchanged, this only supplies the scrim + panel chrome).
+// Shadcn/ui-style Dialog shell. `DialogContent` owns the modal a11y contract
+// for every dialog in the app (no portal — dialogs render in place):
+// `role="dialog"` + `aria-modal`, Escape → `onDismiss`, an in-house focus
+// trap (focus moves in on mount, Tab/Shift+Tab wrap, focus returns to the
+// opener on unmount). Consumers keep supplying their own `aria-label`.
 //
 // Design's modal pattern (verified against `A1dN7`/`hjivW` via the Pencil
 // MCP tools): dialog over a `#05050899` scrim, 14px-radius panel, a header
@@ -9,7 +10,7 @@
 // body, and a footer section with a top hairline on the canvas-tint `$bg`
 // (not the panel's `$surface`) — each section owns its own padding, there
 // is no single uniform panel padding.
-import type { HTMLAttributes } from 'react'
+import { useEffect, useRef, type HTMLAttributes } from 'react'
 import { X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/cn'
@@ -24,13 +25,105 @@ export function DialogOverlay({ className, ...props }: HTMLAttributes<HTMLDivEle
   )
 }
 
+// What the trap treats as focusable. Deliberately the simple selector-level
+// approximation (no visibility walk): dialog content is small and always
+// rendered, so `disabled`/`tabindex="-1"` are the only exclusions that occur.
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])'
+].join(', ')
+
+interface DialogContentProps extends HTMLAttributes<HTMLDivElement> {
+  /**
+   * Called when the user presses Escape. Wire it to the dialog's SAFE exit —
+   * the same handler as Cancel/close, never the destructive action. Omitted,
+   * Escape does nothing (for dialogs with no dismiss path).
+   */
+  onDismiss?: () => void
+}
+
 // The panel itself never scrolls — `DialogBody` does (see below). Scrolling
 // the whole panel is what pushed the footer's submit button off a short
 // window: the way out of the dialog scrolled away with the content.
 // `100dvh` rather than `100vh` so the cap tracks the real viewport.
-export function DialogContent({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+export function DialogContent({ className, onDismiss, ...props }: DialogContentProps) {
+  const contentRef = useRef<HTMLDivElement>(null)
+  // The keydown listener binds once per mount; the ref keeps it reading the
+  // latest onDismiss without re-subscribing on every render.
+  const onDismissRef = useRef(onDismiss)
+  useEffect(() => {
+    onDismissRef.current = onDismiss
+  })
+
+  useEffect(() => {
+    const content = contentRef.current
+    if (content === null) {
+      return
+    }
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    // Recomputed on every keystroke, not cached: dialog content is dynamic
+    // (buttons disable in flight, error rows appear), and a stale list would
+    // tab onto a button that is no longer there.
+    const focusables = (): HTMLElement[] => Array.from(content.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+    // First focusable doubles as the safest default: the confirm dialogs put
+    // Cancel first in the footer. The panel itself (tabIndex={-1}) is the
+    // fallback so focus never stays behind the modal.
+    ;(focusables()[0] ?? content).focus()
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        const dismiss = onDismissRef.current
+        if (dismiss !== undefined) {
+          event.preventDefault()
+          dismiss()
+        }
+        return
+      }
+      if (event.key !== 'Tab') {
+        return
+      }
+      const items = focusables()
+      if (items.length === 0) {
+        event.preventDefault()
+        content.focus()
+        return
+      }
+      const first = items[0]!
+      const last = items[items.length - 1]!
+      const active = document.activeElement
+      // Only the wrap points are intercepted; between them the browser's own
+      // Tab order applies. `!contains` re-captures focus that escaped (e.g.
+      // devtools, or the panel itself holding focus).
+      if (event.shiftKey) {
+        if (active === first || !content.contains(active)) {
+          event.preventDefault()
+          last.focus()
+        }
+      } else if (active === last || !content.contains(active)) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    // Document-level so Escape works wherever focus sits; removed on unmount,
+    // and focus goes back to whatever opened the dialog.
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      previouslyFocused?.focus()
+    }
+  }, [])
+
   return (
     <div
+      ref={contentRef}
+      role="dialog"
+      aria-modal="true"
+      tabIndex={-1}
       className={cn(
         'flex max-h-[calc(100dvh-2rem)] w-full max-w-[560px] flex-col overflow-hidden rounded-xl border',
         'border-border bg-card text-card-foreground shadow-xl',

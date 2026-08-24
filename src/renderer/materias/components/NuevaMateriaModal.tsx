@@ -83,7 +83,7 @@ export function NuevaMateriaModal({
   if (!hasPeriods) {
     return (
       <DialogOverlay>
-        <DialogContent role="dialog" aria-label={t('nuevaMateriaModal.dialogLabel')}>
+        <DialogContent role="dialog" aria-label={t('nuevaMateriaModal.dialogLabel')} onDismiss={onClose}>
           <DialogHeader onClose={onClose}>
             <h2 className="font-display text-title font-bold text-foreground">{t('nuevaMateriaModal.title')}</h2>
             <p className="text-body-sm text-muted-foreground">{t('nuevaMateriaModal.noPeriodsSubtitle')}</p>
@@ -117,7 +117,7 @@ export function NuevaMateriaModal({
 
   return (
     <DialogOverlay>
-      <DialogContent role="dialog" aria-label={t('nuevaMateriaModal.dialogLabel')}>
+      <DialogContent role="dialog" aria-label={t('nuevaMateriaModal.dialogLabel')} onDismiss={onClose}>
         <DialogHeader onClose={onClose}>
           <h2 className="font-display text-title font-bold text-foreground">{t('nuevaMateriaModal.title')}</h2>
           <p className="text-body-sm text-muted-foreground">{t('nuevaMateriaModal.subtitle')}</p>

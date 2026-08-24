@@ -82,7 +82,7 @@ export function CerrarMateriaModal({ subject, onSubmit, onClose }: CerrarMateria
 
   return (
     <DialogOverlay>
-      <DialogContent role="dialog" aria-label={t('cerrarMateriaModal.dialogLabel')}>
+      <DialogContent role="dialog" aria-label={t('cerrarMateriaModal.dialogLabel')} onDismiss={onClose}>
         <DialogHeader onClose={onClose}>
           <h2 className="font-display text-title font-bold text-foreground">{t('cerrarMateriaModal.title')}</h2>
           <p className="text-body-sm text-muted-foreground">

@@ -26,6 +26,7 @@ export function DeleteSubjectConfirmDialog({
         role="dialog"
         aria-label={t('deleteSubjectConfirmDialog.dialogLabel', { name: subjectName })}
         className="max-w-[420px]"
+        onDismiss={onCancel}
       >
         <DialogBody className="gap-2">
           <p className="text-body-lg text-foreground">
