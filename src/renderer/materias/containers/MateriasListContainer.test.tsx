@@ -273,3 +273,63 @@ describe('MateriasListContainer — período picker', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })
+
+// Onboarding empty state (approved design): ZERO subjects overall is a
+// different situation from "the current filter matched none" — the first
+// gets the designed onboarding card with its two CTAs, the second keeps the
+// existing filtered-empty wording.
+describe('MateriasListContainer — onboarding empty state', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    materiasApiMock.list.mockResolvedValue([])
+    carrerasApiMock.list.mockResolvedValue([])
+  })
+
+  function renderEmpty(onGoToCarreras = vi.fn()) {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MateriasListContainer now={today} onGoToCarreras={onGoToCarreras} />
+      </QueryClientProvider>
+    )
+    return { onGoToCarreras }
+  }
+
+  it('renders the onboarding card when zero subjects exist, hiding the filter chips', async () => {
+    renderEmpty()
+
+    expect(await screen.findByText('Todavía no cargaste materias')).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Filtrar por estado' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/no hay materias que coincidan/i)).not.toBeInTheDocument()
+  })
+
+  it('opens the existing NuevaMateriaModal flow from the primary CTA', async () => {
+    renderEmpty()
+    await screen.findByText('Todavía no cargaste materias')
+
+    // Two entry points share the label: the header button and the CTA. The
+    // CTA is the one inside the onboarding card — the last in DOM order.
+    const buttons = screen.getAllByRole('button', { name: 'Agregar materia' })
+    await userEvent.click(buttons[buttons.length - 1]!)
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('navigates to Carreras from the secondary CTA', async () => {
+    const { onGoToCarreras } = renderEmpty()
+    await screen.findByText('Todavía no cargaste materias')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Configurar carrera' }))
+
+    expect(onGoToCarreras).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the filtered-empty wording when subjects exist but the filter hides them all', async () => {
+    materiasApiMock.list.mockResolvedValue([aprobada]) // default filter is "activas"
+
+    renderEmpty()
+
+    expect(await screen.findByText(/no hay materias que coincidan/i)).toBeInTheDocument()
+    expect(screen.queryByText('Todavía no cargaste materias')).not.toBeInTheDocument()
+  })
+})

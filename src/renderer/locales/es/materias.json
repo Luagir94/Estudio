@@ -49,6 +49,12 @@
     "openCampus": "Abrir campus virtual",
     "virtualClassroom": "Aula virtual"
   },
+  "materiasEmptyState": {
+    "title": "Todavía no cargaste materias",
+    "subtitle": "Creá tu primera materia, o configurá antes tu carrera y período para organizar el cuatrimestre",
+    "addSubject": "Agregar materia",
+    "configureProgram": "Configurar carrera"
+  },
   "materiasList": {
     "emptyFiltered": "No hay materias que coincidan con este filtro. Elegí otro filtro para ver más.",
     "noSchedule": "Sin horario",

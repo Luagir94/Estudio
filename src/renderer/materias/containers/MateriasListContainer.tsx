@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next'
 import { carrerasApi } from '../../carreras/adapters/carrerasApi'
 import { pickDefaultPeriodId } from '../../carreras/domain/period'
 import { materiasApi } from '../adapters/materiasApi'
+import { MateriasEmptyState } from '../components/MateriasEmptyState'
 import { MateriasList } from '../components/MateriasList'
 import { NuevaMateriaModal } from '../components/NuevaMateriaModal'
 import { SubjectStatusFilter } from '../components/SubjectStatusFilter'
@@ -135,11 +136,20 @@ export function MateriasListContainer({
         </Button>
       </div>
 
-      {data && <SubjectStatusFilter value={filter} counts={counts} onChange={setFilter} />}
+      {/* Zero subjects OVERALL is the onboarding case (approved design) —
+          filter chips over nothing would only decorate the dead end. The
+          filtered-empty wording inside MateriasList keeps covering "subjects
+          exist but this filter matched none". */}
+      {data &&
+        (data.length === 0 ? (
+          <MateriasEmptyState onAddSubject={() => setIsCreateOpen(true)} onGoToCarreras={() => onGoToCarreras?.()} />
+        ) : (
+          <SubjectStatusFilter value={filter} counts={counts} onChange={setFilter} />
+        ))}
 
       {isLoading && <p className="text-body-lg text-muted-foreground">{t('materiasListContainer.loading')}</p>}
       {isError && <p className="text-body-lg text-destructive">{t('materiasListContainer.loadError')}</p>}
-      {data && <MateriasList subjects={visible} now={today} onSelect={onSelectSubject} />}
+      {data && data.length > 0 && <MateriasList subjects={visible} now={today} onSelect={onSelectSubject} />}
 
       {isCreateOpen && (
         <NuevaMateriaModal
