@@ -13,6 +13,11 @@
   },
   "entregasList": {
     "empty": "Todavía no agregaste ninguna entrega.",
+    "allClear": {
+      "title": "Estás al día",
+      "subtitle": "Sin atrasos ni entregas en los próximos 7 días",
+      "subtitleWithNext": "Sin atrasos ni entregas en los próximos 7 días · la próxima es el {{date}}"
+    },
     "bucketHeadings": {
       "atrasadas": "ATRASADAS",
       "proximos7": "PRÓXIMOS 7 DÍAS",
