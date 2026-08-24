@@ -4,9 +4,9 @@
 // paths, only main ever resolves them, at the single choke point
 // (`resolveAttachmentPath`).
 import { z } from 'zod'
-import { ipcErr, ipcOk, type IpcResult } from './materias'
+import { ipcErr, ipcOk, type IpcResult, parsePayload } from './materias'
 
-export { ipcErr, ipcOk, type IpcResult }
+export { ipcErr, ipcOk, type IpcResult, parsePayload }
 
 export const attachmentSchema = z.object({
   id: z.number().int(),

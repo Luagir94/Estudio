@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import log from 'electron-log'
 import {
   createFinalExamInputSchema,
   type DeleteFinalExamResult,
@@ -6,6 +7,7 @@ import {
   ipcErr,
   ipcOk,
   type IpcResult,
+  parsePayload,
   updateFinalExamInputSchema
 } from '../../../shared/ipc/finales'
 import type { FinalExamRecord } from '../../../shared/ipc/materias'
@@ -20,22 +22,23 @@ import type { FinalExamRepository } from '../adapters/sqliteFinalExamRepository'
  */
 export function registerFinalesHandlers(repository: FinalExamRepository): void {
   ipcMain.handle('finales:create', (_event, payload): IpcResult<FinalExamRecord> => {
-    const parsed = createFinalExamInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(createFinalExamInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
       return ipcOk(repository.create(parsed.data))
     } catch (error) {
+      log.error('finales:create failed', error)
       return ipcErr('CREATE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
 
   ipcMain.handle('finales:update', (_event, payload): IpcResult<FinalExamRecord> => {
-    const parsed = updateFinalExamInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(updateFinalExamInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -45,14 +48,15 @@ export function registerFinalesHandlers(repository: FinalExamRepository): void {
       }
       return ipcOk(result)
     } catch (error) {
+      log.error('finales:update failed', error)
       return ipcErr('UPDATE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
 
   ipcMain.handle('finales:delete', (_event, payload): IpcResult<DeleteFinalExamResult> => {
-    const parsed = finalExamIdInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(finalExamIdInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -62,6 +66,7 @@ export function registerFinalesHandlers(repository: FinalExamRepository): void {
       }
       return ipcOk({ id: parsed.data.id })
     } catch (error) {
+      log.error('finales:delete failed', error)
       return ipcErr('DELETE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })

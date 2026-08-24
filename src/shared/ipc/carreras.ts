@@ -11,9 +11,9 @@
 // architecture note at the top of shared/ipc/materias.ts (this module stays
 // framework-free the same way).
 import { z } from 'zod'
-import { ipcErr, ipcOk, type IpcResult } from './materias'
+import { ipcErr, ipcOk, type IpcResult, parsePayload } from './materias'
 
-export { ipcErr, ipcOk, type IpcResult }
+export { ipcErr, ipcOk, type IpcResult, parsePayload }
 
 // Calendar date, `YYYY-MM-DD` — no time, no offset (a period boundary is a
 // whole day, unlike a deadline's due moment).

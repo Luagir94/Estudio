@@ -8,9 +8,9 @@
 // The record shape itself lives in `./materias` (the subject detail payload
 // carries it, and importing it from here would close a cycle).
 import { z } from 'zod'
-import { finalExamResultSchema, ipcErr, ipcOk, type IpcResult } from './materias'
+import { finalExamResultSchema, ipcErr, ipcOk, type IpcResult, parsePayload } from './materias'
 
-export { ipcErr, ipcOk, type IpcResult }
+export { ipcErr, ipcOk, type IpcResult, parsePayload }
 
 // Calendar date, `YYYY-MM-DD` — a mesa is a day, not a moment.
 //

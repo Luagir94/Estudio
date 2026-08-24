@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
+import log from 'electron-log'
 import { format } from 'date-fns'
 import { MAX_MARKDOWN_TEXT_BYTES } from '../../shared/ipc/adjuntos'
 import type { AttachmentStorage } from './adapters/fileAttachmentStorage'
@@ -171,6 +172,7 @@ export function createAttachmentService({
           } catch (insertError) {
             // The copy already landed on disk — a failed insert must not
             // leave an orphaned file behind (spec "Insert fails after copy").
+            log.error(`attachmentService.addAttachments failed for ${fileName}`, insertError)
             await storage.removeFile(storedPath).catch(() => {})
             failures.push({
               fileName,
@@ -179,6 +181,7 @@ export function createAttachmentService({
             })
           }
         } catch (error) {
+          log.error(`attachmentService.addAttachments failed for ${fileName}`, error)
           failures.push({
             fileName,
             code: 'COPY_FAILED',
@@ -226,6 +229,7 @@ export function createAttachmentService({
         // Orphan-cleanup rule copied from `addAttachments` (spec "Failed
         // insert cleans up the written file"): the write already landed on
         // disk, so a failed insert must not leave it behind.
+        log.error(`attachmentService.addGeneratedAttachment failed for ${fileName}`, insertError)
         await storage.removeFile(storedPath).catch(() => {})
         return { ok: false, message: insertError instanceof Error ? insertError.message : 'Unknown error' }
       }
@@ -246,6 +250,7 @@ export function createAttachmentService({
       try {
         absolutePath = storage.resolveStoredPath(row.storedPath)
       } catch (error) {
+        log.error(`attachmentService.readAttachmentText failed for attachment ${id}`, error)
         return { ok: false, code: 'READ_FAILED', message: error instanceof Error ? error.message : 'Unknown error' }
       }
 
@@ -273,6 +278,7 @@ export function createAttachmentService({
       try {
         return { ok: true, content: await storage.readTextFile(row.storedPath) }
       } catch (error) {
+        log.error(`attachmentService.readAttachmentText failed for attachment ${id}`, error)
         return { ok: false, code: 'READ_FAILED', message: error instanceof Error ? error.message : 'Unknown error' }
       }
     },
@@ -304,6 +310,7 @@ export function createAttachmentService({
       try {
         await storage.writeIntoSubjectDir(row.subjectId, path.basename(row.storedPath), content)
       } catch (error) {
+        log.error(`attachmentService.updateAttachmentText failed for attachment ${id}`, error)
         return { ok: false, code: 'WRITE_FAILED', message: error instanceof Error ? error.message : 'Unknown error' }
       }
 

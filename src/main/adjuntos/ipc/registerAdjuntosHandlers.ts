@@ -11,6 +11,7 @@ import {
   type IpcResult,
   listAttachmentsInputSchema,
   openAttachmentInputSchema,
+  parsePayload,
   readAttachmentTextInputSchema,
   type ReadAttachmentTextResult,
   writeAttachmentTextInputSchema
@@ -61,22 +62,23 @@ export function registerAdjuntosHandlers({
   subjectRepository
 }: RegisterAdjuntosHandlersDeps): void {
   ipcMain.handle('adjuntos:list', (_event, payload): IpcResult<Attachment[]> => {
-    const parsed = listAttachmentsInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(listAttachmentsInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
       return ipcOk(repository.listBySubject(parsed.data.subjectId).map(toAttachment))
     } catch (error) {
+      log.error('adjuntos:list failed', error)
       return ipcErr('LIST_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
 
   ipcMain.handle('adjuntos:add', async (_event, payload): Promise<IpcResult<AddAttachmentsResult>> => {
-    const parsed = addAttachmentsInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(addAttachmentsInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     if (!subjectRepository.detail(parsed.data.subjectId)) {
@@ -106,14 +108,15 @@ export function registerAdjuntosHandlers({
       const { added, failures } = await service.addAttachments(parsed.data.subjectId, filePaths)
       return ipcOk({ canceled: false, added: added.map(toAttachment), failures })
     } catch (error) {
+      log.error('adjuntos:add failed', error)
       return ipcErr('ADD_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
 
   ipcMain.handle('adjuntos:open', async (_event, payload): Promise<IpcResult<undefined>> => {
-    const parsed = openAttachmentInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(openAttachmentInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     const row = repository.get(parsed.data.id)
@@ -128,6 +131,7 @@ export function registerAdjuntosHandlers({
     try {
       absolutePath = storage.resolveStoredPath(row.storedPath)
     } catch (error) {
+      log.error('adjuntos:open failed', error)
       return ipcErr('OPEN_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
 
@@ -146,9 +150,9 @@ export function registerAdjuntosHandlers({
   })
 
   ipcMain.handle('adjuntos:delete', async (_event, payload): Promise<IpcResult<DeleteAttachmentResult>> => {
-    const parsed = deleteAttachmentInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(deleteAttachmentInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     // The row commits FIRST (spec "Delete Attachment") — a locked or
@@ -176,9 +180,9 @@ export function registerAdjuntosHandlers({
   // onto the envelope. The try/catch is the never-throw-across-the-bridge
   // backstop for a bug in the service itself.
   ipcMain.handle(ADJUNTOS_READ_CHANNEL, async (_event, payload): Promise<IpcResult<ReadAttachmentTextResult>> => {
-    const parsed = readAttachmentTextInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(readAttachmentTextInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -188,6 +192,7 @@ export function registerAdjuntosHandlers({
       }
       return ipcOk({ content: result.content })
     } catch (error) {
+      log.error(`${ADJUNTOS_READ_CHANNEL} failed`, error)
       return ipcErr('READ_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
@@ -196,9 +201,9 @@ export function registerAdjuntosHandlers({
   // rides back (minus storedPath, via `toAttachment`) so the viewer header
   // refreshes without a second round-trip.
   ipcMain.handle(ADJUNTOS_WRITE_CHANNEL, async (_event, payload): Promise<IpcResult<Attachment>> => {
-    const parsed = writeAttachmentTextInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(writeAttachmentTextInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -208,6 +213,7 @@ export function registerAdjuntosHandlers({
       }
       return ipcOk(toAttachment(result.attachment))
     } catch (error) {
+      log.error(`${ADJUNTOS_WRITE_CHANNEL} failed`, error)
       return ipcErr('WRITE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })

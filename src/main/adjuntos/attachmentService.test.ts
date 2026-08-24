@@ -10,6 +10,10 @@ import type { AttachmentStorage } from './adapters/fileAttachmentStorage'
 import { MAX_ATTACHMENT_BYTES } from './domain/limits'
 import { createAttachmentService, type AttachmentIndexerPort, type AttachmentService } from './attachmentService'
 
+const logErrorMock = vi.hoisted(() => vi.fn())
+
+vi.mock('electron-log', () => ({ default: { error: logErrorMock } }))
+
 const migrationsFolder = path.join(__dirname, '../../../drizzle/migrations')
 
 // Real `:memory:` repository (production migrator, same pattern as
@@ -49,6 +53,7 @@ describe('createAttachmentService', () => {
   let indexer: AttachmentIndexerPort
 
   beforeEach(() => {
+    logErrorMock.mockClear()
     const db = createTestDb()
     repository = createSqliteAttachmentRepository(db)
     subjectId = seedSubject(db)
@@ -513,6 +518,19 @@ describe('attachmentService — markdown text (viewer/editor)', () => {
       expect(repository.get(row.id)).toMatchObject({ sizeBytes: 1024, indexStatus: 'pending' })
       expect(notifyStatusChanged).not.toHaveBeenCalled()
       expect(indexer.enqueue).not.toHaveBeenCalled()
+    })
+
+    it('logs the unexpected write failure with its operation name', async () => {
+      const row = insertRow()
+      const storage = createStorageMock({ writeIntoSubjectDir: vi.fn().mockRejectedValue(new Error('EBUSY')) })
+      const service = createService(storage)
+
+      await service.updateAttachmentText(row.id, '# Nuevo')
+
+      expect(logErrorMock).toHaveBeenCalledWith(
+        `attachmentService.updateAttachmentText failed for attachment ${row.id}`,
+        expect.any(Error)
+      )
     })
   })
 })

@@ -15,9 +15,10 @@ const { ipcMainMock } = vi.hoisted(() => {
 })
 
 const logWarnMock = vi.hoisted(() => vi.fn())
+const logErrorMock = vi.hoisted(() => vi.fn())
 
 vi.mock('electron', () => ({ ipcMain: ipcMainMock }))
-vi.mock('electron-log', () => ({ default: { warn: logWarnMock } }))
+vi.mock('electron-log', () => ({ default: { warn: logWarnMock, error: logErrorMock } }))
 
 import { registerMateriasHandlers } from './registerMateriasHandlers'
 
@@ -59,6 +60,7 @@ describe('registerMateriasHandlers', () => {
     ipcMainMock.handlers.clear()
     ipcMainMock.handle.mockClear()
     logWarnMock.mockClear()
+    logErrorMock.mockClear()
     repository = {
       create: vi.fn().mockReturnValue(sampleSubject),
       list: vi.fn().mockReturnValue([sampleSubject]),
@@ -133,6 +135,23 @@ describe('registerMateriasHandlers', () => {
     })
 
     expect(result).toMatchObject({ ok: false, error: { code: 'CREATE_FAILED' } })
+  })
+
+  it('materias:create logs the unexpected repository failure with its channel name', () => {
+    repository.create = vi.fn().mockImplementation(() => {
+      throw new Error('database is locked')
+    })
+    registerMateriasHandlers(repository, { attachmentStorage })
+
+    invoke('materias:create', {
+      name: 'Bases de Datos',
+      code: 'BD-201',
+      color: '#22c55e',
+      periodId: 7,
+      slots: [{ dayOfWeek: 2, startMinutes: 600, endMinutes: 650 }]
+    })
+
+    expect(logErrorMock).toHaveBeenCalledWith('materias:create failed', expect.any(Error))
   })
 
   it('materias:list returns every subject from the repository wrapped in the ok envelope', () => {

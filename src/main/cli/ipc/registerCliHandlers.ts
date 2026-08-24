@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import log from 'electron-log'
 import {
   CLI_PROVIDERS,
   cliModelsResultSchema,
@@ -6,6 +7,7 @@ import {
   disconnectCliInputSchema,
   ipcErr,
   ipcOk,
+  parsePayload,
   probeCliInputSchema,
   setCliOverrideInputSchema,
   type CliPreference,
@@ -69,9 +71,9 @@ export function registerCliHandlers({
    * now, and this channel is the only way to start one.
    */
   ipcMain.handle('cli:probe', async (_event, payload): Promise<IpcResult<CliProviderStatus>> => {
-    const parsed = probeCliInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(probeCliInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -82,6 +84,7 @@ export function registerCliHandlers({
       settingsRepository.set(PROVIDER_SPECS[parsed.data.provider].connectedKey, '1')
       return ipcOk(remember(await probeService.probe(parsed.data.provider)))
     } catch (error) {
+      log.error('cli:probe failed', error)
       return ipcErr('PROBE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
@@ -107,6 +110,7 @@ export function registerCliHandlers({
         }))
       )
     } catch (error) {
+      log.error('cli:preferences failed', error)
       return ipcErr('PREFERENCES_READ_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
@@ -123,9 +127,9 @@ export function registerCliHandlers({
    * behind would let a disconnected CLI answer one more question.
    */
   ipcMain.handle('cli:disconnect', async (_event, payload): Promise<IpcResult<undefined>> => {
-    const parsed = disconnectCliInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(disconnectCliInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -135,14 +139,15 @@ export function registerCliHandlers({
       probeService.forget(parsed.data.provider)
       return ipcOk(undefined)
     } catch (error) {
+      log.error('cli:disconnect failed', error)
       return ipcErr('DISCONNECT_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
 
   ipcMain.handle('cli:setOverride', async (_event, payload): Promise<IpcResult<CliProviderStatus>> => {
-    const parsed = setCliOverrideInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(setCliOverrideInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -160,6 +165,7 @@ export function registerCliHandlers({
       settingsRepository.set(PROVIDER_SPECS[parsed.data.provider].connectedKey, '1')
       return ipcOk(remember(await probeService.probe(parsed.data.provider)))
     } catch (error) {
+      log.error('cli:setOverride failed', error)
       return ipcErr('SET_OVERRIDE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })

@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import log from 'electron-log'
 import {
   createDeadlineInputSchema,
   deadlineIdInputSchema,
@@ -6,6 +7,7 @@ import {
   ipcErr,
   ipcOk,
   type IpcResult,
+  parsePayload,
   type DeadlineWithSubject,
   setDeadlineDoneInputSchema,
   updateDeadlineInputSchema
@@ -20,14 +22,15 @@ import type { DeadlineRepository } from '../adapters/sqliteDeadlineRepository'
  */
 export function registerEntregasHandlers(repository: DeadlineRepository): void {
   ipcMain.handle('entregas:create', (_event, payload): IpcResult<DeadlineWithSubject> => {
-    const parsed = createDeadlineInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(createDeadlineInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
       return ipcOk(repository.create(parsed.data))
     } catch (error) {
+      log.error('entregas:create failed', error)
       return ipcErr('CREATE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
@@ -36,6 +39,7 @@ export function registerEntregasHandlers(repository: DeadlineRepository): void {
     try {
       return ipcOk(repository.list())
     } catch (error) {
+      log.error('entregas:list failed', error)
       return ipcErr('LIST_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
@@ -44,9 +48,9 @@ export function registerEntregasHandlers(repository: DeadlineRepository): void {
   // límite" — "Editing MUST reuse the 'Nueva entrega' form and the same
   // validation schema used for creation").
   ipcMain.handle('entregas:update', (_event, payload): IpcResult<DeadlineWithSubject> => {
-    const parsed = updateDeadlineInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(updateDeadlineInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -56,15 +60,16 @@ export function registerEntregasHandlers(repository: DeadlineRepository): void {
       }
       return ipcOk(result)
     } catch (error) {
+      log.error('entregas:update failed', error)
       return ipcErr('UPDATE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
 
   // Binary only — no partial-progress state (spec: "Toggle done/pending").
   ipcMain.handle('entregas:setDone', (_event, payload): IpcResult<DeadlineWithSubject> => {
-    const parsed = setDeadlineDoneInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(setDeadlineDoneInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -74,6 +79,7 @@ export function registerEntregasHandlers(repository: DeadlineRepository): void {
       }
       return ipcOk(result)
     } catch (error) {
+      log.error('entregas:setDone failed', error)
       return ipcErr('SETDONE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
@@ -82,9 +88,9 @@ export function registerEntregasHandlers(repository: DeadlineRepository): void {
   // removes a cancelled deadline entirely, not as done"; "Deleting a
   // deadline cascades to nothing").
   ipcMain.handle('entregas:delete', (_event, payload): IpcResult<DeleteDeadlineResult> => {
-    const parsed = deadlineIdInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(deadlineIdInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -94,6 +100,7 @@ export function registerEntregasHandlers(repository: DeadlineRepository): void {
       }
       return ipcOk({ id: parsed.data.id })
     } catch (error) {
+      log.error('entregas:delete failed', error)
       return ipcErr('DELETE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })

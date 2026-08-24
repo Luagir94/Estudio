@@ -13,7 +13,10 @@ const { ipcMainMock } = vi.hoisted(() => {
   }
 })
 
+const logErrorMock = vi.hoisted(() => vi.fn())
+
 vi.mock('electron', () => ({ ipcMain: ipcMainMock }))
+vi.mock('electron-log', () => ({ default: { error: logErrorMock } }))
 
 import { registerHorarioHandlers } from './registerHorarioHandlers'
 
@@ -45,6 +48,7 @@ describe('registerHorarioHandlers', () => {
   beforeEach(() => {
     ipcMainMock.handlers.clear()
     ipcMainMock.handle.mockClear()
+    logErrorMock.mockClear()
     repository = {
       create: vi.fn(),
       list: vi.fn().mockReturnValue([sampleSubject]),
@@ -77,5 +81,16 @@ describe('registerHorarioHandlers', () => {
     const result = invoke('horario:week')
 
     expect(result).toMatchObject({ ok: false, error: { code: 'WEEK_FAILED' } })
+  })
+
+  it('logs the unexpected repository failure with its channel name', () => {
+    repository.list = vi.fn().mockImplementation(() => {
+      throw new Error('database is locked')
+    })
+    registerHorarioHandlers(repository)
+
+    invoke('horario:week')
+
+    expect(logErrorMock).toHaveBeenCalledWith('horario:week failed', expect.any(Error))
   })
 })

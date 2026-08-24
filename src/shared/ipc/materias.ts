@@ -340,3 +340,25 @@ export function ipcOk<T>(data: T): IpcResult<T> {
 export function ipcErr(code: string, message: string): IpcResult<never> {
   return { ok: false, error: { code, message } }
 }
+
+export type ParsePayloadResult<T> =
+  { readonly ok: true; readonly data: T } | { readonly ok: false; readonly failure: IpcResult<never> }
+
+/**
+ * Parses an IPC payload against its schema and, on failure, builds the exact
+ * error envelope every handler used to assemble inline: the issue messages
+ * (stable machine keys, see the note above the schemas) joined with '; '
+ * under a `VALIDATION_ERROR` code. Handlers early-return `failure` and get
+ * the PARSED (transformed/defaulted) payload from `data` otherwise.
+ */
+export function parsePayload<Schema extends z.ZodType>(
+  schema: Schema,
+  payload: unknown,
+  code = 'VALIDATION_ERROR'
+): ParsePayloadResult<z.output<Schema>> {
+  const parsed = schema.safeParse(payload)
+  if (!parsed.success) {
+    return { ok: false, failure: ipcErr(code, parsed.error.issues.map((issue) => issue.message).join('; ')) }
+  }
+  return { ok: true, data: parsed.data }
+}

@@ -26,9 +26,10 @@ const { ipcMainMock, shellMock, dialogMock, appMock, writeFileMock } = vi.hoiste
 })
 
 const logWarnMock = vi.hoisted(() => vi.fn())
+const logErrorMock = vi.hoisted(() => vi.fn())
 
 vi.mock('electron', () => ({ ipcMain: ipcMainMock, shell: shellMock, dialog: dialogMock, app: appMock }))
-vi.mock('electron-log', () => ({ default: { warn: logWarnMock } }))
+vi.mock('electron-log', () => ({ default: { warn: logWarnMock, error: logErrorMock } }))
 vi.mock('node:fs/promises', () => ({ writeFile: writeFileMock }))
 
 import { registerAppHandlers } from './registerAppHandlers'
@@ -75,6 +76,7 @@ describe('registerAppHandlers', () => {
     ipcMainMock.handle.mockClear()
     shellMock.openExternal.mockClear()
     logWarnMock.mockClear()
+    logErrorMock.mockClear()
     dialogMock.showSaveDialog.mockReset()
     writeFileMock.mockClear()
     subjectRepository = {
@@ -182,5 +184,17 @@ describe('registerAppHandlers', () => {
     const result = await invoke('app:exportJson')
 
     expect(result).toMatchObject({ ok: false, error: { code: 'EXPORT_FAILED' } })
+  })
+
+  it('app:exportJson logs the unexpected failure with its channel name', async () => {
+    dialogMock.showSaveDialog.mockResolvedValue({ canceled: false, filePath: '/home/user/Documents/export.json' })
+    subjectRepository.list = vi.fn().mockImplementation(() => {
+      throw new Error('database is locked')
+    })
+    registerAppHandlers({ subjectRepository, deadlineRepository })
+
+    await invoke('app:exportJson')
+
+    expect(logErrorMock).toHaveBeenCalledWith('app:exportJson failed', expect.any(Error))
   })
 })

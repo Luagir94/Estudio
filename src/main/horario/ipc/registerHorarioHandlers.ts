@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import log from 'electron-log'
 import { ipcErr, ipcOk, type IpcResult } from '../../../shared/ipc/materias'
 import type { WeekScheduleResult } from '../../../shared/ipc/horario'
 import type { SubjectRepository } from '../../materias/adapters/sqliteSubjectRepository'
@@ -18,6 +19,7 @@ export function registerHorarioHandlers(repository: SubjectRepository): void {
     try {
       return ipcOk(repository.list())
     } catch (error) {
+      log.error('horario:week failed', error)
       return ipcErr('WEEK_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })

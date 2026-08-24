@@ -3,9 +3,9 @@
 // two-sided-parsing convention (`src/shared/ipc/materias.ts`).
 import { z } from 'zod'
 import { enabledCliProviderSchema, modelIdSchema } from './cli'
-import { ipcErr, ipcOk, type IpcResult } from './materias'
+import { ipcErr, ipcOk, type IpcResult, parsePayload } from './materias'
 
-export { ipcErr, ipcOk, type IpcResult }
+export { ipcErr, ipcOk, type IpcResult, parsePayload }
 
 // --- ask:question request -------------------------------------------------
 

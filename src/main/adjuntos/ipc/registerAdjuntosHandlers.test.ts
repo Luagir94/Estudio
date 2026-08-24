@@ -18,9 +18,10 @@ const { ipcMainMock, dialogMock, shellMock } = vi.hoisted(() => {
 })
 
 const logWarnMock = vi.hoisted(() => vi.fn())
+const logErrorMock = vi.hoisted(() => vi.fn())
 
 vi.mock('electron', () => ({ ipcMain: ipcMainMock, dialog: dialogMock, shell: shellMock }))
-vi.mock('electron-log', () => ({ default: { warn: logWarnMock } }))
+vi.mock('electron-log', () => ({ default: { warn: logWarnMock, error: logErrorMock } }))
 
 import { registerAdjuntosHandlers } from './registerAdjuntosHandlers'
 
@@ -67,6 +68,7 @@ describe('registerAdjuntosHandlers', () => {
     dialogMock.showOpenDialog.mockReset()
     shellMock.openPath.mockReset()
     logWarnMock.mockClear()
+    logErrorMock.mockClear()
 
     repository = {
       listBySubject: vi.fn().mockReturnValue([sampleRecord]),
@@ -118,6 +120,17 @@ describe('registerAdjuntosHandlers', () => {
     const result = invoke('adjuntos:list', { subjectId: 7 })
 
     expect(result).toMatchObject({ ok: false, error: { code: 'LIST_FAILED' } })
+  })
+
+  it('adjuntos:list logs the unexpected repository failure with its channel name', () => {
+    repository.listBySubject = vi.fn().mockImplementation(() => {
+      throw new Error('database is locked')
+    })
+    registerAdjuntosHandlers({ repository, service, storage, subjectRepository })
+
+    invoke('adjuntos:list', { subjectId: 7 })
+
+    expect(logErrorMock).toHaveBeenCalledWith('adjuntos:list failed', expect.any(Error))
   })
 
   it('adjuntos:add rejects an invalid payload without checking the subject or opening the picker', async () => {

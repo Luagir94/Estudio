@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import log from 'electron-log'
 import { ipcErr, ipcOk, type IpcResult, type SyncResult } from '../../../shared/ipc/indexado'
 import type { IndexadoService } from '../indexadoService'
 
@@ -21,6 +22,7 @@ export function registerIndexadoHandlers({ service }: RegisterIndexadoHandlersDe
     try {
       return ipcOk({ enqueued: service.syncAll() })
     } catch (error) {
+      log.error('indexado:sync failed', error)
       return ipcErr('SYNC_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })

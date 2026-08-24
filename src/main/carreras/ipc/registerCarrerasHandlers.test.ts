@@ -14,7 +14,10 @@ const { ipcMainMock } = vi.hoisted(() => {
   }
 })
 
+const logErrorMock = vi.hoisted(() => vi.fn())
+
 vi.mock('electron', () => ({ ipcMain: ipcMainMock }))
+vi.mock('electron-log', () => ({ default: { error: logErrorMock } }))
 
 import { registerCarrerasHandlers } from './registerCarrerasHandlers'
 
@@ -50,6 +53,7 @@ describe('registerCarrerasHandlers', () => {
   beforeEach(() => {
     ipcMainMock.handlers.clear()
     ipcMainMock.handle.mockClear()
+    logErrorMock.mockClear()
     repository = {
       create: vi.fn().mockReturnValue(sampleProgram),
       list: vi.fn().mockReturnValue([sampleProgram]),
@@ -183,6 +187,16 @@ describe('registerCarrerasHandlers', () => {
       ok: false,
       error: { code: 'CREATE_FAILED', message: 'disk on fire' }
     })
+  })
+
+  it('create logs the unexpected repository failure with its channel name', () => {
+    vi.mocked(repository.create).mockImplementation(() => {
+      throw new Error('disk on fire')
+    })
+
+    invoke('carreras:create', validProgram)
+
+    expect(logErrorMock).toHaveBeenCalledWith('carreras:create failed', expect.any(Error))
   })
 
   it('list returns every program', () => {

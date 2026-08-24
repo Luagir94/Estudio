@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import log from 'electron-log'
 import type { DashboardResult } from '../../../shared/ipc/hoy'
 import { ipcErr, ipcOk, type IpcResult } from '../../../shared/ipc/materias'
 import type { DeadlineRepository } from '../../entregas/adapters/sqliteDeadlineRepository'
@@ -24,6 +25,7 @@ export function registerHoyHandlers(
         deadlines: deadlineRepository.list()
       })
     } catch (error) {
+      log.error('hoy:dashboard failed', error)
       return ipcErr('DASHBOARD_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })

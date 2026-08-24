@@ -9,9 +9,9 @@
 // create, list, update, setDone, delete — because deadlines are eventful,
 // not structural (see design §2's "Deliberate lifecycle asymmetry" note).
 import { z } from 'zod'
-import { ipcErr, ipcOk, type IpcResult } from './materias'
+import { ipcErr, ipcOk, type IpcResult, parsePayload } from './materias'
 
-export { ipcErr, ipcOk, type IpcResult }
+export { ipcErr, ipcOk, type IpcResult, parsePayload }
 
 // `fecha límite` is a LOCAL NAIVE datetime, `YYYY-MM-DDTHH:mm`, no timezone
 // offset (design §3a "the DST rule") — matches the HTML5 `datetime-local`

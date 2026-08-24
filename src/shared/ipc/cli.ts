@@ -8,9 +8,9 @@
 // you keep a process alive between questions". What they SHARE is exactly
 // what lives here: an identity, an executable override, and a model id.
 import { z } from 'zod'
-import { ipcErr, ipcOk, type IpcResult } from './materias'
+import { ipcErr, ipcOk, type IpcResult, parsePayload } from './materias'
 
-export { ipcErr, ipcOk, type IpcResult }
+export { ipcErr, ipcOk, type IpcResult, parsePayload }
 
 // --- provider identity ------------------------------------------------------
 

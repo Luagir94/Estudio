@@ -4,7 +4,7 @@ import { format } from 'date-fns'
 import path from 'node:path'
 import { writeFile } from 'node:fs/promises'
 import { type ExportJsonResult, openExternalInputSchema } from '../../shared/ipc/app'
-import { ipcErr, ipcOk, type IpcResult } from '../../shared/ipc/materias'
+import { ipcErr, ipcOk, type IpcResult, parsePayload } from '../../shared/ipc/materias'
 import mainI18n from '../i18n'
 import type { DeadlineRepository } from '../entregas/adapters/sqliteDeadlineRepository'
 import type { SubjectRepository } from '../materias/adapters/sqliteSubjectRepository'
@@ -70,9 +70,9 @@ function buildExportSnapshot(subjectRepository: SubjectRepository, deadlineRepos
  */
 export function registerAppHandlers({ subjectRepository, deadlineRepository }: RegisterAppHandlersDeps): void {
   ipcMain.handle('app:openExternal', (_event, payload): IpcResult<undefined> => {
-    const parsed = openExternalInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(openExternalInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     if (!isAllowedExternalUrl(parsed.data.url)) {
@@ -102,6 +102,7 @@ export function registerAppHandlers({ subjectRepository, deadlineRepository }: R
 
       return ipcOk({ canceled: false, filePath })
     } catch (error) {
+      log.error('app:exportJson failed', error)
       return ipcErr('EXPORT_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })

@@ -6,6 +6,7 @@ import {
   ipcErr,
   ipcOk,
   type IpcResult,
+  parsePayload,
   subjectIdInputSchema,
   type SubjectDetailResult,
   type SubjectWithSlots,
@@ -31,14 +32,15 @@ export function registerMateriasHandlers(
   { attachmentStorage }: RegisterMateriasHandlersDeps
 ): void {
   ipcMain.handle('materias:create', (_event, payload): IpcResult<SubjectWithSlots> => {
-    const parsed = createSubjectInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(createSubjectInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
       return ipcOk(repository.create(parsed.data))
     } catch (error) {
+      log.error('materias:create failed', error)
       return ipcErr('CREATE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
@@ -47,14 +49,15 @@ export function registerMateriasHandlers(
     try {
       return ipcOk(repository.list())
     } catch (error) {
+      log.error('materias:list failed', error)
       return ipcErr('LIST_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
 
   ipcMain.handle('materias:detail', (_event, payload): IpcResult<SubjectDetailResult> => {
-    const parsed = subjectIdInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(subjectIdInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -64,19 +67,21 @@ export function registerMateriasHandlers(
       }
       return ipcOk(detail)
     } catch (error) {
+      log.error('materias:detail failed', error)
       return ipcErr('DETAIL_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
 
   ipcMain.handle('materias:updateSchedule', (_event, payload): IpcResult<SubjectWithSlots> => {
-    const parsed = updateSubjectScheduleInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(updateSubjectScheduleInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
       return ipcOk(repository.updateSchedule(parsed.data))
     } catch (error) {
+      log.error('materias:updateSchedule failed', error)
       return ipcErr('UPDATE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
@@ -87,9 +92,9 @@ export function registerMateriasHandlers(
   // FILES on disk do not, so this handler also removes the subject's whole
   // attachment directory (spec "Subject Deletion Cascades to Attachments").
   ipcMain.handle('materias:delete', async (_event, payload): Promise<IpcResult<DeleteSubjectResult>> => {
-    const parsed = subjectIdInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(subjectIdInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -113,6 +118,7 @@ export function registerMateriasHandlers(
 
       return ipcOk(result)
     } catch (error) {
+      log.error('materias:delete failed', error)
       return ipcErr('DELETE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
@@ -126,9 +132,9 @@ export function registerMateriasHandlers(
   // OUTCOME_FAILED — the repository asks shared/domain/grading.ts, the same
   // rule the form applies.
   ipcMain.handle('materias:setOutcome', (_event, payload): IpcResult<SubjectWithStatus> => {
-    const parsed = setSubjectOutcomeInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(setSubjectOutcomeInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -138,6 +144,7 @@ export function registerMateriasHandlers(
       }
       return ipcOk(result)
     } catch (error) {
+      log.error('materias:setOutcome failed', error)
       return ipcErr('OUTCOME_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })

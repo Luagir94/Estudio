@@ -13,7 +13,10 @@ const { ipcMainMock } = vi.hoisted(() => {
   }
 })
 
+const logErrorMock = vi.hoisted(() => vi.fn())
+
 vi.mock('electron', () => ({ ipcMain: ipcMainMock }))
+vi.mock('electron-log', () => ({ default: { error: logErrorMock } }))
 
 import { registerIndexadoHandlers } from './registerIndexadoHandlers'
 
@@ -29,6 +32,7 @@ describe('registerIndexadoHandlers', () => {
   beforeEach(() => {
     ipcMainMock.handlers.clear()
     ipcMainMock.handle.mockClear()
+    logErrorMock.mockClear()
     service = {
       enqueue: vi.fn(),
       syncAll: vi.fn().mockReturnValue(3),
@@ -53,5 +57,16 @@ describe('registerIndexadoHandlers', () => {
     const result = invoke('indexado:sync')
 
     expect(result).toMatchObject({ ok: false, error: { code: 'SYNC_FAILED' } })
+  })
+
+  it('logs the unexpected service failure with its channel name', () => {
+    service.syncAll = vi.fn().mockImplementation(() => {
+      throw new Error('database is locked')
+    })
+    registerIndexadoHandlers({ service })
+
+    invoke('indexado:sync')
+
+    expect(logErrorMock).toHaveBeenCalledWith('indexado:sync failed', expect.any(Error))
   })
 })

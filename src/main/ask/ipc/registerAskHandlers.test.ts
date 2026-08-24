@@ -20,7 +20,10 @@ const { ipcMainMock } = vi.hoisted(() => {
   }
 })
 
+const logErrorMock = vi.hoisted(() => vi.fn())
+
 vi.mock('electron', () => ({ ipcMain: ipcMainMock }))
+vi.mock('electron-log', () => ({ default: { error: logErrorMock } }))
 
 import { registerAskHandlers } from './registerAskHandlers'
 
@@ -57,6 +60,7 @@ describe('registerAskHandlers', () => {
   beforeEach(() => {
     ipcMainMock.handlers.clear()
     ipcMainMock.handle.mockClear()
+    logErrorMock.mockClear()
 
     askService = { ask: vi.fn(), cancel: vi.fn() }
     askHistoryRepository = createFakeHistoryRepository()
@@ -227,6 +231,18 @@ describe('registerAskHandlers', () => {
       })
 
       expect(result).toMatchObject({ ok: false, error: { code: 'EXECUTION_FAILED', message: 'boom' } })
+    })
+
+    it('logs the unexpected service rejection with its channel name', async () => {
+      vi.mocked(askService.ask).mockRejectedValue(new Error('boom'))
+
+      await invoke('ask:question', {
+        question: '¿Y esto?',
+        provider: 'claude',
+        model: 'claude-sonnet-5'
+      })
+
+      expect(logErrorMock).toHaveBeenCalledWith('ask:question failed', expect.any(Error))
     })
   })
 

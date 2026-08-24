@@ -1,10 +1,12 @@
 import { ipcMain } from 'electron'
+import log from 'electron-log'
 import {
   askQuestionInputSchema,
   deleteConversationInputSchema,
   getConversationInputSchema,
   ipcErr,
   ipcOk,
+  parsePayload,
   type AskTurnResponse,
   type ConversationSummary,
   type DeleteConversationResult,
@@ -36,9 +38,9 @@ interface RegisterAskHandlersDeps {
  */
 export function registerAskHandlers({ askService, askHistoryRepository }: RegisterAskHandlersDeps): void {
   ipcMain.handle('ask:question', async (_event, payload): Promise<IpcResult<AskTurnResponse>> => {
-    const parsed = askQuestionInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(askQuestionInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -67,6 +69,7 @@ export function registerAskHandlers({ askService, askHistoryRepository }: Regist
       // The service maps its own failures; anything reaching here is
       // unexpected, and must still cross as a typed outcome rather than a
       // rejected promise the renderer would see as an unhandled error.
+      log.error('ask:question failed', error)
       return ipcErr('EXECUTION_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
@@ -84,14 +87,15 @@ export function registerAskHandlers({ askService, askHistoryRepository }: Regist
       // DESC`, design D4) — forwarded untouched, never re-sorted here.
       return ipcOk(askHistoryRepository.listConversations())
     } catch (error) {
+      log.error('ask:listConversations failed', error)
       return ipcErr('EXECUTION_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
 
   ipcMain.handle('ask:getConversation', (_event, payload): IpcResult<GetConversationResult> => {
-    const parsed = getConversationInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(getConversationInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -117,14 +121,15 @@ export function registerAskHandlers({ askService, askHistoryRepository }: Regist
         window: { startMessageId, excludedCount }
       })
     } catch (error) {
+      log.error('ask:getConversation failed', error)
       return ipcErr('EXECUTION_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
 
   ipcMain.handle('ask:deleteConversation', (_event, payload): IpcResult<DeleteConversationResult> => {
-    const parsed = deleteConversationInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(deleteConversationInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -137,6 +142,7 @@ export function registerAskHandlers({ askService, askHistoryRepository }: Regist
 
       return ipcOk({ id: parsed.data.id })
     } catch (error) {
+      log.error('ask:deleteConversation failed', error)
       return ipcErr('EXECUTION_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })

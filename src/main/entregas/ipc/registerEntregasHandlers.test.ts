@@ -14,7 +14,10 @@ const { ipcMainMock } = vi.hoisted(() => {
   }
 })
 
+const logErrorMock = vi.hoisted(() => vi.fn())
+
 vi.mock('electron', () => ({ ipcMain: ipcMainMock }))
+vi.mock('electron-log', () => ({ default: { error: logErrorMock } }))
 
 import { registerEntregasHandlers } from './registerEntregasHandlers'
 
@@ -41,6 +44,7 @@ describe('registerEntregasHandlers', () => {
   beforeEach(() => {
     ipcMainMock.handlers.clear()
     ipcMainMock.handle.mockClear()
+    logErrorMock.mockClear()
     repository = {
       create: vi.fn().mockReturnValue(sampleDeadline),
       list: vi.fn().mockReturnValue([sampleDeadline]),
@@ -167,5 +171,16 @@ describe('registerEntregasHandlers', () => {
     const result = invoke('entregas:list')
 
     expect(result).toMatchObject({ ok: false, error: { code: 'LIST_FAILED' } })
+  })
+
+  it('logs the unexpected repository failure with its channel name', () => {
+    repository.list = vi.fn().mockImplementation(() => {
+      throw new Error('database is locked')
+    })
+    registerEntregasHandlers(repository)
+
+    invoke('entregas:list')
+
+    expect(logErrorMock).toHaveBeenCalledWith('entregas:list failed', expect.any(Error))
   })
 })

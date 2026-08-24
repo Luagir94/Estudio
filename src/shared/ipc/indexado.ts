@@ -4,9 +4,9 @@
 // subject (design "Sync scope") — same no-input-schema precedent as
 // `app:exportJson` (`registerAppHandlers.ts`).
 import { z } from 'zod'
-import { ipcErr, ipcOk, type IpcResult } from './materias'
+import { ipcErr, ipcOk, type IpcResult, parsePayload } from './materias'
 
-export { ipcErr, ipcOk, type IpcResult }
+export { ipcErr, ipcOk, type IpcResult, parsePayload }
 export { INDEXADO_STATUS_CHANGED_CHANNEL } from './channels'
 
 export const syncResultSchema = z.object({ enqueued: z.number().int() })

@@ -15,7 +15,10 @@ const { ipcMainMock } = vi.hoisted(() => {
   }
 })
 
+const logErrorMock = vi.hoisted(() => vi.fn())
+
 vi.mock('electron', () => ({ ipcMain: ipcMainMock }))
+vi.mock('electron-log', () => ({ default: { error: logErrorMock } }))
 
 import { registerHoyHandlers } from './registerHoyHandlers'
 
@@ -59,6 +62,7 @@ describe('registerHoyHandlers', () => {
   beforeEach(() => {
     ipcMainMock.handlers.clear()
     ipcMainMock.handle.mockClear()
+    logErrorMock.mockClear()
     subjectRepository = {
       create: vi.fn(),
       list: vi.fn().mockReturnValue([sampleSubject]),
@@ -99,5 +103,16 @@ describe('registerHoyHandlers', () => {
     const result = invoke('hoy:dashboard')
 
     expect(result).toMatchObject({ ok: false, error: { code: 'DASHBOARD_FAILED' } })
+  })
+
+  it('logs the unexpected repository failure with its channel name', () => {
+    subjectRepository.list = vi.fn().mockImplementation(() => {
+      throw new Error('database is locked')
+    })
+    registerHoyHandlers(subjectRepository, deadlineRepository)
+
+    invoke('hoy:dashboard')
+
+    expect(logErrorMock).toHaveBeenCalledWith('hoy:dashboard failed', expect.any(Error))
   })
 })

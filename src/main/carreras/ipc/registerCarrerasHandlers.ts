@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import log from 'electron-log'
 import {
   createPeriodInputSchema,
   createProgramInputSchema,
@@ -7,6 +8,7 @@ import {
   ipcErr,
   ipcOk,
   type IpcResult,
+  parsePayload,
   periodIdInputSchema,
   type PeriodRecord,
   programIdInputSchema,
@@ -27,14 +29,15 @@ import type { ProgramRepository } from '../adapters/sqliteProgramRepository'
  */
 export function registerCarrerasHandlers(repository: ProgramRepository): void {
   ipcMain.handle('carreras:create', (_event, payload): IpcResult<ProgramRecord> => {
-    const parsed = createProgramInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(createProgramInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
       return ipcOk(repository.create(parsed.data))
     } catch (error) {
+      log.error('carreras:create failed', error)
       return ipcErr('CREATE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
@@ -43,14 +46,15 @@ export function registerCarrerasHandlers(repository: ProgramRepository): void {
     try {
       return ipcOk(repository.list())
     } catch (error) {
+      log.error('carreras:list failed', error)
       return ipcErr('LIST_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
 
   ipcMain.handle('carreras:detail', (_event, payload): IpcResult<ProgramWithPeriods> => {
-    const parsed = programIdInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(programIdInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -60,6 +64,7 @@ export function registerCarrerasHandlers(repository: ProgramRepository): void {
       }
       return ipcOk(result)
     } catch (error) {
+      log.error('carreras:detail failed', error)
       return ipcErr('DETAIL_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
@@ -69,9 +74,9 @@ export function registerCarrerasHandlers(repository: ProgramRepository): void {
   // carrera still has that room is decided by the renderer's domain rule, not
   // by this handler (see updateProgramInputSchema).
   ipcMain.handle('carreras:update', (_event, payload): IpcResult<ProgramRecord> => {
-    const parsed = updateProgramInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(updateProgramInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -81,6 +86,7 @@ export function registerCarrerasHandlers(repository: ProgramRepository): void {
       }
       return ipcOk(result)
     } catch (error) {
+      log.error('carreras:update failed', error)
       return ipcErr('UPDATE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
@@ -88,14 +94,15 @@ export function registerCarrerasHandlers(repository: ProgramRepository): void {
   // The schema accepts a null `endsOn` (an open-ended period) and only orders
   // the dates when there is an end to order.
   ipcMain.handle('carreras:createPeriod', (_event, payload): IpcResult<PeriodRecord> => {
-    const parsed = createPeriodInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(createPeriodInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
       return ipcOk(repository.createPeriod(parsed.data))
     } catch (error) {
+      log.error('carreras:createPeriod failed', error)
       return ipcErr('CREATE_PERIOD_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
@@ -103,9 +110,9 @@ export function registerCarrerasHandlers(repository: ProgramRepository): void {
   // Same schema as createPeriod plus the id, minus the programId — a period
   // is corrected in place, it never moves to another carrera.
   ipcMain.handle('carreras:updatePeriod', (_event, payload): IpcResult<PeriodRecord> => {
-    const parsed = updatePeriodInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(updatePeriodInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -115,6 +122,7 @@ export function registerCarrerasHandlers(repository: ProgramRepository): void {
       }
       return ipcOk(result)
     } catch (error) {
+      log.error('carreras:updatePeriod failed', error)
       return ipcErr('UPDATE_PERIOD_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
@@ -122,9 +130,9 @@ export function registerCarrerasHandlers(repository: ProgramRepository): void {
   // Deletes one period. Its subjects are NOT destroyed — they fall back to
   // "sin período" and the result reports how many, for the dialog.
   ipcMain.handle('carreras:deletePeriod', (_event, payload): IpcResult<DeletePeriodResult> => {
-    const parsed = periodIdInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(periodIdInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -134,6 +142,7 @@ export function registerCarrerasHandlers(repository: ProgramRepository): void {
       }
       return ipcOk(result)
     } catch (error) {
+      log.error('carreras:deletePeriod failed', error)
       return ipcErr('DELETE_PERIOD_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
@@ -141,9 +150,9 @@ export function registerCarrerasHandlers(repository: ProgramRepository): void {
   // Cascades to the program's periods; its subjects survive with a NULL
   // period (the result reports how many, for the confirmation dialog).
   ipcMain.handle('carreras:delete', (_event, payload): IpcResult<DeleteProgramResult> => {
-    const parsed = programIdInputSchema.safeParse(payload)
-    if (!parsed.success) {
-      return ipcErr('VALIDATION_ERROR', parsed.error.issues.map((issue) => issue.message).join('; '))
+    const parsed = parsePayload(programIdInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
     }
 
     try {
@@ -153,6 +162,7 @@ export function registerCarrerasHandlers(repository: ProgramRepository): void {
       }
       return ipcOk(result)
     } catch (error) {
+      log.error('carreras:delete failed', error)
       return ipcErr('DELETE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })

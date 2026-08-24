@@ -15,7 +15,10 @@ const { ipcMainMock } = vi.hoisted(() => {
   }
 })
 
+const logErrorMock = vi.hoisted(() => vi.fn())
+
 vi.mock('electron', () => ({ ipcMain: ipcMainMock }))
+vi.mock('electron-log', () => ({ default: { error: logErrorMock } }))
 
 import { registerCliHandlers } from './registerCliHandlers'
 
@@ -103,6 +106,16 @@ describe('registerCliHandlers', () => {
 
       expect(result.ok).toBe(false)
       expect(result.error.code).toBe('PROBE_FAILED')
+    })
+
+    it('logs the unexpected probe failure with its channel name', async () => {
+      probeService.probe = vi.fn(async () => {
+        throw new Error('probe exploded')
+      })
+
+      await invoke('cli:probe', { provider: 'claude' })
+
+      expect(logErrorMock).toHaveBeenCalledWith('cli:probe failed', expect.any(Error))
     })
   })
 
