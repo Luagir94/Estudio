@@ -88,6 +88,43 @@ describe('SubjectDetail (read-only)', () => {
     expect(screen.getByText('1 día de atraso')).toBeInTheDocument()
   })
 
+  it('grades deadline status pills by urgency and never paints them violet (violet is interaction-only)', () => {
+    const graded: SubjectDetailResult = {
+      ...baseSubject,
+      deadlines: [
+        { id: 1, subjectId: 1, title: 'TP0', type: 'tp', dueAt: '2026-04-01T23:59', done: false }, // overdue
+        { id: 2, subjectId: 1, title: 'TP1', type: 'tp', dueAt: '2026-04-05T23:59', done: false }, // imminent
+        { id: 3, subjectId: 1, title: 'TP2', type: 'tp', dueAt: '2026-04-09T23:59', done: false }, // this week
+        { id: 4, subjectId: 1, title: 'TP3', type: 'tp', dueAt: '2026-04-20T23:59', done: false }, // later
+        { id: 5, subjectId: 1, title: 'TP4', type: 'tp', dueAt: '2026-04-02T23:59', done: true } // completed
+      ]
+    }
+
+    render(
+      <SubjectDetail
+        subject={graded}
+        nextClass={null}
+        progreso={{ done: 1, total: 5 }}
+        weeklyMinutes={120}
+        now={new Date('2026-04-04T09:00:00')}
+        onOpenCampusUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('3 días de atraso')).toHaveClass('bg-(--color-urgent-soft)', 'text-(--color-urgent)')
+    expect(screen.getByText('Mañana')).toHaveClass('bg-(--color-warn-soft)', 'text-(--color-warn)')
+    expect(screen.getByText('En 5 días')).toHaveClass('bg-(--color-surface-sunken)', 'text-(--color-ink-secondary)')
+    expect(screen.getByText('En 2 semanas')).toHaveClass('bg-(--color-surface-sunken)', 'text-(--color-ink-muted)')
+    expect(screen.getByText('Completada')).toHaveClass('bg-muted', 'text-muted-foreground')
+    for (const row of screen.getAllByTestId('subject-detail-deadline')) {
+      expect(row.innerHTML).not.toContain('violet')
+    }
+  })
+
   it('renders "Agregar entrega" in the ENTREGAS section header and calls onAddEntrega (amendment 8, design node l4Wr1F: heading left, button right)', () => {
     const onAddEntrega = vi.fn()
     render(

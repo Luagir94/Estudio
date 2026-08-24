@@ -69,6 +69,30 @@ export function daysRemaining(dueAt: string, now: Date): number {
   return differenceInCalendarDays(parseISO(dueAt), now)
 }
 
+export type DeadlineUrgency = 'overdue' | 'imminent' | 'thisWeek' | 'later'
+
+/**
+ * 4-level urgency for the status pill (Pencil design: violet is reserved
+ * for interaction, so pills grade by urgency instead of the old
+ * overdue-or-violet binary). Completion is deliberately NOT this function's
+ * business — callers already know `done` and route it to the muted
+ * "Completada" treatment before ever asking about urgency, exactly like
+ * `classifyDeadline` checks `done` first.
+ */
+export function classifyUrgency(dueAt: string, now: Date): DeadlineUrgency {
+  const days = daysRemaining(dueAt, now)
+  if (days < 0) {
+    return 'overdue'
+  }
+  if (days <= 2) {
+    return 'imminent'
+  }
+  if (days <= 7) {
+    return 'thisWeek'
+  }
+  return 'later'
+}
+
 export type DeadlineBucket = 'atrasadas' | 'proximos7' | 'masAdelante' | 'completadas'
 
 /**

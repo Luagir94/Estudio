@@ -1,5 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { classifyDeadline, createDeadline, daysRemaining, formatDeadlineStatus, groupDeadlines } from './deadline'
+import {
+  classifyDeadline,
+  classifyUrgency,
+  createDeadline,
+  daysRemaining,
+  formatDeadlineStatus,
+  groupDeadlines
+} from './deadline'
 
 // Deadline classification exercises real wall-clock local-time arithmetic
 // (design §3a "the DST rule" / spec "Days-Remaining Calendar-Day
@@ -82,6 +89,47 @@ describe('classifyDeadline', () => {
 
   it('a pending deadline due more than 7 days out is MAS_ADELANTE', () => {
     expect(classifyDeadline('2027-08-26T12:00', false, now)).toBe('masAdelante')
+  })
+})
+
+describe('classifyUrgency (4-level urgency for the status pill — Pencil design)', () => {
+  // Wednesday 2027-08-18, midday.
+  const now = new Date(2027, 7, 18, 12, 0)
+
+  it('a due date 1 calendar day in the past is OVERDUE', () => {
+    expect(classifyUrgency('2027-08-17T23:59', now)).toBe('overdue')
+  })
+
+  it('due today (0 days) is IMMINENT, never overdue', () => {
+    expect(classifyUrgency('2027-08-18T23:59', now)).toBe('imminent')
+  })
+
+  it('due tomorrow (1 day) is IMMINENT', () => {
+    expect(classifyUrgency('2027-08-19T09:00', now)).toBe('imminent')
+  })
+
+  it('due in 2 days is still IMMINENT (upper boundary)', () => {
+    expect(classifyUrgency('2027-08-20T12:00', now)).toBe('imminent')
+  })
+
+  it('due in 3 days is THIS_WEEK, not imminent', () => {
+    expect(classifyUrgency('2027-08-21T12:00', now)).toBe('thisWeek')
+  })
+
+  it('due in exactly 7 days is still THIS_WEEK (upper boundary)', () => {
+    expect(classifyUrgency('2027-08-25T12:00', now)).toBe('thisWeek')
+  })
+
+  it('due in 8 days is LATER', () => {
+    expect(classifyUrgency('2027-08-26T12:00', now)).toBe('later')
+  })
+
+  it('counts calendar days across a month boundary (Aug 30 → Sep 1 is 2 days: imminent)', () => {
+    expect(classifyUrgency('2027-09-01T10:00', new Date(2027, 7, 30, 12, 0))).toBe('imminent')
+  })
+
+  it('counts calendar days across a year boundary (Dec 30 → Jan 5 is 6 days: thisWeek)', () => {
+    expect(classifyUrgency('2028-01-05T10:00', new Date(2027, 11, 30, 12, 0))).toBe('thisWeek')
   })
 })
 

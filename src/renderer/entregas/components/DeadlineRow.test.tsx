@@ -42,7 +42,40 @@ describe('DeadlineRow (design node AHToB)', () => {
     )
 
     expect(screen.getByText('TP 2 — Scheduler')).toHaveClass('line-through')
-    expect(screen.getByText('Completada')).toBeInTheDocument()
+    expect(screen.getByText('Completada')).toHaveClass('bg-muted', 'text-muted-foreground')
+  })
+
+  describe('status pill urgency styling (violet is reserved for interaction, never for status)', () => {
+    function renderPill(dueAt: string): HTMLElement {
+      render(
+        <DeadlineRow
+          deadline={{ ...pendingDeadline, dueAt }}
+          now={now}
+          onEdit={vi.fn()}
+          onToggleDone={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      )
+      const pill = screen.getByText(/atraso|Hoy|Mañana|En \d/)
+      expect(pill.className).not.toContain('violet')
+      return pill
+    }
+
+    it('paints an overdue pill urgent on urgent-soft', () => {
+      expect(renderPill('2027-08-16T10:00')).toHaveClass('bg-(--color-urgent-soft)', 'text-(--color-urgent)')
+    })
+
+    it('paints a due-tomorrow (imminent) pill warn on warn-soft', () => {
+      expect(renderPill('2027-08-19T09:00')).toHaveClass('bg-(--color-warn-soft)', 'text-(--color-warn)')
+    })
+
+    it('paints a due-in-5-days (this-week) pill ink-secondary on surface-sunken', () => {
+      expect(renderPill('2027-08-23T12:00')).toHaveClass('bg-(--color-surface-sunken)', 'text-(--color-ink-secondary)')
+    })
+
+    it('paints a due-in-8-days (later) pill ink-muted on surface-sunken', () => {
+      expect(renderPill('2027-08-26T12:00')).toHaveClass('bg-(--color-surface-sunken)', 'text-(--color-ink-muted)')
+    })
   })
 
   it('clicking the row body calls onEdit with the deadline', () => {

@@ -19,11 +19,14 @@ import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
 // Deadline status wording is owned by the entregas domain. This screen used to
 // hand-roll its own copy, which drifted ("Vencida" here vs "N días de atraso"
 // on Entregas) — one formatter, one source of truth.
-import { formatDeadlineStatus } from '../../entregas/domain/deadline'
+import { classifyUrgency, formatDeadlineStatus } from '../../entregas/domain/deadline'
+import type { DeadlineUrgency } from '../../entregas/domain/deadline'
 import type { SubjectDetailResult } from '../../../shared/ipc/materias'
 import { Button } from '../../shared/components/ui/button'
 import { cn } from '../../shared/lib/cn'
 import { interactiveGhost, interactiveLink } from '../../shared/lib/interactive'
+import { subjectColorForScheme } from '../../shared/lib/subjectColorScheme'
+import { usePrefersLightScheme } from '../../shared/lib/usePrefersLightScheme'
 
 interface SubjectDetailProps {
   subject: SubjectDetailResult
@@ -54,6 +57,23 @@ interface SubjectDetailProps {
    * (`FinalesContainer`) without this component importing them directly.
    */
   adjuntosSlot?: React.ReactNode
+}
+
+// Violet is reserved for interaction (Pencil design) — a status pill must
+// never borrow the accent, so pending urgency grades urgent → warn → neutral.
+// Same mapping as the Entregas and Hoy DeadlineRows.
+const urgencyPillClassNames: Record<DeadlineUrgency, string> = {
+  overdue: 'bg-(--color-urgent-soft) text-(--color-urgent)',
+  imminent: 'bg-(--color-warn-soft) text-(--color-warn)',
+  thisWeek: 'bg-(--color-surface-sunken) text-(--color-ink-secondary)',
+  later: 'bg-(--color-surface-sunken) text-(--color-ink-muted)'
+}
+
+function statusPillClassName(dueAt: string, done: boolean, now: Date): string {
+  if (done) {
+    return 'bg-muted text-muted-foreground'
+  }
+  return urgencyPillClassNames[classifyUrgency(dueAt, now)]
 }
 
 function formatTime(minutes: number): string {
@@ -92,6 +112,9 @@ export function SubjectDetail({
   adjuntosSlot
 }: SubjectDetailProps): React.JSX.Element {
   const { t } = useTranslation('materias')
+  // Stored subject colours are the dark palette; inline styles cannot hear
+  // the light media query, so the scheme mapping happens here.
+  const scheme = usePrefersLightScheme() ? 'light' : 'dark'
   // Monday-first, same order as `toMondayFirstIndex` produces.
   const weekdayLabels = t('common:weekdaysLong', { returnObjects: true }) as string[]
   const monthLabels = t('common:monthsCaps', { returnObjects: true }) as string[]
@@ -121,7 +144,7 @@ export function SubjectDetail({
         <div className="flex items-center gap-4">
           <span
             aria-hidden="true"
-            style={{ backgroundColor: subject.color }}
+            style={{ backgroundColor: subjectColorForScheme(subject.color, scheme) }}
             className="h-[46px] w-1 shrink-0 rounded-sm"
           />
           <div className="flex flex-col gap-1">
@@ -204,8 +227,10 @@ export function SubjectDetail({
                   className="flex items-center gap-4 rounded-lg border border-border bg-card px-4 py-3"
                 >
                   <div className="flex w-11 shrink-0 flex-col items-center gap-1 rounded-lg bg-muted py-2">
+                    {/* Day numeral in the display face (type consolidation
+                        pass) — the chip's month label stays in the UI face. */}
                     <span
-                      className={`text-body-lg font-semibold ${deadline.done ? 'text-muted-foreground' : 'text-foreground'}`}
+                      className={`font-display text-body-lg font-semibold ${deadline.done ? 'text-muted-foreground' : 'text-foreground'}`}
                     >
                       {dueDate.getDate().toString().padStart(2, '0')}
                     </span>
@@ -222,16 +247,18 @@ export function SubjectDetail({
                     <span className="flex items-center gap-2 text-body-sm text-secondary-foreground">
                       <span
                         aria-hidden="true"
-                        style={{ backgroundColor: subject.color }}
+                        style={{ backgroundColor: subjectColorForScheme(subject.color, scheme) }}
                         className="h-[7px] w-[7px] rounded-full"
                       />
                       {subject.name}
                     </span>
                   </div>
                   <span
-                    className={`rounded-full px-2 py-1 text-caption font-semibold ${
-                      deadline.done ? 'bg-muted text-muted-foreground' : 'bg-(--color-violet-soft) text-primary-ink'
-                    }`}
+                    className={`rounded-full px-2 py-1 text-caption font-semibold ${statusPillClassName(
+                      deadline.dueAt,
+                      deadline.done,
+                      now
+                    )}`}
                   >
                     {formatDeadlineStatus(deadline.dueAt, deadline.done, now)}
                   </span>
@@ -279,7 +306,8 @@ export function SubjectDetail({
             <span className="text-overline font-semibold text-primary-ink">{t('subjectDetail.nextClassHeading')}</span>
             {nextClass ? (
               <>
-                <span className="text-heading font-bold text-foreground">
+                {/* Next-class time in the display face (type consolidation pass). */}
+                <span className="font-display text-heading font-bold text-foreground">
                   {formatNextClass(nextClass, weekdayLabels)}
                 </span>
                 <span className="text-body-sm text-secondary-foreground">

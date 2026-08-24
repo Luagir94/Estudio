@@ -13,10 +13,13 @@
 // through the modal — disclosed as a deviation in the apply-progress report.
 import { Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { formatDeadlineStatus } from '../domain/deadline'
+import { classifyUrgency, formatDeadlineStatus } from '../domain/deadline'
+import type { DeadlineUrgency } from '../domain/deadline'
 import type { DeadlineWithSubject } from '../../../shared/ipc/entregas'
 import { cn } from '../../shared/lib/cn'
 import { interactive, interactiveGhostDestructive, interactiveSurface } from '../../shared/lib/interactive'
+import { subjectColorForScheme } from '../../shared/lib/subjectColorScheme'
+import { usePrefersLightScheme } from '../../shared/lib/usePrefersLightScheme'
 
 interface DeadlineRowProps {
   deadline: DeadlineWithSubject
@@ -27,14 +30,21 @@ interface DeadlineRowProps {
   onDelete: (deadline: DeadlineWithSubject) => void
 }
 
-function statusPillClassName(deadline: DeadlineWithSubject, daysOverdue: boolean): string {
-  if (deadline.done) {
+// Violet is reserved for interaction (Pencil design) — a status pill must
+// never borrow the accent, so pending urgency grades urgent → warn → neutral.
+// Same mapping as the Hoy row and SubjectDetail's deadline chips.
+const urgencyPillClassNames: Record<DeadlineUrgency, string> = {
+  overdue: 'bg-(--color-urgent-soft) text-(--color-urgent)',
+  imminent: 'bg-(--color-warn-soft) text-(--color-warn)',
+  thisWeek: 'bg-(--color-surface-sunken) text-(--color-ink-secondary)',
+  later: 'bg-(--color-surface-sunken) text-(--color-ink-muted)'
+}
+
+function statusPillClassName(dueAt: string, done: boolean, now: Date): string {
+  if (done) {
     return 'bg-muted text-muted-foreground'
   }
-  if (daysOverdue) {
-    return 'bg-(--color-urgent-soft) text-(--color-urgent)'
-  }
-  return 'bg-(--color-violet-soft) text-primary-ink'
+  return urgencyPillClassNames[classifyUrgency(dueAt, now)]
 }
 
 export function DeadlineRow({
@@ -45,11 +55,13 @@ export function DeadlineRow({
   onDelete
 }: DeadlineRowProps): React.JSX.Element {
   const { t } = useTranslation('entregas')
+  // Stored subject colours are the dark palette; inline styles cannot hear
+  // the light media query, so the scheme mapping happens here.
+  const scheme = usePrefersLightScheme() ? 'light' : 'dark'
   // Same consolidated month table the read-only Hoy dashboard row reads (`hoy/components/DeadlineRow.tsx`) — no duplication.
   const monthLabels = t('common:monthsCaps', { returnObjects: true }) as string[]
   const dueDate = new Date(deadline.dueAt)
   const status = formatDeadlineStatus(deadline.dueAt, deadline.done, now)
-  const isOverdue = !deadline.done && status.endsWith('de atraso')
 
   return (
     <div className="flex items-center gap-4 rounded-lg border border-border bg-card px-4 py-3">
@@ -71,8 +83,13 @@ export function DeadlineRow({
         className={cn('-mx-2 -my-1 flex flex-1 items-center gap-4 rounded-lg px-2 py-1 text-left', interactiveSurface)}
       >
         <span className="flex w-11 shrink-0 flex-col items-center gap-1 rounded-lg bg-muted py-2">
+          {/* Day numeral in the display face (type consolidation pass) — the
+              chip's month label stays in the UI face. */}
           <span
-            className={cn('text-body-lg font-semibold', deadline.done ? 'text-muted-foreground' : 'text-foreground')}
+            className={cn(
+              'font-display text-body-lg font-semibold',
+              deadline.done ? 'text-muted-foreground' : 'text-foreground'
+            )}
           >
             {dueDate.getDate().toString().padStart(2, '0')}
           </span>
@@ -91,7 +108,7 @@ export function DeadlineRow({
           <span className="flex items-center gap-2 text-body-sm text-secondary-foreground">
             <span
               aria-hidden="true"
-              style={{ backgroundColor: deadline.subjectColor }}
+              style={{ backgroundColor: subjectColorForScheme(deadline.subjectColor, scheme) }}
               className="h-[7px] w-[7px] shrink-0 rounded-full"
             />
             {deadline.subjectName}
@@ -102,7 +119,7 @@ export function DeadlineRow({
       <span
         className={cn(
           'shrink-0 rounded-full px-2 py-1 text-caption font-semibold',
-          statusPillClassName(deadline, isOverdue)
+          statusPillClassName(deadline.dueAt, deadline.done, now)
         )}
       >
         {status}
