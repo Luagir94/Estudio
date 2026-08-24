@@ -115,6 +115,10 @@ export function parseMarkdown(source: string): MarkdownBlock[] {
   let i = 0
   while (i < lines.length) {
     const line = lines[i]
+    if (line === undefined) {
+      i += 1
+      continue
+    }
     const trimmed = line.trim()
 
     // Fenced code first — everything inside is VERBATIM, so no other rule
@@ -125,8 +129,8 @@ export function parseMarkdown(source: string): MarkdownBlock[] {
       const language = trimmed.slice(3).trim() || null
       const contentLines: string[] = []
       i += 1
-      while (i < lines.length && lines[i].trim() !== '```') {
-        contentLines.push(lines[i])
+      while (i < lines.length && lines[i]!.trim() !== '```') {
+        contentLines.push(lines[i]!)
         i += 1
       }
       // Skip the closing fence when there is one.
@@ -140,8 +144,8 @@ export function parseMarkdown(source: string): MarkdownBlock[] {
       flushAll()
       blocks.push({
         type: 'heading',
-        level: headingMatch[1].length as 1 | 2 | 3,
-        spans: parseInline(headingMatch[2].trim())
+        level: headingMatch[1]!.length as 1 | 2 | 3,
+        spans: parseInline(headingMatch[2]!.trim())
       })
       i += 1
       continue
@@ -157,7 +161,7 @@ export function parseMarkdown(source: string): MarkdownBlock[] {
     if (listMatch) {
       flushParagraph()
       flushQuote()
-      listItems.push(parseInline(listMatch[1].trim()))
+      listItems.push(parseInline(listMatch[1]!.trim()))
       i += 1
       continue
     }
@@ -166,7 +170,7 @@ export function parseMarkdown(source: string): MarkdownBlock[] {
     if (quoteMatch) {
       flushParagraph()
       flushList()
-      quoteLines.push(quoteMatch[1].trim())
+      quoteLines.push(quoteMatch[1]!.trim())
       i += 1
       continue
     }

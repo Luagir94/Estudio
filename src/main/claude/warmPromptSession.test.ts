@@ -68,7 +68,7 @@ function createFakeSession(): FakeSession {
 
 /** The text of the Nth stream-json message the session wrote to the CLI's stdin. */
 const sentText = (session: FakeSession, index: number): string =>
-  JSON.parse(session.writes[index]).message.content[0].text
+  JSON.parse(session.writes[index]!).message.content[0].text
 
 function harness(): {
   session: ReturnType<typeof createWarmPromptSession>
@@ -105,7 +105,7 @@ async function askOnce(
   handle.stdin?.end()
   await tick()
 
-  const fake = fakes[fakes.length - 1]
+  const fake = fakes[fakes.length - 1]!
   fake.stdout.emit('data', resultLine('')) // the `/clear` settles
   await tick()
   fake.stdout.emit('data', resultLine(answer))
@@ -133,7 +133,7 @@ describe('createWarmPromptSession', () => {
     await askOnce(session, sessions, 'PRIMERA', '{"kind":"general","answer":"a"}')
     await askOnce(session, sessions, 'SEGUNDA', '{"kind":"general","answer":"b"}')
 
-    const [fake] = sessions
+    const fake = sessions[0]!
     expect(sentText(fake, 0)).toBe('/clear')
     expect(sentText(fake, 1)).toBe('PRIMERA')
     expect(sentText(fake, 2)).toBe('/clear')
@@ -150,8 +150,8 @@ describe('createWarmPromptSession', () => {
 
     // Only the clear so far — sending the question now would land it in a
     // context that has not been wiped yet.
-    expect(sessions[0].writes).toHaveLength(1)
-    expect(sentText(sessions[0], 0)).toBe('/clear')
+    expect(sessions[0]!.writes).toHaveLength(1)
+    expect(sentText(sessions[0]!, 0)).toBe('/clear')
   })
 
   it('forwards the CLI result line to the caller and closes with 0', async () => {
@@ -174,7 +174,7 @@ describe('createWarmPromptSession', () => {
     session.spawnPrompt(PROVIDER, VALIDATED, ROOT, OTHER_MODEL)
 
     expect(spawnSession).toHaveBeenCalledTimes(2)
-    expect(terminateSession).toHaveBeenCalledWith(sessions[0].child)
+    expect(terminateSession).toHaveBeenCalledWith(sessions[0]!.child)
     expect(spawnSession.mock.calls[1]).toEqual([PROVIDER, VALIDATED, ROOT, OTHER_MODEL])
   })
 
@@ -205,7 +205,7 @@ describe('createWarmPromptSession', () => {
     handle.stdin?.write('PREGUNTA')
     handle.stdin?.end()
     await tick()
-    sessions[0].child.emit('close', 1)
+    sessions[0]!.child.emit('close', 1)
 
     expect(await closed).toBe(1)
   })
@@ -221,7 +221,7 @@ describe('createWarmPromptSession', () => {
     handle.stdin?.write('PREGUNTA')
     handle.stdin?.end()
     await tick()
-    sessions[0].stderr.emit('data', 'algo se rompio')
+    sessions[0]!.stderr.emit('data', 'algo se rompio')
 
     expect(stderr).toBe('algo se rompio')
   })
@@ -235,7 +235,7 @@ describe('createWarmPromptSession', () => {
     await tick()
     session.terminate(handle)
 
-    expect(terminateSession).toHaveBeenCalledWith(sessions[0].child)
+    expect(terminateSession).toHaveBeenCalledWith(sessions[0]!.child)
 
     session.spawnPrompt(PROVIDER, VALIDATED, ROOT, MODEL)
     expect(spawnSession).toHaveBeenCalledTimes(2)
@@ -259,7 +259,7 @@ describe('createWarmPromptSession', () => {
     session.warmUp(PROVIDER, VALIDATED, ROOT, MODEL)
     session.dispose()
 
-    expect(terminateSession).toHaveBeenCalledWith(sessions[0].child)
+    expect(terminateSession).toHaveBeenCalledWith(sessions[0]!.child)
   })
 
   // The composition root once wired this Claude-only session as the spawn dep

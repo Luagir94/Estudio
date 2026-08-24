@@ -94,8 +94,8 @@ export function getFreeBlocks(
 ): FreeBlock[] {
   const blocks: FreeBlock[] = []
   for (let index = 0; index < todayClasses.length - 1; index += 1) {
-    const current = todayClasses[index]
-    const next = todayClasses[index + 1]
+    const current = todayClasses[index]!
+    const next = todayClasses[index + 1]!
     const gapMinutes = next.startMinutes - current.endMinutes
     if (gapMinutes >= thresholdMinutes) {
       blocks.push({ gapMinutes, afterSubjectName: current.subjectName, beforeSubjectName: next.subjectName })

@@ -56,7 +56,7 @@ const sampleSubjects: SubjectWithSlots[] = [
 ]
 
 const sampleDetail: SubjectDetailResult = {
-  ...sampleSubjects[0],
+  ...sampleSubjects[0]!,
   deadlines: [],
   period: null,
   program: null,
@@ -72,7 +72,7 @@ describe('HorarioContainer', () => {
   beforeEach(() => {
     vi.mocked(horarioApi.week).mockResolvedValue(sampleSubjects)
     vi.mocked(materiasApi.detail).mockResolvedValue(sampleDetail)
-    vi.mocked(materiasApi.updateSchedule).mockResolvedValue(sampleSubjects[0])
+    vi.mocked(materiasApi.updateSchedule).mockResolvedValue(sampleSubjects[0]!)
   })
 
   it('fetches on the ["horario","week"] query key and renders the grid with the projected class', async () => {

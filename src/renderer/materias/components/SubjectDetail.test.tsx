@@ -294,7 +294,7 @@ describe('SubjectDetail (read-only)', () => {
     // honestly carry the same label. The header's is first in DOM order.
     const editButtons = screen.getAllByRole('button', { name: 'Editar materia' })
     expect(editButtons).toHaveLength(2)
-    fireEvent.click(editButtons[0])
+    fireEvent.click(editButtons[0]!)
     expect(onEdit).toHaveBeenCalledTimes(1)
   })
 
@@ -318,7 +318,7 @@ describe('SubjectDetail (read-only)', () => {
     )
 
     const editButtons = screen.getAllByRole('button', { name: 'Editar materia' })
-    fireEvent.click(editButtons[1])
+    fireEvent.click(editButtons[1]!)
     expect(onEdit).toHaveBeenCalledTimes(1)
   })
 

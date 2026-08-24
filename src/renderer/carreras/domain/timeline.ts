@@ -29,8 +29,10 @@ export interface BarPosition {
 const MS_PER_DAY = 86_400_000
 
 function toDayNumber(date: string): number {
+  // A `yyyy-mm-dd` input always splits into three parts; anything else keeps
+  // producing the same NaN it produced before.
   const [year, month, day] = date.split('-').map(Number)
-  return Date.UTC(year, month - 1, day) / MS_PER_DAY
+  return Date.UTC(year!, month! - 1, day!) / MS_PER_DAY
 }
 
 /**
@@ -73,7 +75,7 @@ export function timelineScale(periods: PeriodInterval[], today: Date): TimelineS
 
   const from = periods.reduce(
     (earliest, period) => (period.startsOn < earliest ? period.startsOn : earliest),
-    periods[0].startsOn
+    periods[0]!.startsOn
   )
 
   const todayIso = toIsoDate(today)

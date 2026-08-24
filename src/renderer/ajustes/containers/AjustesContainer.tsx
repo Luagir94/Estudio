@@ -109,7 +109,8 @@ export function AjustesContainer(): React.JSX.Element {
           values are still the last thing actually observed, and the busy
           chip is what says work is in flight. */}
       {CLI_PROVIDERS.map((provider, index) => {
-        const probe = probes[index]
+        // useQueries maps over the same CLI_PROVIDERS list, so the row exists.
+        const probe = probes[index]!
 
         if (probe.data) {
           return (

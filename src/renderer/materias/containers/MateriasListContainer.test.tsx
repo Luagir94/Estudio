@@ -206,7 +206,7 @@ describe('MateriasListContainer — período picker', () => {
 
   it('leaves the picker empty when no period is active', async () => {
     carrerasApiMock.list.mockResolvedValue([
-      { ...programs[0], periods: [{ ...programs[0].periods[0], startsOn: '2025-03-09', endsOn: '2025-07-18' }] }
+      { ...programs[0]!, periods: [{ ...programs[0]!.periods[0]!, startsOn: '2025-03-09', endsOn: '2025-07-18' }] }
     ])
 
     await openCreateForm()

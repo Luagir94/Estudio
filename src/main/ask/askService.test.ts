@@ -1144,7 +1144,7 @@ describe('createAskService — generated artifact pipeline', () => {
     await service.ask('Hacéme un resumen', SELECTION)
 
     expect(appendTurn).toHaveBeenCalledWith(expect.objectContaining({ result: NOT_FOUND }))
-    const [[call]] = appendTurn.mock.calls
+    const [call] = appendTurn.mock.calls[0]!
     expect(call).not.toHaveProperty('artifact')
   })
 

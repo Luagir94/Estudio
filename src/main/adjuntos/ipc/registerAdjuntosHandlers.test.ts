@@ -155,7 +155,7 @@ describe('registerAdjuntosHandlers', () => {
 
     await invoke('adjuntos:add', { subjectId: 7 })
 
-    const options = dialogMock.showOpenDialog.mock.calls[0][0]
+    const options = dialogMock.showOpenDialog.mock.calls[0]![0]
     expect(options.properties).toEqual(['openFile', 'multiSelections'])
     expect(options.filters.at(-1)).toMatchObject({ name: 'Todos los archivos' })
   })

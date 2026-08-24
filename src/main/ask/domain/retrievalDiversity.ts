@@ -52,7 +52,8 @@ export function selectDiverseChunks(
     )
 
   for (let index = 0; index < candidates.length && acceptedCount < maxChunks; index += 1) {
-    if (!conflictsWithAccepted(candidates[index])) {
+    const candidate = candidates[index]
+    if (candidate !== undefined && !conflictsWithAccepted(candidate)) {
       accepted[index] = true
       acceptedCount += 1
     }

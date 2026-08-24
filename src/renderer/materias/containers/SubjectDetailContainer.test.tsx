@@ -244,7 +244,7 @@ describe('SubjectDetailContainer', () => {
     // Two "Editar materia" buttons live on this screen (header + NOTAS
     // section) — both open the same modal, so both honestly carry the same
     // label (see SubjectDetail.test.tsx). Either works; this uses the header's.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Editar materia' })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: 'Editar materia' })[0]!)
     fireEvent.click(screen.getByText('stub-edit-submit'))
 
     await waitFor(() => expect(materiasApi.updateSchedule).toHaveBeenCalledTimes(1))
@@ -260,7 +260,7 @@ describe('SubjectDetailContainer', () => {
     // not as a standalone button on the detail screen — open the modal
     // first, same as any other edit entry point. Two "Editar materia"
     // buttons live on this screen (header + NOTAS section); either opens it.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Editar materia' })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: 'Editar materia' })[0]!)
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar materia' }))
     expect(screen.getByText('2 entregas')).toBeInTheDocument()
 

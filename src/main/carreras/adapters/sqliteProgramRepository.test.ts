@@ -97,7 +97,7 @@ describe('createSqliteProgramRepository', () => {
 
     const listed = repository.list()
 
-    expect(listed[0].periods.map((period) => period.name)).toEqual(['1er 2026', '2do 2026'])
+    expect(listed[0]!.periods.map((period) => period.name)).toEqual(['1er 2026', '2do 2026'])
   })
 
   it('rolls subjects up to their program through their period', () => {
@@ -123,8 +123,8 @@ describe('createSqliteProgramRepository', () => {
 
     const listed = repository.list()
 
-    expect(listed[0].subjectCount).toBe(1)
-    expect(listed[0].gradedSubjects).toEqual([{ grade: 8, outcome: 'aprobada', hasApprovedFinal: false }])
+    expect(listed[0]!.subjectCount).toBe(1)
+    expect(listed[0]!.gradedSubjects).toEqual([{ grade: 8, outcome: 'aprobada', hasApprovedFinal: false }])
   })
 
   it('leaves a subject with no period out of every program', () => {
@@ -132,7 +132,7 @@ describe('createSqliteProgramRepository', () => {
     repository.create(abogacia)
     db.insert(subjects).values({ name: 'Suelta', code: 'X-1', color: '#fff' }).run()
 
-    expect(repository.list()[0].subjectCount).toBe(0)
+    expect(repository.list()[0]!.subjectCount).toBe(0)
   })
 
   it('reports whether a subject has an approved final without deciding if it passed', () => {
@@ -153,7 +153,7 @@ describe('createSqliteProgramRepository', () => {
     db.insert(finalExams).values({ subjectId: subject.id, label: '1ra', result: 'reprobado' }).run()
     db.insert(finalExams).values({ subjectId: subject.id, label: '2da', result: 'aprobado' }).run()
 
-    expect(repository.list()[0].gradedSubjects).toEqual([
+    expect(repository.list()[0]!.gradedSubjects).toEqual([
       { grade: null, outcome: 'finalPendiente', hasApprovedFinal: true }
     ])
   })
@@ -269,7 +269,7 @@ describe('createSqliteProgramRepository', () => {
     ).toEqual(['2do 2026'])
     const survivors = db.select().from(subjects).all()
     expect(survivors).toHaveLength(1)
-    expect(survivors[0].periodId).toBeNull()
+    expect(survivors[0]!.periodId).toBeNull()
   })
 
   it('removePeriod reports no subjects for an empty period', () => {
@@ -336,7 +336,7 @@ describe('createSqliteProgramRepository', () => {
     expect(result).toMatchObject({ deletedPeriods: 1, unlinkedSubjects: 1 })
     const survivors = db.select().from(subjects).all()
     expect(survivors).toHaveLength(1)
-    expect(survivors[0].periodId).toBeNull()
+    expect(survivors[0]!.periodId).toBeNull()
   })
 
   it('remove returns null for an unknown program', () => {

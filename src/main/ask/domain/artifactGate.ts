@@ -79,7 +79,8 @@ export function validateArtifact(
 
   const materiaName = header.data.materia
   const matches = subjects.filter((subject) => subject.name.trim() === materiaName)
-  if (matches.length === 0) {
+  const match = matches[0]
+  if (match === undefined) {
     return dropped('unknown-subject')
   }
   if (matches.length > 1) {
@@ -88,8 +89,8 @@ export function validateArtifact(
 
   return {
     kind: 'valid',
-    subjectId: matches[0].id,
-    subjectName: matches[0].name,
+    subjectId: match.id,
+    subjectName: match.name,
     fileName: sanitizedFileName,
     content: body
   }

@@ -65,7 +65,7 @@ describe('window hardening', () => {
 
   it('denies every window-open request via setWindowOpenHandler', () => {
     const win = createMainWindow() as unknown as InstanceType<typeof BrowserWindowMock>
-    const handler = win.webContents.setWindowOpenHandler.mock.calls[0][0] as (details: { url: string }) => {
+    const handler = win.webContents.setWindowOpenHandler.mock.calls[0]![0] as (details: { url: string }) => {
       action: string
     }
 
@@ -93,7 +93,7 @@ describe('window hardening', () => {
   it('registers the renderer CSP header on every response', () => {
     applyContentSecurityPolicy(sessionMock.defaultSession as never)
 
-    const handler = sessionMock.defaultSession.webRequest.onHeadersReceived.mock.calls[0][0] as (
+    const handler = sessionMock.defaultSession.webRequest.onHeadersReceived.mock.calls[0]![0] as (
       details: { responseHeaders: Record<string, string[]> },
       callback: (response: { responseHeaders: Record<string, string[]> }) => void
     ) => void
@@ -101,7 +101,7 @@ describe('window hardening', () => {
 
     handler({ responseHeaders: {} }, callback)
 
-    const response = callback.mock.calls[0][0] as { responseHeaders: Record<string, string[]> }
+    const response = callback.mock.calls[0]![0] as { responseHeaders: Record<string, string[]> }
     expect(response.responseHeaders['Content-Security-Policy']).toEqual([CONTENT_SECURITY_POLICY])
   })
 
@@ -126,7 +126,7 @@ describe('CSP development relaxation', () => {
   })
 
   function registeredPolicy(): string {
-    const handler = sessionMock.defaultSession.webRequest.onHeadersReceived.mock.calls[0][0] as (
+    const handler = sessionMock.defaultSession.webRequest.onHeadersReceived.mock.calls[0]![0] as (
       details: { responseHeaders: Record<string, string[]> },
       callback: (response: { responseHeaders: Record<string, string[]> }) => void
     ) => void
@@ -134,8 +134,8 @@ describe('CSP development relaxation', () => {
 
     handler({ responseHeaders: {} }, callback)
 
-    const response = callback.mock.calls[0][0] as { responseHeaders: Record<string, string[]> }
-    return response.responseHeaders['Content-Security-Policy'][0]
+    const response = callback.mock.calls[0]![0] as { responseHeaders: Record<string, string[]> }
+    return response.responseHeaders['Content-Security-Policy']![0]!
   }
 
   it('never allows inline scripts in the production policy', () => {

@@ -48,7 +48,7 @@ describe('carrerasApi', () => {
 
     const [program] = await carrerasApi.list()
 
-    expect(program.periods[0].endsOn).toBeNull()
+    expect(program!.periods[0]!.endsOn).toBeNull()
   })
 
   it('list rejects a payload that does not match the contract', async () => {

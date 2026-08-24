@@ -63,13 +63,15 @@ export function splitArtifactBlock(innerText: string): { resultText: string; blo
 /** Header = first non-empty line inside the block; body = every line strictly after it, joined verbatim. */
 function extractBlock(blockLines: readonly string[]): ArtifactExtraction {
   const headerIndex = blockLines.findIndex((line) => line.trim().length > 0)
-  if (headerIndex === -1) {
+  const headerLine = blockLines[headerIndex]
+  if (headerLine === undefined) {
+    // findIndex returned -1: the block has no non-empty line.
     return { kind: 'block', headerLine: '', body: '' }
   }
 
   return {
     kind: 'block',
-    headerLine: blockLines[headerIndex],
+    headerLine,
     body: blockLines.slice(headerIndex + 1).join('\n')
   }
 }

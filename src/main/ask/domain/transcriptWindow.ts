@@ -60,6 +60,9 @@ export function computeTranscriptWindow(
 
   for (let index = turns.length - 1; index >= 0; index -= 1) {
     const turn = turns[index]
+    if (turn === undefined) {
+      continue
+    }
     const size = serializeTranscriptTurn(turn).length
     if (used + size > budgetChars) {
       break
@@ -72,7 +75,7 @@ export function computeTranscriptWindow(
 
   return {
     included,
-    startMessageId: included.length > 0 ? included[0].messageId : null,
+    startMessageId: included[0]?.messageId ?? null,
     excludedCount: turns.length - included.length
   }
 }

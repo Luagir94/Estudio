@@ -110,7 +110,7 @@ export function Sidebar({
     terms.length === 0
       ? t('sidebar.noActiveTerm')
       : terms.length === 1
-        ? t('sidebar.activeTerm', { program: terms[0].programName, period: terms[0].periodName })
+        ? t('sidebar.activeTerm', { program: terms[0]!.programName, period: terms[0]!.periodName })
         : t('sidebar.activeTermsCount', { count: terms.length })
 
   return (

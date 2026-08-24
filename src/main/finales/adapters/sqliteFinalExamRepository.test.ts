@@ -63,7 +63,7 @@ describe('createSqliteFinalExamRepository', () => {
 
     repository.update({ id: created.id, label: '1ra', takenOn: null, result: 'reprobado' })
 
-    expect(db.select().from(subjects).all()[0].outcome).toBe('finalPendiente')
+    expect(db.select().from(subjects).all()[0]!.outcome).toBe('finalPendiente')
   })
 
   it('returns null when updating an unknown instance', () => {

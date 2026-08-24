@@ -82,7 +82,7 @@ export function humanizeModelId(modelId: string): string {
   }
 
   const name = parts.join(' ')
-  return context === null ? name : `${name} · ${context[1]}${context[2].toUpperCase()}`
+  return context === null ? name : `${name} · ${context[1]}${context[2]!.toUpperCase()}`
 }
 
 /** One CLI's section of the menu. A CLI with nothing to offer produces no group at all. */

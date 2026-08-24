@@ -133,7 +133,7 @@ describe('registerAppHandlers', () => {
     await invoke('app:exportJson')
 
     expect(appMock.getPath).toHaveBeenCalledWith('documents')
-    const options = dialogMock.showSaveDialog.mock.calls[0][0]
+    const options = dialogMock.showSaveDialog.mock.calls[0]![0]
     expect(
       options.defaultPath.startsWith('/home/user/Documents') ||
         options.defaultPath.startsWith('\\home\\user\\Documents')
@@ -155,7 +155,7 @@ describe('registerAppHandlers', () => {
     const result = await invoke('app:exportJson')
 
     expect(writeFileMock).toHaveBeenCalledTimes(1)
-    const [writtenPath, writtenContent] = writeFileMock.mock.calls[0]
+    const [writtenPath, writtenContent] = writeFileMock.mock.calls[0]!
     expect(writtenPath).toBe('/home/user/Documents/export.json')
 
     const snapshot = JSON.parse(writtenContent as string)

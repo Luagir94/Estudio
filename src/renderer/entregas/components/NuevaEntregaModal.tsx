@@ -66,7 +66,7 @@ export function NuevaEntregaModal({
     formState: { errors }
   } = useForm({
     resolver: zodResolver(deadlineFormSchema),
-    defaultValues: defaultValues ?? { title: '', type: deadlineTypes[0], dueAt: '' }
+    defaultValues: defaultValues ?? { title: '', type: deadlineTypes[0] ?? '', dueAt: '' }
   })
 
   const title = mode === 'create' ? t('nuevaEntregaModal.createTitle') : t('nuevaEntregaModal.editTitle')

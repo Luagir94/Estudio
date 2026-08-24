@@ -337,7 +337,7 @@ describe('createSqliteSubjectRepository — period, outcome and grade', () => {
   it('list carries the period and program the status and grading depend on', () => {
     createSubject(numericPeriodId)
 
-    const [listed] = repository.list()
+    const listed = repository.list()[0]!
 
     expect(listed.period).toMatchObject({ id: numericPeriodId, startsOn: '2026-03-09', endsOn: '2026-07-18' })
     expect(listed.program).toMatchObject({ gradingScheme: 'numerico', gradeScale: 10 })
@@ -350,7 +350,7 @@ describe('createSqliteSubjectRepository — period, outcome and grade', () => {
     createSubject(numericPeriodId)
     orphan(db)
 
-    const [listed] = repository.list()
+    const listed = repository.list()[0]!
 
     expect(listed.period).toBeNull()
     expect(listed.program).toBeNull()
@@ -361,7 +361,7 @@ describe('createSqliteSubjectRepository — period, outcome and grade', () => {
     db.insert(finalExams).values({ subjectId: subject.id, label: '1ra', result: 'reprobado' }).run()
     db.insert(finalExams).values({ subjectId: subject.id, label: '2da', result: 'pendiente' }).run()
 
-    expect(repository.list()[0].finals).toEqual([{ result: 'reprobado' }, { result: 'pendiente' }])
+    expect(repository.list()[0]!.finals).toEqual([{ result: 'reprobado' }, { result: 'pendiente' }])
   })
 
   it('setOutcome records the decision and its grade', () => {
@@ -449,11 +449,11 @@ describe('createSqliteSubjectRepository — pending deadline counts', () => {
     db.insert(deadlines).values({ subjectId, title: 'TP1', type: 'tp', dueAt: '2026-04-01T23:59', done: false }).run()
     db.insert(deadlines).values({ subjectId, title: 'TP2', type: 'tp', dueAt: '2026-04-08T23:59', done: true }).run()
 
-    expect(repository.list()[0].pendingDeadlines).toBe(1)
+    expect(repository.list()[0]!.pendingDeadlines).toBe(1)
   })
 
   it('reports zero when nothing is open', () => {
-    expect(repository.list()[0].pendingDeadlines).toBe(0)
+    expect(repository.list()[0]!.pendingDeadlines).toBe(0)
   })
 
   it('never counts another subject deadlines', () => {

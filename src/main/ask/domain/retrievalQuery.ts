@@ -29,7 +29,7 @@ export function buildRetrievalQuery(
 ): string {
   for (let index = transcript.length - 1; index >= 0; index -= 1) {
     const turn = transcript[index]
-    if (turn.result.kind === 'not-found') {
+    if (turn === undefined || turn.result.kind === 'not-found') {
       continue
     }
     const context = `${turn.question}\n${turn.result.answer}`.slice(0, contextChars)

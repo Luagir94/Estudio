@@ -55,7 +55,7 @@ describe('SlotEditor', () => {
       />
     )
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Quitar horario' })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: 'Quitar horario' })[0]!)
 
     expect(onChange).toHaveBeenCalledWith([{ dayOfWeek: 3, startMinutes: 480, endMinutes: 540, location: null }])
   })

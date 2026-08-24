@@ -147,7 +147,11 @@ function extractCodexAgentMessage(rawStdout: string): string | undefined {
   const lines = rawStdout.split(/\r?\n/)
 
   for (let index = lines.length - 1; index >= 0; index -= 1) {
-    const parsed = safeJsonParse(lines[index].trim())
+    const line = lines[index]
+    if (line === undefined) {
+      continue
+    }
+    const parsed = safeJsonParse(line.trim())
     if (parsed === undefined) {
       continue
     }
@@ -184,7 +188,11 @@ function findEnvelope(rawStdout: string): unknown {
     .filter((line) => line.length > 0)
 
   for (let index = lines.length - 1; index >= 0; index -= 1) {
-    const parsed = safeJsonParse(lines[index])
+    const line = lines[index]
+    if (line === undefined) {
+      continue
+    }
+    const parsed = safeJsonParse(line)
     if (parsed !== undefined) {
       return parsed
     }
@@ -196,7 +204,7 @@ function findEnvelope(rawStdout: string): unknown {
 function stripFence(text: string): string {
   const trimmed = text.trim()
   const match = FENCE_PATTERN.exec(trimmed)
-  return match ? match[1] : trimmed
+  return match?.[1] ?? trimmed
 }
 
 function safeJsonParse(text: string): unknown {

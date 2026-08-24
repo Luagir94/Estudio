@@ -159,7 +159,7 @@ describe('getDashboardDeadlines (spec: "Overdue Surfacing" — overdue deadlines
 
     const result = getDashboardDeadlines(deadlines, now)
 
-    expect(result[0].title).toBe('Informe de lectura 2')
+    expect(result[0]!.title).toBe('Informe de lectura 2')
   })
 })
 
@@ -170,17 +170,17 @@ describe('getWeekStrip (task 6.2: week-strip Monday-start test)', () => {
     const strip = getWeekStrip(subjects, deadlines, now)
 
     expect(strip).toHaveLength(7)
-    expect(strip[0].date.getDay()).toBe(1) // Monday
-    expect(strip[0].date.getDate()).toBe(10) // 2026-08-10 is that week's Monday
-    expect(strip[6].date.getDay()).toBe(0) // Sunday
-    expect(strip[6].date.getDate()).toBe(16)
+    expect(strip[0]!.date.getDay()).toBe(1) // Monday
+    expect(strip[0]!.date.getDate()).toBe(10) // 2026-08-10 is that week's Monday
+    expect(strip[6]!.date.getDay()).toBe(0) // Sunday
+    expect(strip[6]!.date.getDate()).toBe(16)
   })
 
   it('collects one class color per slot that day, in start-time order', () => {
     const now = new Date(2026, 7, 13, 9, 0)
 
     const strip = getWeekStrip(subjects, deadlines, now)
-    const thursday = strip[3] // Monday-first index 3 = Thursday
+    const thursday = strip[3]! // Monday-first index 3 = Thursday
 
     expect(thursday.classColors).toEqual(['#4c8dff', '#2dd4a7', '#a78bfa'])
   })
@@ -188,8 +188,8 @@ describe('getWeekStrip (task 6.2: week-strip Monday-start test)', () => {
   it('counts only PENDING deadlines due that calendar day (design node eHE58 "Due Marker")', () => {
     const now = new Date(2026, 7, 13, 9, 0)
 
-    const strip = getWeekStrip(subjects, [{ ...deadlines[1], dueAt: '2026-08-14T10:00' }], now)
-    const friday = strip[4] // Monday-first index 4 = Friday 2026-08-14
+    const strip = getWeekStrip(subjects, [{ ...deadlines[1]!, dueAt: '2026-08-14T10:00' }], now)
+    const friday = strip[4]! // Monday-first index 4 = Friday 2026-08-14
 
     expect(friday.dueCount).toBe(1)
   })

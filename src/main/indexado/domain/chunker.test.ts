@@ -34,11 +34,11 @@ describe('chunkText', () => {
 
     // chunk[0]'s last 120 chars must equal chunk[1]'s first 120 chars —
     // proves real overlap, not just two adjacent non-overlapping slices.
-    expect(chunks[0].slice(-120)).toBe(chunks[1].slice(0, 120))
-    expect(chunks[1].slice(-120)).toBe(chunks[2].slice(0, 120))
+    expect(chunks[0]!.slice(-120)).toBe(chunks[1]!.slice(0, 120))
+    expect(chunks[1]!.slice(-120)).toBe(chunks[2]!.slice(0, 120))
     // And the overlap content is the ACTUAL source text at that offset —
     // not a coincidental match (e.g. chunker returning constants).
-    expect(chunks[0].slice(-120)).toBe(text.slice(880, 1000))
+    expect(chunks[0]!.slice(-120)).toBe(text.slice(880, 1000))
   })
 
   it('returns a single chunk unchanged when the text is shorter than the chunk size', () => {

@@ -181,7 +181,7 @@ export function HorarioGrid({ columns, todayMondayFirstIndex, onSelectClass }: H
               key={column.dayOfWeek}
               slots={column.slots}
               isToday={index === todayMondayFirstIndex}
-              label={weekdayLabels[index]}
+              label={weekdayLabels[index]!}
               onSelectClass={onSelectClass}
             />
           ))}

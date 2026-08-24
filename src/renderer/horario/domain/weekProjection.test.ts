@@ -35,7 +35,7 @@ describe('projectWeek (task 4.1: group/order slots by dayOfWeek, Monday-start)',
 
     const columns = projectWeek(subjects)
 
-    const monday = columns[0]
+    const monday = columns[0]!
     expect(monday.dayOfWeek).toBe(1)
     expect(monday.slots).toEqual([
       expect.objectContaining({ slotId: 10, subjectName: 'Sistemas Operativos', startMinutes: 480 })
@@ -43,7 +43,7 @@ describe('projectWeek (task 4.1: group/order slots by dayOfWeek, Monday-start)',
 
     // Sunday must land LAST (index 6), not first — this is precisely the
     // off-by-one class of bug gate-findings/slice-2a Finding 2 warned about.
-    const sunday = columns[6]
+    const sunday = columns[6]!
     expect(sunday.dayOfWeek).toBe(0)
     expect(sunday.slots).toEqual([expect.objectContaining({ slotId: 11, startMinutes: 600 })])
   })
@@ -65,7 +65,7 @@ describe('projectWeek (task 4.1: group/order slots by dayOfWeek, Monday-start)',
     ]
 
     const columns = projectWeek(subjects)
-    const wednesday = columns[2]
+    const wednesday = columns[2]!
 
     expect(wednesday.slots.map((slot) => slot.slotId)).toEqual([21, 20])
   })
