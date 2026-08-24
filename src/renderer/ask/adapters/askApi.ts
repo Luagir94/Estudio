@@ -113,7 +113,11 @@ export const askApi: AskApi = {
   async preferences() {
     const result = await window.api.cli.preferences()
     if (!result.ok) {
-      throw new Error(result.error.message)
+      // The cli:* codes are foreign to the ask error contract, so they
+      // funnel to the generic failure — through AskApiError, never a plain
+      // Error that would erase the code the panel maps its copy from.
+      const parsed = askErrorCodeSchema.safeParse(result.error.code)
+      throw new AskApiError(parsed.success ? parsed.data : 'EXECUTION_FAILED', result.error.message)
     }
     return cliPreferencesResultSchema.parse(result.data)
   },
@@ -121,7 +125,8 @@ export const askApi: AskApi = {
   async probe(provider) {
     const result = await window.api.cli.probe({ provider })
     if (!result.ok) {
-      throw new Error(result.error.message)
+      const parsed = askErrorCodeSchema.safeParse(result.error.code)
+      throw new AskApiError(parsed.success ? parsed.data : 'EXECUTION_FAILED', result.error.message)
     }
     return cliProviderStatusSchema.parse(result.data)
   },

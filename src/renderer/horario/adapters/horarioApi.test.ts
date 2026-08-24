@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { horarioApi } from './horarioApi'
+import { HorarioApiError, horarioApi } from './horarioApi'
 
 const sampleSubject = {
   id: 1,
@@ -73,5 +73,20 @@ describe('horarioApi', () => {
       .mockResolvedValue({ ok: false, error: { code: 'WEEK_FAILED', message: 'database is locked' } })
 
     await expect(horarioApi.week()).rejects.toThrow('database is locked')
+  })
+
+  // The renderer maps its Spanish copy off the CODE, never `message`
+  // (`shared/lib/ipcErrorCopy.ts`) — so the throw must carry it, exactly
+  // like `CarrerasApiError`/`AdjuntosApiError`.
+  it('week() throws a HorarioApiError carrying the envelope code', async () => {
+    window.api.horario.week = vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: { code: 'WEEK_FAILED', message: 'database is locked' } })
+
+    const error: unknown = await horarioApi.week().catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(HorarioApiError)
+    expect((error as HorarioApiError).code).toBe('WEEK_FAILED')
+    expect((error as Error).message).toBe('database is locked')
   })
 })

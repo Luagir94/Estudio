@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DeadlineWithSubject } from '../../../shared/ipc/entregas'
-import { entregasApi } from './entregasApi'
+import { EntregasApiError, entregasApi } from './entregasApi'
 
 const sampleDeadline: DeadlineWithSubject = {
   id: 1,
@@ -50,6 +50,24 @@ describe('entregasApi', () => {
     await expect(entregasApi.create({ title: '', subjectId: 1, type: 'X', dueAt: '2027-08-18T23:59' })).rejects.toThrow(
       'bad input'
     )
+  })
+
+  // The renderer maps its Spanish copy off the CODE, never `message`
+  // (`shared/lib/ipcErrorCopy.ts`) — so the throw must carry it, exactly
+  // like `CarrerasApiError`/`AdjuntosApiError`.
+  it('create throws an EntregasApiError carrying the envelope code', async () => {
+    vi.mocked(window.api.entregas.create).mockResolvedValue({
+      ok: false,
+      error: { code: 'CREATE_FAILED', message: 'database is locked' }
+    })
+
+    const error: unknown = await entregasApi
+      .create({ title: 'TP 2', subjectId: 1, type: 'Trabajo práctico', dueAt: '2027-08-18T23:59' })
+      .catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(EntregasApiError)
+    expect((error as EntregasApiError).code).toBe('CREATE_FAILED')
+    expect((error as Error).message).toBe('database is locked')
   })
 
   it('list parses and returns every deadline', async () => {

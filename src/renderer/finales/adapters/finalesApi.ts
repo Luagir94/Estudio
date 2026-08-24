@@ -8,6 +8,17 @@ import {
   type UpdateFinalExamInput
 } from '../../../shared/ipc/finales'
 import { finalExamRecordSchema, type FinalExamRecord } from '../../../shared/ipc/materias'
+import { IpcApiError, unwrapIpcResult } from '../../shared/adapters/ipcApiError'
+
+// Preserves the envelope's typed `code` across the throw (base class doc) —
+// the renderer maps its Spanish copy from the code
+// (`shared/lib/ipcErrorCopy.ts`), never from `message`.
+export class FinalesApiError extends IpcApiError {
+  constructor(code: string, message: string) {
+    super(code, message)
+    this.name = 'FinalesApiError'
+  }
+}
 
 export interface FinalesApi {
   create(input: CreateFinalExamInput): Promise<FinalExamRecord>
@@ -17,24 +28,12 @@ export interface FinalesApi {
 
 export const finalesApi: FinalesApi = {
   async create(input) {
-    const result = await window.api.finales.create(input)
-    if (!result.ok) {
-      throw new Error(result.error.message)
-    }
-    return finalExamRecordSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.finales.create(input), finalExamRecordSchema, FinalesApiError)
   },
   async update(input) {
-    const result = await window.api.finales.update(input)
-    if (!result.ok) {
-      throw new Error(result.error.message)
-    }
-    return finalExamRecordSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.finales.update(input), finalExamRecordSchema, FinalesApiError)
   },
   async delete(id) {
-    const result = await window.api.finales.delete(id)
-    if (!result.ok) {
-      throw new Error(result.error.message)
-    }
-    return deleteFinalExamResultSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.finales.delete(id), deleteFinalExamResultSchema, FinalesApiError)
   }
 }

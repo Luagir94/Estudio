@@ -12,6 +12,17 @@ import {
   type SetDeadlineDoneInput,
   type UpdateDeadlineInput
 } from '../../../shared/ipc/entregas'
+import { IpcApiError, unwrapIpcResult } from '../../shared/adapters/ipcApiError'
+
+// Preserves the envelope's typed `code` across the throw (base class doc) —
+// the renderer maps its Spanish copy from the code
+// (`shared/lib/ipcErrorCopy.ts`), never from `message`.
+export class EntregasApiError extends IpcApiError {
+  constructor(code: string, message: string) {
+    super(code, message)
+    this.name = 'EntregasApiError'
+  }
+}
 
 export interface EntregasApi {
   create(input: CreateDeadlineInput): Promise<DeadlineWithSubject>
@@ -23,38 +34,18 @@ export interface EntregasApi {
 
 export const entregasApi: EntregasApi = {
   async create(input) {
-    const result = await window.api.entregas.create(input)
-    if (!result.ok) {
-      throw new Error(result.error.message)
-    }
-    return deadlineWithSubjectSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.entregas.create(input), deadlineWithSubjectSchema, EntregasApiError)
   },
   async list() {
-    const result = await window.api.entregas.list()
-    if (!result.ok) {
-      throw new Error(result.error.message)
-    }
-    return listDeadlinesResultSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.entregas.list(), listDeadlinesResultSchema, EntregasApiError)
   },
   async update(input) {
-    const result = await window.api.entregas.update(input)
-    if (!result.ok) {
-      throw new Error(result.error.message)
-    }
-    return deadlineWithSubjectSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.entregas.update(input), deadlineWithSubjectSchema, EntregasApiError)
   },
   async setDone(input) {
-    const result = await window.api.entregas.setDone(input)
-    if (!result.ok) {
-      throw new Error(result.error.message)
-    }
-    return deadlineWithSubjectSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.entregas.setDone(input), deadlineWithSubjectSchema, EntregasApiError)
   },
   async delete(id) {
-    const result = await window.api.entregas.delete(id)
-    if (!result.ok) {
-      throw new Error(result.error.message)
-    }
-    return deleteDeadlineResultSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.entregas.delete(id), deleteDeadlineResultSchema, EntregasApiError)
   }
 }

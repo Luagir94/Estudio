@@ -16,6 +16,17 @@ import {
   type SubjectWithStatus,
   type UpdateSubjectScheduleInput
 } from '../../../shared/ipc/materias'
+import { IpcApiError, unwrapIpcResult } from '../../shared/adapters/ipcApiError'
+
+// Preserves the envelope's typed `code` across the throw (base class doc) —
+// the renderer maps its Spanish copy from the code
+// (`shared/lib/ipcErrorCopy.ts`), never from `message`.
+export class MateriasApiError extends IpcApiError {
+  constructor(code: string, message: string) {
+    super(code, message)
+    this.name = 'MateriasApiError'
+  }
+}
 
 export interface MateriasApi {
   create(input: CreateSubjectInput): Promise<SubjectWithSlots>
@@ -28,45 +39,21 @@ export interface MateriasApi {
 
 export const materiasApi: MateriasApi = {
   async create(input) {
-    const result = await window.api.materias.create(input)
-    if (!result.ok) {
-      throw new Error(result.error.message)
-    }
-    return subjectWithSlotsSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.materias.create(input), subjectWithSlotsSchema, MateriasApiError)
   },
   async list() {
-    const result = await window.api.materias.list()
-    if (!result.ok) {
-      throw new Error(result.error.message)
-    }
-    return listSubjectsResultSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.materias.list(), listSubjectsResultSchema, MateriasApiError)
   },
   async detail(id) {
-    const result = await window.api.materias.detail(id)
-    if (!result.ok) {
-      throw new Error(result.error.message)
-    }
-    return subjectDetailSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.materias.detail(id), subjectDetailSchema, MateriasApiError)
   },
   async updateSchedule(input) {
-    const result = await window.api.materias.updateSchedule(input)
-    if (!result.ok) {
-      throw new Error(result.error.message)
-    }
-    return subjectWithSlotsSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.materias.updateSchedule(input), subjectWithSlotsSchema, MateriasApiError)
   },
   async delete(id) {
-    const result = await window.api.materias.delete(id)
-    if (!result.ok) {
-      throw new Error(result.error.message)
-    }
-    return deleteSubjectResultSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.materias.delete(id), deleteSubjectResultSchema, MateriasApiError)
   },
   async setOutcome(input) {
-    const result = await window.api.materias.setOutcome(input)
-    if (!result.ok) {
-      throw new Error(result.error.message)
-    }
-    return subjectWithStatusSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.materias.setOutcome(input), subjectWithStatusSchema, MateriasApiError)
   }
 }

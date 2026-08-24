@@ -165,6 +165,55 @@ describe('askApi', () => {
     it('shares the per-provider status query key with Ajustes', () => {
       expect(cliStatusQueryKey('codex')).toEqual(['cli', 'status', 'codex'])
     })
+
+    // The cli:* codes are foreign to the ask error contract, so they funnel
+    // to the generic failure — but through AskApiError, never a plain Error
+    // that would erase the code the panel maps its copy from.
+    it('throws AskApiError funneling a foreign envelope code to EXECUTION_FAILED', async () => {
+      vi.mocked(window.api.cli.probe).mockResolvedValue({
+        ok: false,
+        error: { code: 'PROBE_FAILED', message: 'spawn blew up' }
+      })
+
+      await expect(askApi.probe('claude')).rejects.toBeInstanceOf(AskApiError)
+      await expect(askApi.probe('claude')).rejects.toMatchObject({
+        code: 'EXECUTION_FAILED',
+        message: 'spawn blew up'
+      })
+    })
+
+    it('preserves a code the ask error contract already knows', async () => {
+      vi.mocked(window.api.cli.probe).mockResolvedValue({
+        ok: false,
+        error: { code: 'VALIDATION_ERROR', message: 'provider.unknown' }
+      })
+
+      await expect(askApi.probe('claude')).rejects.toMatchObject({ code: 'VALIDATION_ERROR' })
+    })
+  })
+
+  describe('preferences', () => {
+    it('throws AskApiError funneling a foreign envelope code to EXECUTION_FAILED', async () => {
+      vi.mocked(window.api.cli.preferences).mockResolvedValue({
+        ok: false,
+        error: { code: 'PREFERENCES_READ_FAILED', message: 'settings table locked' }
+      })
+
+      await expect(askApi.preferences()).rejects.toBeInstanceOf(AskApiError)
+      await expect(askApi.preferences()).rejects.toMatchObject({
+        code: 'EXECUTION_FAILED',
+        message: 'settings table locked'
+      })
+    })
+
+    it('preserves a code the ask error contract already knows', async () => {
+      vi.mocked(window.api.cli.preferences).mockResolvedValue({
+        ok: false,
+        error: { code: 'VALIDATION_ERROR', message: 'payload.invalid' }
+      })
+
+      await expect(askApi.preferences()).rejects.toMatchObject({ code: 'VALIDATION_ERROR' })
+    })
   })
 
   describe('listConversations', () => {

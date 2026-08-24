@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { hoyApi } from './hoyApi'
+import { HoyApiError, hoyApi } from './hoyApi'
 
 const sampleSubject = {
   id: 1,
@@ -86,5 +86,20 @@ describe('hoyApi', () => {
       .mockResolvedValue({ ok: false, error: { code: 'DASHBOARD_FAILED', message: 'database is locked' } })
 
     await expect(hoyApi.dashboard()).rejects.toThrow('database is locked')
+  })
+
+  // The renderer maps its Spanish copy off the CODE, never `message`
+  // (`shared/lib/ipcErrorCopy.ts`) — so the throw must carry it, exactly
+  // like `CarrerasApiError`/`AdjuntosApiError`.
+  it('dashboard() throws a HoyApiError carrying the envelope code', async () => {
+    window.api.hoy.dashboard = vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: { code: 'DASHBOARD_FAILED', message: 'database is locked' } })
+
+    const error: unknown = await hoyApi.dashboard().catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(HoyApiError)
+    expect((error as HoyApiError).code).toBe('DASHBOARD_FAILED')
+    expect((error as Error).message).toBe('database is locked')
   })
 })

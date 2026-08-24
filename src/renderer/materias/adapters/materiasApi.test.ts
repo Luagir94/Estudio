@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { materiasApi } from './materiasApi'
+import { MateriasApiError, materiasApi } from './materiasApi'
 
 const sampleSubject = {
   id: 1,
@@ -90,6 +90,21 @@ describe('materiasApi', () => {
       .mockResolvedValue({ ok: false, error: { code: 'LIST_FAILED', message: 'database is locked' } })
 
     await expect(materiasApi.list()).rejects.toThrow('database is locked')
+  })
+
+  // The renderer maps its Spanish copy off the CODE, never `message`
+  // (`shared/lib/ipcErrorCopy.ts`) — so the throw must carry it, exactly
+  // like `CarrerasApiError`/`AdjuntosApiError`.
+  it('list() throws a MateriasApiError carrying the envelope code', async () => {
+    window.api.materias.list = vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: { code: 'LIST_FAILED', message: 'database is locked' } })
+
+    const error: unknown = await materiasApi.list().catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(MateriasApiError)
+    expect((error as MateriasApiError).code).toBe('LIST_FAILED')
+    expect((error as Error).message).toBe('database is locked')
   })
 
   it('create() forwards the input and parses the returned subject', async () => {

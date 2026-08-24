@@ -13,19 +13,17 @@ import {
   readAttachmentTextResultSchema,
   writeAttachmentTextResultSchema
 } from '../../../shared/ipc/adjuntos'
+import { assertIpcOk, IpcApiError, unwrapIpcResult } from '../../shared/adapters/ipcApiError'
 
 // The bridge never throws (design §2) — it resolves an `IpcResult` envelope.
 // This error preserves the envelope's typed `code` across the throw, unlike
 // a plain `Error`, because the container needs to distinguish
 // `ATTACHMENT_FILE_MISSING` from every other `adjuntos:open` failure to
 // drive the "Archivo no encontrado" row state.
-export class AdjuntosApiError extends Error {
-  code: string
-
+export class AdjuntosApiError extends IpcApiError {
   constructor(code: string, message: string) {
-    super(message)
+    super(code, message)
     this.name = 'AdjuntosApiError'
-    this.code = code
   }
 }
 
@@ -42,44 +40,25 @@ export interface AdjuntosApi {
 
 export const adjuntosApi: AdjuntosApi = {
   async list(subjectId) {
-    const result = await window.api.adjuntos.list(subjectId)
-    if (!result.ok) {
-      throw new AdjuntosApiError(result.error.code, result.error.message)
-    }
-    return listAttachmentsResultSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.adjuntos.list(subjectId), listAttachmentsResultSchema, AdjuntosApiError)
   },
   async add(subjectId) {
-    const result = await window.api.adjuntos.add({ subjectId })
-    if (!result.ok) {
-      throw new AdjuntosApiError(result.error.code, result.error.message)
-    }
-    return addAttachmentsResultSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.adjuntos.add({ subjectId }), addAttachmentsResultSchema, AdjuntosApiError)
   },
   async open(id) {
-    const result = await window.api.adjuntos.open(id)
-    if (!result.ok) {
-      throw new AdjuntosApiError(result.error.code, result.error.message)
-    }
+    assertIpcOk(await window.api.adjuntos.open(id), AdjuntosApiError)
   },
   async delete(id) {
-    const result = await window.api.adjuntos.remove(id)
-    if (!result.ok) {
-      throw new AdjuntosApiError(result.error.code, result.error.message)
-    }
-    return deleteAttachmentResultSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.adjuntos.remove(id), deleteAttachmentResultSchema, AdjuntosApiError)
   },
   async read(id) {
-    const result = await window.api.adjuntos.read(id)
-    if (!result.ok) {
-      throw new AdjuntosApiError(result.error.code, result.error.message)
-    }
-    return readAttachmentTextResultSchema.parse(result.data).content
+    return unwrapIpcResult(await window.api.adjuntos.read(id), readAttachmentTextResultSchema, AdjuntosApiError).content
   },
   async write(id, content) {
-    const result = await window.api.adjuntos.write(id, content)
-    if (!result.ok) {
-      throw new AdjuntosApiError(result.error.code, result.error.message)
-    }
-    return writeAttachmentTextResultSchema.parse(result.data)
+    return unwrapIpcResult(
+      await window.api.adjuntos.write(id, content),
+      writeAttachmentTextResultSchema,
+      AdjuntosApiError
+    )
   }
 }

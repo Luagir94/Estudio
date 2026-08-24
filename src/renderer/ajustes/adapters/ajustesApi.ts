@@ -12,6 +12,7 @@ import {
   type ProbeCliInput,
   type SetCliOverrideInput
 } from '../../../shared/ipc/cli'
+import { assertIpcOk, IpcApiError, unwrapIpcResult } from '../../shared/adapters/ipcApiError'
 
 /**
  * One cache entry PER PROVIDER, not one for the whole screen.
@@ -32,13 +33,10 @@ export function cliStatusQueryKey(provider: CliProvider): readonly [string, stri
 // The bridge never throws — it resolves an `IpcResult` envelope. This error
 // preserves the envelope's typed `code` across the throw, unlike a plain
 // `Error`, exactly like `AdjuntosApiError`.
-export class AjustesApiError extends Error {
-  code: string
-
+export class AjustesApiError extends IpcApiError {
   constructor(code: string, message: string) {
-    super(message)
+    super(code, message)
     this.name = 'AjustesApiError'
-    this.code = code
   }
 }
 
@@ -65,30 +63,15 @@ export interface AjustesApi {
 
 export const ajustesApi: AjustesApi = {
   async probe(input) {
-    const result = await window.api.cli.probe(input)
-    if (!result.ok) {
-      throw new AjustesApiError(result.error.code, result.error.message)
-    }
-    return cliProviderStatusSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.cli.probe(input), cliProviderStatusSchema, AjustesApiError)
   },
   async setOverride(input) {
-    const result = await window.api.cli.setOverride(input)
-    if (!result.ok) {
-      throw new AjustesApiError(result.error.code, result.error.message)
-    }
-    return cliProviderStatusSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.cli.setOverride(input), cliProviderStatusSchema, AjustesApiError)
   },
   async preferences() {
-    const result = await window.api.cli.preferences()
-    if (!result.ok) {
-      throw new AjustesApiError(result.error.code, result.error.message)
-    }
-    return cliPreferencesResultSchema.parse(result.data)
+    return unwrapIpcResult(await window.api.cli.preferences(), cliPreferencesResultSchema, AjustesApiError)
   },
   async disconnect(input) {
-    const result = await window.api.cli.disconnect(input)
-    if (!result.ok) {
-      throw new AjustesApiError(result.error.code, result.error.message)
-    }
+    assertIpcOk(await window.api.cli.disconnect(input), AjustesApiError)
   }
 }
