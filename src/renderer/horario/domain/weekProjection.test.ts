@@ -1,5 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { getWeekOccurrenceDate, projectWeek, type WeekProjectionSubject } from './weekProjection'
+import {
+  getNowOffsetFraction,
+  getWeekOccurrenceDate,
+  hasWeekendClasses,
+  projectWeek,
+  type WeekProjectionSubject
+} from './weekProjection'
 
 // Pins the process timezone deterministically for the DST-transition test
 // below, matching the pattern established in subjectDetail.test.ts.
@@ -108,5 +114,50 @@ describe('getWeekOccurrenceDate (task 4.2: DST-transition week test for occurren
     expect(occurrence.getDate()).toBe(9)
     expect(occurrence.getHours()).toBe(10)
     expect(occurrence.getMinutes()).toBe(0)
+  })
+})
+
+describe('hasWeekendClasses (weekend-collapse rule: both weekend days empty -> collapsed columns)', () => {
+  const slot = { subjectId: 1, subjectName: 'Taller', subjectColor: '#4c8dff', location: null }
+
+  function columnsWith(dayOfWeek: number | null): ReturnType<typeof projectWeek> {
+    const columns = projectWeek([])
+    if (dayOfWeek !== null) {
+      const index = columns.findIndex((column) => column.dayOfWeek === dayOfWeek)
+      columns[index]!.slots.push({ ...slot, slotId: 99, dayOfWeek, startMinutes: 540, endMinutes: 660 })
+    }
+    return columns
+  }
+
+  it('is false when neither Saturday nor Sunday has a class', () => {
+    expect(hasWeekendClasses(columnsWith(null))).toBe(false)
+    expect(hasWeekendClasses(columnsWith(3))).toBe(false) // a weekday class changes nothing
+  })
+
+  it('is true when Saturday (stored dayOfWeek 6) has a class', () => {
+    expect(hasWeekendClasses(columnsWith(6))).toBe(true)
+  })
+
+  it('is true when Sunday (stored dayOfWeek 0) has a class', () => {
+    expect(hasWeekendClasses(columnsWith(0))).toBe(true)
+  })
+})
+
+describe('getNowOffsetFraction (the Horario grid\'s "now" line, on the same minutes scale as class blocks)', () => {
+  it('maps the start of the range to 0 and the midpoint to 0.5', () => {
+    expect(getNowOffsetFraction(new Date(2026, 7, 13, 8, 0), 480, 1440)).toBe(0)
+    expect(getNowOffsetFraction(new Date(2026, 7, 13, 16, 0), 480, 1440)).toBe(0.5)
+  })
+
+  it('returns null before the range opens', () => {
+    expect(getNowOffsetFraction(new Date(2026, 7, 13, 7, 59), 480, 1440)).toBeNull()
+  })
+
+  it('stays inside the range up to its exclusive end (23:59 for a 24:00 cut-off)', () => {
+    expect(getNowOffsetFraction(new Date(2026, 7, 13, 23, 59), 480, 1440)).toBeCloseTo(959 / 960)
+  })
+
+  it('returns null at an end boundary that midnight can actually reach (a 20:00 cut-off)', () => {
+    expect(getNowOffsetFraction(new Date(2026, 7, 13, 20, 0), 480, 1200)).toBeNull()
   })
 })

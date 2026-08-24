@@ -16,15 +16,37 @@ function emptyColumns(): WeekDayColumn[] {
   ]
 }
 
+function withSaturdayClass(): WeekDayColumn[] {
+  const columns = emptyColumns()
+  columns[5] = {
+    mondayFirstIndex: 5,
+    dayOfWeek: 6,
+    slots: [
+      {
+        slotId: 60,
+        dayOfWeek: 6,
+        subjectId: 2,
+        subjectName: 'Taller de Sábado',
+        subjectColor: '#22d3ee',
+        startMinutes: 600,
+        endMinutes: 720,
+        location: null
+      }
+    ]
+  }
+  return columns
+}
+
 describe('HorarioGrid', () => {
   /*
    * The grid renders all SEVEN days. SlotEditor lets a subject be scheduled on
    * Saturday or Sunday, so a five-column grid silently hid slots that had been
    * saved and were visible on the subject detail screen. The .pen design was
-   * updated to match.
+   * updated to match. (A Saturday class keeps the weekend un-collapsed here —
+   * the empty-weekend collapse has its own describe below.)
    */
   it('renders all seven day headers, Monday-first, including the weekend', () => {
-    render(<HorarioGrid columns={emptyColumns()} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
+    render(<HorarioGrid columns={withSaturdayClass()} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
 
     for (const label of ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']) {
       expect(screen.getByText(label)).toBeInTheDocument()
@@ -264,5 +286,82 @@ describe('HorarioGrid', () => {
     render(<HorarioGrid columns={emptyColumns()} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
 
     expect(screen.queryAllByRole('button')).toHaveLength(0)
+  })
+
+  describe('weekend collapse (both weekend days empty -> narrow, dimmed SÁB/DOM columns)', () => {
+    it('collapses the weekend columns when neither Saturday nor Sunday has a class', () => {
+      render(<HorarioGrid columns={emptyColumns()} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
+
+      expect(screen.getByText('SÁB')).toBeInTheDocument()
+      expect(screen.getByText('DOM')).toBeInTheDocument()
+      expect(screen.queryByText('Sábado')).not.toBeInTheDocument()
+      expect(screen.queryByText('Domingo')).not.toBeInTheDocument()
+
+      const columns = screen.getAllByRole('list')
+      for (const weekendColumn of [columns[5]!, columns[6]!]) {
+        expect(weekendColumn).toHaveClass('flex-[0.35]', 'opacity-55')
+        expect(weekendColumn).not.toHaveClass('flex-1')
+      }
+      expect(columns[0]).toHaveClass('flex-1')
+      expect(columns[0]).not.toHaveClass('opacity-55')
+    })
+
+    it('renders all seven columns normally when a weekend day has a class', () => {
+      render(<HorarioGrid columns={withSaturdayClass()} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
+
+      expect(screen.getByText('Sábado')).toBeInTheDocument()
+      expect(screen.getByText('Domingo')).toBeInTheDocument()
+      expect(screen.queryByText('SÁB')).not.toBeInTheDocument()
+
+      for (const column of screen.getAllByRole('list')) {
+        expect(column).toHaveClass('flex-1')
+        expect(column).not.toHaveClass('opacity-55')
+      }
+    })
+  })
+
+  describe('"now" line (today\'s column only, on the same 08:00..24:00 scale as class blocks)', () => {
+    it("renders the 2px violet line with its 8px dot at the current time in today's column", () => {
+      render(
+        <HorarioGrid
+          columns={emptyColumns()}
+          todayMondayFirstIndex={0}
+          now={new Date(2026, 7, 10, 12, 0)} // Monday 12:00 — 240 of 960 minutes into 08:00..24:00
+          onSelectClass={vi.fn()}
+        />
+      )
+
+      const line = screen.getByTestId('now-indicator')
+      expect(line).toHaveStyle({ top: '25%' })
+      expect(line).toHaveClass('h-0.5', 'bg-violet')
+      expect(line.firstElementChild).toHaveClass('h-2', 'w-2', 'rounded-full', 'bg-violet')
+      expect(screen.getAllByRole('list')[0]).toContainElement(line)
+    })
+
+    it('renders no line when the current time falls outside the visible range', () => {
+      render(
+        <HorarioGrid
+          columns={emptyColumns()}
+          todayMondayFirstIndex={0}
+          now={new Date(2026, 7, 10, 7, 0)}
+          onSelectClass={vi.fn()}
+        />
+      )
+
+      expect(screen.queryByTestId('now-indicator')).not.toBeInTheDocument()
+    })
+
+    it('renders no line when no column is today', () => {
+      render(
+        <HorarioGrid
+          columns={emptyColumns()}
+          todayMondayFirstIndex={null}
+          now={new Date(2026, 7, 10, 12, 0)}
+          onSelectClass={vi.fn()}
+        />
+      )
+
+      expect(screen.queryByTestId('now-indicator')).not.toBeInTheDocument()
+    })
   })
 })

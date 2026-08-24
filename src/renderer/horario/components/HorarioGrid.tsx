@@ -8,9 +8,12 @@
 // through the subject (spec: "Editing a class routes through the subject" —
 // there is no direct-edit affordance on this screen).
 import { useTranslation } from 'react-i18next'
+import { getNowOffsetFraction, hasWeekendClasses } from '../domain/weekProjection'
 import type { WeekDayColumn, WeekProjectionSlot } from '../domain/weekProjection'
 import { cn } from '../../shared/lib/cn'
 import { interactive } from '../../shared/lib/interactive'
+import { subjectColorForScheme } from '../../shared/lib/subjectColorScheme'
+import { usePrefersLightScheme } from '../../shared/lib/usePrefersLightScheme'
 
 // The grid spans 08:00..24:00 in eight 2-hour rows — the design's original
 // 20:00 cut-off pushed evening classes outside the body. Heights are relative,
@@ -57,22 +60,53 @@ function formatTime(minutes: number): string {
 interface DayColumnProps {
   slots: WeekProjectionSlot[]
   isToday: boolean
+  /** Empty-weekend column: about a third of a normal track, body dimmed. */
+  collapsed: boolean
+  /** Where the "now" line sits (0..1 of the grid range), or null — only today's column ever receives a value. */
+  nowFraction: number | null
   label: string
   onSelectClass: (subjectId: number) => void
 }
 
-function DayColumn({ slots, isToday, label, onSelectClass }: DayColumnProps): React.JSX.Element {
+function DayColumn({
+  slots,
+  isToday,
+  collapsed,
+  nowFraction,
+  label,
+  onSelectClass
+}: DayColumnProps): React.JSX.Element {
   const { t } = useTranslation('horario')
+  // Stored subject colours are the dark palette; inline styles cannot hear
+  // the light media query, so the scheme mapping happens here.
+  const scheme = usePrefersLightScheme() ? 'light' : 'dark'
   return (
     <div
       role="list"
       aria-label={label}
       data-today={isToday}
       className={cn(
-        'relative h-full flex-1 rounded-lg border',
+        'relative h-full rounded-lg border',
+        // A collapsed weekend track keeps ~1/3 of a normal column's share
+        // (flex-basis stays 0%, only the grow factor shrinks) and dims its
+        // body — the day still exists, it just stops charging rent.
+        collapsed ? 'flex-[0.35] opacity-55' : 'flex-1',
         isToday ? 'border-primary bg-primary/10' : 'border-border bg-card'
       )}
     >
+      {nowFraction !== null && (
+        // The "now" line rides the SAME percentage scale as the class blocks
+        // (getNowOffsetFraction over the grid's minute range == percentOf),
+        // so the two can never disagree about where 12:00 is.
+        <div
+          data-testid="now-indicator"
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 z-10 h-0.5 bg-violet"
+          style={{ top: `${nowFraction * 100}%` }}
+        >
+          <span className="absolute left-0 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-violet" />
+        </div>
+      )}
       {slots.map((slot) => (
         <button
           key={slot.slotId}
@@ -82,7 +116,7 @@ function DayColumn({ slots, isToday, label, onSelectClass }: DayColumnProps): Re
             top: percentOf(slot.startMinutes),
             height: percentSpan(slot.endMinutes - slot.startMinutes),
             minHeight: BLOCK_MIN_HEIGHT_PX,
-            borderLeftColor: slot.subjectColor
+            borderLeftColor: subjectColorForScheme(slot.subjectColor, scheme)
           }}
           // `bg-muted`, not `bg-card`: the day column is already `bg-card`, so
           // a block painted the same had no surface of its own — only the 3px
@@ -134,15 +168,30 @@ export interface HorarioGridProps {
   columns: WeekDayColumn[]
   /** Monday-first index (0..6) of today, or null when today is unknown. */
   todayMondayFirstIndex: number | null
+  /** Reference instant for the "now" line in today's column. Defaults to the real clock. */
+  now?: Date
   /** Opens the "Editar materia" modal on its Horario tab (spec: no direct-edit affordance here). */
   onSelectClass: (subjectId: number) => void
 }
 
-export function HorarioGrid({ columns, todayMondayFirstIndex, onSelectClass }: HorarioGridProps): React.JSX.Element {
+export function HorarioGrid({
+  columns,
+  todayMondayFirstIndex,
+  now = new Date(),
+  onSelectClass
+}: HorarioGridProps): React.JSX.Element {
   const { t } = useTranslation('horario')
   // Monday-first, same order as `columns` (see `projectWeek`).
   const weekdayLabels = t('common:weekdaysLong', { returnObjects: true }) as string[]
+  const weekdayCapsLabels = t('common:weekdaysCaps', { returnObjects: true }) as string[]
   const weekdayColumns = columns
+  // With NO weekend class at all, Sábado/Domingo collapse to narrow, dimmed
+  // tracks (headers abbreviate to SÁB/DOM); one weekend class restores the
+  // full seven-column layout. Monday-first indices 5 and 6 ARE the weekend —
+  // `projectWeek` guarantees that order.
+  const weekendCollapsed = !hasWeekendClasses(columns)
+  const isWeekendIndex = (index: number): boolean => index >= 5
+  const nowFraction = getNowOffsetFraction(now, GRID_START_MINUTES, GRID_END_MINUTES)
 
   return (
     // A seven-day week has a width floor: under ~720px the day columns stop
@@ -158,11 +207,12 @@ export function HorarioGrid({ columns, todayMondayFirstIndex, onSelectClass }: H
             <div
               key={label}
               className={cn(
-                'flex-1 text-center text-body-sm font-semibold',
+                'text-center text-body-sm font-semibold',
+                weekendCollapsed && isWeekendIndex(index) ? 'flex-[0.35]' : 'flex-1',
                 index === todayMondayFirstIndex ? 'text-primary-ink' : 'text-secondary-foreground'
               )}
             >
-              {label}
+              {weekendCollapsed && isWeekendIndex(index) ? weekdayCapsLabels[index] : label}
             </div>
           ))}
         </div>
@@ -181,6 +231,11 @@ export function HorarioGrid({ columns, todayMondayFirstIndex, onSelectClass }: H
               key={column.dayOfWeek}
               slots={column.slots}
               isToday={index === todayMondayFirstIndex}
+              collapsed={weekendCollapsed && isWeekendIndex(index)}
+              nowFraction={index === todayMondayFirstIndex ? nowFraction : null}
+              // The aria-label keeps the FULL day name even when the visual
+              // header abbreviates to SÁB/DOM — collapsing is a visual
+              // treatment, not a semantic one.
               label={weekdayLabels[index]!}
               onSelectClass={onSelectClass}
             />

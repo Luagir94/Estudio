@@ -72,6 +72,7 @@ export function HorarioContainer({ now = new Date() }: HorarioContainerProps = {
         <HorarioGrid
           columns={columns}
           todayMondayFirstIndex={todayMondayFirstIndex}
+          now={now}
           onSelectClass={setSelectedSubjectId}
         />
       )}

@@ -75,6 +75,34 @@ export function projectWeek(subjects: WeekProjectionSubject[]): WeekDayColumn[] 
 }
 
 /**
+ * Whether either weekend day carries at least one class. When BOTH are empty
+ * the grid collapses the Sábado/Domingo columns to narrow, dimmed tracks;
+ * one weekend class anywhere restores the full seven-column layout.
+ * `dayOfWeek` is the STORED Sunday-based value (0=Sunday, 6=Saturday,
+ * schema.ts), so this works on any `WeekDayColumn[]` regardless of order.
+ */
+export function hasWeekendClasses(columns: WeekDayColumn[]): boolean {
+  return columns.some((column) => (column.dayOfWeek === 0 || column.dayOfWeek === 6) && column.slots.length > 0)
+}
+
+/**
+ * Where "now" sits inside the grid's visible time range, as a 0..1 fraction
+ * of `[gridStartMinutes, gridEndMinutes)` — the SAME minutes-of-day scale
+ * class blocks are positioned on (HorarioGrid's `percentOf`), so the "now"
+ * line and the blocks can never drift apart. Returns null outside the range
+ * (the end is exclusive: a cut-off the clock can reach shows no line at the
+ * very bottom edge). Reads LOCAL wall-clock minutes (design §3a "the DST
+ * rule"), the unit slots store.
+ */
+export function getNowOffsetFraction(now: Date, gridStartMinutes: number, gridEndMinutes: number): number | null {
+  const nowMinutes = now.getHours() * 60 + now.getMinutes()
+  if (nowMinutes < gridStartMinutes || nowMinutes >= gridEndMinutes) {
+    return null
+  }
+  return (nowMinutes - gridStartMinutes) / (gridEndMinutes - gridStartMinutes)
+}
+
+/**
  * Composes the concrete Date a slot occurs at within the week anchored by
  * `weekStart` (expected to be that week's Monday). Built from a LOCAL
  * calendar date (`startOfDay`/`addDays`, which operate on calendar days,
