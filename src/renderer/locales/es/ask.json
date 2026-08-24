@@ -106,6 +106,8 @@
   "askPanel": {
     "historyWithCount": "Ver conversaciones anteriores ({{total}})",
     "history": "Ver conversaciones anteriores",
+    "expand": "Expandir panel",
+    "collapse": "Volver a panel flotante",
     "send": "Enviar"
   },
   "askHistoryList": {

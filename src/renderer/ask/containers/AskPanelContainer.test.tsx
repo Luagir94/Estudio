@@ -1077,6 +1077,69 @@ describe('AskPanelContainer', () => {
       await waitFor(() => expect(historyButton()).toHaveTextContent('1'))
     })
   })
+
+  // Expand-to-docked-side-panel (approved design): a header control before
+  // Close flips the panel between the floating 420px card and a full-height
+  // panel docked to the right edge. Pure UI state — default floating, never
+  // persisted.
+  describe('expand to docked side panel', () => {
+    function expandButton(): HTMLElement {
+      return screen.getByRole('button', { name: 'Expandir panel' })
+    }
+
+    it('starts floating, with the expand control carrying its accessible name', async () => {
+      const { container } = renderPanel()
+      await openPanel()
+
+      expect(expandButton()).toBeInTheDocument()
+      expect(container.querySelector('svg.lucide-panel-right')).not.toBeNull()
+      const dialog = screen.getByRole('dialog')
+      expect(dialog).toHaveClass('right-6', 'bottom-24', 'rounded-xl')
+    })
+
+    it('docks to the right edge on expand — full height, square corners, no floating shadow', async () => {
+      const { container } = renderPanel()
+      await openPanel()
+
+      fireEvent.click(expandButton())
+
+      const dialog = screen.getByRole('dialog')
+      expect(dialog).toHaveClass('top-0', 'bottom-0', 'right-0', 'border-l')
+      expect(dialog).not.toHaveClass('rounded-xl')
+      expect(dialog.className).not.toContain('shadow')
+      // The icon flips to the collapse affordance with its own name.
+      expect(screen.getByRole('button', { name: 'Volver a panel flotante' })).toBeInTheDocument()
+      expect(container.querySelector('svg.lucide-panel-right-close')).not.toBeNull()
+    })
+
+    it('returns to the exact floating shape when toggled back', async () => {
+      renderPanel()
+      await openPanel()
+
+      fireEvent.click(expandButton())
+      fireEvent.click(screen.getByRole('button', { name: 'Volver a panel flotante' }))
+
+      const dialog = screen.getByRole('dialog')
+      expect(dialog).toHaveClass('right-6', 'bottom-24', 'rounded-xl')
+      expect(dialog).not.toHaveClass('top-0')
+      expect(expandButton()).toBeInTheDocument()
+    })
+
+    it('still closes from expanded mode, and reopens floating', async () => {
+      renderPanel()
+      await openPanel()
+
+      fireEvent.click(expandButton())
+      fireEvent.click(screen.getByRole('button', { name: /cerrar/i }))
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+      await openPanel()
+
+      // Default floating: the mode is per-open UI state, never persisted.
+      expect(screen.getByRole('dialog')).toHaveClass('right-6', 'bottom-24', 'rounded-xl')
+    })
+  })
 })
 
 // The panel is bounded by PERMISSION before it is bounded by health. "No CLI

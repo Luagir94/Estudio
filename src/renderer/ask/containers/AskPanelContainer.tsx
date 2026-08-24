@@ -65,6 +65,10 @@ export function AskPanelContainer({ onGoToAjustes }: AskPanelContainerProps): Re
   // list. Orthogonal to `selection` — browsing never itself changes which
   // thread is active, only picking a row or starting a new one does.
   const [historyOpen, setHistoryOpen] = useState(false)
+  // Docked-side-panel mode (approved design). Plain UI state on purpose:
+  // default floating, reset on close, never written to storage — the next
+  // open always starts from the floating card.
+  const [expanded, setExpanded] = useState(false)
   // The in-flight question and anything a failed write left behind — merged
   // onto the derived (persisted) entries below.
   const [localEntries, setLocalEntries] = useState<readonly AskEntry[]>([])
@@ -245,6 +249,7 @@ export function AskPanelContainer({ onGoToAjustes }: AskPanelContainerProps): Re
     setLiveArtifact(undefined)
     setDraft('')
     setHistoryOpen(false)
+    setExpanded(false)
     cancelQuietly()
   }
 
@@ -321,6 +326,8 @@ export function AskPanelContainer({ onGoToAjustes }: AskPanelContainerProps): Re
           onClose={close}
           onToggleHistory={() => setHistoryOpen((previous) => !previous)}
           historyOpen={historyOpen}
+          expanded={expanded}
+          onToggleExpanded={() => setExpanded((previous) => !previous)}
           conversationCount={conversationCount}
         >
           {historyOpen ? (

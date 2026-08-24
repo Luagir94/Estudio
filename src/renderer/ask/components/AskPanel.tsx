@@ -1,4 +1,4 @@
-import { ArrowUp, CircleStop, History, MessageCircle, X } from 'lucide-react'
+import { ArrowUp, CircleStop, History, MessageCircle, PanelRight, PanelRightClose, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ModelSelection } from '../../../shared/ipc/cli'
@@ -36,6 +36,13 @@ interface AskPanelProps {
   onToggleHistory: () => void
   historyOpen: boolean
   /**
+   * Docked-side-panel mode (approved design): full viewport height against
+   * the right edge instead of the floating card. Owned by the container as
+   * plain UI state — default floating, never persisted.
+   */
+  expanded: boolean
+  onToggleExpanded: () => void
+  /**
    * How many conversations exist, or `null` when the number must not render.
    *
    * The container decides, because only it knows which thread is on screen:
@@ -72,6 +79,8 @@ export function AskPanel({
   onClose,
   onToggleHistory,
   historyOpen,
+  expanded,
+  onToggleExpanded,
   conversationCount,
   children
 }: AskPanelProps): React.JSX.Element {
@@ -87,7 +96,15 @@ export function AskPanel({
     <section
       role="dialog"
       aria-label={ASK_PANEL_TITLE}
-      className="fixed right-6 bottom-24 z-40 flex w-[420px] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-[0_12px_32px_#00000080]"
+      // Docked mode squares the corners against the edge it touches, keeps
+      // only the left hairline (the other three sides ARE the viewport), and
+      // drops the floating shadow — a wall does not float.
+      className={cn(
+        'fixed z-40 flex w-[420px] flex-col overflow-hidden border-border bg-card',
+        expanded
+          ? 'top-0 right-0 bottom-0 border-l'
+          : 'right-6 bottom-24 rounded-xl border shadow-[0_12px_32px_#00000080]'
+      )}
     >
       <header className="flex items-center justify-between px-4 py-3.5">
         {/* Title Group (gap 8): plain text. It was briefly a <button> while
@@ -119,6 +136,18 @@ export function AskPanel({
           </button>
           <button
             type="button"
+            onClick={onToggleExpanded}
+            aria-label={expanded ? t('askPanel.collapse') : t('askPanel.expand')}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {expanded ? (
+              <PanelRightClose className="size-4" aria-hidden="true" />
+            ) : (
+              <PanelRight className="size-4" aria-hidden="true" />
+            )}
+          </button>
+          <button
+            type="button"
             onClick={onClose}
             aria-label={t('common:dialog.close')}
             className="text-muted-foreground transition-colors hover:text-foreground"
@@ -134,7 +163,10 @@ export function AskPanel({
 
       <div className="h-px w-full bg-border" />
 
-      <div className="h-[400px] overflow-y-auto p-4">{children}</div>
+      {/* Docked mode trades the fixed transcript height for whatever the
+          viewport offers: the slot is the panel's only flexible region, so it
+          absorbs the full height while header/picker/composer keep theirs. */}
+      <div className={cn('overflow-y-auto p-4', expanded ? 'min-h-0 flex-1' : 'h-[400px]')}>{children}</div>
 
       <div className="h-px w-full bg-border" />
 
