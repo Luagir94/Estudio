@@ -53,6 +53,34 @@ describe('backupAndMigrate (pre-migration backup)', () => {
     expect(runMigrator).toHaveBeenCalledTimes(1)
   })
 
+  it('closes the database even when the migrator throws, and the error propagates', () => {
+    const dbHandle = { closed: false }
+    const migrationError = new Error('migration 0002 failed')
+    const runMigrator = vi.fn(() => {
+      throw migrationError
+    })
+    const closeDatabase = vi.fn()
+
+    expect(() =>
+      backupAndMigrate({
+        dbPath: 'C:/userData/course-companion.db',
+        migrationsFolder: 'drizzle/migrations',
+        fileExists: () => true,
+        readJournal: () => [
+          { idx: 0, tag: '0000_init' },
+          { idx: 1, tag: '0001_subjects' }
+        ],
+        openDatabase: () => dbHandle as never,
+        countAppliedMigrations: () => 1,
+        copyFile: vi.fn(),
+        runMigrator,
+        closeDatabase
+      })
+    ).toThrow(migrationError)
+
+    expect(closeDatabase).toHaveBeenCalledWith(dbHandle)
+  })
+
   it('never backs up a brand-new database (no file yet) and still runs the migrator', () => {
     const dbHandle = { closed: false }
     const copyFile = vi.fn()

@@ -1,6 +1,7 @@
 import * as nodeFs from 'node:fs/promises'
 import path from 'node:path'
-import { app, BrowserWindow, Menu } from 'electron'
+import { app, BrowserWindow, dialog, Menu } from 'electron'
+import log from 'electron-log'
 import { MENU_EXPORT_REQUESTED_CHANNEL } from '../shared/ipc/app'
 import { INDEXADO_STATUS_CHANGED_CHANNEL } from '../shared/ipc/channels'
 import { createAttachmentStorage } from './adjuntos/adapters/fileAttachmentStorage'
@@ -8,6 +9,7 @@ import { createSqliteAttachmentRepository } from './adjuntos/adapters/sqliteAtta
 import { createAttachmentService } from './adjuntos/attachmentService'
 import { registerAdjuntosHandlers } from './adjuntos/ipc/registerAdjuntosHandlers'
 import { buildFileMenuTemplate } from './app/exportMenu'
+import { createFatalStartupErrorReporter } from './app/fatalStartupError'
 import { registerAppHandlers } from './app/registerAppHandlers'
 import { createRepositoryAppDataReader } from './ask/adapters/repositoryAppDataReader'
 import { createSqliteAskHistoryRepository } from './ask/adapters/sqliteAskHistoryRepository'
@@ -301,8 +303,21 @@ async function bootstrap(): Promise<void> {
   await createWindow()
 }
 
+// Registered before whenReady so a failure at ANY point of startup — the
+// migration, the DB open, or a stray rejection — surfaces as one dialog and
+// a clean quit instead of a silent windowless process. `dialog.showErrorBox`
+// is the one dialog API Electron documents as safe before app `ready`.
+const reportFatalStartupError = createFatalStartupErrorReporter({
+  logError: (message, error) => log.error(message, error),
+  showErrorBox: (title, content) => dialog.showErrorBox(title, content),
+  quit: () => app.quit()
+})
+
+process.on('unhandledRejection', reportFatalStartupError)
+process.on('uncaughtException', reportFatalStartupError)
+
 app.whenReady().then(() => {
-  void bootstrap()
+  bootstrap().catch(reportFatalStartupError)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

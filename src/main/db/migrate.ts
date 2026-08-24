@@ -99,8 +99,11 @@ export function backupAndMigrate(deps: MigrationDeps): MigrationResult {
     backupCreated = true
   }
 
-  runMigrator(db, migrationsFolder)
-  closeDatabase(db)
+  try {
+    runMigrator(db, migrationsFolder)
+  } finally {
+    closeDatabase(db)
+  }
 
   return { backupCreated, backupPath }
 }

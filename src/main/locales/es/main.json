@@ -12,6 +12,10 @@
     "imagesFilterName": "Imágenes",
     "allFilesFilterName": "Todos los archivos"
   },
+  "fatalStartupError": {
+    "title": "No se pudo iniciar la aplicación",
+    "body": "Ocurrió un error durante el inicio y la aplicación se cerrará.\n\nDetalle: {{detail}}"
+  },
   "promptBuilder": {
     "languageInstruction": "- Respondé en español."
   },
