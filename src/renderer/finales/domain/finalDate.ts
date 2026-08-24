@@ -8,7 +8,16 @@
 import i18n from '../../i18n'
 
 export function formatTakenOn(date: string): string {
-  const months = i18n.t('common:monthsShort', { returnObjects: true }) as string[]
+  const months: unknown = i18n.t('common:monthsShort', { returnObjects: true })
   const [year, month, day] = date.split('-')
-  return `${day} ${months[Number(month) - 1]} ${year}`
+  if (!Array.isArray(months) || !year || !month || !day) {
+    return date
+  }
+  const monthLabel: unknown = months[Number(month) - 1]
+  if (typeof monthLabel !== 'string') {
+    // Malformed date or a month index outside the catalog: showing the raw
+    // stored string beats interpolating "undefined" into the finals list.
+    return date
+  }
+  return `${day} ${monthLabel} ${year}`
 }
