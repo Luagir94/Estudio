@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { finalesApi } from '../adapters/finalesApi'
 import { FinalsCard } from '../components/FinalsCard'
+import { GiveUpConfirmDialog } from '../components/GiveUpConfirmDialog'
 import { NuevaInstanciaModal } from '../components/NuevaInstanciaModal'
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import type { FinalExamRecord, FinalExamResult } from '../../../shared/ipc/materias'
@@ -18,6 +19,7 @@ interface FinalesContainerProps {
 export function FinalesContainer({ subjectId, subjectName, finals }: FinalesContainerProps): React.JSX.Element {
   const queryClient = useQueryClient()
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const [isGiveUpOpen, setIsGiveUpOpen] = useState(false)
 
   // The subject's status is derived from these rows, so every write here
   // invalidates the subject caches too — the detail header, the list badge
@@ -39,8 +41,17 @@ export function FinalesContainer({ subjectId, subjectName, finals }: FinalesCont
   const updateMutation = useMutation({ mutationFn: finalesApi.update, onSuccess: invalidate })
   const deleteMutation = useMutation({ mutationFn: finalesApi.delete, onSuccess: invalidate })
   // Giving up is a SUBJECT command, not a final-exam one: it writes the
-  // student's decision, which no arrangement of exam rows can produce.
-  const giveUpMutation = useMutation({ mutationFn: materiasApi.setOutcome, onSuccess: invalidate })
+  // student's decision, which no arrangement of exam rows can produce. The
+  // click only OPENS `GiveUpConfirmDialog` (see `onGiveUp` below) — the
+  // mutation itself fires from that dialog's `onConfirm`, never from the
+  // destructive button directly.
+  const giveUpMutation = useMutation({
+    mutationFn: materiasApi.setOutcome,
+    onSuccess: () => {
+      invalidate()
+      setIsGiveUpOpen(false)
+    }
+  })
 
   return (
     <>
@@ -51,7 +62,7 @@ export function FinalesContainer({ subjectId, subjectName, finals }: FinalesCont
           updateMutation.mutate({ id: final.id, label: final.label, takenOn: final.takenOn, result })
         }
         onDelete={(final: FinalExamRecord) => deleteMutation.mutate(final.id)}
-        onGiveUp={() => giveUpMutation.mutate({ id: subjectId, outcome: 'reprobada', grade: null })}
+        onGiveUp={() => setIsGiveUpOpen(true)}
       />
 
       {isAddOpen && (
@@ -60,6 +71,14 @@ export function FinalesContainer({ subjectId, subjectName, finals }: FinalesCont
           subjectName={subjectName}
           onSubmit={(input) => createMutation.mutate(input)}
           onClose={() => setIsAddOpen(false)}
+        />
+      )}
+
+      {isGiveUpOpen && (
+        <GiveUpConfirmDialog
+          subjectName={subjectName}
+          onConfirm={() => giveUpMutation.mutate({ id: subjectId, outcome: 'reprobada', grade: null })}
+          onCancel={() => setIsGiveUpOpen(false)}
         />
       )}
     </>
