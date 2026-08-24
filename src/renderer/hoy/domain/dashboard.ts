@@ -71,6 +71,69 @@ export function getTodayClasses(subjects: DashboardSubject[], now: Date): TodayC
     .sort((a, b) => a.startMinutes - b.startMinutes)
 }
 
+export interface NextClassHighlight {
+  slotId: number
+  /** Positive: starts in that many minutes. Zero or negative: in progress right now ("AHORA"). */
+  minutesUntilStart: number
+}
+
+/**
+ * Which of today's classes deserves the "next class" accent, under the
+ * IN-PROGRESS-FIRST rule (disclosed judgment call — the design allowed
+ * either): a class currently running (start <= now < end) is highlighted as
+ * "AHORA"; otherwise the first class whose start is still in the future.
+ * After the last class ends (its `endMinutes` is exclusive, like the rule
+ * above) — or with no classes at all — nothing is highlighted.
+ *
+ * `now` is compared through its LOCAL wall-clock minutes (design §3a "the
+ * DST rule" — never ms-since-epoch arithmetic), the same unit slots store.
+ * Expects `todayClasses` sorted ascending by start time, as
+ * {@link getTodayClasses} returns them.
+ */
+export function getNextClassHighlight(todayClasses: TodayClass[], now: Date): NextClassHighlight | null {
+  const nowMinutes = now.getHours() * 60 + now.getMinutes()
+  const highlighted = todayClasses.find(
+    (classItem) =>
+      (classItem.startMinutes <= nowMinutes && nowMinutes < classItem.endMinutes) || classItem.startMinutes > nowMinutes
+  )
+  return highlighted ? { slotId: highlighted.slotId, minutesUntilStart: highlighted.startMinutes - nowMinutes } : null
+}
+
+export interface NextClassOccurrence {
+  /** How many days after `now` the class occurs: 1..7 — "next" starts tomorrow, never today. */
+  daysAhead: number
+  /** Stored Sunday-based day (0=Sunday..6=Saturday), same unit the slots carry. */
+  dayOfWeek: number
+  startMinutes: number
+  subjectName: string
+}
+
+/**
+ * The next class occurrence across the WEEKLY pattern (Hoy's designed empty
+ * state: "La próxima es el lunes · 08:00 · ..."). Scans tomorrow through 7
+ * days ahead — the whole recurring week — and answers with the earliest slot
+ * of the nearest day that has one. Deliberately never answers with a class
+ * today: the empty state only renders when today's list is empty, and a
+ * general "next" that could point at today would contradict the very state
+ * asking for it. `null` means no subject has any slot at all.
+ */
+export function getNextClassOccurrence(subjects: DashboardSubject[], now: Date): NextClassOccurrence | null {
+  for (let daysAhead = 1; daysAhead <= 7; daysAhead += 1) {
+    const dayOfWeek = (now.getDay() + daysAhead) % 7
+    const first = subjects
+      .flatMap((subject) =>
+        subject.slots
+          .filter((slot) => slot.dayOfWeek === dayOfWeek)
+          .map((slot) => ({ startMinutes: slot.startMinutes, subjectName: subject.name }))
+      )
+      .sort((a, b) => a.startMinutes - b.startMinutes)[0]
+    if (first) {
+      return { daysAhead, dayOfWeek, startMinutes: first.startMinutes, subjectName: first.subjectName }
+    }
+  }
+  return null
+}
+
 export interface FreeBlock {
   gapMinutes: number
   afterSubjectName: string

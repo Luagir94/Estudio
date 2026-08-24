@@ -3,6 +3,8 @@ import {
   FREE_BLOCK_THRESHOLD_MINUTES,
   getDashboardDeadlines,
   getFreeBlocks,
+  getNextClassHighlight,
+  getNextClassOccurrence,
   getTodayClasses,
   getWeekStrip,
   type DashboardDeadline,
@@ -160,6 +162,92 @@ describe('getDashboardDeadlines (spec: "Overdue Surfacing" — overdue deadlines
     const result = getDashboardDeadlines(deadlines, now)
 
     expect(result[0]!.title).toBe('Informe de lectura 2')
+  })
+})
+
+describe('getNextClassHighlight (in-progress-first rule: highlight the class running NOW, else the next upcoming one)', () => {
+  // Thursday's classes from the shared fixture, already sorted by start:
+  // Sistemas Operativos 08:00-09:30 (slot 10), Bases de Datos 10:00-12:00
+  // (slot 20), Ingeniería de Software 18:30-21:30 (slot 30).
+  const classes = getTodayClasses(subjects, new Date(2026, 7, 13, 9, 0))
+
+  it('before the first class, highlights it with positive minutes until start', () => {
+    const now = new Date(2026, 7, 13, 7, 15)
+    expect(getNextClassHighlight(classes, now)).toEqual({ slotId: 10, minutesUntilStart: 45 })
+  })
+
+  it('between two classes, highlights the upcoming one, never the finished one', () => {
+    const now = new Date(2026, 7, 13, 17, 45)
+    expect(getNextClassHighlight(classes, now)).toEqual({ slotId: 30, minutesUntilStart: 45 })
+  })
+
+  it('during a class, highlights the in-progress class with negative minutes (in-progress-first rule)', () => {
+    const now = new Date(2026, 7, 13, 10, 30)
+    expect(getNextClassHighlight(classes, now)).toEqual({ slotId: 20, minutesUntilStart: -30 })
+  })
+
+  it('a class starting exactly now is in progress: zero minutes, not "in 0 minutes"', () => {
+    const now = new Date(2026, 7, 13, 10, 0)
+    expect(getNextClassHighlight(classes, now)).toEqual({ slotId: 20, minutesUntilStart: 0 })
+  })
+
+  it('at the exact end of the last class, highlights nothing — the day is over', () => {
+    const now = new Date(2026, 7, 13, 21, 30)
+    expect(getNextClassHighlight(classes, now)).toBeNull()
+  })
+
+  it('returns null for an empty class list', () => {
+    expect(getNextClassHighlight([], new Date(2026, 7, 13, 9, 0))).toBeNull()
+  })
+})
+
+describe('getNextClassOccurrence (Hoy empty state: the next class across the weekly pattern)', () => {
+  // Shared fixture: Thursday holds three classes (08:00 Sistemas Operativos,
+  // 10:00 Bases de Datos, 18:30 Ingeniería de Software); Tuesday holds one
+  // (08:00 Redes de Computadoras). Saturday/Sunday/Monday... hold none.
+
+  it('finds the earliest class on the nearest upcoming day', () => {
+    const now = new Date(2026, 7, 15, 9, 0) // Saturday — nearest is Tuesday's Redes
+    expect(now.getDay()).toBe(6)
+
+    expect(getNextClassOccurrence(subjects, now)).toEqual({
+      daysAhead: 3,
+      dayOfWeek: 2,
+      startMinutes: 480,
+      subjectName: 'Redes de Computadoras'
+    })
+  })
+
+  it('picks the earliest start when the upcoming day holds several classes', () => {
+    const now = new Date(2026, 7, 12, 9, 0) // Wednesday — Thursday has three classes
+    expect(now.getDay()).toBe(3)
+
+    expect(getNextClassOccurrence(subjects, now)).toEqual({
+      daysAhead: 1,
+      dayOfWeek: 4,
+      startMinutes: 480,
+      subjectName: 'Sistemas Operativos'
+    })
+  })
+
+  it('wraps across the weekend — a weekly pattern has no "end of week"', () => {
+    const now = new Date(2026, 7, 14, 9, 0) // Friday — nothing until next Tuesday
+    expect(now.getDay()).toBe(5)
+
+    expect(getNextClassOccurrence(subjects, now)?.daysAhead).toBe(4)
+  })
+
+  it('never answers with a class TODAY — "next" starts tomorrow', () => {
+    const now = new Date(2026, 7, 13, 7, 0) // Thursday BEFORE its own classes
+    expect(now.getDay()).toBe(4)
+
+    // Today's Thursday classes are skipped; the next occurrence is Tuesday's.
+    expect(getNextClassOccurrence(subjects, now)?.dayOfWeek).toBe(2)
+  })
+
+  it('returns null when no subject has any slot', () => {
+    const bare: DashboardSubject[] = [{ id: 1, name: 'Sin horario', color: '#4c8dff', slots: [] }]
+    expect(getNextClassOccurrence(bare, new Date(2026, 7, 15, 9, 0))).toBeNull()
   })
 })
 

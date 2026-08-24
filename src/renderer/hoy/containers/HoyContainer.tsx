@@ -13,7 +13,13 @@ import { classifyDeadline } from '../../entregas/domain/deadline'
 import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
 import { hoyApi } from '../adapters/hoyApi'
 import { HoyDashboard } from '../components/HoyDashboard'
-import { getDashboardDeadlines, getFreeBlocks, getTodayClasses, getWeekStrip } from '../domain/dashboard'
+import {
+  getDashboardDeadlines,
+  getFreeBlocks,
+  getNextClassOccurrence,
+  getTodayClasses,
+  getWeekStrip
+} from '../domain/dashboard'
 
 interface HoyContainerProps {
   /** Injection point for deterministic "today" composition in tests. Defaults to the real clock. */
@@ -33,6 +39,7 @@ export function HoyContainer({ now = new Date() }: HoyContainerProps = {}): Reac
 
   const todayClasses = getTodayClasses(subjects, now)
   const freeBlocks = getFreeBlocks(todayClasses)
+  const nextClass = getNextClassOccurrence(subjects, now)
   const dashboardDeadlines = getDashboardDeadlines(allDeadlines, now)
   const weekStrip = getWeekStrip(subjects, allDeadlines, now)
   const todayMondayFirstIndex = toMondayFirstIndex(now.getDay())
@@ -62,6 +69,7 @@ export function HoyContainer({ now = new Date() }: HoyContainerProps = {}): Reac
           deadlines={dashboardDeadlines}
           weekStrip={weekStrip}
           todayMondayFirstIndex={todayMondayFirstIndex}
+          nextClass={nextClass}
           now={now}
         />
       )}

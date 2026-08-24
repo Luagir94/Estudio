@@ -13,7 +13,11 @@
   },
   "dashboard": {
     "todayClasses": "CLASES DE HOY",
-    "noClassesToday": "No tenés clases hoy.",
+    "emptyToday": {
+      "title": "Hoy no tenés clases",
+      "nextClass": "La próxima es el {{day}} · {{time}} · {{subject}}",
+      "noNextClass": "Todavía no hay clases cargadas en tu horario"
+    },
     "next7Days": "PRÓXIMOS 7 DÍAS",
     "noUpcomingDeadlines": "No tenés entregas próximas.",
     "thisWeek": "ESTA SEMANA",
@@ -22,6 +26,12 @@
     "conjunctionBeforeISound": "e",
     "durationHours": "{{hours}}h",
     "durationHoursMinutes": "{{hours}}h {{minutes}}m"
+  },
+  "classRow": {
+    "inProgress": "Ahora",
+    "startsInMinutes": "En {{minutes}} min",
+    "startsInHours": "En {{hours}} h",
+    "startsInHoursMinutes": "En {{hours}} h {{minutes}} min"
   },
   "weekStrip": {
     "dueCount_one": "{{count}} entrega",

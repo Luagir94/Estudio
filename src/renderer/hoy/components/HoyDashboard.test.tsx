@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
 import { beforeAll, describe, expect, it } from 'vitest'
-import type { TodayClass, DashboardDeadline, FreeBlock, WeekStripDay } from '../domain/dashboard'
+import type { TodayClass, DashboardDeadline, FreeBlock, NextClassOccurrence, WeekStripDay } from '../domain/dashboard'
 import { HoyDashboard } from './HoyDashboard'
 
 beforeAll(() => {
@@ -64,6 +64,7 @@ describe('HoyDashboard (design node E2pJ95 — Grupo Hoy, zero-navigation, read-
         deadlines={deadlines}
         weekStrip={weekStrip}
         todayMondayFirstIndex={3}
+        nextClass={null}
         now={new Date(2026, 7, 13, 9, 0)}
       />
     )
@@ -79,20 +80,89 @@ describe('HoyDashboard (design node E2pJ95 — Grupo Hoy, zero-navigation, read-
     expect(screen.getByText('ESTA SEMANA')).toBeInTheDocument()
   })
 
-  it('shows an empty-state message when there are no classes today, never a blank gap', () => {
-    render(
-      <HoyDashboard
-        dateHeadline="Sábado 15 de agosto"
-        daySummary="0 clases hoy"
-        todayClasses={[]}
-        freeBlocks={[]}
-        deadlines={[]}
-        weekStrip={weekStrip}
-        todayMondayFirstIndex={5}
-      />
-    )
+  describe('next-class highlight (in-progress-first rule, see getNextClassHighlight)', () => {
+    function renderAt(now: Date): void {
+      render(
+        <HoyDashboard
+          dateHeadline="Jueves 13 de agosto"
+          daySummary="2 clases hoy · 1 atrasada · 1 entrega en los próximos 7 días"
+          todayClasses={todayClasses}
+          freeBlocks={freeBlocks}
+          deadlines={deadlines}
+          weekStrip={weekStrip}
+          todayMondayFirstIndex={3}
+          nextClass={null}
+          now={now}
+        />
+      )
+    }
 
-    expect(screen.getByText('No tenés clases hoy.')).toBeInTheDocument()
-    expect(screen.getByText('No tenés entregas próximas.')).toBeInTheDocument()
+    it('pins the "starts in" pill and accent border to the next upcoming class only', () => {
+      renderAt(new Date(2026, 7, 13, 17, 45)) // between the two classes; the 18:30 one is next
+
+      const pill = screen.getByText('En 45 min')
+      expect(pill.closest('div')).toHaveTextContent('Ingeniería de Software')
+      expect(pill.closest('div')).toHaveClass('border-violet')
+      expect(screen.getByText('Sistemas Operativos').closest('div')).toHaveClass('border-border')
+      expect(screen.getByText('Sistemas Operativos').closest('div')).not.toHaveClass('border-violet')
+    })
+
+    it('reads "Ahora" on the class currently in progress', () => {
+      renderAt(new Date(2026, 7, 13, 8, 30)) // inside Sistemas Operativos 08:00-09:30
+
+      expect(screen.getByText('Ahora').closest('div')).toHaveTextContent('Sistemas Operativos')
+    })
+
+    it('highlights nothing after the last class of the day has ended', () => {
+      renderAt(new Date(2026, 7, 13, 22, 30))
+
+      expect(screen.queryByText('Ahora')).not.toBeInTheDocument()
+      expect(screen.queryByText(/^En \d/)).not.toBeInTheDocument()
+    })
+  })
+
+  describe('designed empty state (no classes today)', () => {
+    function renderEmpty(nextClass: NextClassOccurrence | null) {
+      return render(
+        <HoyDashboard
+          dateHeadline="Sábado 15 de agosto"
+          daySummary="0 clases hoy"
+          todayClasses={[]}
+          freeBlocks={[]}
+          deadlines={[]}
+          weekStrip={weekStrip}
+          todayMondayFirstIndex={5}
+          nextClass={nextClass}
+        />
+      )
+    }
+
+    it('renders the coffee-circle card with the title and the derived next-class subtitle', () => {
+      const { container } = renderEmpty({
+        daysAhead: 2,
+        dayOfWeek: 1,
+        startMinutes: 480,
+        subjectName: 'Sistemas Operativos'
+      })
+
+      expect(screen.getByText('Hoy no tenés clases')).toBeInTheDocument()
+      expect(screen.getByText('La próxima es el lunes · 08:00 · Sistemas Operativos')).toBeInTheDocument()
+      expect(container.querySelector('svg.lucide-coffee')).not.toBeNull()
+    })
+
+    it('falls back to the simpler line when no next class is derivable', () => {
+      renderEmpty(null)
+
+      expect(screen.getByText('Hoy no tenés clases')).toBeInTheDocument()
+      expect(screen.getByText('Todavía no hay clases cargadas en tu horario')).toBeInTheDocument()
+    })
+
+    it('keeps the deadlines column and the week strip rendering as they do', () => {
+      renderEmpty(null)
+
+      expect(screen.getByText('PRÓXIMOS 7 DÍAS')).toBeInTheDocument()
+      expect(screen.getByText('No tenés entregas próximas.')).toBeInTheDocument()
+      expect(screen.getByText('ESTA SEMANA')).toBeInTheDocument()
+    })
   })
 })

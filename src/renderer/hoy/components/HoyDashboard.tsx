@@ -4,11 +4,14 @@
 // HoyContainer. Read-only: Hoy is a "read-model... sin acciones primarias"
 // (design node `VQJO4`), so this component has zero click handlers.
 import type { TFunction } from 'i18next'
+import { Coffee } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
 import { ClassRow } from './ClassRow'
 import { DeadlineRow } from './DeadlineRow'
 import { WeekStrip } from './WeekStrip'
-import type { DashboardDeadline, FreeBlock, TodayClass, WeekStripDay } from '../domain/dashboard'
+import { getNextClassHighlight } from '../domain/dashboard'
+import type { DashboardDeadline, FreeBlock, NextClassOccurrence, TodayClass, WeekStripDay } from '../domain/dashboard'
 
 /** "y" before most words, "e" before a word starting with an i/hi sound (Spanish grammar) — matches the design's own example: "...Bases de Datos e Ingeniería de Software". */
 function conjunction(t: TFunction, nextWord: string): string {
@@ -28,6 +31,14 @@ function formatFreeBlock(t: TFunction, block: FreeBlock): string {
   })
 }
 
+function formatTime(minutes: number): string {
+  const hours = Math.floor(minutes / 60)
+    .toString()
+    .padStart(2, '0')
+  const mins = (minutes % 60).toString().padStart(2, '0')
+  return `${hours}:${mins}`
+}
+
 interface HoyDashboardProps {
   dateHeadline: string
   daySummary: string
@@ -36,6 +47,8 @@ interface HoyDashboardProps {
   deadlines: DashboardDeadline[]
   weekStrip: WeekStripDay[]
   todayMondayFirstIndex: number | null
+  /** Feeds the empty state's subtitle. `null` when no next class is derivable (no slots at all). */
+  nextClass: NextClassOccurrence | null
   /** Reference instant for deadline status pills. Defaults to the real clock. */
   now?: Date
 }
@@ -48,9 +61,24 @@ export function HoyDashboard({
   deadlines,
   weekStrip,
   todayMondayFirstIndex,
+  nextClass,
   now = new Date()
 }: HoyDashboardProps): React.JSX.Element {
   const { t } = useTranslation('hoy')
+  // In-progress-first rule (see getNextClassHighlight): at most ONE row
+  // carries the violet accent + "starts in" pill; after the last class the
+  // list goes back to plain surface rows.
+  const nextClassHighlight = getNextClassHighlight(todayClasses, now)
+  // Monday-first, same consolidated table every other weekday label reads.
+  const weekdaysLong = t('common:weekdaysLong', { returnObjects: true }) as string[]
+  // "el lunes", not "el Lunes" — mid-sentence, Spanish lowercases weekdays.
+  const emptyTodaySubtitle = nextClass
+    ? t('dashboard.emptyToday.nextClass', {
+        day: (weekdaysLong[toMondayFirstIndex(nextClass.dayOfWeek)] ?? '').toLowerCase(),
+        time: formatTime(nextClass.startMinutes),
+        subject: nextClass.subjectName
+      })
+    : t('dashboard.emptyToday.noNextClass')
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-1">
@@ -66,7 +94,20 @@ export function HoyDashboard({
         <div className="flex flex-col gap-3">
           <h2 className="text-label font-semibold text-muted-foreground">{t('dashboard.todayClasses')}</h2>
           {todayClasses.length === 0 ? (
-            <p className="text-body-lg text-muted-foreground">{t('dashboard.noClassesToday')}</p>
+            // Designed empty state (approved design): the day off is a state
+            // worth drawing, not a one-line apology — a coffee break, plus
+            // where the week picks up again when that is derivable.
+            <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card px-6 py-10 text-center">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-soft">
+                <Coffee className="h-5 w-5 text-primary-ink" aria-hidden="true" />
+              </span>
+              <div className="flex flex-col gap-1">
+                <p className="font-display text-title font-semibold text-foreground">
+                  {t('dashboard.emptyToday.title')}
+                </p>
+                <p className="text-body text-secondary-foreground">{emptyTodaySubtitle}</p>
+              </div>
+            </div>
           ) : (
             <div className="flex flex-col gap-2">
               {todayClasses.map((classItem) => (
@@ -77,6 +118,11 @@ export function HoyDashboard({
                   startMinutes={classItem.startMinutes}
                   endMinutes={classItem.endMinutes}
                   location={classItem.location}
+                  minutesUntilStart={
+                    nextClassHighlight !== null && nextClassHighlight.slotId === classItem.slotId
+                      ? nextClassHighlight.minutesUntilStart
+                      : null
+                  }
                 />
               ))}
               {freeBlocks.map((block, index) => (
