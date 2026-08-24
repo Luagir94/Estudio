@@ -333,7 +333,7 @@ describe('spawnPromptExecution', () => {
       spawnFn
     )
 
-    const [, args] = vi.mocked(spawnFn).mock.calls[0]
+    const [, args] = vi.mocked(spawnFn).mock.calls[0]!
     expect(args[3]).toContain(`--add-dir "${spacedRoot}"`)
     vi.unstubAllEnvs()
   })
@@ -356,7 +356,8 @@ describe('spawnPromptExecution', () => {
       spawnFn
     )
 
-    const [directCall, shimCall] = vi.mocked(spawnFn).mock.calls
+    const directCall = vi.mocked(spawnFn).mock.calls[0]!
+    const shimCall = vi.mocked(spawnFn).mock.calls[1]!
     expect(directCall[1]).toContain('Read,Glob,Grep')
     expect(shimCall[1][3]).toContain('--allowed-tools Read,Glob,Grep')
   })
@@ -404,20 +405,21 @@ describe('spawnPromptExecution', () => {
 
     spawnPromptExecution(
       CLAUDE,
-      asValidated('C:\tools\claude.exe'),
+      asValidated('C:\\tools\\claude.exe'),
       ATTACHMENTS_ROOT,
       asModel('claude-sonnet-5'),
       spawnFn
     )
     spawnPromptExecution(
       CLAUDE,
-      asValidated('C:\tools\claude.cmd'),
+      asValidated('C:\\tools\\claude.cmd'),
       ATTACHMENTS_ROOT,
       asModel('claude-sonnet-5'),
       spawnFn
     )
 
-    const [directCall, shimCall] = vi.mocked(spawnFn).mock.calls
+    const directCall = vi.mocked(spawnFn).mock.calls[0]!
+    const shimCall = vi.mocked(spawnFn).mock.calls[1]!
     for (const flag of ['--safe-mode', '--strict-mcp-config', '--exclude-dynamic-system-prompt-sections']) {
       expect(directCall[1]).toContain(flag)
       expect(shimCall[1][3]).toContain(flag)
@@ -453,7 +455,8 @@ describe('spawnPromptExecution', () => {
     spawnPromptExecution(CLAUDE, asValidated('C:\\tools\\claude.exe'), ATTACHMENTS_ROOT, asModel(modelId), spawnFn)
     spawnPromptExecution(CLAUDE, asValidated('C:\\tools\\claude.cmd'), ATTACHMENTS_ROOT, asModel(modelId), spawnFn)
 
-    const [directCall, shimCall] = vi.mocked(spawnFn).mock.calls
+    const directCall = vi.mocked(spawnFn).mock.calls[0]!
+    const shimCall = vi.mocked(spawnFn).mock.calls[1]!
     expect(directCall[1]).toEqual(expect.arrayContaining(['--model', modelId]))
     expect(shimCall[1][3]).toContain(`--model ${modelId}`)
   })
@@ -747,7 +750,7 @@ describe('spawnPromptExecution — argv prompt delivery', () => {
 describe('spawnStreamingSession', () => {
   it('spawns a non-shim executable with the fixed streaming vector, cwd and piped stdio', () => {
     const spawnFn = vi.fn(() => ({}) as ChildProcess)
-    const absPath = 'C:\tools\claude.exe'
+    const absPath = 'C:\\tools\\claude.exe'
 
     spawnStreamingSession(CLAUDE, asValidated(absPath), ATTACHMENTS_ROOT, asModel('claude-sonnet-5'), spawnFn)
 
@@ -775,22 +778,22 @@ describe('spawnStreamingSession', () => {
   })
 
   it('spawns a .cmd shim through the same quoted cmd.exe vector as the other two invocations', () => {
-    vi.stubEnv('ComSpec', 'C:\Windows\System32\cmd.exe')
+    vi.stubEnv('ComSpec', 'C:\\Windows\\System32\\cmd.exe')
     const spawnFn: SpawnFn = vi.fn(() => ({}) as ChildProcess)
 
     spawnStreamingSession(
       CLAUDE,
-      asValidated('C:\nvm4w\nodejs\claude.cmd'),
+      asValidated('C:\\nvm4w\\nodejs\\claude.cmd'),
       ATTACHMENTS_ROOT,
       asModel('claude-haiku-4-5-20251001'),
       spawnFn
     )
 
-    const [command, args, options] = vi.mocked(spawnFn).mock.calls[0]
+    const [command, args, options] = vi.mocked(spawnFn).mock.calls[0]!
     if (args === undefined) throw new Error('the shim branch must pass an argv')
-    expect(command).toBe('C:\Windows\System32\cmd.exe')
+    expect(command).toBe('C:\\Windows\\System32\\cmd.exe')
     expect(args[3]).toBe(
-      `""C:\nvm4w\nodejs\claude.cmd" -p --safe-mode --strict-mcp-config --exclude-dynamic-system-prompt-sections --input-format stream-json --output-format stream-json --verbose --allowed-tools Read,Glob,Grep --model claude-haiku-4-5-20251001 --add-dir "${ATTACHMENTS_ROOT}""`
+      `""C:\\nvm4w\\nodejs\\claude.cmd" -p --safe-mode --strict-mcp-config --exclude-dynamic-system-prompt-sections --input-format stream-json --output-format stream-json --verbose --allowed-tools Read,Glob,Grep --model claude-haiku-4-5-20251001 --add-dir "${ATTACHMENTS_ROOT}""`
     )
     expect(options).toMatchObject({ shell: false, cwd: ATTACHMENTS_ROOT, windowsVerbatimArguments: true })
     vi.unstubAllEnvs()
@@ -805,20 +808,21 @@ describe('spawnStreamingSession', () => {
 
     spawnStreamingSession(
       CLAUDE,
-      asValidated('C:\tools\claude.exe'),
+      asValidated('C:\\tools\\claude.exe'),
       ATTACHMENTS_ROOT,
       asModel('claude-sonnet-5'),
       spawnFn
     )
     spawnStreamingSession(
       CLAUDE,
-      asValidated('C:\tools\claude.cmd'),
+      asValidated('C:\\tools\\claude.cmd'),
       ATTACHMENTS_ROOT,
       asModel('claude-sonnet-5'),
       spawnFn
     )
 
-    const [directCall, shimCall] = vi.mocked(spawnFn).mock.calls
+    const directCall = vi.mocked(spawnFn).mock.calls[0]!
+    const shimCall = vi.mocked(spawnFn).mock.calls[1]!
     expect(directCall[1]).toContain('--verbose')
     expect(shimCall[1][3]).toContain('--verbose')
   })
@@ -828,20 +832,21 @@ describe('spawnStreamingSession', () => {
 
     spawnStreamingSession(
       CLAUDE,
-      asValidated('C:\tools\claude.exe'),
+      asValidated('C:\\tools\\claude.exe'),
       ATTACHMENTS_ROOT,
       asModel('claude-sonnet-5'),
       spawnFn
     )
     spawnPromptExecution(
       CLAUDE,
-      asValidated('C:\tools\claude.exe'),
+      asValidated('C:\\tools\\claude.exe'),
       ATTACHMENTS_ROOT,
       asModel('claude-sonnet-5'),
       spawnFn
     )
 
-    const [streaming, perQuestion] = vi.mocked(spawnFn).mock.calls
+    const streaming = vi.mocked(spawnFn).mock.calls[0]!
+    const perQuestion = vi.mocked(spawnFn).mock.calls[1]!
     for (const flag of ['--safe-mode', '--strict-mcp-config', '--exclude-dynamic-system-prompt-sections']) {
       expect(streaming[1]).toContain(flag)
       expect(perQuestion[1]).toContain(flag)
@@ -852,15 +857,15 @@ describe('spawnStreamingSession', () => {
 
   it.each([
     ['a relative root', 'attachments'],
-    ['a root containing a quote', 'C:\att"achments'],
-    ['a root containing a newline', 'C:\att\nachments']
+    ['a root containing a quote', 'C:\\att"achments'],
+    ['a root containing a newline', 'C:\\att\nachments']
   ])('throws on %s without spawning anything', (_label, hostileRoot) => {
     const spawnFn: SpawnFn = vi.fn(() => ({}) as ChildProcess)
 
     expect(() =>
       spawnStreamingSession(
         CLAUDE,
-        asValidated('C:\tools\claude.exe'),
+        asValidated('C:\\tools\\claude.exe'),
         hostileRoot,
         asModel('claude-sonnet-5'),
         spawnFn

@@ -256,14 +256,14 @@ describe('registerCliHandlers', () => {
     // Typing a path is how a student connects a CLI that PATH autodetection
     // cannot find, so it must persist the same way pressing Conectar does.
     it('records it when a manual path is committed', async () => {
-      await invoke('cli:setOverride', { provider: 'codex', path: 'C:\tools\codex.cmd' })
+      await invoke('cli:setOverride', { provider: 'codex', path: 'C:\\tools\\codex.cmd' })
 
       expect(settingsRepository.set).toHaveBeenCalledWith('codex.connected', '1')
     })
 
     it('reports the opt-in and the saved path of every provider', async () => {
       settings.get = vi.fn((key: string) =>
-        key === 'claude.connected' ? '1' : key === 'antigravity.executableOverride' ? 'C:\agy\agy.exe' : null
+        key === 'claude.connected' ? '1' : key === 'antigravity.executableOverride' ? 'C:\\agy\\agy.exe' : null
       )
 
       await expect(invoke('cli:preferences')).resolves.toEqual({
@@ -273,7 +273,7 @@ describe('registerCliHandlers', () => {
           // A saved path WITHOUT the opt-in: exactly the state a returning
           // student is in, and the reason these two fields cannot be folded
           // into one.
-          { provider: 'antigravity', connected: false, overridePath: 'C:\agy\agy.exe', lastStatus: null },
+          { provider: 'antigravity', connected: false, overridePath: 'C:\\agy\\agy.exe', lastStatus: null },
           { provider: 'codex', connected: false, overridePath: null, lastStatus: null }
         ]
       })
@@ -345,7 +345,7 @@ describe('registerCliHandlers', () => {
     })
 
     it('remembers it after a manual path is committed too', async () => {
-      await invoke('cli:setOverride', { provider: 'codex', path: 'C:\tools\codex.cmd' })
+      await invoke('cli:setOverride', { provider: 'codex', path: 'C:\\tools\\codex.cmd' })
 
       expect(settingsRepository.set).toHaveBeenCalledWith('codex.lastStatus', 'connected')
     })
@@ -365,7 +365,7 @@ describe('registerCliHandlers', () => {
 
       const result = (await invoke('cli:preferences')) as { data: { lastStatus: string | null }[] }
 
-      expect(result.data[0].lastStatus).toBeNull()
+      expect(result.data[0]!.lastStatus).toBeNull()
     })
 
     it('forgets the remembered outcome when the CLI is disconnected', async () => {

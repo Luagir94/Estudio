@@ -123,7 +123,7 @@ describe('AjustesContainer', () => {
   it('starts every provider query disabled, with no refetchInterval', () => {
     renderWithClient(<AjustesContainer />)
 
-    const { queries } = vi.mocked(useQueries).mock.calls[0][0] as {
+    const { queries } = vi.mocked(useQueries).mock.calls[0]![0] as {
       queries: { enabled: boolean; staleTime: number }[]
     }
     expect(queries).toHaveLength(CLI_PROVIDERS.length)
@@ -299,11 +299,11 @@ describe('AjustesContainer', () => {
   it('pre-fills the idle row with the saved path and clears it when emptied', async () => {
     window.api.cli.preferences = vi
       .fn()
-      .mockResolvedValue({ ok: true, data: prefsWithPath('antigravity', 'C:\agy\agy.exe') })
+      .mockResolvedValue({ ok: true, data: prefsWithPath('antigravity', 'C:\\agy\\agy.exe') })
 
     renderWithClient(<AjustesContainer />)
 
-    const input = await screen.findByDisplayValue('C:\agy\agy.exe')
+    const input = await screen.findByDisplayValue('C:\\agy\\agy.exe')
     fireEvent.change(input, { target: { value: '   ' } })
     fireEvent.blur(input)
     connect('Antigravity CLI')
@@ -349,7 +349,7 @@ describe('AjustesContainer', () => {
     renderWithClient(<AjustesContainer />)
     await screen.findByText('No encontrado')
 
-    const input = screen.getAllByLabelText('Ruta manual del ejecutable de Claude Code')[0]
+    const input = screen.getAllByLabelText('Ruta manual del ejecutable de Claude Code')[0]!
     fireEvent.change(input, { target: { value: 'C:\\bin\\claude.cmd' } })
     fireEvent.blur(input)
 

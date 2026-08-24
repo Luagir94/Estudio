@@ -66,15 +66,6 @@ export default tseslint.config(
     ...jsxA11y.flatConfigs.recommended,
     files: ['**/*.tsx']
   },
-  {
-    // Test fixtures embed single-backslash Windows paths ('C:\tools\claude.exe')
-    // whose literal values the assertions depend on; escaping them would change
-    // what the tests test.
-    files: ['**/*.test.{ts,tsx}'],
-    rules: {
-      'no-useless-escape': 'off'
-    }
-  },
   // Last: silence stylistic rules that would fight Prettier.
   prettier
 )
