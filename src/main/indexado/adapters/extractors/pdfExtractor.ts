@@ -7,22 +7,69 @@ import fs from 'node:fs/promises'
 // (design "Technical Approach": "pdf-parse via internal
 // `pdf-parse/lib/pdf-parse.js` path to dodge the entry gotcha").
 import pdfParse from 'pdf-parse/lib/pdf-parse.js'
+import type { ExtractedPage } from '../../domain/extractionDispatcher'
 
 /**
- * Extracts the text layer of a PDF file (spec "Format dispatch and size
- * cap": "Supported format extracts"). A scanned/image-only PDF with no text
- * layer resolves successfully with an empty string — extraction "failing
- * silently" into emptiness is a normal outcome, not an error. A malformed
- * PDF that pdf-parse cannot open at all REJECTS; the caller (indexadoService,
- * slice 2b) is the extraction boundary that catches that and maps it to
- * `not-indexable` (spec "Corrupt file fails gracefully").
+ * The slice of pdf.js's page proxy the per-page renderer reads. pdf-parse
+ * hands each page to the `pagerender` option; `transform[5]` is the glyph
+ * run's Y coordinate, which is what the default renderer keys line breaks on.
  */
-export async function extractPdfText(filePath: string): Promise<string> {
+interface PdfPageData {
+  getTextContent(options: { normalizeWhitespace: boolean; disableCombineTextItems: boolean }): Promise<{
+    items: readonly { str: string; transform: readonly number[] }[]
+  }>
+}
+
+/**
+ * Extracts the text layer of a PDF file page by page (spec "Format dispatch
+ * and size cap": "Supported format extracts"; page-number citations: page
+ * identity must survive extraction). Entries are 1-based and in document
+ * order — pdf-parse invokes `pagerender` sequentially, awaiting each page
+ * before requesting the next, so array position IS the page number.
+ *
+ * A scanned/image-only PDF with no text layer resolves successfully with
+ * every page's text empty — extraction "failing silently" into emptiness is
+ * a normal outcome, not an error. A malformed PDF that pdf-parse cannot open
+ * at all REJECTS; the caller (indexadoService, slice 2b) is the extraction
+ * boundary that catches that and maps it to `not-indexable` (spec "Corrupt
+ * file fails gracefully").
+ */
+export async function extractPdfPages(filePath: string): Promise<ExtractedPage[]> {
   const buffer = await fs.readFile(filePath)
   return withoutBufferPooling(async () => {
-    const result = await pdfParse(buffer)
-    return result.text
+    const pageTexts: string[] = []
+    await pdfParse(buffer, {
+      pagerender: async (pageData: PdfPageData): Promise<string> => {
+        const text = await renderPageText(pageData)
+        pageTexts.push(text)
+        return text
+      }
+    })
+    return pageTexts.map((text, index) => ({ page: index + 1, text }))
   })
+}
+
+/**
+ * Reimplements pdf-parse's default `render_page` verbatim (same
+ * `getTextContent` options, same Y-coordinate line-break heuristic) so
+ * per-page collection changes WHERE the text lands, never WHAT it says —
+ * the extracted bytes for any one page match what the flat default would
+ * have contributed for that page.
+ */
+async function renderPageText(pageData: PdfPageData): Promise<string> {
+  const textContent = await pageData.getTextContent({ normalizeWhitespace: false, disableCombineTextItems: false })
+  let lastY: number | undefined
+  let text = ''
+  for (const item of textContent.items) {
+    const y = item.transform[5]
+    if (lastY === y || lastY === undefined) {
+      text += item.str
+    } else {
+      text += `\n${item.str}`
+    }
+    lastY = y
+  }
+  return text
 }
 
 /**

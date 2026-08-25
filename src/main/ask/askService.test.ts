@@ -827,7 +827,11 @@ describe('createAskService — retrieval wiring', () => {
         displayName: 'apunte.pdf',
         subjectName: 'Álgebra',
         attachmentId: 1,
-        chunkIndex: 0
+        chunkIndex: 0,
+        // Page provenance survives the whole service pipeline (search →
+        // diversity → window → prompt) — the header the model reads names
+        // the page it can cite (page-number citations).
+        page: 3
       }
     ])
     const { service } = buildService({ spawnPrompt, attachmentIndex: { search } })
@@ -836,7 +840,7 @@ describe('createAskService — retrieval wiring', () => {
 
     expect(search).toHaveBeenCalledWith('¿Qué es un anillo?', ASK_RETRIEVAL_CANDIDATES)
     const prompt = last().writes.join('')
-    expect(prompt).toContain('[Materia: Álgebra | Archivo: apunte.pdf]')
+    expect(prompt).toContain('[Materia: Álgebra | Archivo: apunte.pdf | Página: 3]')
     expect(prompt).toContain('Un anillo es una estructura algebraica.')
   })
 
@@ -922,8 +926,22 @@ describe('createAskService — retrieval wiring', () => {
   it('trims retrieved chunks to the retrieval budget before they reach the prompt', async () => {
     const { spawnPrompt, last } = respondWith({ kind: 'not-found' })
     const bigChunks = [
-      { text: 'a'.repeat(4000), displayName: 'grande-1.pdf', subjectName: 'Álgebra', attachmentId: 1, chunkIndex: 0 },
-      { text: 'b'.repeat(4000), displayName: 'grande-2.pdf', subjectName: 'Álgebra', attachmentId: 2, chunkIndex: 0 }
+      {
+        text: 'a'.repeat(4000),
+        displayName: 'grande-1.pdf',
+        subjectName: 'Álgebra',
+        attachmentId: 1,
+        chunkIndex: 0,
+        page: null
+      },
+      {
+        text: 'b'.repeat(4000),
+        displayName: 'grande-2.pdf',
+        subjectName: 'Álgebra',
+        attachmentId: 2,
+        chunkIndex: 0,
+        page: null
+      }
     ]
     const { service } = buildService({ spawnPrompt, attachmentIndex: { search: () => bigChunks } })
 
@@ -948,7 +966,8 @@ describe('createAskService — retrieval wiring', () => {
       displayName: `apunte-${attachmentId}.pdf`,
       subjectName: 'Álgebra',
       attachmentId,
-      chunkIndex
+      chunkIndex,
+      page: null
     })
     // Best-match-first order, as the chunk store returns it. The raw top-6
     // prefix would include 'contenido-beta' (chunk 386, a near-copy of 385)

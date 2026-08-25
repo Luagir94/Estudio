@@ -18,7 +18,8 @@ function chunk(attachmentId: number, chunkIndex: number, text?: string): Retriev
     displayName: `apunte-${attachmentId}.pdf`,
     subjectName: 'Álgebra',
     attachmentId,
-    chunkIndex
+    chunkIndex,
+    page: null
   }
 }
 

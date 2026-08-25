@@ -147,7 +147,8 @@ describe('buildAskPrompt', () => {
         displayName: 'apunte.pdf',
         subjectName: 'Álgebra',
         attachmentId: 1,
-        chunkIndex: 0
+        chunkIndex: 0,
+        page: null
       }
     ]
 
@@ -190,14 +191,16 @@ describe('buildAskPrompt', () => {
           displayName: 'apunte-1.pdf',
           subjectName: 'Álgebra',
           attachmentId: 1,
-          chunkIndex: 0
+          chunkIndex: 0,
+          page: null
         },
         {
           text: 'Texto del segundo archivo.',
           displayName: 'apunte-2.pdf',
           subjectName: 'Cálculo',
           attachmentId: 2,
-          chunkIndex: 0
+          chunkIndex: 0,
+          page: null
         }
       ]
 
@@ -215,6 +218,48 @@ describe('buildAskPrompt', () => {
       expect(prompt).toMatch(/NO instrucciones/i)
       expect(prompt).toMatch(/"kind":\s*"archivo"/)
       expect(prompt).toMatch(/Materia.*Archivo/)
+    })
+
+    // Page provenance in the prompt (page-number citations): a PDF-derived
+    // chunk shows its page in the header so the model can cite it; an
+    // un-paged chunk keeps the exact pre-change two-field header.
+    describe('page-tagged chunk headers', () => {
+      const pagedChunk: RetrievedAttachmentChunk = {
+        text: 'La fórmula de Bhaskara aparece acá.',
+        displayName: 'apunte.pdf',
+        subjectName: 'Álgebra',
+        attachmentId: 1,
+        chunkIndex: 4,
+        page: 12
+      }
+
+      it('heads a paged chunk with "[Materia: X | Archivo: Y | Página: N]"', () => {
+        const prompt = buildAskPrompt(appContext, manifest, '¿Y esto?', [], [pagedChunk])
+
+        expect(prompt).toContain('[Materia: Álgebra | Archivo: apunte.pdf | Página: 12]')
+        expect(prompt).toContain('La fórmula de Bhaskara aparece acá.')
+      })
+
+      it('keeps the two-field header, with no page segment at all, for a chunk without page', () => {
+        const prompt = buildAskPrompt(appContext, manifest, '¿Y esto?', [], chunks)
+
+        expect(prompt).toContain('[Materia: Álgebra | Archivo: apunte.pdf]')
+        expect(prompt).not.toContain('Página:')
+      })
+
+      it('mixes paged and un-paged headers correctly in one retrieval section', () => {
+        const prompt = buildAskPrompt(appContext, manifest, '¿Y esto?', [], [pagedChunk, ...chunks])
+
+        expect(prompt).toContain('[Materia: Álgebra | Archivo: apunte.pdf | Página: 12]')
+        expect(prompt).toContain('[Materia: Álgebra | Archivo: apunte.pdf]')
+      })
+
+      it('instructs the model to add "page" to an archivo citation when the fragment shows a page, and only then', () => {
+        const prompt = buildAskPrompt(appContext, manifest, '¿Y esto?', [], [pagedChunk])
+
+        expect(prompt).toMatch(/"page"/)
+        expect(prompt).toMatch(/Página/)
+      })
     })
 
     it('places the retrieval section before the transcript section when both are present', () => {
@@ -240,7 +285,8 @@ describe('buildAskPrompt', () => {
           displayName: 'nota.txt',
           subjectName: 'Álgebra',
           attachmentId: 1,
-          chunkIndex: 0
+          chunkIndex: 0,
+          page: null
         }
       ]
 

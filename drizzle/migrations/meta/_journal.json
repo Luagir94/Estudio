@@ -71,6 +71,13 @@
       "when": 1787631712893,
       "tag": "0009_silly_the_professor",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1787952000000,
+      "tag": "0010_chunk_page_citations",
+      "breakpoints": true
     }
   ]
 }

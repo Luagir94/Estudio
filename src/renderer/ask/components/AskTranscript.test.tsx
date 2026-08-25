@@ -111,6 +111,61 @@ describe('AskTranscript — not-saved marker', () => {
   })
 })
 
+// Page-number citations: an `archivo` citation carrying a page renders it in
+// the chip label; one without a page keeps the exact pre-change two-part
+// label — old history rows and non-paged documents never grow a page.
+describe('AskTranscript — archivo citation chips with page', () => {
+  it('renders "Materia · Archivo · pág. N" for an archivo citation carrying a page', () => {
+    const entries: readonly AskEntry[] = [
+      {
+        kind: 'answer',
+        id: 1,
+        text: 'La fórmula está en el apunte.',
+        citations: [{ kind: 'archivo', subject: 'Álgebra', file: 'apunte.pdf', page: 12 }]
+      }
+    ]
+
+    render(<AskTranscript entries={entries} />)
+
+    expect(screen.getByText('Álgebra · apunte.pdf · pág. 12')).toBeInTheDocument()
+  })
+
+  it('renders "Materia · Archivo" with no page segment for an archivo citation without page', () => {
+    const entries: readonly AskEntry[] = [
+      {
+        kind: 'answer',
+        id: 1,
+        text: 'La fórmula está en el apunte.',
+        citations: [{ kind: 'archivo', subject: 'Álgebra', file: 'apunte.pdf' }]
+      }
+    ]
+
+    render(<AskTranscript entries={entries} />)
+
+    expect(screen.getByText('Álgebra · apunte.pdf')).toBeInTheDocument()
+    expect(screen.queryByText(/pág\./)).not.toBeInTheDocument()
+  })
+
+  it('renders paged and un-paged chips side by side without confusing their labels', () => {
+    const entries: readonly AskEntry[] = [
+      {
+        kind: 'answer',
+        id: 1,
+        text: 'Sale de dos fuentes.',
+        citations: [
+          { kind: 'archivo', subject: 'Álgebra', file: 'apunte.pdf', page: 3 },
+          { kind: 'archivo', subject: 'Álgebra', file: 'notas.docx' }
+        ]
+      }
+    ]
+
+    render(<AskTranscript entries={entries} />)
+
+    expect(screen.getByText('Álgebra · apunte.pdf · pág. 3')).toBeInTheDocument()
+    expect(screen.getByText('Álgebra · notas.docx')).toBeInTheDocument()
+  })
+})
+
 // Generated-artifact outcome line (cli-generated-artifacts spec "Transcript
 // reporting is plain text, action-free, and transient"; design "Renderer
 // Delta" + the bounded exception named in the invariant docstring above the

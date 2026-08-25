@@ -25,6 +25,13 @@ export interface RetrievedAttachmentChunk {
    */
   attachmentId: number
   chunkIndex: number
+  /**
+   * The chunk's 1-based source PDF page (page-number citations), `null` for
+   * chunks of un-paged formats. Unlike `attachmentId`/`chunkIndex` above,
+   * this one IS rendered: `promptBuilder.ts` puts it in the fragment header
+   * so the model can carry it into an `archivo` citation.
+   */
+  page: number | null
 }
 
 /**

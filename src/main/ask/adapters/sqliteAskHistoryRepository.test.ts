@@ -141,6 +141,78 @@ describe('createSqliteAskHistoryRepository', () => {
       })
     })
 
+    // Page-number citations: the OPTIONAL archivo `page` round-trips through
+    // the citation table — present as an integer when the model cited one,
+    // NULL (and absent on read-back) when it did not.
+    it('persists an archivo citation page and reads it back through getConversation', () => {
+      const repository = createSqliteAskHistoryRepository(db)
+      const result = repository.appendTurn({
+        conversationId: null,
+        question: '¿Dónde está la fórmula?',
+        model: 'sonnet',
+        result: {
+          kind: 'answer',
+          answer: 'En la página 12 del apunte.',
+          citations: [{ kind: 'archivo', subject: 'Física', file: 'apunte.pdf', page: 12 }]
+        },
+        createdAt: '2026-08-25T10:00'
+      })
+
+      const citationRow = raw
+        .prepare('SELECT kind, subject, file, page FROM ask_message_citations WHERE message_id = ?')
+        .get(result.messageId) as { kind: string; subject: string | null; file: string | null; page: number | null }
+      expect(citationRow).toEqual({ kind: 'archivo', subject: 'Física', file: 'apunte.pdf', page: 12 })
+
+      const loaded = repository.getConversation(result.conversationId)
+      expect(loaded?.messages[0]?.result).toEqual({
+        kind: 'answer',
+        answer: 'En la página 12 del apunte.',
+        citations: [{ kind: 'archivo', subject: 'Física', file: 'apunte.pdf', page: 12 }]
+      })
+    })
+
+    it('persists NULL for an archivo citation without page, and the read-back citation carries NO page field', () => {
+      const repository = createSqliteAskHistoryRepository(db)
+      const result = repository.appendTurn({
+        conversationId: null,
+        question: '¿Qué es una demanda?',
+        model: 'sonnet',
+        result: ANSWER_RESULT,
+        createdAt: '2026-08-25T10:00'
+      })
+
+      const citationRow = raw
+        .prepare('SELECT page FROM ask_message_citations WHERE message_id = ?')
+        .get(result.messageId) as { page: number | null }
+      expect(citationRow.page).toBeNull()
+
+      const loaded = repository.getConversation(result.conversationId)
+      const citation =
+        loaded?.messages[0]?.result.kind === 'answer' ? loaded.messages[0].result.citations[0] : undefined
+      expect(citation).toEqual({ kind: 'archivo', subject: 'Derecho Procesal', file: 'apunte.pdf' })
+      expect(citation).not.toHaveProperty('page')
+    })
+
+    it('persists NULL page for a dato citation (page is an archivo-only field)', () => {
+      const repository = createSqliteAskHistoryRepository(db)
+      const result = repository.appendTurn({
+        conversationId: null,
+        question: '¿Cuál es mi promedio?',
+        model: 'sonnet',
+        result: {
+          kind: 'answer',
+          answer: 'Tu promedio es 8.',
+          citations: [{ kind: 'dato', section: 'materias', label: 'Promedio' }]
+        },
+        createdAt: '2026-08-25T10:00'
+      })
+
+      const citationRow = raw
+        .prepare('SELECT page FROM ask_message_citations WHERE message_id = ?')
+        .get(result.messageId) as { page: number | null }
+      expect(citationRow.page).toBeNull()
+    })
+
     it('writes no citation rows for a general or not-found result', () => {
       const repository = createSqliteAskHistoryRepository(db)
       const general = repository.appendTurn({

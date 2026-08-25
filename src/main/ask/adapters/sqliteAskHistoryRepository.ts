@@ -69,16 +69,25 @@ interface CitationInsertValues {
   kind: string
   subject: string | null
   file: string | null
+  /** Archivo-only and optional even there (page-number citations): NULL when the model cited no page. */
+  page: number | null
   section: string | null
   label: string | null
 }
 
 function toCitationInsertValues(citation: Citation): CitationInsertValues {
   if (citation.kind === 'archivo') {
-    return { kind: 'archivo', subject: citation.subject, file: citation.file, section: null, label: null }
+    return {
+      kind: 'archivo',
+      subject: citation.subject,
+      file: citation.file,
+      page: citation.page ?? null,
+      section: null,
+      label: null
+    }
   }
   if (citation.kind === 'dato') {
-    return { kind: 'dato', subject: null, file: null, section: citation.section, label: citation.label }
+    return { kind: 'dato', subject: null, file: null, page: null, section: citation.section, label: citation.label }
   }
   // SQLite has no enums; an unrecognised citation kind means the value was
   // produced by something other than the validated `citationSchema` union —
@@ -94,13 +103,22 @@ interface CitationRow {
   kind: string
   subject: string | null
   file: string | null
+  page: number | null
   section: string | null
   label: string | null
 }
 
 function toCitation(row: CitationRow): Citation {
   if (row.kind === 'archivo') {
-    return { kind: 'archivo', subject: row.subject ?? '', file: row.file ?? '' }
+    // A NULL page reads back as an ABSENT field, never `page: undefined` as
+    // a present key — old rows and non-paged citations must round-trip to
+    // the exact shape `citationSchema` parsed on the way in.
+    return {
+      kind: 'archivo',
+      subject: row.subject ?? '',
+      file: row.file ?? '',
+      ...(row.page === null ? {} : { page: row.page })
+    }
   }
   if (row.kind === 'dato') {
     return { kind: 'dato', section: (row.section ?? 'materias') as CitationSection, label: row.label ?? '' }

@@ -9,7 +9,7 @@ import { computeRetrievalWindow, type RetrievedAttachmentChunk } from './retriev
 // same best-to-worst order.
 
 function chunk(text: string, displayName = 'apunte.pdf', subjectName = 'Álgebra'): RetrievedAttachmentChunk {
-  return { text, displayName, subjectName, attachmentId: 1, chunkIndex: 0 }
+  return { text, displayName, subjectName, attachmentId: 1, chunkIndex: 0, page: null }
 }
 
 describe('computeRetrievalWindow', () => {

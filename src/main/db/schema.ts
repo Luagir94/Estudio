@@ -212,7 +212,12 @@ export const attachmentChunks = sqliteTable('attachment_chunks', {
     .references(() => attachments.id, { onDelete: 'cascade' }),
   subjectId: integer('subject_id').notNull(),
   chunkIndex: integer('chunk_index').notNull(),
-  text: text('text').notNull()
+  text: text('text').notNull(),
+  // 1-based source page for a PDF-derived chunk (page-number citations,
+  // migration 0010); NULL for chunks of un-paged formats (docx/txt/md/csv/
+  // xlsx) and for rows indexed before pages existed. Not part of the FTS
+  // index — `attachment_chunks_fts` keeps mapping only `text`.
+  page: integer('page')
 })
 
 // A durable ask-panel Q&A thread (design D4, spec "ask-history"). Global
@@ -275,6 +280,10 @@ export const askMessageCitations = sqliteTable('ask_message_citations', {
   // 'archivo' only:
   subject: text('subject'),
   file: text('file'),
+  // 'archivo' only, and even there OPTIONAL (page-number citations,
+  // migration 0010): the cited PDF page, NULL for non-paged documents and
+  // for every row persisted before pages existed.
+  page: integer('page'),
   // 'dato' only:
   section: text('section'),
   label: text('label')

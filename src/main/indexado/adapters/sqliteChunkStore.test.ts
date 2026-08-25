@@ -60,7 +60,9 @@ describe('createSqliteChunkStore', () => {
   it('search finds an inserted chunk by MATCH and resolves displayName/subjectName from the join', () => {
     const store = createSqliteChunkStore(raw)
 
-    store.insertMany([{ attachmentId, subjectId, chunkIndex: 0, text: 'la clase de algebra lineal cubre matrices' }])
+    store.insertMany([
+      { attachmentId, subjectId, chunkIndex: 0, text: 'la clase de algebra lineal cubre matrices', page: null }
+    ])
 
     const results = store.search('algebra', 10)
 
@@ -70,8 +72,32 @@ describe('createSqliteChunkStore', () => {
       displayName: 'apuntes.pdf',
       subjectName: 'Algoritmos',
       attachmentId,
-      chunkIndex: 0
+      chunkIndex: 0,
+      page: null
     })
+  })
+
+  // Page provenance round-trip (page-number citations): a PDF-derived chunk
+  // carries its 1-based source page from insert through search; an un-paged
+  // chunk carries `null` — the two must never be confused.
+  it('round-trips each chunk page through insertMany and search, keeping paged and un-paged rows distinct', () => {
+    const store = createSqliteChunkStore(raw)
+    const otherAttachmentId = seedAttachment(db, subjectId, 'notas.docx')
+
+    store.insertMany([
+      { attachmentId, subjectId, chunkIndex: 0, text: 'derivadas parciales en la pagina doce', page: 12 },
+      { attachmentId: otherAttachmentId, subjectId, chunkIndex: 0, text: 'derivadas sin pagina conocida', page: null }
+    ])
+
+    const results = store.search('derivadas', 10)
+
+    expect(results).toHaveLength(2)
+    expect(results.map((row) => ({ attachmentId: row.attachmentId, page: row.page }))).toEqual(
+      expect.arrayContaining([
+        { attachmentId, page: 12 },
+        { attachmentId: otherAttachmentId, page: null }
+      ])
+    )
   })
 
   // Chunk provenance for the diversity re-ranker (`retrievalDiversity.ts`):
@@ -82,9 +108,9 @@ describe('createSqliteChunkStore', () => {
     const store = createSqliteChunkStore(raw)
     const otherAttachmentId = seedAttachment(db, subjectId, 'otro.pdf')
     store.insertMany([
-      { attachmentId, subjectId, chunkIndex: 385, text: 'sistemas de informacion transaccionales' },
-      { attachmentId, subjectId, chunkIndex: 386, text: 'informacion transaccionales y gerenciales' },
-      { attachmentId: otherAttachmentId, subjectId, chunkIndex: 0, text: 'otra informacion distinta' }
+      { attachmentId, subjectId, chunkIndex: 385, text: 'sistemas de informacion transaccionales', page: null },
+      { attachmentId, subjectId, chunkIndex: 386, text: 'informacion transaccionales y gerenciales', page: null },
+      { attachmentId: otherAttachmentId, subjectId, chunkIndex: 0, text: 'otra informacion distinta', page: null }
     ])
 
     const results = store.search('informacion', 10)
@@ -101,14 +127,14 @@ describe('createSqliteChunkStore', () => {
 
   it('search returns no results for a term that does not appear in any indexed chunk', () => {
     const store = createSqliteChunkStore(raw)
-    store.insertMany([{ attachmentId, subjectId, chunkIndex: 0, text: 'contenido sobre calculo integral' }])
+    store.insertMany([{ attachmentId, subjectId, chunkIndex: 0, text: 'contenido sobre calculo integral', page: null }])
 
     expect(store.search('geografia', 10)).toEqual([])
   })
 
   it('search returns an empty array without querying MATCH when the question has no alphanumeric tokens', () => {
     const store = createSqliteChunkStore(raw)
-    store.insertMany([{ attachmentId, subjectId, chunkIndex: 0, text: 'gato perro gato gato' }])
+    store.insertMany([{ attachmentId, subjectId, chunkIndex: 0, text: 'gato perro gato gato', page: null }])
 
     expect(store.search('???', 10)).toEqual([])
   })
@@ -120,8 +146,8 @@ describe('createSqliteChunkStore', () => {
     // is equal — only term frequency of "gato" differs, which is the exact
     // property bm25 is designed to rank on.
     store.insertMany([
-      { attachmentId, subjectId, chunkIndex: 0, text: 'gato perro pez' },
-      { attachmentId: otherAttachmentId, subjectId, chunkIndex: 0, text: 'gato gato gato' }
+      { attachmentId, subjectId, chunkIndex: 0, text: 'gato perro pez', page: null },
+      { attachmentId: otherAttachmentId, subjectId, chunkIndex: 0, text: 'gato gato gato', page: null }
     ])
 
     const results = store.search('gato', 10)
@@ -136,9 +162,9 @@ describe('createSqliteChunkStore', () => {
     const secondAttachmentId = seedAttachment(db, subjectId, 'segundo.pdf')
     const thirdAttachmentId = seedAttachment(db, subjectId, 'tercero.pdf')
     store.insertMany([
-      { attachmentId, subjectId, chunkIndex: 0, text: 'redes neuronales convolucionales' },
-      { attachmentId: secondAttachmentId, subjectId, chunkIndex: 0, text: 'redes neuronales recurrentes' },
-      { attachmentId: thirdAttachmentId, subjectId, chunkIndex: 0, text: 'redes neuronales generativas' }
+      { attachmentId, subjectId, chunkIndex: 0, text: 'redes neuronales convolucionales', page: null },
+      { attachmentId: secondAttachmentId, subjectId, chunkIndex: 0, text: 'redes neuronales recurrentes', page: null },
+      { attachmentId: thirdAttachmentId, subjectId, chunkIndex: 0, text: 'redes neuronales generativas', page: null }
     ])
 
     expect(store.search('redes', 2)).toHaveLength(2)
@@ -146,7 +172,9 @@ describe('createSqliteChunkStore', () => {
 
   it('FK-cascade delete of the ATTACHMENT empties the FTS index via the AD trigger (design open question)', () => {
     const store = createSqliteChunkStore(raw)
-    store.insertMany([{ attachmentId, subjectId, chunkIndex: 0, text: 'estructuras de datos y algoritmos' }])
+    store.insertMany([
+      { attachmentId, subjectId, chunkIndex: 0, text: 'estructuras de datos y algoritmos', page: null }
+    ])
     expect(store.search('estructuras', 10)).toHaveLength(1)
 
     db.delete(attachments).where(eq(attachments.id, attachmentId)).run()
@@ -163,10 +191,10 @@ describe('createSqliteChunkStore', () => {
 
   it("replaceChunks atomically swaps an attachment's chunks — old text stops matching, new text matches (idempotent re-indexing, no duplicates)", () => {
     const store = createSqliteChunkStore(raw)
-    store.insertMany([{ attachmentId, subjectId, chunkIndex: 0, text: 'version original del documento' }])
+    store.insertMany([{ attachmentId, subjectId, chunkIndex: 0, text: 'version original del documento', page: null }])
     expect(store.search('original', 10)).toHaveLength(1)
 
-    store.replaceChunks(attachmentId, subjectId, ['version revisada del documento'])
+    store.replaceChunks(attachmentId, subjectId, [{ text: 'version revisada del documento', page: null }])
 
     expect(store.search('original', 10)).toEqual([])
     expect(store.search('revisada', 10)).toHaveLength(1)
@@ -176,11 +204,35 @@ describe('createSqliteChunkStore', () => {
     expect(chunkCount.count).toBe(1)
   })
 
+  // The write path the indexing pipeline actually uses (page-number
+  // citations): page-tagged inputs land as rows whose `page` and positional
+  // `chunk_index` both survive a search round-trip.
+  it('replaceChunks persists page-tagged inputs — page and 0-based positional chunk_index round-trip through search', () => {
+    const store = createSqliteChunkStore(raw)
+
+    store.replaceChunks(attachmentId, subjectId, [
+      { text: 'anillos en la pagina tres', page: 3 },
+      { text: 'anillos tambien en la pagina cinco', page: 5 },
+      { text: 'anillos sin pagina', page: null }
+    ])
+
+    const results = store.search('anillos', 10)
+
+    expect(results).toHaveLength(3)
+    expect(results.map((row) => ({ chunkIndex: row.chunkIndex, page: row.page }))).toEqual(
+      expect.arrayContaining([
+        { chunkIndex: 0, page: 3 },
+        { chunkIndex: 1, page: 5 },
+        { chunkIndex: 2, page: null }
+      ])
+    )
+  })
+
   it('replaceChunks called twice with the SAME text never produces duplicate rows (spec: Re-indexing is idempotent)', () => {
     const store = createSqliteChunkStore(raw)
 
-    store.replaceChunks(attachmentId, subjectId, ['contenido estable'])
-    store.replaceChunks(attachmentId, subjectId, ['contenido estable'])
+    store.replaceChunks(attachmentId, subjectId, [{ text: 'contenido estable', page: 1 }])
+    store.replaceChunks(attachmentId, subjectId, [{ text: 'contenido estable', page: 1 }])
 
     const chunkCount = raw
       .prepare('SELECT COUNT(*) as count FROM attachment_chunks WHERE attachment_id = ?')
@@ -191,7 +243,7 @@ describe('createSqliteChunkStore', () => {
 
   it('FK-cascade delete of the owning SUBJECT (two-level cascade) also empties the FTS index via the AD trigger', () => {
     const store = createSqliteChunkStore(raw)
-    store.insertMany([{ attachmentId, subjectId, chunkIndex: 0, text: 'programacion orientada a objetos' }])
+    store.insertMany([{ attachmentId, subjectId, chunkIndex: 0, text: 'programacion orientada a objetos', page: null }])
     expect(store.search('programacion', 10)).toHaveLength(1)
 
     db.delete(subjects).where(eq(subjects.id, subjectId)).run()

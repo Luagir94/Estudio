@@ -7,11 +7,11 @@
 import type { ChunkStore } from './adapters/sqliteChunkStore'
 import type { AttachmentIndexRow, IndexStatusRepository } from './adapters/sqliteIndexStatusRepository'
 import { extractDocxText } from './adapters/extractors/docxExtractor'
-import { extractPdfText } from './adapters/extractors/pdfExtractor'
+import { extractPdfPages } from './adapters/extractors/pdfExtractor'
 import { extractSpreadsheetText } from './adapters/extractors/spreadsheetExtractor'
 import { extractTextFileText } from './adapters/extractors/textExtractor'
-import { chunkText } from './domain/chunker'
-import { detectExtractionFormat, type ExtractionFormat } from './domain/extractionDispatcher'
+import { chunkPages, chunkText, type PageTaggedChunk } from './domain/chunker'
+import { detectExtractionFormat, type ExtractionFormat, type ExtractionResult } from './domain/extractionDispatcher'
 
 export interface IndexJobInput {
   attachmentId: number
@@ -20,8 +20,8 @@ export interface IndexJobInput {
   fileName: string
 }
 
-/** Dispatches a detected format to its extractor. Injectable (default below dispatches to the real per-format extractors) — tests use this seam to control extraction timing/outcome without real fixture files, the same convention as each extractor's own optional `fs` parameter. */
-export type ExtractFn = (format: ExtractionFormat, absolutePath: string) => Promise<string>
+/** Dispatches a detected format to its extractor. Injectable (default below dispatches to the real per-format extractors) — tests use this seam to control extraction timing/outcome without real fixture files, the same convention as each extractor's own optional `fs` parameter. A PDF resolves to an ordered page list; every other format keeps resolving to flat un-paged text (page-number citations). */
+export type ExtractFn = (format: ExtractionFormat, absolutePath: string) => Promise<ExtractionResult>
 
 interface CreateIndexadoServiceDeps {
   statusRepository: IndexStatusRepository
@@ -47,10 +47,10 @@ export interface IndexadoService {
   whenIdle(): Promise<void>
 }
 
-async function defaultExtract(format: ExtractionFormat, absolutePath: string): Promise<string> {
+async function defaultExtract(format: ExtractionFormat, absolutePath: string): Promise<ExtractionResult> {
   switch (format) {
     case 'pdf':
-      return extractPdfText(absolutePath)
+      return extractPdfPages(absolutePath)
     case 'docx':
       return extractDocxText(absolutePath)
     case 'text':
@@ -89,9 +89,9 @@ export function createIndexadoService({
       return
     }
 
-    let text: string
+    let extracted: ExtractionResult
     try {
-      text = await extract(format, resolveStoredPath(row.storedPath))
+      extracted = await extract(format, resolveStoredPath(row.storedPath))
     } catch {
       // Extraction error, caught HERE at the service boundary (2A's
       // extractors intentionally throw on corrupt input) — never surfaces,
@@ -100,10 +100,16 @@ export function createIndexadoService({
       return
     }
 
-    if (text.length === 0) {
-      // A scanned/image-only PDF or an oversized capped file resolves
-      // successfully with empty text — treated the same as an unsupported
-      // format (design "Job pipeline").
+    // Un-paged text keeps the plain chunking path (page: null); a paged
+    // extraction chunks each page independently and tags every chunk with
+    // its page (page-number citations).
+    const chunks: PageTaggedChunk[] =
+      typeof extracted === 'string' ? chunkText(extracted).map((text) => ({ text, page: null })) : chunkPages(extracted)
+
+    if (chunks.length === 0) {
+      // A scanned/image-only PDF (empty text, or every page empty) or an
+      // oversized capped file resolves successfully with nothing to index —
+      // treated the same as an unsupported format (design "Job pipeline").
       markNotIndexable(row)
       return
     }
@@ -113,7 +119,7 @@ export function createIndexadoService({
       // re-running indexing on an already-indexed row deletes its old
       // chunks before inserting the new ones, atomically (spec
       // "Re-indexing is idempotent").
-      chunkStore.replaceChunks(row.id, row.subjectId, chunkText(text))
+      chunkStore.replaceChunks(row.id, row.subjectId, chunks)
       statusRepository.setStatus(row.id, 'indexed')
     } catch {
       // DB error → stays pending (design "Job pipeline") — do not flip

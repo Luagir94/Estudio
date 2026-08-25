@@ -127,6 +127,47 @@ describe('citationSchema', () => {
   ])('rejects a citation with %s', (_label, citation) => {
     expect(() => citationSchema.parse(citation)).toThrow()
   })
+
+  // Page-number citations: `page` is OPTIONAL on the archivo variant — old
+  // history rows and non-paged documents (docx/txt/md/csv/xlsx) have none,
+  // and absence must keep parsing exactly as before.
+  describe('archivo page field', () => {
+    it('parses an archivo citation carrying a positive integer page', () => {
+      expect(citationSchema.parse({ kind: 'archivo', subject: 'Física', file: 'apunte.pdf', page: 12 })).toEqual({
+        kind: 'archivo',
+        subject: 'Física',
+        file: 'apunte.pdf',
+        page: 12
+      })
+    })
+
+    it('parses an archivo citation with no page at all, leaving the field absent', () => {
+      const parsed = citationSchema.parse({ kind: 'archivo', subject: 'Física', file: 'apunte.pdf' })
+      expect(parsed).not.toHaveProperty('page')
+    })
+
+    it.each([
+      ['zero', 0],
+      ['negative', -3],
+      ['fractional', 1.5],
+      ['a string', '12'],
+      ['null', null]
+    ])('rejects a page that is %s', (_label, page) => {
+      expect(() => citationSchema.parse({ kind: 'archivo', subject: 'Física', file: 'apunte.pdf', page })).toThrow()
+    })
+
+    it('round-trips a paged citation through an answer result unchanged', () => {
+      const original = askResultSchema.parse({
+        kind: 'answer',
+        answer: 'La fórmula está en la página 12.',
+        citations: [{ kind: 'archivo', subject: 'Física', file: 'apunte.pdf', page: 12 }]
+      })
+
+      const roundTripped = askResultSchema.parse(JSON.parse(JSON.stringify(original)))
+
+      expect(roundTripped).toEqual(original)
+    })
+  })
 })
 
 describe('askResultSchema', () => {

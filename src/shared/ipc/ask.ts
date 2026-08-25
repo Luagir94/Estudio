@@ -45,7 +45,14 @@ export const citationSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('archivo'),
     subject: z.string().trim().min(1, 'a file citation must name its subject'),
-    file: z.string().trim().min(1, 'a file citation must name its file')
+    file: z.string().trim().min(1, 'a file citation must name its file'),
+    // OPTIONAL (page-number citations): the 1-based PDF page the cited
+    // fragment came from. Absent for non-paged documents (docx/txt/md/csv/
+    // xlsx) and for every history row persisted before pages existed —
+    // absence is the compatible default, never an error. When present it
+    // must actually point at a page (positive integer), same
+    // points-at-something floor as the two name fields above.
+    page: z.number().int().positive('a page citation must point at a real page').optional()
   }),
   z.object({
     kind: z.literal('dato'),

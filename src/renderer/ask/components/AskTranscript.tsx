@@ -74,9 +74,13 @@ function citationIcon(citation: Citation): LucideIcon {
 }
 
 function citationLabel(citation: Citation): string {
-  return citation.kind === 'archivo'
-    ? `${citation.subject} · ${citation.file}`
-    : `${ASK_SECTION_LABELS[citation.section]} · ${citation.label}`
+  if (citation.kind === 'archivo') {
+    // `page` is optional (page-number citations): old history rows and
+    // non-paged documents have none, and their label stays exactly two-part.
+    const base = `${citation.subject} · ${citation.file}`
+    return citation.page === undefined ? base : `${base} · pág. ${citation.page}`
+  }
+  return `${ASK_SECTION_LABELS[citation.section]} · ${citation.label}`
 }
 
 function Chip({ icon: Icon, label }: { icon: LucideIcon; label: string }): React.JSX.Element {

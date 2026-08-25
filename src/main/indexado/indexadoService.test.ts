@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RetrievedChunk } from './adapters/sqliteChunkStore'
 import type { AttachmentIndexRow, IndexStatusRepository } from './adapters/sqliteIndexStatusRepository'
+import type { PageTaggedChunk } from './domain/chunker'
 import type { IndexStatus } from './domain/indexStatus'
 import { createIndexadoService, type ExtractFn, type IndexadoService } from './indexadoService'
 
@@ -36,11 +37,11 @@ function createFakeStatusRepository(
 }
 
 function createFakeChunkStore() {
-  const chunksByAttachment = new Map<number, string[]>()
+  const chunksByAttachment = new Map<number, PageTaggedChunk[]>()
   return {
     insertMany: vi.fn(),
-    replaceChunks: vi.fn((attachmentId: number, _subjectId: number, texts: readonly string[]) => {
-      chunksByAttachment.set(attachmentId, [...texts])
+    replaceChunks: vi.fn((attachmentId: number, _subjectId: number, chunks: readonly PageTaggedChunk[]) => {
+      chunksByAttachment.set(attachmentId, [...chunks])
     }),
     search: vi.fn((): readonly RetrievedChunk[] => []),
     chunksByAttachment
@@ -110,8 +111,50 @@ describe('createIndexadoService', () => {
     await service.whenIdle()
 
     expect(resolveStoredPath).toHaveBeenCalledWith('10/uuid-apuntes.txt')
-    expect(chunkStore.replaceChunks).toHaveBeenCalledWith(1, 10, ['contenido de dos mil quinientos caracteres'])
+    // Un-paged formats keep working with no page (page-number citations).
+    expect(chunkStore.replaceChunks).toHaveBeenCalledWith(1, 10, [
+      { text: 'contenido de dos mil quinientos caracteres', page: null }
+    ])
     expect(statusRepository.get(1)?.indexStatus).toBe('indexed')
+    expect(notifyStatusChanged).toHaveBeenCalledWith(10)
+  })
+
+  // Page-number citations: a paged extraction (PDF) reaches the chunk store
+  // as page-tagged chunks, in document order, with the page carried through.
+  it('a paged extraction transitions to indexed with page-tagged chunks reaching the store', async () => {
+    statusRepository.rows.set(1, row({ fileName: 'apuntes.pdf', storedPath: '10/uuid-apuntes.pdf' }))
+    const service = createService(
+      vi.fn().mockResolvedValue([
+        { page: 1, text: 'texto de la primera pagina' },
+        { page: 2, text: 'texto de la segunda pagina' }
+      ])
+    )
+
+    service.enqueue({ attachmentId: 1, subjectId: 10, storedPath: '10/uuid-apuntes.pdf', fileName: 'apuntes.pdf' })
+    await service.whenIdle()
+
+    expect(chunkStore.replaceChunks).toHaveBeenCalledWith(1, 10, [
+      { text: 'texto de la primera pagina', page: 1 },
+      { text: 'texto de la segunda pagina', page: 2 }
+    ])
+    expect(statusRepository.get(1)?.indexStatus).toBe('indexed')
+    expect(notifyStatusChanged).toHaveBeenCalledWith(10)
+  })
+
+  it('a paged extraction whose every page is empty transitions to not-indexable (scanned PDF), never an indexed row with zero chunks', async () => {
+    statusRepository.rows.set(1, row({ fileName: 'escaneo.pdf', storedPath: '10/uuid-escaneo.pdf' }))
+    const service = createService(
+      vi.fn().mockResolvedValue([
+        { page: 1, text: '' },
+        { page: 2, text: '   ' }
+      ])
+    )
+
+    service.enqueue({ attachmentId: 1, subjectId: 10, storedPath: '10/uuid-escaneo.pdf', fileName: 'escaneo.pdf' })
+    await service.whenIdle()
+
+    expect(chunkStore.replaceChunks).not.toHaveBeenCalled()
+    expect(statusRepository.get(1)?.indexStatus).toBe('not-indexable')
     expect(notifyStatusChanged).toHaveBeenCalledWith(10)
   })
 
