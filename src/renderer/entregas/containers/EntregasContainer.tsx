@@ -18,6 +18,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { DeadlineWithSubject } from '../../../shared/ipc/entregas'
+import { fechasApi } from '../../fechas/adapters/fechasApi'
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import { collectSubjectIds, hasOpenCoursework } from '../../materias/domain/subjectStatus'
 import { entregasApi } from '../adapters/entregasApi'
@@ -44,6 +45,12 @@ export function EntregasContainer({ now = new Date() }: EntregasContainerProps =
   // period write), so the filter below follows a subject being closed
   // without this screen owning any invalidation.
   const { data: subjectFacts } = useQuery({ queryKey: ['materias'], queryFn: materiasApi.list })
+
+  // The SAME ['fechas'] cache entry the carrera card writes through, so a
+  // trámite recorded there appears here without this screen owning any
+  // invalidation. Which of them are still upcoming, and where each lands, is
+  // the fechas domain's call at render time.
+  const { data: academicDates } = useQuery({ queryKey: ['fechas'], queryFn: fechasApi.list })
 
   // A deadline is coursework: once its subject has none left to owe (closed,
   // or waiting on a final), the row and the urgency counters both drop it.
@@ -79,6 +86,9 @@ export function EntregasContainer({ now = new Date() }: EntregasContainerProps =
     }
   })
 
+  // Counted over the DEADLINES only: an administrative date is not something
+  // you hand in, so it must not inflate "pendientes" or "atrasadas" in a
+  // summary the student reads as a workload.
   const pendingCount = deadlines.filter((deadline) => !deadline.done).length
   const overdueCount = deadlines.filter(
     (deadline) => classifyDeadline(deadline.dueAt, deadline.done, now) === 'atrasadas'
@@ -103,6 +113,7 @@ export function EntregasContainer({ now = new Date() }: EntregasContainerProps =
       {data && (
         <EntregasList
           deadlines={deadlines}
+          academicDates={academicDates ?? []}
           now={now}
           onEdit={setEditingDeadline}
           onToggleDone={(deadline, done) => setDoneMutation.mutate({ id: deadline.id, done })}

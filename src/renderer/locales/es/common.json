@@ -4,6 +4,20 @@
   "weekdaysCaps": ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"],
   "monthsCaps": ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"],
   "monthsShort": ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
+  "monthsLong": [
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre"
+  ],
   "actions": {
     "cancel": "Cancelar",
     "saveChanges": "Guardar cambios"

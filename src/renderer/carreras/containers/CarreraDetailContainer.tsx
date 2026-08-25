@@ -6,6 +6,7 @@ import { ChevronLeft, Pencil, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { PeriodRecord } from '../../../shared/ipc/carreras'
+import { FechasCardContainer } from '../../fechas/containers/FechasCardContainer'
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import { MateriasList } from '../../materias/components/MateriasList'
 import { NuevaMateriaModal } from '../../materias/components/NuevaMateriaModal'
@@ -380,6 +381,14 @@ export function CarreraDetailContainer({
                   <span className="text-body-sm font-semibold text-foreground">{currentPeriods.length}</span>
                 </div>
               </div>
+
+              {/* "FECHAS ADMINISTRATIVAS" (approved design): inscripciones,
+                  vencimientos y trámites belong to the CARRERA, not to any one
+                  materia, so this is the screen that owns them. Composed as a
+                  container rather than folded into this one — it brings its own
+                  query, three mutations and two dialogs, the same reason
+                  SubjectDetailContainer composes AdjuntosContainer. */}
+              <FechasCardContainer programId={data.id} programName={data.name} now={today} />
             </div>
           </div>
 

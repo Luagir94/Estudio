@@ -7,11 +7,20 @@ import { es } from 'date-fns/locale'
 import { Check } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { DeadlineWithSubject } from '../../../shared/ipc/entregas'
+import type { AcademicDateWithProgram } from '../../../shared/ipc/fechas'
+import { AcademicDateRow } from '../../fechas/components/AcademicDateRow'
+import { groupAcademicDates, relevantAcademicDate } from '../../fechas/domain/academicDate'
 import { groupDeadlines, type DeadlineBucket } from '../domain/deadline'
 import { DeadlineRow } from './DeadlineRow'
 
 interface EntregasListProps {
   deadlines: DeadlineWithSubject[]
+  /**
+   * Administrative dates of the student's carreras, which share these groups
+   * (approved design). Already filtered to the upcoming ones by
+   * `groupAcademicDates` — a closed inscription window is not a pending task.
+   */
+  academicDates?: AcademicDateWithProgram[]
   /** Reference instant for bucketing and status pills. Defaults to the real clock. */
   now?: Date
   onEdit: (deadline: DeadlineWithSubject) => void
@@ -19,11 +28,23 @@ interface EntregasListProps {
   onDelete: (deadline: DeadlineWithSubject) => void
 }
 
+// One group, one chronology. A trámite closing before an entrega is due reads
+// above it, exactly like two entregas would — sorting them into separate
+// stacks inside a shared heading would make the group lie about its order.
+//
+// The two sort keys compare correctly against each other as plain strings: a
+// deadline's `YYYY-MM-DDTHH:mm` and a date's `YYYY-MM-DD` share a prefix, so
+// the whole-day date sorts to the start of its day, which is what it means.
+type GroupItem =
+  | { kind: 'deadline'; sortKey: string; deadline: DeadlineWithSubject }
+  | { kind: 'academicDate'; sortKey: string; academicDate: AcademicDateWithProgram }
+
 // Design order (node `K6MVx`'s "Groups" children, top to bottom).
 const BUCKET_ORDER: DeadlineBucket[] = ['atrasadas', 'proximos7', 'masAdelante', 'completadas']
 
 export function EntregasList({
   deadlines,
+  academicDates = [],
   now = new Date(),
   onEdit,
   onToggleDone,
@@ -31,19 +52,41 @@ export function EntregasList({
 }: EntregasListProps): React.JSX.Element {
   const { t } = useTranslation('entregas')
 
-  if (deadlines.length === 0) {
+  const groups = groupDeadlines(deadlines, now)
+  const dateGroups = groupAcademicDates(academicDates, now)
+
+  // Counted AFTER grouping, because a past administrative date drops out of
+  // `dateGroups` entirely — "there is nothing here" has to mean nothing this
+  // screen would have shown, not nothing that was passed in.
+  const upcomingDateCount = Object.values(dateGroups).reduce((total, bucket) => total + bucket.length, 0)
+  if (deadlines.length === 0 && upcomingDateCount === 0) {
     return <p className="text-body-lg text-muted-foreground">{t('entregasList.empty')}</p>
   }
-
-  const groups = groupDeadlines(deadlines, now)
 
   // All clear = both URGENT buckets empty (approved design): whatever sits in
   // MÁS ADELANTE / COMPLETADAS, nothing is late and nothing is due this week.
   // Deliberately distinct from the zero-deadlines return above — an empty
   // account is not an achievement.
-  const allClear = groups.atrasadas.length === 0 && groups.proximos7.length === 0
+  //
+  // The administrative dates count here too: "estás al día" is a claim about
+  // the whole week, and a trámite closing inside it withdraws the claim.
+  const allClear =
+    groups.atrasadas.length === 0 &&
+    groups.proximos7.length === 0 &&
+    dateGroups.atrasadas.length === 0 &&
+    dateGroups.proximos7.length === 0
   // Ascending within the bucket already, so [0] IS the next later deadline.
   const nextLater = groups.masAdelante[0]
+
+  const itemsIn = (bucket: DeadlineBucket): GroupItem[] =>
+    [
+      ...groups[bucket].map((deadline): GroupItem => ({ kind: 'deadline', sortKey: deadline.dueAt, deadline })),
+      ...dateGroups[bucket].map((academicDate): GroupItem => ({
+        kind: 'academicDate',
+        sortKey: relevantAcademicDate(academicDate),
+        academicDate
+      }))
+    ].sort((a, b) => a.sortKey.localeCompare(b.sortKey))
 
   return (
     <div className="flex flex-col gap-6">
@@ -64,31 +107,37 @@ export function EntregasList({
           </div>
         </div>
       )}
-      {BUCKET_ORDER.filter((bucket) => groups[bucket].length > 0).map((bucket) => (
-        <div key={bucket} className="flex flex-col gap-3">
-          <h3
-            className={
-              bucket === 'atrasadas'
-                ? 'text-caption font-semibold text-(--color-urgent)'
-                : 'text-caption font-semibold text-muted-foreground'
-            }
-          >
-            {t(`entregasList.bucketHeadings.${bucket}`)}
-          </h3>
-          <div className="flex flex-col gap-2">
-            {groups[bucket].map((deadline) => (
-              <DeadlineRow
-                key={deadline.id}
-                deadline={deadline}
-                now={now}
-                onEdit={onEdit}
-                onToggleDone={(done) => onToggleDone(deadline, done)}
-                onDelete={onDelete}
-              />
-            ))}
+      {BUCKET_ORDER.map((bucket) => ({ bucket, items: itemsIn(bucket) }))
+        .filter(({ items }) => items.length > 0)
+        .map(({ bucket, items }) => (
+          <div key={bucket} className="flex flex-col gap-3">
+            <h3
+              className={
+                bucket === 'atrasadas'
+                  ? 'text-caption font-semibold text-(--color-urgent)'
+                  : 'text-caption font-semibold text-muted-foreground'
+              }
+            >
+              {t(`entregasList.bucketHeadings.${bucket}`)}
+            </h3>
+            <div className="flex flex-col gap-2">
+              {items.map((item) =>
+                item.kind === 'deadline' ? (
+                  <DeadlineRow
+                    key={`deadline-${item.deadline.id}`}
+                    deadline={item.deadline}
+                    now={now}
+                    onEdit={onEdit}
+                    onToggleDone={(done) => onToggleDone(item.deadline, done)}
+                    onDelete={onDelete}
+                  />
+                ) : (
+                  <AcademicDateRow key={`fecha-${item.academicDate.id}`} date={item.academicDate} now={now} />
+                )
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
     </div>
   )
 }

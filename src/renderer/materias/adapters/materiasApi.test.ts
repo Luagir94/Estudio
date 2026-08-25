@@ -51,6 +51,7 @@ describe('materiasApi', () => {
           setOutcome: vi.fn()
         },
         horario: { week: vi.fn() },
+        fechas: { list: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
         hoy: { dashboard: vi.fn() },
         carreras: {
           create: vi.fn(),

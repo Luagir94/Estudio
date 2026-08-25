@@ -2,6 +2,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { DeadlineWithSubject } from '../../../shared/ipc/entregas'
+import type { AcademicDateWithProgram } from '../../../shared/ipc/fechas'
 import { EntregasList } from './EntregasList'
 
 const now = new Date(2027, 7, 18, 12, 0)
@@ -106,5 +107,69 @@ describe('EntregasList (design node K6MVx: bucket groups)', () => {
 
       expect(screen.queryByText('Estás al día')).not.toBeInTheDocument()
     })
+  })
+})
+
+describe('EntregasList — administrative dates share the groups', () => {
+  function makeAcademicDate(overrides: Partial<AcademicDateWithProgram> = {}): AcademicDateWithProgram {
+    return {
+      id: 1,
+      programId: 2,
+      title: 'Inscripción a finales',
+      kind: 'inscripcionFinales',
+      startsOn: '2027-08-20',
+      endsOn: '2027-08-24',
+      programName: 'Abogacía',
+      ...overrides
+    }
+  }
+
+  function renderList(deadlines: DeadlineWithSubject[], academicDates: AcademicDateWithProgram[]) {
+    return render(
+      <EntregasList
+        deadlines={deadlines}
+        academicDates={academicDates}
+        now={now}
+        onEdit={vi.fn()}
+        onToggleDone={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    )
+  }
+
+  // One group, one chronology: a trámite closing before an entrega is due
+  // reads above it, exactly like two entregas would.
+  it('interleaves a date with the deadlines of its group, by date', () => {
+    renderList(
+      [makeDeadline({ id: 1, title: 'TP 2 — Scheduler', dueAt: '2027-08-22T23:59' })],
+      [makeAcademicDate({ id: 1, title: 'Cierra antes', startsOn: '2027-08-19', endsOn: '2027-08-21' })]
+    )
+
+    const rows = screen.getAllByTestId(/row$/).map((row) => row.textContent)
+
+    expect(rows[0]).toContain('Cierra antes')
+    expect(rows[1]).toContain('TP 2 — Scheduler')
+  })
+
+  it('renders a group that holds nothing but administrative dates', () => {
+    renderList([], [makeAcademicDate()])
+
+    expect(screen.getByText('PRÓXIMOS 7 DÍAS')).toBeInTheDocument()
+    expect(screen.getByText('Inscripción a finales')).toBeInTheDocument()
+    expect(screen.queryByText(/todavía no agregaste ninguna entrega/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps the empty state when there is neither an entrega nor a date', () => {
+    renderList([], [])
+
+    expect(screen.getByText(/todavía no agregaste ninguna entrega/i)).toBeInTheDocument()
+  })
+
+  // "Estás al día" is a claim about the whole week, so a trámite closing
+  // inside it withdraws the claim.
+  it('does not celebrate while an administrative date closes within 7 days', () => {
+    renderList([makeDeadline({ id: 1, dueAt: '2027-07-01T23:59', done: true })], [makeAcademicDate()])
+
+    expect(screen.queryByText('Estás al día')).not.toBeInTheDocument()
   })
 })

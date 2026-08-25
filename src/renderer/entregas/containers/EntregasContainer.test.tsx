@@ -4,7 +4,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DeadlineWithSubject } from '../../../shared/ipc/entregas'
+import type { AcademicDateWithProgram } from '../../../shared/ipc/fechas'
 import type { SubjectWithStatus } from '../../../shared/ipc/materias'
+import { fechasApi } from '../../fechas/adapters/fechasApi'
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import { entregasApi } from '../adapters/entregasApi'
 import { EntregasContainer } from './EntregasContainer'
@@ -15,6 +17,10 @@ vi.mock('../adapters/entregasApi', () => ({
 
 vi.mock('../../materias/adapters/materiasApi', () => ({
   materiasApi: { list: vi.fn() }
+}))
+
+vi.mock('../../fechas/adapters/fechasApi', () => ({
+  fechasApi: { list: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() }
 }))
 
 vi.mock('../components/NuevaEntregaModal', () => ({
@@ -98,6 +104,7 @@ describe('EntregasContainer', () => {
     vi.mocked(entregasApi.setDone).mockResolvedValue(makeDeadline({ done: true }))
     vi.mocked(entregasApi.delete).mockResolvedValue({ id: 1 })
     vi.mocked(materiasApi.list).mockResolvedValue([makeFacts()])
+    vi.mocked(fechasApi.list).mockResolvedValue([])
   })
 
   it('fetches on the ["entregas"] query key and renders the resolved deadlines', async () => {
@@ -170,5 +177,78 @@ describe('EntregasContainer', () => {
 
     await waitFor(() => expect(entregasApi.delete).toHaveBeenCalledTimes(1))
     expect(vi.mocked(entregasApi.delete).mock.calls[0]?.[0]).toBe(1)
+  })
+})
+
+// An administrative date is a deliverable of the carrera, not of a materia:
+// it shares the urgency groups with the entregas, but nothing else — no
+// done-toggle, no subject, and no COMPLETADAS.
+describe('EntregasContainer — administrative dates', () => {
+  function makeAcademicDate(overrides: Partial<AcademicDateWithProgram> = {}): AcademicDateWithProgram {
+    return {
+      id: 1,
+      programId: 2,
+      title: 'Inscripción a finales',
+      kind: 'inscripcionFinales',
+      startsOn: '2027-08-20',
+      endsOn: '2027-08-24',
+      programName: 'Abogacía',
+      ...overrides
+    }
+  }
+
+  beforeEach(() => {
+    vi.mocked(entregasApi.list).mockResolvedValue([makeDeadline({})])
+    vi.mocked(materiasApi.list).mockResolvedValue([makeFacts()])
+    vi.mocked(fechasApi.list).mockResolvedValue([makeAcademicDate()])
+  })
+
+  it('places an upcoming date inside the urgency group its relevant date falls in', async () => {
+    renderWithClient(<EntregasContainer now={now} />)
+
+    expect(await screen.findByText('Inscripción a finales')).toBeInTheDocument()
+    expect(screen.getByText('Abogacía · Trámite')).toBeInTheDocument()
+    expect(screen.getByText('Cierra en 6 días')).toBeInTheDocument()
+  })
+
+  it('leaves a past date out entirely — there is nothing left to do about it', async () => {
+    vi.mocked(fechasApi.list).mockResolvedValue([
+      makeAcademicDate({ id: 2, title: 'Ya cerró', startsOn: '2027-08-01', endsOn: '2027-08-05' })
+    ])
+
+    renderWithClient(<EntregasContainer now={now} />)
+
+    await screen.findByText('TP 2 — Scheduler')
+    await waitFor(() => expect(screen.queryByText('Ya cerró')).not.toBeInTheDocument())
+  })
+
+  it('never files a date under COMPLETADAS, even when everything else is done', async () => {
+    vi.mocked(entregasApi.list).mockResolvedValue([makeDeadline({ done: true, dueAt: '2027-07-01T23:59' })])
+
+    renderWithClient(<EntregasContainer now={now} />)
+
+    await screen.findByText('Inscripción a finales')
+    const completed = screen.getByText('COMPLETADAS').parentElement
+
+    expect(completed?.textContent).not.toContain('Inscripción a finales')
+  })
+
+  it('renders a group that holds only administrative dates', async () => {
+    vi.mocked(entregasApi.list).mockResolvedValue([])
+
+    renderWithClient(<EntregasContainer now={now} />)
+
+    expect(await screen.findByText('PRÓXIMOS 7 DÍAS')).toBeInTheDocument()
+    expect(screen.getByText('Inscripción a finales')).toBeInTheDocument()
+  })
+
+  // The screen's own counters are about ENTREGAS: a trámite is not something
+  // you hand in, so it must not inflate "pendientes".
+  it('keeps administrative dates out of the entrega counters', async () => {
+    renderWithClient(<EntregasContainer now={now} />)
+
+    await screen.findByText('Inscripción a finales')
+
+    expect(screen.getByText('1 pendiente · 0 atrasadas · 0 completadas este cuatrimestre')).toBeInTheDocument()
   })
 })

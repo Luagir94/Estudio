@@ -13,6 +13,7 @@ import carreras from '../locales/es/carreras.json'
 import common from '../locales/es/common.json'
 import entregas from '../locales/es/entregas.json'
 import errors from '../locales/es/errors.json'
+import fechas from '../locales/es/fechas.json'
 import finales from '../locales/es/finales.json'
 import horario from '../locales/es/horario.json'
 import hoy from '../locales/es/hoy.json'
@@ -31,6 +32,7 @@ void i18next.use(initReactI18next).init({
     'materias',
     'carreras',
     'entregas',
+    'fechas',
     'finales',
     'adjuntos',
     'ask',
@@ -39,7 +41,21 @@ void i18next.use(initReactI18next).init({
     'errors'
   ],
   resources: {
-    es: { common, hoy, horario, materias, carreras, entregas, finales, adjuntos, ask, ajustes, validation, errors }
+    es: {
+      common,
+      hoy,
+      horario,
+      materias,
+      carreras,
+      entregas,
+      fechas,
+      finales,
+      adjuntos,
+      ask,
+      ajustes,
+      validation,
+      errors
+    }
   },
   // React already escapes interpolated output; escaping here would corrupt
   // user data (subject names, colors) with HTML entities.

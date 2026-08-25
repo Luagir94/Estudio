@@ -57,6 +57,13 @@ import type {
   SetDeadlineDoneInput,
   UpdateDeadlineInput
 } from '../shared/ipc/entregas'
+import type {
+  AcademicDateRecord,
+  AcademicDateWithProgram,
+  CreateAcademicDateInput,
+  DeleteAcademicDateResult,
+  UpdateAcademicDateInput
+} from '../shared/ipc/fechas'
 import type { CreateFinalExamInput, DeleteFinalExamResult, UpdateFinalExamInput } from '../shared/ipc/finales'
 import type { WeekScheduleResult } from '../shared/ipc/horario'
 import type { DashboardResult } from '../shared/ipc/hoy'
@@ -106,6 +113,14 @@ const api = {
     deletePeriod: (id: number): Promise<IpcResult<DeletePeriodResult>> =>
       ipcRenderer.invoke('carreras:deletePeriod', { id }),
     delete: (id: number): Promise<IpcResult<DeleteProgramResult>> => ipcRenderer.invoke('carreras:delete', { id })
+  },
+  fechas: {
+    list: (): Promise<IpcResult<AcademicDateWithProgram[]>> => ipcRenderer.invoke('fechas:list'),
+    create: (input: CreateAcademicDateInput): Promise<IpcResult<AcademicDateRecord>> =>
+      ipcRenderer.invoke('fechas:create', input),
+    update: (input: UpdateAcademicDateInput): Promise<IpcResult<AcademicDateRecord>> =>
+      ipcRenderer.invoke('fechas:update', input),
+    delete: (id: number): Promise<IpcResult<DeleteAcademicDateResult>> => ipcRenderer.invoke('fechas:delete', { id })
   },
   finales: {
     create: (input: CreateFinalExamInput): Promise<IpcResult<FinalExamRecord>> =>

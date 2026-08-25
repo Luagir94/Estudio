@@ -45,6 +45,13 @@ import type {
   SetDeadlineDoneInput,
   UpdateDeadlineInput
 } from '../../shared/ipc/entregas'
+import type {
+  AcademicDateRecord,
+  AcademicDateWithProgram,
+  CreateAcademicDateInput,
+  DeleteAcademicDateResult,
+  UpdateAcademicDateInput
+} from '../../shared/ipc/fechas'
 import type { CreateFinalExamInput, DeleteFinalExamResult, UpdateFinalExamInput } from '../../shared/ipc/finales'
 import type { WeekScheduleResult } from '../../shared/ipc/horario'
 import type { DashboardResult } from '../../shared/ipc/hoy'
@@ -82,6 +89,13 @@ declare global {
         updatePeriod: (input: UpdatePeriodInput) => Promise<IpcResult<PeriodRecord>>
         deletePeriod: (id: number) => Promise<IpcResult<DeletePeriodResult>>
         delete: (id: number) => Promise<IpcResult<DeleteProgramResult>>
+      }
+      fechas: {
+        /** Every carrera's administrative dates, flat and unfiltered — grouping is a rendering-time question. */
+        list: () => Promise<IpcResult<AcademicDateWithProgram[]>>
+        create: (input: CreateAcademicDateInput) => Promise<IpcResult<AcademicDateRecord>>
+        update: (input: UpdateAcademicDateInput) => Promise<IpcResult<AcademicDateRecord>>
+        delete: (id: number) => Promise<IpcResult<DeleteAcademicDateResult>>
       }
       finales: {
         create: (input: CreateFinalExamInput) => Promise<IpcResult<FinalExamRecord>>

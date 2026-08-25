@@ -1,0 +1,68 @@
+{
+  "kinds": {
+    "inscripcionFinales": "Inscripción a finales",
+    "inscripcionCursadas": "Inscripción a cursadas",
+    "vencimientoRegularidad": "Vencimiento de regularidad",
+    "otro": "Otro"
+  },
+  "longRange": {
+    "sameMonth": "Del {{startDay}} al {{endDay}} de {{month}}",
+    "crossMonth": "Del {{startDay}} de {{startMonth}} al {{endDay}} de {{endMonth}}",
+    "singleDay": "El {{day}} de {{month}}"
+  },
+  "status": {
+    "closesToday": "Cierra hoy",
+    "closesTomorrow": "Cierra mañana",
+    "closesInDays": "Cierra en {{days}} días",
+    "closesInWeeks": "Cierra en {{weeks}} semanas",
+    "today": "Hoy",
+    "tomorrow": "Mañana",
+    "inDays": "En {{days}} días",
+    "inWeeks": "En {{weeks}} semanas"
+  },
+  "statusInline": {
+    "closesToday": "cierra hoy",
+    "closesTomorrow": "cierra mañana",
+    "closesInDays": "cierra en {{days}} días",
+    "closesInWeeks": "cierra en {{weeks}} semanas",
+    "today": "hoy",
+    "tomorrow": "mañana",
+    "inDays": "en {{days}} días",
+    "inWeeks": "en {{weeks}} semanas"
+  },
+  "fechasCard": {
+    "heading": "FECHAS ADMINISTRATIVAS",
+    "empty": "Esta carrera todavía no tiene fechas administrativas.",
+    "add": "Agregar fecha",
+    "editRow": "{{title}} · {{range}}",
+    "loading": "Cargando fechas…",
+    "loadError": "No se pudieron cargar las fechas administrativas."
+  },
+  "academicDateRow": {
+    "tag": "{{program}} · Trámite"
+  },
+  "callout": {
+    "title": "{{title}} — {{status}}",
+    "subtitle": "{{range}} · {{program}}"
+  },
+  "nuevaFechaModal": {
+    "createTitle": "Nueva fecha administrativa",
+    "editTitle": "Editar fecha administrativa",
+    "createSubtitle": "{{program}} · inscripciones, vencimientos y trámites",
+    "editSubtitle": "{{program}} · corregí los datos y guardá los cambios",
+    "kind": "Tipo",
+    "kindNoteStrong": "Clasifica la fecha",
+    "kindNoteRest": " — no cambia su comportamiento. Inscripción a finales, a cursadas, vencimiento de regularidad u otro trámite.",
+    "title": "Título",
+    "from": "Desde",
+    "to": "Hasta (opcional)",
+    "footerNote": "Sin fecha de fin, es de un solo día",
+    "submitCreate": "Crear fecha",
+    "delete": "Eliminar fecha"
+  },
+  "deleteFechaDialog": {
+    "dialogLabel": "Eliminar {{title}}",
+    "confirmQuestion": "¿Eliminar la fecha \"{{title}}\"? Esta acción no se puede deshacer.",
+    "confirm": "Eliminar fecha"
+  }
+}

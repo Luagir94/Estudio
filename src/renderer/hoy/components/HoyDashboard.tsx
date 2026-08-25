@@ -6,6 +6,8 @@
 import type { TFunction } from 'i18next'
 import { Coffee } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import type { AcademicDateWithProgram } from '../../../shared/ipc/fechas'
+import { ProximaFechaCallout } from '../../fechas/components/ProximaFechaCallout'
 import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
 import { ClassRow } from './ClassRow'
 import { DeadlineRow } from './DeadlineRow'
@@ -49,6 +51,13 @@ interface HoyDashboardProps {
   todayMondayFirstIndex: number | null
   /** Feeds the empty state's subtitle. `null` when no next class is derivable (no slots at all). */
   nextClass: NextClassOccurrence | null
+  /**
+   * The one administrative date close enough to warn about, already chosen by
+   * `fechas/domain/academicDate.ts`'s `pickImminentAcademicDate`. `null` — the
+   * ordinary case — renders nothing at all: a callout that is always there is
+   * a callout nobody reads.
+   */
+  imminentAcademicDate?: AcademicDateWithProgram | null
   /** Reference instant for deadline status pills. Defaults to the real clock. */
   now?: Date
 }
@@ -62,6 +71,7 @@ export function HoyDashboard({
   weekStrip,
   todayMondayFirstIndex,
   nextClass,
+  imminentAcademicDate = null,
   now = new Date()
 }: HoyDashboardProps): React.JSX.Element {
   const { t } = useTranslation('hoy')
@@ -136,6 +146,10 @@ export function HoyDashboard({
 
         <div className="flex flex-col gap-3">
           <h2 className="text-label font-semibold text-muted-foreground">{t('dashboard.next7Days')}</h2>
+          {/* Above the list, not inside it: a trámite is not an entrega, and
+              sorting it among them would say it is. It sits in this column
+              because both answer the same question — what is coming. */}
+          {imminentAcademicDate && <ProximaFechaCallout date={imminentAcademicDate} now={now} />}
           {deadlines.length === 0 ? (
             <p className="text-body-lg text-muted-foreground">{t('dashboard.noUpcomingDeadlines')}</p>
           ) : (

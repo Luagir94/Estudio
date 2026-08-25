@@ -11,6 +11,8 @@ import { es } from 'date-fns/locale'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { classifyDeadline } from '../../entregas/domain/deadline'
+import { fechasApi } from '../../fechas/adapters/fechasApi'
+import { pickImminentAcademicDate } from '../../fechas/domain/academicDate'
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import { attendsClasses, collectSubjectIds, hasOpenCoursework } from '../../materias/domain/subjectStatus'
 import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
@@ -42,6 +44,12 @@ export function HoyContainer({ now = new Date() }: HoyContainerProps = {}): Reac
   // write), so the filters below follow a subject being closed without this
   // screen owning any invalidation.
   const { data: subjectFacts } = useQuery({ queryKey: ['materias'], queryFn: materiasApi.list })
+
+  // Administrative dates ride the SAME ['fechas'] cache entry the carrera
+  // card writes through, so a trámite recorded there warns here without this
+  // screen owning any invalidation. Which one (if any) is worth a warning is
+  // the domain's call, not this container's.
+  const { data: academicDates } = useQuery({ queryKey: ['fechas'], queryFn: fechasApi.list })
 
   // Class content belongs to subjects still attending classes; deadline
   // content to subjects that may still owe work (cursando + sinCerrar).
@@ -91,6 +99,7 @@ export function HoyContainer({ now = new Date() }: HoyContainerProps = {}): Reac
           weekStrip={weekStrip}
           todayMondayFirstIndex={todayMondayFirstIndex}
           nextClass={nextClass}
+          imminentAcademicDate={pickImminentAcademicDate(academicDates ?? [], now)}
           now={now}
         />
       )}

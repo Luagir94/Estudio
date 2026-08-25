@@ -64,7 +64,10 @@ export function DeadlineRow({
   const status = formatDeadlineStatus(deadline.dueAt, deadline.done, now)
 
   return (
-    <div className="flex items-center gap-4 rounded-lg border border-border bg-card px-4 py-3">
+    <div
+      data-testid="deadline-row"
+      className="flex items-center gap-4 rounded-lg border border-border bg-card px-4 py-3"
+    >
       <input
         type="checkbox"
         aria-label={deadline.done ? t('deadlineRow.markPending') : t('deadlineRow.markDone')}

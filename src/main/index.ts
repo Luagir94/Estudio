@@ -30,6 +30,8 @@ import { createWarmPromptSession, type WarmPromptSession } from './claude/warmPr
 import { clearProvider, validateModelId } from './claude/claudeExecutableValidator'
 import { PROVIDER_SPECS } from './cli/providerSpec'
 import { createSqliteDeadlineRepository } from './entregas/adapters/sqliteDeadlineRepository'
+import { createSqliteAcademicDateRepository } from './fechas/adapters/sqliteAcademicDateRepository'
+import { registerFechasHandlers } from './fechas/ipc/registerFechasHandlers'
 import { createSqliteFinalExamRepository } from './finales/adapters/sqliteFinalExamRepository'
 import { registerFinalesHandlers } from './finales/ipc/registerFinalesHandlers'
 import { registerEntregasHandlers } from './entregas/ipc/registerEntregasHandlers'
@@ -119,6 +121,10 @@ async function bootstrap(): Promise<void> {
   // lifecycle, so they get their own repository and command set.
   const finalExamRepository = createSqliteFinalExamRepository(db)
   registerFinalesHandlers(finalExamRepository)
+  // Administrative dates hang off the PROGRAM (cascade-deleted with it) and
+  // own their lifecycle, so — like final exams — they get their own
+  // repository and command set rather than riding inside `carreras:*`.
+  registerFechasHandlers(createSqliteAcademicDateRepository(db))
   registerAppHandlers({ subjectRepository, deadlineRepository })
 
   // Attachment rows cascade-delete with their subject (PR1, pure FK); the

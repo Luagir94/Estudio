@@ -56,6 +56,41 @@ export const periods = sqliteTable('periods', {
   endsOn: text('ends_on')
 })
 
+// An administrative date owned by the PROGRAM, not by a subject: the
+// exam-enrolment window, the course-enrolment window, the day a regularidad
+// expires, or any other trámite. It hangs off `programs` for the same reason
+// `periods` does — the institution's calendar belongs to the carrera, and a
+// trámite without one is not representable.
+//
+// There is deliberately NO `done` column. A trámite has no manual
+// completion: it is upcoming or past BY THE CALENDAR, and a "done" flag
+// would be a second, hand-maintained truth about a question the dates
+// already answer (contrast `deadlines.done`, which records a decision only
+// the student can make). Past dates simply stop surfacing in Hoy/Entregas.
+export const academicDates = sqliteTable('academic_dates', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  programId: integer('program_id')
+    .notNull()
+    .references(() => programs.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  // Closed set 'inscripcionFinales' | 'inscripcionCursadas' |
+  // 'vencimientoRegularidad' | 'otro', ZOD-OWNED (shared/ipc/fechas.ts) —
+  // plain text with no CHECK constraint and no enum table, the same policy
+  // every other closed set in this schema follows (`subjects.outcome`,
+  // `deadlines.type`, `finalExams.result`, `attachments.indexStatus`).
+  // The kind is a LABEL: it classifies the row for the reader and never
+  // derives a date or changes how the date behaves.
+  kind: text('kind').notNull(),
+  // Calendar dates, ISO `YYYY-MM-DD`, no time and no offset — same contract
+  // as `periods.starts_on`: a trámite boundary is a whole day.
+  startsOn: text('starts_on').notNull(),
+  // NULLABLE: null means the date is a SINGLE DAY, not a window. Stored as
+  // null rather than a copy of `startsOn` so "el 20 de diciembre" and "del 20
+  // al 20 de diciembre" stay distinguishable, and so nothing downstream has
+  // to guess which of the two a duplicated date meant.
+  endsOn: text('ends_on')
+})
+
 // Subject is the aggregate root (design §2, §4: "no standalone
 // slot-creation command may exist"). notas is ONE plain-text column — no
 // markdown, no rich formatting, no search index (spec: "notas Field Cap").

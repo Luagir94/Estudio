@@ -3,8 +3,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AcademicDateWithProgram } from '../../../shared/ipc/fechas'
 import type { DashboardResult } from '../../../shared/ipc/hoy'
 import type { SubjectWithStatus } from '../../../shared/ipc/materias'
+import { fechasApi } from '../../fechas/adapters/fechasApi'
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import { hoyApi } from '../adapters/hoyApi'
 import { HoyContainer } from './HoyContainer'
@@ -15,6 +17,10 @@ vi.mock('../adapters/hoyApi', () => ({
 
 vi.mock('../../materias/adapters/materiasApi', () => ({
   materiasApi: { list: vi.fn() }
+}))
+
+vi.mock('../../fechas/adapters/fechasApi', () => ({
+  fechasApi: { list: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() }
 }))
 
 beforeAll(() => {
@@ -70,6 +76,7 @@ function renderWithClient(ui: ReactNode) {
 describe('HoyContainer (spec: "Today view on launch" — zero navigation)', () => {
   beforeEach(() => {
     vi.mocked(materiasApi.list).mockResolvedValue([makeFacts()])
+    vi.mocked(fechasApi.list).mockResolvedValue([])
   })
 
   it('fetches on the ["hoy","dashboard"] query key and renders today\'s class + overdue deadline with zero clicks', async () => {
@@ -117,5 +124,81 @@ describe('HoyContainer (spec: "Today view on launch" — zero navigation)', () =
     expect(await screen.findByText('TP 1')).toBeInTheDocument()
     // The subject name survives only as the deadline's subject tag, never as a class row.
     await waitFor(() => expect(screen.getAllByText('Sistemas Operativos')).toHaveLength(1))
+  })
+})
+
+// The callout is the ONE thing Hoy says about a trámite: it is not a list,
+// it is a warning that something with a deadline is about to close.
+describe('HoyContainer — the administrative-date callout', () => {
+  const now = new Date(2026, 7, 13, 9, 0)
+
+  function makeAcademicDate(overrides: Partial<AcademicDateWithProgram> = {}): AcademicDateWithProgram {
+    return {
+      id: 1,
+      programId: 2,
+      title: 'Inscripción a finales',
+      kind: 'inscripcionFinales',
+      startsOn: '2026-08-12',
+      endsOn: '2026-08-16',
+      programName: 'Abogacía',
+      ...overrides
+    }
+  }
+
+  beforeEach(() => {
+    vi.mocked(materiasApi.list).mockResolvedValue([makeFacts()])
+    vi.mocked(hoyApi.dashboard).mockResolvedValue(sampleData)
+  })
+
+  it('warns about the nearest date closing inside the next 7 days', async () => {
+    vi.mocked(fechasApi.list).mockResolvedValue([makeAcademicDate()])
+
+    renderWithClient(<HoyContainer now={now} />)
+
+    expect(await screen.findByText('Inscripción a finales — cierra en 3 días')).toBeInTheDocument()
+    expect(screen.getByText('Del 12 al 16 de agosto · Abogacía')).toBeInTheDocument()
+  })
+
+  it('warns about the most urgent one when several are near', async () => {
+    vi.mocked(fechasApi.list).mockResolvedValue([
+      makeAcademicDate({ id: 1, title: 'La lejana', startsOn: '2026-08-18', endsOn: '2026-08-19' }),
+      makeAcademicDate({ id: 2, title: 'La urgente', startsOn: '2026-08-13', endsOn: '2026-08-14' })
+    ])
+
+    renderWithClient(<HoyContainer now={now} />)
+
+    expect(await screen.findByText('La urgente — cierra mañana')).toBeInTheDocument()
+    expect(screen.queryByText(/La lejana/)).not.toBeInTheDocument()
+  })
+
+  it('stays hidden when the nearest date is still far away', async () => {
+    vi.mocked(fechasApi.list).mockResolvedValue([
+      makeAcademicDate({ startsOn: '2026-11-01', endsOn: '2026-11-05', title: 'Muy lejos' })
+    ])
+
+    renderWithClient(<HoyContainer now={now} />)
+
+    await screen.findByText('TP 1')
+    expect(screen.queryByText(/Muy lejos/)).not.toBeInTheDocument()
+  })
+
+  it('stays hidden when a near date has already passed', async () => {
+    vi.mocked(fechasApi.list).mockResolvedValue([
+      makeAcademicDate({ startsOn: '2026-08-08', endsOn: '2026-08-11', title: 'Ya cerró' })
+    ])
+
+    renderWithClient(<HoyContainer now={now} />)
+
+    await screen.findByText('TP 1')
+    expect(screen.queryByText(/Ya cerró/)).not.toBeInTheDocument()
+  })
+
+  it('stays hidden when there are no administrative dates at all', async () => {
+    vi.mocked(fechasApi.list).mockResolvedValue([])
+
+    renderWithClient(<HoyContainer now={now} />)
+
+    await screen.findByText('TP 1')
+    expect(screen.queryByText(/cierra en/i)).not.toBeInTheDocument()
   })
 })

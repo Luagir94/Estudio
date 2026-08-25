@@ -31,8 +31,13 @@ const { materiasApiMock } = vi.hoisted(() => ({
   }
 }))
 
+const { fechasApiMock } = vi.hoisted(() => ({
+  fechasApiMock: { list: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() }
+}))
+
 vi.mock('../adapters/carrerasApi', () => ({ carrerasApi: carrerasApiMock }))
 vi.mock('../../materias/adapters/materiasApi', () => ({ materiasApi: materiasApiMock }))
+vi.mock('../../fechas/adapters/fechasApi', () => ({ fechasApi: fechasApiMock }))
 
 const today = new Date(2026, 7, 15)
 
@@ -77,6 +82,7 @@ describe('CarreraDetailContainer', () => {
     vi.clearAllMocks()
     carrerasApiMock.detail.mockResolvedValue(abogacia)
     materiasApiMock.list.mockResolvedValue([])
+    fechasApiMock.list.mockResolvedValue([])
     carrerasApiMock.createPeriod.mockResolvedValue({
       id: 3,
       programId: 1,
@@ -283,6 +289,7 @@ describe('CarreraDetailContainer — editar y eliminar períodos', () => {
     vi.clearAllMocks()
     carrerasApiMock.detail.mockResolvedValue(abogacia)
     materiasApiMock.list.mockResolvedValue([])
+    fechasApiMock.list.mockResolvedValue([])
     carrerasApiMock.updatePeriod.mockResolvedValue({ ...abogacia.periods[0], startsOn: '2026-03-16' })
     carrerasApiMock.deletePeriod.mockResolvedValue({ id: 1, unlinkedSubjects: 0 })
   })
@@ -536,6 +543,7 @@ describe('CarreraDetailContainer — right rail cards', () => {
     vi.clearAllMocks()
     carrerasApiMock.detail.mockResolvedValue(abogacia)
     materiasApiMock.list.mockResolvedValue([])
+    fechasApiMock.list.mockResolvedValue([])
   })
 
   it('shows the active period with its range in the PERÍODO EN CURSO card', async () => {
@@ -617,6 +625,7 @@ describe('CarreraDetailContainer — avance académico', () => {
     vi.clearAllMocks()
     carrerasApiMock.detail.mockResolvedValue(abogacia)
     materiasApiMock.list.mockResolvedValue([])
+    fechasApiMock.list.mockResolvedValue([])
   })
 
   async function findCard() {
@@ -738,6 +747,7 @@ describe('CarreraDetailContainer — eliminar carrera', () => {
     vi.clearAllMocks()
     carrerasApiMock.detail.mockResolvedValue(abogacia)
     materiasApiMock.list.mockResolvedValue([])
+    fechasApiMock.list.mockResolvedValue([])
     carrerasApiMock.delete.mockResolvedValue({ id: 1, deletedPeriods: 2, unlinkedSubjects: 3 })
   })
 
@@ -843,6 +853,7 @@ describe('CarreraDetailContainer — editar carrera', () => {
     vi.clearAllMocks()
     carrerasApiMock.detail.mockResolvedValue(abogacia)
     materiasApiMock.list.mockResolvedValue([])
+    fechasApiMock.list.mockResolvedValue([])
     carrerasApiMock.update.mockResolvedValue({ ...abogacia, name: 'Abogacía (UBA)' })
   })
 
@@ -967,6 +978,7 @@ describe('CarreraDetailContainer — nueva materia', () => {
     vi.clearAllMocks()
     carrerasApiMock.detail.mockResolvedValue(abogacia)
     materiasApiMock.list.mockResolvedValue([])
+    fechasApiMock.list.mockResolvedValue([])
     materiasApiMock.create.mockResolvedValue({ id: 9, name: 'Derecho Penal' })
   })
 
@@ -1142,5 +1154,43 @@ describe('CarreraDetailContainer — materias de la carrera', () => {
     await userEvent.click(screen.getByRole('button', { name: /Derecho Constitucional/ }))
 
     expect(onOpenSubject).toHaveBeenCalledWith(1)
+  })
+})
+
+// The carrera is where administrative dates live: they belong to the program,
+// not to any one materia, so the card sits in this screen's right rail.
+describe('CarreraDetailContainer — fechas administrativas', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    carrerasApiMock.detail.mockResolvedValue(abogacia)
+    materiasApiMock.list.mockResolvedValue([])
+    fechasApiMock.list.mockResolvedValue([
+      {
+        id: 1,
+        programId: 1,
+        title: 'Inscripción a finales',
+        kind: 'inscripcionFinales',
+        startsOn: '2026-12-01',
+        endsOn: '2026-12-05',
+        programName: 'Abogacía'
+      }
+    ])
+  })
+
+  it('mounts the card after the academic-progress card, showing this carrera dates', async () => {
+    renderDetail()
+
+    expect(await screen.findByText('FECHAS ADMINISTRATIVAS')).toBeInTheDocument()
+    expect(screen.getByText('Inscripción a finales')).toBeInTheDocument()
+    expect(screen.getByText('1 – 5 DIC')).toBeInTheDocument()
+  })
+
+  it('opens the creation form from the card', async () => {
+    renderDetail()
+    await screen.findByText('FECHAS ADMINISTRATIVAS')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar fecha' }))
+
+    expect(screen.getByRole('dialog', { name: 'Nueva fecha administrativa' })).toBeInTheDocument()
   })
 })
