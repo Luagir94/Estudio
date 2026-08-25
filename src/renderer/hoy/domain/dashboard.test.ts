@@ -7,6 +7,7 @@ import {
   getNextClassOccurrence,
   getTodayClasses,
   getWeekStrip,
+  withClassMarks,
   type DashboardDeadline,
   type DashboardSubject
 } from './dashboard'
@@ -280,5 +281,59 @@ describe('getWeekStrip (task 6.2: week-strip Monday-start test)', () => {
     const friday = strip[4]! // Monday-first index 4 = Friday 2026-08-14
 
     expect(friday.dueCount).toBe(1)
+  })
+})
+
+describe('withClassMarks (joins the day`s classes to what was recorded about them)', () => {
+  const todayClasses = [
+    {
+      subjectId: 1,
+      subjectName: 'Sistemas Operativos',
+      subjectColor: '#4c8dff',
+      slotId: 10,
+      startMinutes: 480,
+      endMinutes: 570,
+      location: 'Aula 204'
+    },
+    {
+      subjectId: 2,
+      subjectName: 'Bases de Datos',
+      subjectColor: '#22d3ee',
+      slotId: 11,
+      startMinutes: 600,
+      endMinutes: 720,
+      location: 'Aula 118'
+    }
+  ]
+
+  it('carries each class`s mark and whether it has an apunte', () => {
+    const marked = withClassMarks(
+      todayClasses,
+      [{ id: 1, subjectId: 1, date: '2026-08-14', status: 'presente' }],
+      [{ id: 1, subjectId: 2, date: '2026-08-14', body: 'Índices' }],
+      '2026-08-14'
+    )
+
+    expect(marked[0]).toMatchObject({ subjectId: 1, attendanceStatus: 'presente', hasNote: false })
+    expect(marked[1]).toMatchObject({ subjectId: 2, attendanceStatus: null, hasNote: true })
+  })
+
+  // The join key is `(subjectId, date)`, never the slot id: a mark recorded on
+  // another day belongs to another class.
+  it('ignores marks recorded on a different day', () => {
+    const marked = withClassMarks(
+      todayClasses,
+      [{ id: 1, subjectId: 1, date: '2026-08-07', status: 'ausente' }],
+      [],
+      '2026-08-14'
+    )
+
+    expect(marked[0]?.attendanceStatus).toBeNull()
+  })
+
+  it('leaves every class unmarked when nothing was recorded', () => {
+    const marked = withClassMarks(todayClasses, [], [], '2026-08-14')
+
+    expect(marked.every((classItem) => classItem.attendanceStatus === null && !classItem.hasNote)).toBe(true)
   })
 })

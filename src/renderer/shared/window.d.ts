@@ -27,6 +27,7 @@ import type {
   ProbeCliInput,
   SetCliOverrideInput
 } from '../../shared/ipc/cli'
+import type { ClassDayInput, ClassDayResult, SaveClassNoteInput, SetAttendanceInput } from '../../shared/ipc/clases'
 import type {
   CreatePeriodInput,
   CreateProgramInput,
@@ -62,6 +63,8 @@ import type { WeekScheduleResult } from '../../shared/ipc/horario'
 import type { DashboardResult } from '../../shared/ipc/hoy'
 import type { IndexStatusChangedPayload, SyncResult } from '../../shared/ipc/indexado'
 import type {
+  AttendanceRecord,
+  ClassNoteRecord,
   CreateSubjectInput,
   DeleteSubjectResult,
   FinalExamRecord,
@@ -112,6 +115,16 @@ declare global {
         create: (input: CreatePartialExamInput) => Promise<IpcResult<PartialExamRecord>>
         update: (input: UpdatePartialExamInput) => Promise<IpcResult<PartialExamRecord>>
         delete: (id: number) => Promise<IpcResult<DeletePartialExamResult>>
+      }
+      clases: {
+        /** Records or corrects one class's mark. Upsert — one mark per `(subjectId, date)`. */
+        setAttendance: (input: SetAttendanceInput) => Promise<IpcResult<AttendanceRecord>>
+        /** Back to unmarked. Succeeds even if the class was never marked. */
+        clearAttendance: (input: ClassDayInput) => Promise<IpcResult<ClassDayResult>>
+        /** Writes or rewrites one class's apunte. Upsert — one apunte per `(subjectId, date)`. */
+        saveNote: (input: SaveClassNoteInput) => Promise<IpcResult<ClassNoteRecord>>
+        /** Removes the apunte. Succeeds even if the class had none. */
+        deleteNote: (input: ClassDayInput) => Promise<IpcResult<ClassDayResult>>
       }
       horario: {
         week: () => Promise<IpcResult<WeekScheduleResult>>

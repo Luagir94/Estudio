@@ -83,6 +83,7 @@ function makeFacts(overrides: Partial<SubjectWithStatus> = {}): SubjectWithStatu
     periodId: null,
     outcome: null,
     grade: null,
+    regularity: null,
     slots: [],
     period: null,
     program: null,

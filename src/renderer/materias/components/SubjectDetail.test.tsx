@@ -34,7 +34,9 @@ const baseSubject: SubjectDetailResult = {
   period: null,
   program: null,
   finals: [],
-  parciales: []
+  parciales: [],
+  attendance: [],
+  classNotes: []
 }
 
 describe('SubjectDetail (read-only)', () => {
@@ -497,6 +499,133 @@ describe('SubjectDetail — regularidad badge', () => {
     expect(screen.queryByText('Promocionada')).not.toBeInTheDocument()
     expect(screen.queryByText('Libre')).not.toBeInTheDocument()
     expect(screen.queryByTestId('subject-detail-regularity-separator')).not.toBeInTheDocument()
+  })
+})
+
+// The ASISTENCIA card (approved design: right column, between PROGRESO and the
+// numbers card). Everything it shows is DERIVED from the marks at render time
+// — nothing about a percentage is stored.
+describe('SubjectDetail — asistencia card', () => {
+  function renderWithAttendance(overrides: Partial<SubjectDetailResult>) {
+    render(
+      <SubjectDetail
+        subject={{ ...baseSubject, ...overrides }}
+        nextClass={null}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenExternalUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+      />
+    )
+  }
+
+  function marks(...statuses: Array<'presente' | 'ausente' | 'feriado'>) {
+    return statuses.map((status, index) => ({
+      id: index + 1,
+      subjectId: 1,
+      date: `2026-04-${String(index + 1).padStart(2, '0')}`,
+      status
+    }))
+  }
+
+  it('reads the count, the percentage and the minimum it is measured against', () => {
+    renderWithAttendance({ attendance: marks('presente', 'presente', 'presente', 'ausente') })
+
+    expect(screen.getByText('ASISTENCIA')).toBeInTheDocument()
+    expect(screen.getByText('3 de 4')).toBeInTheDocument()
+    expect(screen.getByText('75% presente · mínimo requerido 75%')).toBeInTheDocument()
+  })
+
+  it('fills the track proportionally and in the ok tone while the minimum is met', () => {
+    renderWithAttendance({ attendance: marks('presente', 'presente', 'presente', 'ausente') })
+
+    const fill = screen.getByTestId('subject-detail-attendance-fill')
+    expect(fill).toHaveStyle({ width: '75%' })
+    expect(fill).toHaveClass('bg-(--color-ok)')
+  })
+
+  it('turns urgent once the subject is below its minimum', () => {
+    renderWithAttendance({ attendance: marks('presente', 'ausente') })
+
+    expect(screen.getByText('50% presente · mínimo requerido 75%')).toBeInTheDocument()
+    expect(screen.getByTestId('subject-detail-attendance-fill')).toHaveClass('bg-(--color-urgent)')
+  })
+
+  // A subject that declares no minimum makes no claim to fall short of, so the
+  // card reports the number with a neutral bar and no "mínimo" clause.
+  it('drops the mínimo clause and stays neutral when the subject declares none', () => {
+    renderWithAttendance({ attendanceMinPercent: null, attendance: marks('presente', 'ausente') })
+
+    expect(screen.getByText('50% presente')).toBeInTheDocument()
+    expect(screen.queryByText(/mínimo requerido/)).not.toBeInTheDocument()
+    expect(screen.getByTestId('subject-detail-attendance-fill')).toHaveClass('bg-primary')
+  })
+
+  // NOT "0% presente" and not "0 de 0": with nothing counted the question has
+  // not been answered yet, and a 0 would read as a catastrophe.
+  it('renders a distinct empty state instead of a misleading 0%', () => {
+    renderWithAttendance({ attendance: [] })
+
+    expect(screen.getByText('Todavía no hay asistencia para calcular')).toBeInTheDocument()
+    expect(screen.queryByText(/% presente/)).not.toBeInTheDocument()
+    expect(screen.queryByText('0 de 0')).not.toBeInTheDocument()
+  })
+
+  it('treats a subject with only feriados as unmeasured, not as 0%', () => {
+    renderWithAttendance({ attendance: marks('feriado', 'feriado') })
+
+    expect(screen.getByText('Todavía no hay asistencia para calcular')).toBeInTheDocument()
+  })
+
+  // The minimum now lives INSIDE the bar that measures against it; repeating it
+  // in the numbers card said the same fact twice.
+  it('no longer repeats the minimum as a row in the numbers card', () => {
+    renderWithAttendance({})
+
+    expect(screen.queryByText('Asistencia mínima')).not.toBeInTheDocument()
+  })
+
+  it('sits between the progreso card and the numbers card', () => {
+    renderWithAttendance({})
+
+    const progreso = screen.getByText('PROGRESO')
+    const asistencia = screen.getByTestId('subject-detail-attendance')
+    const numbers = screen.getByText('Horas por semana')
+
+    expect(progreso.compareDocumentPosition(asistencia) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(asistencia.compareDocumentPosition(numbers) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
+
+// The APUNTES DE CLASE section owns the class dialog and its mutations, so it
+// arrives as a slot the same way ADJUNTOS does.
+describe('SubjectDetail — apuntes slot', () => {
+  it('renders the injected section between NOTAS and ADJUNTOS', () => {
+    render(
+      <SubjectDetail
+        subject={baseSubject}
+        nextClass={null}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenExternalUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+        apuntesSlot={<div data-testid="apuntes-slot" />}
+        adjuntosSlot={<div data-testid="adjuntos-slot" />}
+      />
+    )
+
+    const notas = screen.getByText('NOTAS')
+    const apuntes = screen.getByTestId('apuntes-slot')
+    const adjuntos = screen.getByTestId('adjuntos-slot')
+
+    expect(notas.compareDocumentPosition(apuntes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(apuntes.compareDocumentPosition(adjuntos) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })
 

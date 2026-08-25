@@ -21,6 +21,10 @@ const sampleSubject = {
   slots: [{ id: 1, subjectId: 1, dayOfWeek: 1, startMinutes: 480, endMinutes: 570, location: 'Aula 204' }]
 }
 
+const sampleMark = { id: 1, subjectId: 1, date: '2026-08-17', status: 'presente' }
+
+const sampleNote = { id: 1, subjectId: 1, date: '2026-08-17', body: 'Round robin y starvation.' }
+
 const sampleDeadline = {
   id: 1,
   subjectId: 1,
@@ -60,6 +64,12 @@ describe('hoyApi', () => {
         },
         finales: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
         parciales: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+        clases: {
+          setAttendance: vi.fn(),
+          clearAttendance: vi.fn(),
+          saveNote: vi.fn(),
+          deleteNote: vi.fn()
+        },
         entregas: { create: vi.fn(), list: vi.fn(), update: vi.fn(), setDone: vi.fn(), delete: vi.fn() },
         adjuntos: { list: vi.fn(), add: vi.fn(), open: vi.fn(), remove: vi.fn(), read: vi.fn(), write: vi.fn() },
         indexado: { sync: vi.fn(), onStatusChanged: vi.fn().mockReturnValue(vi.fn()) },
@@ -77,14 +87,18 @@ describe('hoyApi', () => {
     }
   })
 
-  it('dashboard() parses and returns { subjects, deadlines } on a successful envelope', async () => {
-    window.api.hoy.dashboard = vi
-      .fn()
-      .mockResolvedValue({ ok: true, data: { subjects: [sampleSubject], deadlines: [sampleDeadline] } })
+  it('dashboard() parses and returns subjects, deadlines, marks and apuntes on a successful envelope', async () => {
+    const payload = {
+      subjects: [sampleSubject],
+      deadlines: [sampleDeadline],
+      attendance: [sampleMark],
+      classNotes: [sampleNote]
+    }
+    window.api.hoy.dashboard = vi.fn().mockResolvedValue({ ok: true, data: payload })
 
     const result = await hoyApi.dashboard()
 
-    expect(result).toEqual({ subjects: [sampleSubject], deadlines: [sampleDeadline] })
+    expect(result).toEqual(payload)
   })
 
   it('dashboard() throws with the envelope error message when ok is false', async () => {

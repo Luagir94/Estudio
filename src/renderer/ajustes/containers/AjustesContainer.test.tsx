@@ -105,6 +105,8 @@ beforeEach(() => {
       delete: vi.fn()
     },
     finales: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    parciales: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    clases: { setAttendance: vi.fn(), clearAttendance: vi.fn(), saveNote: vi.fn(), deleteNote: vi.fn() },
     entregas: { create: vi.fn(), list: vi.fn(), update: vi.fn(), setDone: vi.fn(), delete: vi.fn() },
     adjuntos: { list: vi.fn(), add: vi.fn(), open: vi.fn(), remove: vi.fn(), read: vi.fn(), write: vi.fn() },
     indexado: { sync: vi.fn(), onStatusChanged: vi.fn().mockReturnValue(vi.fn()) },

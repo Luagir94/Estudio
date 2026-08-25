@@ -1,14 +1,22 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
-import { beforeAll, describe, expect, it } from 'vitest'
-import type { TodayClass, DashboardDeadline, FreeBlock, NextClassOccurrence, WeekStripDay } from '../domain/dashboard'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
+import type {
+  TodayClassWithMarks,
+  DashboardDeadline,
+  FreeBlock,
+  NextClassOccurrence,
+  WeekStripDay
+} from '../domain/dashboard'
 import { HoyDashboard } from './HoyDashboard'
 
 beforeAll(() => {
   process.env.TZ = 'America/New_York'
 })
 
-const todayClasses: TodayClass[] = [
+// Every row now carries its class mark: unmarked here, which is the absence of
+// a stored row rather than a fourth status.
+const todayClasses: TodayClassWithMarks[] = [
   {
     subjectId: 1,
     subjectName: 'Sistemas Operativos',
@@ -16,7 +24,9 @@ const todayClasses: TodayClass[] = [
     slotId: 10,
     startMinutes: 480,
     endMinutes: 570,
-    location: 'Aula 204'
+    location: 'Aula 204',
+    attendanceStatus: null,
+    hasNote: false
   },
   {
     subjectId: 3,
@@ -25,7 +35,9 @@ const todayClasses: TodayClass[] = [
     slotId: 30,
     startMinutes: 1110,
     endMinutes: 1290,
-    location: 'Aula 301'
+    location: 'Aula 301',
+    attendanceStatus: null,
+    hasNote: false
   }
 ]
 
@@ -66,6 +78,8 @@ describe('HoyDashboard (design node E2pJ95 — Grupo Hoy, zero-navigation, read-
         todayMondayFirstIndex={3}
         nextClass={null}
         now={new Date(2026, 7, 13, 9, 0)}
+        onMarkAttendance={vi.fn()}
+        onOpenClase={vi.fn()}
       />
     )
 
@@ -93,6 +107,8 @@ describe('HoyDashboard (design node E2pJ95 — Grupo Hoy, zero-navigation, read-
           todayMondayFirstIndex={3}
           nextClass={null}
           now={now}
+          onMarkAttendance={vi.fn()}
+          onOpenClase={vi.fn()}
         />
       )
     }
@@ -133,6 +149,8 @@ describe('HoyDashboard (design node E2pJ95 — Grupo Hoy, zero-navigation, read-
           weekStrip={weekStrip}
           todayMondayFirstIndex={5}
           nextClass={nextClass}
+          onMarkAttendance={vi.fn()}
+          onOpenClase={vi.fn()}
         />
       )
     }

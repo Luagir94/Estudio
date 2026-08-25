@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { createSqliteClaseRepository } from '../../clases/adapters/sqliteClaseRepository'
 import { openAppDatabase } from '../../db/connection'
 import { deadlines, finalExams, periods, programs } from '../../db/schema'
 import { createSqliteSubjectRepository } from './sqliteSubjectRepository'
@@ -133,6 +134,33 @@ describe('createSqliteSubjectRepository', () => {
       expect(detail?.slots).toHaveLength(1)
       expect(detail?.deadlines).toHaveLength(2)
       expect(detail?.deadlines.map((deadline) => deadline.done).sort()).toEqual([false, true])
+    })
+
+    // Marks and apuntes join the subject READ — `clases:*` ships writes only
+    // — and they arrive RAW: no percentage, no resolved class occurrence.
+    // Both are composed at render time from the slots then in effect.
+    it('carries the subject`s attendance marks and class apuntes', () => {
+      const repository = createSqliteSubjectRepository(db)
+      const created = repository.create({
+        name: 'Sistemas Operativos',
+        code: 'SO-301',
+        color: '#7c3aed',
+        docente: null,
+        contacto: null,
+        periodId,
+        slots: [{ dayOfWeek: 4, startMinutes: 480, endMinutes: 570, location: 'Aula 204' }]
+      })
+      const clases = createSqliteClaseRepository(db)
+      clases.setAttendance({ subjectId: created.id, date: '2026-08-14', status: 'presente' })
+      clases.setAttendance({ subjectId: created.id, date: '2026-08-07', status: 'feriado' })
+      clases.saveNote({ subjectId: created.id, date: '2026-08-14', body: 'Round robin y starvation.' })
+
+      const detail = repository.detail(created.id)
+
+      expect(detail?.attendance.map((mark) => mark.status).sort()).toEqual(['feriado', 'presente'])
+      expect(detail?.classNotes).toEqual([
+        expect.objectContaining({ date: '2026-08-14', body: 'Round robin y starvation.' })
+      ])
     })
 
     it('returns null for a subject id that does not exist', () => {

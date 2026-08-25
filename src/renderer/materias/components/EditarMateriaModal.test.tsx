@@ -26,7 +26,9 @@ const subject: SubjectDetailResult = {
   period: null,
   program: null,
   finals: [],
-  parciales: []
+  parciales: [],
+  attendance: [],
+  classNotes: []
 }
 
 describe('EditarMateriaModal', () => {

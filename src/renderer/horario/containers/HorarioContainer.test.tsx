@@ -65,7 +65,9 @@ const sampleDetail: SubjectDetailResult = {
   period: null,
   program: null,
   finals: [],
-  parciales: []
+  parciales: [],
+  attendance: [],
+  classNotes: []
 }
 
 // The ['materias'] facts the container filters against (outcome, period

@@ -74,6 +74,8 @@ beforeEach(() => {
       delete: vi.fn()
     },
     finales: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    parciales: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    clases: { setAttendance: vi.fn(), clearAttendance: vi.fn(), saveNote: vi.fn(), deleteNote: vi.fn() },
     entregas: { create: vi.fn(), list: vi.fn(), update: vi.fn(), setDone: vi.fn(), delete: vi.fn() },
     app: { openExternal: vi.fn(), exportJson: vi.fn(), onExportRequested: vi.fn() },
     ask: {

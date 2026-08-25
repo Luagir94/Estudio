@@ -7,6 +7,8 @@
 // and `shared/domain/dayOfWeek.ts`'s Monday-first mapping instead of
 // re-deriving either (same precedent as `horario/domain/weekProjection.ts`).
 import { addDays, isSameDay, parseISO, startOfWeek } from 'date-fns'
+import type { AttendanceRecord, AttendanceStatus, ClassNoteRecord } from '../../../shared/ipc/materias'
+import { findAttendanceStatus, findClassNote } from '../../clases/domain/classOccurrence'
 import { classifyDeadline } from '../../entregas/domain/deadline'
 import { fromMondayFirstIndex } from '../../shared/domain/dayOfWeek'
 
@@ -69,6 +71,40 @@ export function getTodayClasses(subjects: DashboardSubject[], now: Date): TodayC
         }))
     )
     .sort((a, b) => a.startMinutes - b.startMinutes)
+}
+
+export interface TodayClassWithMarks extends TodayClass {
+  /** `null` = UNMARKED, which is the absence of a stored row and not a fourth status. */
+  attendanceStatus: AttendanceStatus | null
+  hasNote: boolean
+}
+
+/**
+ * Joins the day's classes to what has been recorded about them.
+ *
+ * The join key is `(subjectId, date)` — never the slot id — because that is
+ * what a mark and an apunte are anchored by: the weekly pattern has no
+ * independent lifecycle, so anything keyed on a slot would be lost the next
+ * time the horario was edited (see `attendance_records` in db/schema.ts).
+ *
+ * `date` is the caller's LOCAL calendar day, passed in rather than read off a
+ * clock here: this stays a pure function, and Hoy's "now" is already injected
+ * at the top of the screen for exactly this reason.
+ *
+ * Two classes of the same subject on the same day therefore share one mark and
+ * one apunte, which is the intended reading of the anchor, not a collision.
+ */
+export function withClassMarks(
+  todayClasses: TodayClass[],
+  attendance: AttendanceRecord[],
+  classNotes: ClassNoteRecord[],
+  date: string
+): TodayClassWithMarks[] {
+  return todayClasses.map((classItem) => ({
+    ...classItem,
+    attendanceStatus: findAttendanceStatus(attendance, classItem.subjectId, date),
+    hasNote: findClassNote(classNotes, classItem.subjectId, date) !== null
+  }))
 }
 
 export interface NextClassHighlight {

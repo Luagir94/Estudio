@@ -10,6 +10,7 @@ import adjuntos from '../locales/es/adjuntos.json'
 import ajustes from '../locales/es/ajustes.json'
 import ask from '../locales/es/ask.json'
 import carreras from '../locales/es/carreras.json'
+import clases from '../locales/es/clases.json'
 import common from '../locales/es/common.json'
 import entregas from '../locales/es/entregas.json'
 import errors from '../locales/es/errors.json'
@@ -32,6 +33,7 @@ void i18next.use(initReactI18next).init({
     'horario',
     'materias',
     'carreras',
+    'clases',
     'entregas',
     'fechas',
     'finales',
@@ -49,6 +51,7 @@ void i18next.use(initReactI18next).init({
       horario,
       materias,
       carreras,
+      clases,
       entregas,
       fechas,
       finales,

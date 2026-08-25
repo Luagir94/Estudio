@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AcademicDateWithProgram } from '../../../shared/ipc/fechas'
 import type { DashboardResult } from '../../../shared/ipc/hoy'
 import type { SubjectWithStatus } from '../../../shared/ipc/materias'
+import { clasesApi } from '../../clases/adapters/clasesApi'
 import { fechasApi } from '../../fechas/adapters/fechasApi'
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import { hoyApi } from '../adapters/hoyApi'
@@ -17,6 +19,10 @@ vi.mock('../adapters/hoyApi', () => ({
 
 vi.mock('../../materias/adapters/materiasApi', () => ({
   materiasApi: { list: vi.fn() }
+}))
+
+vi.mock('../../clases/adapters/clasesApi', () => ({
+  clasesApi: { setAttendance: vi.fn(), clearAttendance: vi.fn(), saveNote: vi.fn(), deleteNote: vi.fn() }
 }))
 
 vi.mock('../../fechas/adapters/fechasApi', () => ({
@@ -45,6 +51,7 @@ const sampleData: DashboardResult = {
       periodId: null,
       outcome: null,
       grade: null,
+      regularity: null,
       slots: [{ id: 1, subjectId: 1, dayOfWeek: 4, startMinutes: 480, endMinutes: 570, location: 'Aula 204' }]
     }
   ],
@@ -59,7 +66,9 @@ const sampleData: DashboardResult = {
       subjectName: 'Sistemas Operativos',
       subjectColor: '#4c8dff'
     }
-  ]
+  ],
+  attendance: [],
+  classNotes: []
 }
 
 // The ['materias'] facts the container filters against (outcome, period
@@ -91,7 +100,12 @@ describe('HoyContainer (spec: "Today view on launch" — zero navigation)', () =
   })
 
   it('surfaces an overdue deadline even when it is outside the classes list entirely (editor/viewer consistency)', async () => {
-    vi.mocked(hoyApi.dashboard).mockResolvedValue({ subjects: [], deadlines: sampleData.deadlines })
+    vi.mocked(hoyApi.dashboard).mockResolvedValue({
+      subjects: [],
+      deadlines: sampleData.deadlines,
+      attendance: [],
+      classNotes: []
+    })
 
     renderWithClient(<HoyContainer now={new Date(2026, 7, 13, 9, 0)} />)
 
@@ -200,5 +214,85 @@ describe('HoyContainer — the administrative-date callout', () => {
 
     await screen.findByText('TP 1')
     expect(screen.queryByText(/cierra en/i)).not.toBeInTheDocument()
+  })
+})
+
+// Hoy stopped being a pure read-model here, deliberately and narrowly: the
+// day's own list is where you know whether you were in the class. The writes
+// still go through `clases:*`, and they are anchored to `(subjectId, date)`
+// with the date being TODAY — resolved from the injected clock, never from a
+// slot id and never from a payload main filtered.
+describe('HoyContainer — marking today`s classes', () => {
+  const now = new Date(2026, 7, 13, 9, 0) // Thursday 2026-08-13
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(materiasApi.list).mockResolvedValue([makeFacts()])
+    vi.mocked(fechasApi.list).mockResolvedValue([])
+    vi.mocked(clasesApi.setAttendance).mockResolvedValue({
+      id: 1,
+      subjectId: 1,
+      date: '2026-08-13',
+      status: 'presente'
+    })
+    vi.mocked(clasesApi.clearAttendance).mockResolvedValue({ subjectId: 1, date: '2026-08-13' })
+  })
+
+  it('records a mark against the subject and TODAY`s local date', async () => {
+    vi.mocked(hoyApi.dashboard).mockResolvedValue(sampleData)
+
+    renderWithClient(<HoyContainer now={now} />)
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Marcar presente en Sistemas Operativos' }))
+
+    await waitFor(() =>
+      expect(clasesApi.setAttendance).toHaveBeenCalledWith({ subjectId: 1, date: '2026-08-13', status: 'presente' })
+    )
+  })
+
+  it('shows the stored mark on the row and clears it when the active control is pressed again', async () => {
+    vi.mocked(hoyApi.dashboard).mockResolvedValue({
+      ...sampleData,
+      attendance: [{ id: 1, subjectId: 1, date: '2026-08-13', status: 'presente' }]
+    })
+
+    renderWithClient(<HoyContainer now={now} />)
+
+    const presente = await screen.findByRole('button', { name: 'Marcar presente en Sistemas Operativos' })
+    expect(presente).toHaveAttribute('aria-pressed', 'true')
+
+    await userEvent.click(presente)
+
+    await waitFor(() => expect(clasesApi.clearAttendance).toHaveBeenCalledWith({ subjectId: 1, date: '2026-08-13' }))
+  })
+
+  // A mark recorded on another day belongs to another class: the join key is
+  // the pair, and the row must not borrow yesterday's answer.
+  it('ignores a mark stored under a different date', async () => {
+    vi.mocked(hoyApi.dashboard).mockResolvedValue({
+      ...sampleData,
+      attendance: [{ id: 1, subjectId: 1, date: '2026-08-06', status: 'presente' }]
+    })
+
+    renderWithClient(<HoyContainer now={now} />)
+
+    expect(await screen.findByRole('button', { name: 'Marcar presente en Sistemas Operativos' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    )
+  })
+
+  it('opens the class dialog for today from the apunte control, prefilled with the stored apunte', async () => {
+    vi.mocked(hoyApi.dashboard).mockResolvedValue({
+      ...sampleData,
+      classNotes: [{ id: 1, subjectId: 1, date: '2026-08-13', body: 'Round robin y starvation.' }]
+    })
+
+    renderWithClient(<HoyContainer now={now} />)
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Apunte de la clase de Sistemas Operativos' }))
+
+    expect(await screen.findByRole('dialog', { name: 'Clase del jueves 13 de agosto' })).toBeInTheDocument()
+    expect(screen.getByLabelText('APUNTE DE LA CLASE')).toHaveValue('Round robin y starvation.')
   })
 })

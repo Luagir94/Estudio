@@ -34,6 +34,10 @@
     "EXECUTION_FAILED": "No se pudo completar la operación. Probá de nuevo.",
     "ATTACHMENT_NOT_FOUND": "Ese adjunto ya no existe. Puede que se haya eliminado desde otra pantalla.",
     "NOT_MARKDOWN": "Ese archivo no es un .md — no se puede editar desde acá.",
-    "FILE_TOO_LARGE": "El archivo supera el tamaño permitido."
+    "FILE_TOO_LARGE": "El archivo supera el tamaño permitido.",
+    "SET_ATTENDANCE_FAILED": "No se pudo marcar la clase. Probá de nuevo.",
+    "CLEAR_ATTENDANCE_FAILED": "No se pudo borrar la marca de la clase. Probá de nuevo.",
+    "SAVE_NOTE_FAILED": "No se pudo guardar el apunte de la clase. Probá de nuevo.",
+    "DELETE_NOTE_FAILED": "No se pudo eliminar el apunte de la clase. Probá de nuevo."
   }
 }

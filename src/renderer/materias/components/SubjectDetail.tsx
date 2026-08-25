@@ -21,6 +21,9 @@ import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
 // on Entregas) — one formatter, one source of truth.
 import { classifyUrgency, formatDeadlineStatus } from '../../entregas/domain/deadline'
 import type { DeadlineUrgency } from '../../entregas/domain/deadline'
+// The asistencia reading is the clases domain's, not this screen's: feriados
+// leave BOTH sides of the ratio, and "no marks yet" is a state, not a 0%.
+import { summarizeAttendance } from '../../clases/domain/attendance'
 import { groupLinkLabel } from '../domain/groupLink'
 import { RegularityBadge } from './RegularityBadge'
 import type { SubjectDetailResult } from '../../../shared/ipc/materias'
@@ -67,6 +70,13 @@ interface SubjectDetailProps {
    * as it does for `adjuntosSlot`.
    */
   parcialesSlot?: React.ReactNode
+  /**
+   * Injection point for the APUNTES DE CLASE section (approved design: left
+   * column, between NOTAS and ADJUNTOS). `ApuntesContainer` owns the class
+   * dialog and its mutations — this presentational component only reserves
+   * the slot, exactly as it does for `adjuntosSlot`/`parcialesSlot`.
+   */
+  apuntesSlot?: React.ReactNode
 }
 
 // Violet is reserved for interaction (Pencil design) — a status pill must
@@ -120,7 +130,8 @@ export function SubjectDetail({
   onAddEntrega,
   onCloseSubject,
   adjuntosSlot,
-  parcialesSlot
+  parcialesSlot,
+  apuntesSlot
 }: SubjectDetailProps): React.JSX.Element {
   const { t } = useTranslation('materias')
   // Stored subject colours are the dark palette; inline styles cannot hear
@@ -137,6 +148,7 @@ export function SubjectDetail({
   )
   const pending = progreso.total - progreso.done
   const progressPercent = progreso.total === 0 ? 0 : Math.round((progreso.done / progreso.total) * 100)
+  const attendance = summarizeAttendance(subject.attendance, subject.attendanceMinPercent)
 
   return (
     <section aria-label={t('subjectDetail.detailLabel', { name: subject.name })} className="flex flex-col gap-3">
@@ -327,6 +339,8 @@ export function SubjectDetail({
             </div>
           </div>
 
+          {apuntesSlot}
+
           {adjuntosSlot}
         </div>
 
@@ -371,6 +385,69 @@ export function SubjectDetail({
             </span>
           </div>
 
+          {/* ASISTENCIA (approved design), molded on the Progreso card above:
+              same surface, radius, border and padding, same overline + count
+              header, same track. The CAPTION is one step larger than
+              Progreso's (12px, not the 10px label step) because that is what
+              the approved card draws — it carries two facts, not a footnote.
+
+              The reading itself comes from `summarizeAttendance`: feriados sit
+              outside both sides of the ratio, and a subject with no marks yet
+              has NO percentage rather than 0% — a 0 would read as "you missed
+              everything", the exact opposite of the truth. */}
+          <div
+            data-testid="subject-detail-attendance"
+            className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-overline font-semibold text-muted-foreground">
+                {t('clases:attendanceCard.heading')}
+              </span>
+              {/* Hidden while nothing counts: "0 de 0" is not a reading, it is
+                  a question nobody has answered yet, and the caption below
+                  already says so in words. */}
+              {attendance.percent !== null && (
+                <span className="text-body-sm font-semibold text-foreground">
+                  {t('clases:attendanceCard.count', {
+                    present: attendance.present,
+                    counted: attendance.counted
+                  })}
+                </span>
+              )}
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-sm bg-muted">
+              <div
+                data-testid="subject-detail-attendance-fill"
+                className={cn(
+                  'h-full rounded-sm',
+                  // Neutral when the subject declares no minimum: with nothing
+                  // to be measured against, painting the bar ok-green or
+                  // urgent-coral would be the app inventing a verdict.
+                  attendance.meetsMinimum === null
+                    ? 'bg-primary'
+                    : attendance.meetsMinimum
+                      ? 'bg-(--color-ok)'
+                      : 'bg-(--color-urgent)'
+                )}
+                style={{ width: `${attendance.percent ?? 0}%` }}
+              />
+            </div>
+            <span className="text-body-sm text-muted-foreground">
+              {attendance.percent === null
+                ? t('clases:attendanceCard.noData')
+                : subject.attendanceMinPercent === null
+                  ? t('clases:attendanceCard.caption', { percent: attendance.percent })
+                  : t('clases:attendanceCard.captionWithMinimum', {
+                      percent: attendance.percent,
+                      minimum: subject.attendanceMinPercent
+                    })}
+            </span>
+          </div>
+
+          {/* The "Asistencia mínima" row this card replaced is gone on
+              purpose: the minimum is stated INSIDE the bar that measures
+              against it, and repeating it two cards down was the same fact
+              said twice, in a place where it answered nothing. */}
           <div className="flex flex-col rounded-xl border border-border bg-card px-4 py-1">
             <div className="flex items-center justify-between border-b border-border py-3 last:border-b-0">
               <span className="text-body-sm text-secondary-foreground">{t('subjectDetail.hoursPerWeek')}</span>
@@ -378,17 +455,9 @@ export function SubjectDetail({
                 {t('subjectDetail.weeklyHours', { value: formatWeeklyHoursValue(weeklyMinutes) })}
               </span>
             </div>
-            <div className="flex items-center justify-between border-b border-border py-3 last:border-b-0">
+            <div className="flex items-center justify-between py-3">
               <span className="text-body-sm text-secondary-foreground">{t('subjectDetail.classesPerWeek')}</span>
               <span className="text-body-sm font-semibold text-foreground">{subject.slots.length}</span>
-            </div>
-            <div className="flex items-center justify-between py-3">
-              <span className="text-body-sm text-secondary-foreground">{t('subjectDetail.minAttendance')}</span>
-              <span className="text-body-sm font-semibold text-foreground">
-                {subject.attendanceMinPercent !== null
-                  ? `${subject.attendanceMinPercent}%`
-                  : t('subjectDetail.minAttendanceFree')}
-              </span>
             </div>
           </div>
 

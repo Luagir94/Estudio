@@ -2,6 +2,8 @@ import { eq } from 'drizzle-orm'
 import { validateGrade } from '../../../shared/domain/grading'
 import type { DeadlineRecord } from '../../../shared/ipc/deadlines'
 import type {
+  AttendanceRecord,
+  ClassNoteRecord,
   CreateSubjectInput,
   FinalExamRecord,
   FinalExamResult,
@@ -15,8 +17,19 @@ import type {
   SubjectWithStatus,
   UpdateSubjectScheduleInput
 } from '../../../shared/ipc/materias'
+import { toAttendanceRecord } from '../../clases/adapters/sqliteClaseRepository'
 import type { AppDatabase } from '../../db/connection'
-import { deadlines, finalExams, partialExams, periods, programs, scheduleSlots, subjects } from '../../db/schema'
+import {
+  attendanceRecords,
+  classNotes,
+  deadlines,
+  finalExams,
+  partialExams,
+  periods,
+  programs,
+  scheduleSlots,
+  subjects
+} from '../../db/schema'
 
 export interface SlotRecord {
   id: number
@@ -56,6 +69,8 @@ export interface SubjectWithDetail extends SubjectWithSlots {
   program: SubjectProgram | null
   finals: FinalExamRecord[]
   parciales: PartialExamRecord[]
+  attendance: AttendanceRecord[]
+  classNotes: ClassNoteRecord[]
 }
 
 export interface DeleteSubjectResult {
@@ -283,7 +298,24 @@ export function createSqliteSubjectRepository(db: AppDatabase): SubjectRepositor
           .from(partialExams)
           .where(eq(partialExams.subjectId, id))
           .all()
-          .map((parcial) => ({ ...parcial, result: toPartialResult(parcial.result) }))
+          .map((parcial) => ({ ...parcial, result: toPartialResult(parcial.result) })),
+        // Attendance marks and class apuntes join the subject READ for the
+        // same reason finals and parciales do: `clases:*` ships writes only,
+        // and the screen that shows them has already fetched the subject.
+        //
+        // The rows are returned RAW — no percentage, no "12 de 14", no
+        // resolved class occurrence. Which slot a marked date fell on is
+        // composed at render time by crossing the date with the slots then in
+        // effect, and the percentage is a pure renderer-domain function; both
+        // would be answers baked into a cached payload that the next horario
+        // edit could contradict.
+        attendance: db
+          .select()
+          .from(attendanceRecords)
+          .where(eq(attendanceRecords.subjectId, id))
+          .all()
+          .map(toAttendanceRecord),
+        classNotes: db.select().from(classNotes).where(eq(classNotes.subjectId, id)).all()
       }
     },
     updateSchedule(input) {

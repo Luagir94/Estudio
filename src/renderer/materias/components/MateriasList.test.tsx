@@ -26,6 +26,7 @@ const base: SubjectWithStatus = {
   periodId: 2,
   outcome: null,
   grade: null,
+  regularity: null,
   slots: [{ id: 1, subjectId: 1, dayOfWeek: 1, startMinutes: 480, endMinutes: 570, location: 'Aula 204' }],
   period: activePeriod,
   program: { id: 1, name: 'Abogacía', gradingScheme: 'numerico', gradeScale: 10 },

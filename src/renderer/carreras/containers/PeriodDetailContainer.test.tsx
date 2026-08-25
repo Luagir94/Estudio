@@ -80,6 +80,7 @@ function subject(overrides: Partial<SubjectWithStatus> & { id: number; name: str
     periodId: 2,
     outcome: null,
     grade: null,
+    regularity: null,
     slots: [],
     period: { id: 2, name: '2do cuatrimestre', startsOn: '2026-08-12', endsOn: '2026-12-04' },
     program: { id: 1, name: 'Abogacía', gradingScheme: 'numerico', gradeScale: 10 },

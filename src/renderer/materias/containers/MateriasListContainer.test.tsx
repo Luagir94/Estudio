@@ -45,6 +45,7 @@ function subject(overrides: Partial<SubjectWithStatus> & { id: number; name: str
     periodId: 2,
     outcome: null,
     grade: null,
+    regularity: null,
     slots: [],
     period: activePeriod,
     program: numericProgram,

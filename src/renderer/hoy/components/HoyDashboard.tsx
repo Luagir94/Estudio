@@ -1,19 +1,31 @@
 // Presentational (design §4, node `E2pJ95` — Grupo Hoy: Header [date
 // headline + day summary] + Body [Classes Column, Deadlines Column] + Week
 // Section [ESTA SEMANA strip]). No data fetching, no IPC — that lives in
-// HoyContainer. Read-only: Hoy is a "read-model... sin acciones primarias"
-// (design node `VQJO4`), so this component has zero click handlers.
+// HoyContainer.
+//
+// Hoy used to be a "read-model... sin acciones primarias" (design node
+// `VQJO4`) and this component had zero click handlers. The approved
+// class-marks design ends that deliberately, and narrowly: the only write
+// affordances here are a ClassRow's three controls, they act on the class the
+// row already names, and the mutations still live in the container.
 import type { TFunction } from 'i18next'
 import { Coffee } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { AcademicDateWithProgram } from '../../../shared/ipc/fechas'
+import type { AttendanceStatus } from '../../../shared/ipc/materias'
 import { ProximaFechaCallout } from '../../fechas/components/ProximaFechaCallout'
 import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
 import { ClassRow } from './ClassRow'
 import { DeadlineRow } from './DeadlineRow'
 import { WeekStrip } from './WeekStrip'
 import { getNextClassHighlight } from '../domain/dashboard'
-import type { DashboardDeadline, FreeBlock, NextClassOccurrence, TodayClass, WeekStripDay } from '../domain/dashboard'
+import type {
+  DashboardDeadline,
+  FreeBlock,
+  NextClassOccurrence,
+  TodayClassWithMarks,
+  WeekStripDay
+} from '../domain/dashboard'
 
 /** "y" before most words, "e" before a word starting with an i/hi sound (Spanish grammar) — matches the design's own example: "...Bases de Datos e Ingeniería de Software". */
 function conjunction(t: TFunction, nextWord: string): string {
@@ -44,7 +56,7 @@ function formatTime(minutes: number): string {
 interface HoyDashboardProps {
   dateHeadline: string
   daySummary: string
-  todayClasses: TodayClass[]
+  todayClasses: TodayClassWithMarks[]
   freeBlocks: FreeBlock[]
   deadlines: DashboardDeadline[]
   weekStrip: WeekStripDay[]
@@ -60,6 +72,14 @@ interface HoyDashboardProps {
   imminentAcademicDate?: AcademicDateWithProgram | null
   /** Reference instant for deadline status pills. Defaults to the real clock. */
   now?: Date
+  /**
+   * Records (or clears, with `null`) the mark for one of today's classes.
+   * Takes the SUBJECT, not the slot: a mark is anchored to `(subjectId,
+   * date)`, and the date is today — which the container already knows.
+   */
+  onMarkAttendance: (subjectId: number, status: AttendanceStatus | null) => void
+  /** Opens the class dialog (asistencia + apunte) for one of today's classes. */
+  onOpenClase: (subjectId: number) => void
 }
 
 export function HoyDashboard({
@@ -72,7 +92,9 @@ export function HoyDashboard({
   todayMondayFirstIndex,
   nextClass,
   imminentAcademicDate = null,
-  now = new Date()
+  now = new Date(),
+  onMarkAttendance,
+  onOpenClase
 }: HoyDashboardProps): React.JSX.Element {
   const { t } = useTranslation('hoy')
   // In-progress-first rule (see getNextClassHighlight): at most ONE row
@@ -133,6 +155,10 @@ export function HoyDashboard({
                       ? nextClassHighlight.minutesUntilStart
                       : null
                   }
+                  attendanceStatus={classItem.attendanceStatus}
+                  hasNote={classItem.hasNote}
+                  onMarkAttendance={(status) => onMarkAttendance(classItem.subjectId, status)}
+                  onOpenClase={() => onOpenClase(classItem.subjectId)}
                 />
               ))}
               {freeBlocks.map((block, index) => (

@@ -3,7 +3,7 @@
 // subject-detail aggregation — see gate-findings/slice-2a and tasks 3.5/
 // 3.11); the deadline domain/lifecycle (entregas:* commands) still ships in
 // slice 4.
-import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 // A Program is a carrera ("Abogacía") or a standalone course ("Curso de
 // Bartender"). `institution` is PLAIN TEXT, not a table: the calendar
@@ -234,6 +234,89 @@ export const scheduleSlots = sqliteTable('schedule_slots', {
   endMinutes: integer('end_minutes').notNull(),
   location: text('location')
 })
+
+// One attendance mark for one class of one subject.
+//
+// ANCHORED BY `(subject_id, date)` — NEVER by a `schedule_slots.id`, and no
+// dated class-session row is ever materialized. This is the load-bearing
+// decision of the whole feature, so it is written down here rather than left
+// to be rediscovered:
+//
+//   - `schedule_slots` is a pure WEEKLY RECURRENCE PATTERN whose rows have no
+//     independent lifecycle (see that table's own comment): they are deleted
+//     and reinserted wholesale by every `materias:updateSchedule`, which is a
+//     full slot-set replace inside the subject aggregate. A FK pointing at
+//     one would therefore be destroyed by cascade the first time the student
+//     corrects their horario, silently taking every mark and every apunte
+//     with it. The schedule is the thing most likely to be edited mid-cursada
+//     — that failure is not hypothetical.
+//   - A `(subjectId, date)` anchor survives any edit to the pattern, because
+//     it names the DAY the class happened, which no schedule edit can undo.
+//   - The occurrence itself (which slot, at what time, in which aula) is
+//     RESOLVED AT READ TIME by crossing the date with the slots currently in
+//     effect — exactly the way the pure `projectWeek()` in
+//     `renderer/horario/domain/weekProjection.ts` already composes a week out
+//     of the same pattern. Nothing is stored that the pattern plus a date can
+//     answer.
+//
+// UNIQUE on `(subject_id, date)`: one mark per class. Writes are therefore
+// UPSERTS, and clearing a mark is a real DELETE — an unmarked class is the
+// absence of a row, never a fourth status value.
+//
+// `status` is the closed set 'presente' | 'ausente' | 'feriado', ZOD-OWNED
+// (shared/ipc/clases.ts) — plain text with no CHECK constraint and no enum
+// table, the same policy every other closed set in this schema follows
+// (`subjects.outcome`, `deadlines.type`, `finalExams.result`,
+// `academicDates.kind`).
+//
+// Cascade-deleted with the subject, same rule as scheduleSlots, deadlines,
+// finalExams and partialExams.
+export const attendanceRecords = sqliteTable(
+  'attendance_records',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    subjectId: integer('subject_id')
+      .notNull()
+      .references(() => subjects.id, { onDelete: 'cascade' }),
+    // Calendar date, LOCAL ISO `YYYY-MM-DD`, no time and no offset — same
+    // contract as `periods.starts_on`: a class you attended is a whole day,
+    // not a moment (the moment is in the slot, and the slot is the pattern).
+    date: text('date').notNull(),
+    status: text('status').notNull()
+  },
+  (table) => [uniqueIndex('attendance_records_subject_date_unique').on(table.subjectId, table.date)]
+)
+
+// One plain-text apunte for one class of one subject.
+//
+// Same `(subject_id, date)` anchor as `attendance_records`, for the same
+// reason and with the same consequences — see that table's comment above; a
+// FK to `schedule_slots` would lose every apunte the first time the horario
+// is edited, and the class's time/aula is resolved at read time from the
+// weekly pattern.
+//
+// UNIQUE on `(subject_id, date)`: one apunte per class ("Una marca y un
+// apunte por clase", the approved modal's own footer). Writes are upserts and
+// clearing an apunte is a real DELETE — an empty body is not a stored state.
+//
+// `body` is ONE plain-text column with the same 20k cap and the same
+// no-markdown, no-rich-formatting, NO-SEARCH-INDEX semantics as
+// `subjects.notas`. The cap lives in Zod (shared/ipc/clases.ts), never in a
+// SQL CHECK, exactly as notas' does. Class apuntes are deliberately NOT wired
+// into the FTS index that `attachment_chunks` feeds — they are stored and
+// displayed, nothing more.
+export const classNotes = sqliteTable(
+  'class_notes',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    subjectId: integer('subject_id')
+      .notNull()
+      .references(() => subjects.id, { onDelete: 'cascade' }),
+    date: text('date').notNull(),
+    body: text('body').notNull()
+  },
+  (table) => [uniqueIndex('class_notes_subject_date_unique').on(table.subjectId, table.date)]
+)
 
 // Deadline lifecycle (full CRUD) ships in slice 4 (design amendment 7). The
 // TABLE ships now because slice 2b's subject detail aggregates deadlines

@@ -29,6 +29,7 @@ import type {
   ProbeCliInput,
   SetCliOverrideInput
 } from '../shared/ipc/cli'
+import type { ClassDayInput, ClassDayResult, SaveClassNoteInput, SetAttendanceInput } from '../shared/ipc/clases'
 import type {
   CreatePeriodInput,
   CreateProgramInput,
@@ -70,6 +71,8 @@ import type { WeekScheduleResult } from '../shared/ipc/horario'
 import type { DashboardResult } from '../shared/ipc/hoy'
 import type { IndexStatusChangedPayload, SyncResult } from '../shared/ipc/indexado'
 import type {
+  AttendanceRecord,
+  ClassNoteRecord,
   CreateSubjectInput,
   DeleteSubjectResult,
   FinalExamRecord,
@@ -139,6 +142,19 @@ const api = {
     update: (input: UpdatePartialExamInput): Promise<IpcResult<PartialExamRecord>> =>
       ipcRenderer.invoke('parciales:update', input),
     delete: (id: number): Promise<IpcResult<DeletePartialExamResult>> => ipcRenderer.invoke('parciales:delete', { id })
+  },
+  // Writes only, and every one addresses a subject plus a calendar DAY — a
+  // clase is the pair, not a stored row. No `list` here on purpose: marks and
+  // apuntes ride on `materias:detail` and `hoy:dashboard`.
+  clases: {
+    setAttendance: (input: SetAttendanceInput): Promise<IpcResult<AttendanceRecord>> =>
+      ipcRenderer.invoke('clases:setAttendance', input),
+    clearAttendance: (input: ClassDayInput): Promise<IpcResult<ClassDayResult>> =>
+      ipcRenderer.invoke('clases:clearAttendance', input),
+    saveNote: (input: SaveClassNoteInput): Promise<IpcResult<ClassNoteRecord>> =>
+      ipcRenderer.invoke('clases:saveNote', input),
+    deleteNote: (input: ClassDayInput): Promise<IpcResult<ClassDayResult>> =>
+      ipcRenderer.invoke('clases:deleteNote', input)
   },
   horario: {
     week: (): Promise<IpcResult<WeekScheduleResult>> => ipcRenderer.invoke('horario:week')

@@ -313,6 +313,48 @@ export const partialExamRecordSchema = z.object({
 
 export type PartialExamRecord = z.infer<typeof partialExamRecordSchema>
 
+// The closed set of attendance marks, owned HERE and nowhere else — the
+// column is plain text (see db/schema.ts). `feriado` is not a third way of
+// missing a class: it says the class did not happen, which is why the
+// percentage excludes it from BOTH sides of the ratio
+// (renderer/clases/domain/attendance.ts).
+//
+// Declared in this module rather than in `shared/ipc/clases.ts` for exactly
+// the reason `finalExamRecordSchema` and `partialExamRecordSchema` are: the
+// subject detail payload carries these rows, and clases.ts already imports
+// this module's result envelope — declaring them there would close an import
+// cycle.
+export const attendanceStatusSchema = z.enum(['presente', 'ausente', 'feriado'])
+
+export type AttendanceStatus = z.infer<typeof attendanceStatusSchema>
+
+// One mark for one class, identified by `(subjectId, date)` — never by a
+// slot. See `attendance_records`' comment in db/schema.ts for why that anchor
+// is the whole design: schedule slots are a weekly pattern with no
+// independent lifecycle, so a mark hanging off one would not survive the
+// student editing their horario.
+export const attendanceRecordSchema = z.object({
+  id: z.number().int(),
+  subjectId: z.number().int(),
+  /** Local calendar date, `YYYY-MM-DD` — the DAY the class was. */
+  date: z.string(),
+  status: attendanceStatusSchema
+})
+
+export type AttendanceRecord = z.infer<typeof attendanceRecordSchema>
+
+// One plain-text apunte for one class, on the same `(subjectId, date)` anchor
+// and with the same plain-text contract as `subjects.notas`. Deliberately not
+// indexed for Ask — apuntes are stored and displayed, nothing more.
+export const classNoteRecordSchema = z.object({
+  id: z.number().int(),
+  subjectId: z.number().int(),
+  date: z.string(),
+  body: z.string()
+})
+
+export type ClassNoteRecord = z.infer<typeof classNoteRecordSchema>
+
 // Everything `resolveSubjectStatus` needs, and nothing more. The status
 // itself is NOT computed here: it depends on "today", which is a
 // rendering-time concern (same rule as the deadline buckets — baking it into
@@ -369,7 +411,14 @@ export const subjectDetailSchema = subjectWithSlotsSchema.extend({
   // Parciales join the SUBJECT READ rather than getting a `parciales:list`
   // channel of their own — exactly how `finals` travels. The only screen that
   // shows them is this one, and it already fetches the subject.
-  parciales: z.array(partialExamRecordSchema)
+  parciales: z.array(partialExamRecordSchema),
+  // Attendance marks and class apuntes travel the same way, for the same
+  // reason: `clases:*` ships WRITE channels only, and no read path of its own
+  // exists. The whole history rides here because the ASISTENCIA card
+  // summarizes all of it and the APUNTES DE CLASE section lists all of it —
+  // this is not a projection that could be narrowed to "recent".
+  attendance: z.array(attendanceRecordSchema),
+  classNotes: z.array(classNoteRecordSchema)
 })
 
 export type SubjectDetailResult = z.infer<typeof subjectDetailSchema>

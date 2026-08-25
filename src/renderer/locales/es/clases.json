@@ -1,0 +1,35 @@
+{
+  "attendanceCard": {
+    "heading": "ASISTENCIA",
+    "count": "{{present}} de {{counted}}",
+    "captionWithMinimum": "{{percent}}% presente · mínimo requerido {{minimum}}%",
+    "caption": "{{percent}}% presente",
+    "noData": "Todavía no hay asistencia para calcular"
+  },
+  "apuntesSection": {
+    "heading": "APUNTES DE CLASE",
+    "empty": "Todavía no escribiste ningún apunte. Se escriben desde la clase."
+  },
+  "classRow": {
+    "attendanceGroup": "Asistencia",
+    "presente": "Marcar presente en {{subject}}",
+    "ausente": "Marcar ausente en {{subject}}",
+    "apunte": "Apunte de la clase de {{subject}}"
+  },
+  "claseModal": {
+    "headerDate": "{{weekday}} {{day}} de {{month}}",
+    "title": "Clase del {{date}}",
+    "attendance": "ASISTENCIA",
+    "attendanceOptions": {
+      "presente": "Presente",
+      "ausente": "Ausente",
+      "feriado": "Feriado"
+    },
+    "note": "APUNTE DE LA CLASE",
+    "noteHint": "Texto plano · uno por clase",
+    "notePlaceholder": "Qué se vio en la clase",
+    "effectNote": "Marcar la clase actualiza el porcentaje de asistencia de la materia.",
+    "footerNote": "Una marca y un apunte por clase",
+    "submit": "Guardar clase"
+  }
+}

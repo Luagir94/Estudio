@@ -192,10 +192,25 @@ export function listCurrentPeriods<T extends PeriodInterval>(periods: T[], today
     .sort((a, b) => (a.endsOn ?? '9999-12-31').localeCompare(b.endsOn ?? '9999-12-31'))
 }
 
-function formatDay(date: string): string {
-  const months = i18n.t('common:monthsShort', { returnObjects: true }) as string[]
+/**
+ * "14 ago" — day (leading zero kept) plus the app's own short month label.
+ *
+ * Exported because the APUNTES DE CLASE rows need exactly this format, and a
+ * second implementation of it would be a second thing to keep in step (same
+ * reuse rule `parciales` follows by borrowing `finales`' `formatTakenOn`).
+ *
+ * A malformed date — or a month index outside the catalog — comes back
+ * UNFORMATTED, the repo-wide convention: showing the raw stored string beats
+ * interpolating "undefined" into a chip.
+ */
+export function formatDay(date: string): string {
+  const months: unknown = i18n.t('common:monthsShort', { returnObjects: true })
   const [, month, day] = date.split('-')
-  return `${day} ${months[Number(month) - 1]}`
+  if (!Array.isArray(months) || month === undefined || day === undefined) {
+    return date
+  }
+  const monthLabel: unknown = months[Number(month) - 1]
+  return typeof monthLabel === 'string' ? `${day} ${monthLabel}` : date
 }
 
 /**

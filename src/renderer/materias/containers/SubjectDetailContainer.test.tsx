@@ -180,7 +180,9 @@ const sampleDetail: SubjectDetailResult = {
   period: null,
   program: null,
   finals: [],
-  parciales: []
+  parciales: [],
+  attendance: [],
+  classNotes: []
 }
 
 function renderWithClient(ui: ReactNode) {

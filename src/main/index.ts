@@ -29,6 +29,8 @@ import { createPromptSpawnRouter } from './claude/promptSpawnRouter'
 import { createWarmPromptSession, type WarmPromptSession } from './claude/warmPromptSession'
 import { clearProvider, validateModelId } from './claude/claudeExecutableValidator'
 import { PROVIDER_SPECS } from './cli/providerSpec'
+import { createSqliteClaseRepository } from './clases/adapters/sqliteClaseRepository'
+import { registerClasesHandlers } from './clases/ipc/registerClasesHandlers'
 import { createSqliteDeadlineRepository } from './entregas/adapters/sqliteDeadlineRepository'
 import { createSqliteAcademicDateRepository } from './fechas/adapters/sqliteAcademicDateRepository'
 import { registerFechasHandlers } from './fechas/ipc/registerFechasHandlers'
@@ -110,9 +112,17 @@ async function bootstrap(): Promise<void> {
   // (design amendment 7) — its own repository, separate from subjectRepository.
   const deadlineRepository = createSqliteDeadlineRepository(db)
   registerEntregasHandlers(deadlineRepository)
-  // Pure read-model query over the SAME two repositories — no separate
-  // table, no write path (design §2; spec: "Hoy MUST be a pure read-model").
-  registerHoyHandlers(subjectRepository, deadlineRepository)
+  // Attendance marks and class apuntes are anchored by `(subjectId, date)`,
+  // never by a schedule slot — see the `attendance_records` table comment in
+  // db/schema.ts. Held in a variable because BOTH `clases:*` (the writes) and
+  // `hoy:dashboard` (a read) use this same instance, the way
+  // subjectRepository is already shared.
+  const claseRepository = createSqliteClaseRepository(db)
+  registerClasesHandlers(claseRepository)
+  // Read-model query over the SAME three repositories — no separate table and
+  // no write path of its own (the class marks Hoy now offers are written
+  // through `clases:*`, above).
+  registerHoyHandlers(subjectRepository, deadlineRepository, claseRepository)
   // Program is the aggregate root for periods, so `carreras:*` owns both
   // commands — a period without a program is not representable. Held in a
   // variable rather than inlined because the ask slice reads the SAME

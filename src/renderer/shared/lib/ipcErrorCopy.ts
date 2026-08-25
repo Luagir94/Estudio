@@ -50,7 +50,11 @@ const COPY = {
   EXECUTION_FAILED: i18n.t('errors:codes.EXECUTION_FAILED'),
   ATTACHMENT_NOT_FOUND: i18n.t('errors:codes.ATTACHMENT_NOT_FOUND'),
   NOT_MARKDOWN: i18n.t('errors:codes.NOT_MARKDOWN'),
-  FILE_TOO_LARGE: i18n.t('errors:codes.FILE_TOO_LARGE')
+  FILE_TOO_LARGE: i18n.t('errors:codes.FILE_TOO_LARGE'),
+  SET_ATTENDANCE_FAILED: i18n.t('errors:codes.SET_ATTENDANCE_FAILED'),
+  CLEAR_ATTENDANCE_FAILED: i18n.t('errors:codes.CLEAR_ATTENDANCE_FAILED'),
+  SAVE_NOTE_FAILED: i18n.t('errors:codes.SAVE_NOTE_FAILED'),
+  DELETE_NOTE_FAILED: i18n.t('errors:codes.DELETE_NOTE_FAILED')
 } as const satisfies Record<string, string>
 
 export type KnownIpcErrorCode = keyof typeof COPY

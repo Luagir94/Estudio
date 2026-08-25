@@ -32,6 +32,7 @@ import { useTranslation } from 'react-i18next'
 import type { Attachment } from '../../../shared/ipc/adjuntos'
 import { AdjuntosContainer } from '../../adjuntos/containers/AdjuntosContainer'
 import { AttachmentViewerContainer } from '../../adjuntos/containers/AttachmentViewerContainer'
+import { ApuntesContainer } from '../../clases/containers/ApuntesContainer'
 import { entregasApi } from '../../entregas/adapters/entregasApi'
 import { NuevaEntregaModal } from '../../entregas/components/NuevaEntregaModal'
 import { computeProgreso, computeWeeklyMinutes, getNextClassOccurrence } from '../domain/subjectDetail'
@@ -161,6 +162,19 @@ export function SubjectDetailContainer({
         // cursada itself, so they are recordable from the day the materia
         // exists — there is no outcome to reach first.
         parcialesSlot={<ParcialesContainer subjectId={subjectId} subjectName={data.name} parciales={data.parciales} />}
+        // Also unconditional: apuntes belong to the cursada, and the section
+        // is a read surface with its own empty state. The SLOTS go with them
+        // because the class dialog composes its occurrence out of the weekly
+        // pattern — nothing dated is stored to read a time off.
+        apuntesSlot={
+          <ApuntesContainer
+            subjectId={subjectId}
+            subjectName={data.name}
+            slots={data.slots}
+            notes={data.classNotes}
+            attendance={data.attendance}
+          />
+        }
       />
 
       {/* Only once the student said the final is pending: before that there
