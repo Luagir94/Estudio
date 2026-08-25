@@ -21,8 +21,15 @@ import { interactive } from '../../lib/interactive'
 // like any other dead pixel. The `disabled` attribute already blocks the
 // click on its own; pointer-events was only ever buying the hover suppression
 // that `enabled:` now buys explicitly.
+// Label type comes from the design, not from shadcn's ladder: of the 115 button
+// frames in the .pen, ~96 set their label at 12px/600 and NOT ONE uses the
+// 14px/500 this used to ship (`text-body-lg font-medium`, the stock shadcn
+// default). The lone dissenter is the "Editar carrera" header button, 14px/600
+// in 8 copies of one component — left unencoded here on purpose, since it makes
+// a secondary action louder than the primary beside it and that is a design
+// question, not a primitive's default.
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-body-lg font-medium ' +
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-body font-semibold ' +
     `${interactive} disabled:opacity-50`,
   {
     variants: {
@@ -39,9 +46,12 @@ export const buttonVariants = cva(
           'enabled:hover:bg-accent enabled:active:bg-accent/70'
       },
       size: {
+        // No size overrides the base radius: every button frame in the design is
+        // 8px (`rounded-lg`). The `rounded-md` these two carried was shadcn's
+        // ladder surviving the adaptation that already changed their heights.
         default: 'h-10 px-4 py-2',
-        sm: 'h-9 rounded-md px-3',
-        lg: 'h-11 rounded-md px-8',
+        sm: 'h-9 px-3',
+        lg: 'h-11 px-8',
         icon: 'h-10 w-10'
       }
     },
