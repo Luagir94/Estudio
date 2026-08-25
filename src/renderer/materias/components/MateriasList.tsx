@@ -15,7 +15,7 @@ import { interactiveSurface } from '../../shared/lib/interactive'
 import { subjectColorForScheme } from '../../shared/lib/subjectColorScheme'
 import { usePrefersLightScheme } from '../../shared/lib/usePrefersLightScheme'
 import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
-import { resolveSubjectStatus } from '../domain/subjectStatus'
+import { hasOpenCoursework, resolveSubjectStatus } from '../domain/subjectStatus'
 import { SubjectStatusBadge } from './SubjectStatusBadge'
 import type { ScheduleSlotRecord, SubjectWithStatus } from '../../../shared/ipc/materias'
 
@@ -54,19 +54,10 @@ function formatScheduleSummary(slots: ScheduleSlotRecord[], dayAbbreviations: st
 }
 
 // One resolution for both variants, so the compact rows cannot drift away
-// from the table's ESTADO cell.
+// from the table's ESTADO cell. A null period resolves through the domain's
+// NO_PERIOD_INTERVAL — no end date to have passed, so never "sin cerrar".
 function statusFor(subject: SubjectWithStatus, now: Date): ReturnType<typeof resolveSubjectStatus> {
-  return resolveSubjectStatus(
-    {
-      outcome: subject.outcome,
-      // A subject with no period cannot be "sin cerrar" — there is no end
-      // date to have passed. An open-ended interval starting today keeps it
-      // reading as cursando.
-      period: subject.period ?? { startsOn: '1970-01-01', endsOn: null },
-      finals: subject.finals
-    },
-    now
-  )
+  return resolveSubjectStatus({ outcome: subject.outcome, period: subject.period, finals: subject.finals }, now)
 }
 
 export function MateriasList({
@@ -97,19 +88,23 @@ export function MateriasList({
       // capped, overflow scrolls inside the list, never the page.
       <ul className="flex flex-col gap-2 [@media(max-height:900px)]:max-h-[173px] [@media(max-height:900px)]:overflow-y-auto">
         {subjects.map((subject) => {
+          const status = statusFor(subject, now)
           // The same sources the table's cells print, merged into one line.
           // A subject only loses its period segment when it has none — the
           // carrera screen never shows one (a subject reaches its carrera
-          // THROUGH its period).
+          // THROUGH its period). The pendientes segment only exists while
+          // work can still be owed — on a closed subject even "Sin
+          // pendientes" would read as something still expected of you.
           const meta = [
             subject.code,
             subject.period?.name,
             subject.attendanceMinPercent !== null
               ? t('materiasList.attendanceRequired', { percent: subject.attendanceMinPercent })
               : t('materiasList.attendanceFree'),
-            subject.pendingDeadlines === 0
-              ? t('materiasList.noPending')
-              : t('materiasList.pendingCount', { count: subject.pendingDeadlines })
+            hasOpenCoursework(status) &&
+              (subject.pendingDeadlines === 0
+                ? t('materiasList.noPending')
+                : t('materiasList.pendingCount', { count: subject.pendingDeadlines }))
           ]
             .filter(Boolean)
             .join(' · ')
@@ -126,7 +121,7 @@ export function MateriasList({
                 <span className="truncate text-body-sm text-muted-foreground">{meta}</span>
               </span>
               <span className="shrink-0">
-                <SubjectStatusBadge status={statusFor(subject, now)} />
+                <SubjectStatusBadge status={status} />
               </span>
             </>
           )
@@ -186,6 +181,7 @@ export function MateriasList({
 
       <ul className="flex flex-col gap-2">
         {subjects.map((subject) => {
+          const status = statusFor(subject, now)
           const row = (
             <>
               <span className="flex min-w-0 flex-1 items-center gap-3">
@@ -228,18 +224,22 @@ export function MateriasList({
               </span>
 
               <span className="w-[110px] shrink-0 sm:w-[150px]">
-                <SubjectStatusBadge status={statusFor(subject, now)} />
+                <SubjectStatusBadge status={status} />
               </span>
 
+              {/* The cell survives for column alignment; the count only
+                  exists while work can still be owed — on a closed subject
+                  even "Sin pendientes" would read as something expected. */}
               <span
                 className={cn(
                   'hidden w-[95px] shrink-0 text-body-sm md:block',
                   subject.pendingDeadlines === 0 ? 'text-muted-foreground' : 'text-secondary-foreground'
                 )}
               >
-                {subject.pendingDeadlines === 0
-                  ? t('materiasList.noPending')
-                  : t('materiasList.pendingCount', { count: subject.pendingDeadlines })}
+                {hasOpenCoursework(status) &&
+                  (subject.pendingDeadlines === 0
+                    ? t('materiasList.noPending')
+                    : t('materiasList.pendingCount', { count: subject.pendingDeadlines }))}
               </span>
             </>
           )

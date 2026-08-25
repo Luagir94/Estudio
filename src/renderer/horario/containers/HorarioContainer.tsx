@@ -5,11 +5,12 @@
 // a class block routes to the SAME EditarMateriaModal the materias domain
 // already owns, opened directly on its Horario tab.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import { EditarMateriaModal } from '../../materias/components/EditarMateriaModal'
 import { computeWeeklyMinutes } from '../../materias/domain/subjectDetail'
+import { attendsClasses, collectSubjectIds } from '../../materias/domain/subjectStatus'
 import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
 import { horarioApi } from '../adapters/horarioApi'
 import { HorarioGrid } from '../components/HorarioGrid'
@@ -30,6 +31,28 @@ export function HorarioContainer({ now = new Date() }: HorarioContainerProps = {
     queryFn: horarioApi.week
   })
 
+  // The week payload carries no outcome/period/finals facts — those live in
+  // the ['materias'] list (shared with the Materias screen, and invalidated
+  // by every outcome/final/period write), so the filter below follows a
+  // subject being closed without this screen owning any invalidation.
+  const { data: subjectFacts } = useQuery({
+    queryKey: ['materias'],
+    queryFn: materiasApi.list
+  })
+
+  // A subject that no longer attends classes (closed, waiting on a final, or
+  // period over) has no slot to occupy the week. Fail-open: only a subject
+  // POSITIVELY known to be out is hidden, so a still-loading or failed facts
+  // query leaves the grid as it was rather than blanking it.
+  const hiddenSubjectIds = useMemo(
+    () => collectSubjectIds(subjectFacts ?? [], (status) => !attendsClasses(status), now),
+    [subjectFacts, now]
+  )
+  const attendingSubjects = useMemo(
+    () => (data ?? []).filter((subject) => !hiddenSubjectIds.has(subject.id)),
+    [data, hiddenSubjectIds]
+  )
+
   // Fetched only once a class block is clicked — the grid itself never
   // needs the full subject+deadlines aggregate, only the edit modal does.
   const { data: selectedSubject } = useQuery({
@@ -47,8 +70,8 @@ export function HorarioContainer({ now = new Date() }: HorarioContainerProps = {
     }
   })
 
-  const columns = projectWeek(data ?? [])
-  const weeklyMinutes = computeWeeklyMinutes((data ?? []).flatMap((subject) => subject.slots))
+  const columns = projectWeek(attendingSubjects)
+  const weeklyMinutes = computeWeeklyMinutes(attendingSubjects.flatMap((subject) => subject.slots))
 
   // The grid only renders Lunes..Viernes (mondayFirstIndex 0..4, matching
   // the .pen design) — a weekend "today" has nothing to highlight.

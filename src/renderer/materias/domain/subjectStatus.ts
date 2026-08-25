@@ -30,9 +30,19 @@ export interface FinalExamLike {
   result: FinalExamResult
 }
 
+/**
+ * The interval a subject with NO period resolves against: an open interval
+ * starting at the epoch, so it can never read `sinCerrar` — there is no end
+ * date to have passed, and it keeps reading `cursando` without inventing
+ * dates it does not have. Lives here so every caller resolves the same way
+ * (it used to be re-declared at each call site).
+ */
+export const NO_PERIOD_INTERVAL: PeriodInterval = { startsOn: '1970-01-01', endsOn: null }
+
 export interface SubjectStatusInput {
   outcome: SubjectOutcome | null
-  period: PeriodInterval
+  /** `null` = the subject has no period; resolves through {@link NO_PERIOD_INTERVAL}. */
+  period: PeriodInterval | null
   finals: FinalExamLike[]
 }
 
@@ -108,7 +118,55 @@ export function resolveSubjectStatus(input: SubjectStatusInput, today: Date): Su
     return resolveFinalsVerdict(finals) === 'aprobado' ? 'aprobada' : 'standby'
   }
 
-  return periodStatus(period, today) === 'finalizado' ? 'sinCerrar' : 'cursando'
+  return periodStatus(period ?? NO_PERIOD_INTERVAL, today) === 'finalizado' ? 'sinCerrar' : 'cursando'
+}
+
+/**
+ * Whether the subject still attends classes — true only while `cursando`.
+ *
+ * Governs the SCHEDULE surfaces (the Horario grid, Hoy's class content): a
+ * closed subject, one waiting on a final, or one whose period already ended
+ * has no class left to walk into, so its slots must not occupy the week.
+ */
+export function attendsClasses(status: SubjectStatus): boolean {
+  return status === 'cursando'
+}
+
+/**
+ * Whether the subject may still owe work — `cursando`, plus `sinCerrar`:
+ * the period ended but the student never closed the subject, so deliverables
+ * may still be due (that unanswered state is exactly why `sinCerrar` nags).
+ *
+ * Governs the DELIVERABLE surfaces (Entregas, Hoy's deadlines, the Materias
+ * PENDIENTES count). Deliberately wider than {@link attendsClasses}: work
+ * can outlive the cursada, but never the student's decision to close.
+ */
+export function hasOpenCoursework(status: SubjectStatus): boolean {
+  return status === 'cursando' || status === 'sinCerrar'
+}
+
+export interface IdentifiedStatusInput extends SubjectStatusInput {
+  id: number
+}
+
+/**
+ * Ids of the subjects whose resolved status matches `predicate` — the shape
+ * the schedule/deliverable surfaces filter their own payloads with (an O(1)
+ * membership Set, since those payloads carry no period/finals facts of their
+ * own). The `materias:list` payload satisfies the input structurally.
+ */
+export function collectSubjectIds(
+  subjects: readonly IdentifiedStatusInput[],
+  predicate: (status: SubjectStatus) => boolean,
+  today: Date
+): Set<number> {
+  const ids = new Set<number>()
+  for (const subject of subjects) {
+    if (predicate(resolveSubjectStatus(subject, today))) {
+      ids.add(subject.id)
+    }
+  }
+  return ids
 }
 
 export interface PassedRecord {

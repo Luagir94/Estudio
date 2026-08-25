@@ -4,11 +4,17 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DeadlineWithSubject } from '../../../shared/ipc/entregas'
+import type { SubjectWithStatus } from '../../../shared/ipc/materias'
+import { materiasApi } from '../../materias/adapters/materiasApi'
 import { entregasApi } from '../adapters/entregasApi'
 import { EntregasContainer } from './EntregasContainer'
 
 vi.mock('../adapters/entregasApi', () => ({
   entregasApi: { list: vi.fn(), create: vi.fn(), update: vi.fn(), setDone: vi.fn(), delete: vi.fn() }
+}))
+
+vi.mock('../../materias/adapters/materiasApi', () => ({
+  materiasApi: { list: vi.fn() }
 }))
 
 vi.mock('../components/NuevaEntregaModal', () => ({
@@ -52,6 +58,31 @@ function makeDeadline(overrides: Partial<DeadlineWithSubject>): DeadlineWithSubj
   }
 }
 
+// The ['materias'] facts the container filters against (outcome, period
+// dates, finals) — the entregas payload only names its subject.
+function makeFacts(overrides: Partial<SubjectWithStatus> = {}): SubjectWithStatus {
+  return {
+    id: 1,
+    name: 'Sistemas Operativos',
+    code: 'SO-101',
+    color: '#4c8dff',
+    docente: null,
+    contacto: null,
+    campusUrl: null,
+    notas: null,
+    attendanceMinPercent: null,
+    periodId: null,
+    outcome: null,
+    grade: null,
+    slots: [],
+    period: null,
+    program: null,
+    finals: [],
+    pendingDeadlines: 1,
+    ...overrides
+  }
+}
+
 function renderWithClient(ui: ReactNode) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
@@ -63,6 +94,7 @@ describe('EntregasContainer', () => {
     vi.mocked(entregasApi.update).mockResolvedValue(makeDeadline({}))
     vi.mocked(entregasApi.setDone).mockResolvedValue(makeDeadline({ done: true }))
     vi.mocked(entregasApi.delete).mockResolvedValue({ id: 1 })
+    vi.mocked(materiasApi.list).mockResolvedValue([makeFacts()])
   })
 
   it('fetches on the ["entregas"] query key and renders the resolved deadlines', async () => {
@@ -78,6 +110,24 @@ describe('EntregasContainer', () => {
     await screen.findByText('TP 2 — Scheduler')
 
     expect(screen.queryByRole('button', { name: /agregar entrega/i })).not.toBeInTheDocument()
+  })
+
+  // A deadline belongs to the coursework of its subject: once the subject is
+  // closed (or waiting on a final), nothing is owed anymore, so the row and
+  // the urgency counters both drop it.
+  it('hides the deadlines of a subject without open coursework, counters included', async () => {
+    vi.mocked(entregasApi.list).mockResolvedValue([
+      makeDeadline({}),
+      makeDeadline({ id: 2, subjectId: 2, title: 'TP Final — Redes', subjectName: 'Redes', dueAt: '2027-08-10T23:59' })
+    ])
+    vi.mocked(materiasApi.list).mockResolvedValue([makeFacts(), makeFacts({ id: 2, outcome: 'aprobada' })])
+
+    renderWithClient(<EntregasContainer now={now} />)
+
+    expect(await screen.findByText('TP 2 — Scheduler')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('TP Final — Redes')).not.toBeInTheDocument())
+    // The overdue Redes deadline is out of the summary too: 1 pending, 0 overdue.
+    expect(screen.getByText('1 pendiente · 0 atrasadas · 0 completadas este cuatrimestre')).toBeInTheDocument()
   })
 
   it('clicking a deadline row body opens the edit modal', async () => {

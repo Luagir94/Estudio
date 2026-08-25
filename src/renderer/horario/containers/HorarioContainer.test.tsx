@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { SubjectDetailResult, SubjectWithSlots } from '../../../shared/ipc/materias'
+import type { SubjectDetailResult, SubjectWithSlots, SubjectWithStatus } from '../../../shared/ipc/materias'
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import { horarioApi } from '../adapters/horarioApi'
 import { HorarioContainer } from './HorarioContainer'
@@ -13,7 +13,7 @@ vi.mock('../adapters/horarioApi', () => ({
 }))
 
 vi.mock('../../materias/adapters/materiasApi', () => ({
-  materiasApi: { detail: vi.fn(), updateSchedule: vi.fn() }
+  materiasApi: { detail: vi.fn(), updateSchedule: vi.fn(), list: vi.fn() }
 }))
 
 vi.mock('../../materias/components/EditarMateriaModal', () => ({
@@ -63,6 +63,12 @@ const sampleDetail: SubjectDetailResult = {
   finals: []
 }
 
+// The ['materias'] facts the container filters against (outcome, period
+// dates, finals) — the horario:week payload itself carries no period/finals.
+function makeFacts(subject: SubjectWithSlots, overrides: Partial<SubjectWithStatus> = {}): SubjectWithStatus {
+  return { ...subject, period: null, program: null, finals: [], pendingDeadlines: 0, ...overrides }
+}
+
 function renderWithClient(ui: ReactNode) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
@@ -71,6 +77,7 @@ function renderWithClient(ui: ReactNode) {
 describe('HorarioContainer', () => {
   beforeEach(() => {
     vi.mocked(horarioApi.week).mockResolvedValue(sampleSubjects)
+    vi.mocked(materiasApi.list).mockResolvedValue(sampleSubjects.map((subject) => makeFacts(subject)))
     vi.mocked(materiasApi.detail).mockResolvedValue(sampleDetail)
     vi.mocked(materiasApi.updateSchedule).mockResolvedValue(sampleSubjects[0]!)
   })
@@ -89,6 +96,29 @@ describe('HorarioContainer', () => {
 
     expect(await screen.findByRole('dialog', { name: 'Editar materia' })).toHaveAttribute('data-initial-tab', 'horario')
     expect(materiasApi.detail).toHaveBeenCalledWith(1)
+  })
+
+  // Closed or final-stage subjects no longer attend classes, so their slots
+  // must not occupy the weekly grid (the week payload still carries them —
+  // the renderer filters on the ['materias'] facts).
+  it('hides the classes of a subject that no longer attends', async () => {
+    const closed: SubjectWithSlots = {
+      ...sampleSubjects[0]!,
+      id: 2,
+      name: 'Redes',
+      code: 'RD-301',
+      slots: [{ id: 2, subjectId: 2, dayOfWeek: 2, startMinutes: 600, endMinutes: 690, location: null }]
+    }
+    vi.mocked(horarioApi.week).mockResolvedValue([...sampleSubjects, closed])
+    vi.mocked(materiasApi.list).mockResolvedValue([
+      makeFacts(sampleSubjects[0]!),
+      makeFacts(closed, { outcome: 'aprobada' })
+    ])
+
+    renderWithClient(<HorarioContainer now={new Date('2026-03-04T09:00:00')} />)
+
+    expect(await screen.findByText('Sistemas Operativos')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('Redes')).not.toBeInTheDocument())
   })
 
   it('submitting the modal calls materiasApi.updateSchedule and closes it', async () => {

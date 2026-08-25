@@ -43,16 +43,10 @@ interface MateriasListContainerProps {
 
 const ALL_FILTERS: FilterValue[] = ['activas', 'standby', 'aprobadas', 'reprobadas', 'sinCerrar', 'todas']
 
-// A subject with no period has no end date to have passed, so it can never
-// read as "sin cerrar". An open interval starting at the epoch keeps it
-// reading as cursando without inventing dates it does not have.
-const NO_PERIOD = { startsOn: '1970-01-01', endsOn: null }
-
+// A null period resolves through the domain's NO_PERIOD_INTERVAL: the
+// subject has no end date to have passed, so it can never read "sin cerrar".
 function statusOf(subject: SubjectWithStatus, now: Date): SubjectStatus {
-  return resolveSubjectStatus(
-    { outcome: subject.outcome, period: subject.period ?? NO_PERIOD, finals: subject.finals },
-    now
-  )
+  return resolveSubjectStatus({ outcome: subject.outcome, period: subject.period, finals: subject.finals }, now)
 }
 
 export function MateriasListContainer({

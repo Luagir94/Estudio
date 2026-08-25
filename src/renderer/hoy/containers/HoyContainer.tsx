@@ -8,8 +8,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { classifyDeadline } from '../../entregas/domain/deadline'
+import { materiasApi } from '../../materias/adapters/materiasApi'
+import { attendsClasses, collectSubjectIds, hasOpenCoursework } from '../../materias/domain/subjectStatus'
 import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
 import { hoyApi } from '../adapters/hoyApi'
 import { HoyDashboard } from '../components/HoyDashboard'
@@ -34,8 +37,26 @@ export function HoyContainer({ now = new Date() }: HoyContainerProps = {}): Reac
   const { t } = useTranslation('hoy')
   const { data, isLoading, isError } = useQuery({ queryKey: ['hoy', 'dashboard'], queryFn: hoyApi.dashboard })
 
-  const subjects = data?.subjects ?? []
-  const allDeadlines = data?.deadlines ?? []
+  // The dashboard payload carries no outcome/period/finals facts — those
+  // live in the ['materias'] list (invalidated by every outcome/final/period
+  // write), so the filters below follow a subject being closed without this
+  // screen owning any invalidation.
+  const { data: subjectFacts } = useQuery({ queryKey: ['materias'], queryFn: materiasApi.list })
+
+  // Class content belongs to subjects still attending classes; deadline
+  // content to subjects that may still owe work (cursando + sinCerrar).
+  // Fail-open: only what is POSITIVELY known to be out is hidden, so a
+  // still-loading or failed facts query leaves the dashboard as it was.
+  const { hiddenFromSchedule, hiddenFromDeadlines } = useMemo(
+    () => ({
+      hiddenFromSchedule: collectSubjectIds(subjectFacts ?? [], (status) => !attendsClasses(status), now),
+      hiddenFromDeadlines: collectSubjectIds(subjectFacts ?? [], (status) => !hasOpenCoursework(status), now)
+    }),
+    [subjectFacts, now]
+  )
+
+  const subjects = (data?.subjects ?? []).filter((subject) => !hiddenFromSchedule.has(subject.id))
+  const allDeadlines = (data?.deadlines ?? []).filter((deadline) => !hiddenFromDeadlines.has(deadline.subjectId))
 
   const todayClasses = getTodayClasses(subjects, now)
   const freeBlocks = getFreeBlocks(todayClasses)

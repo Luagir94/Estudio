@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
+  attendsClasses,
+  collectSubjectIds,
   countFinalsByResult,
+  hasOpenCoursework,
   isPassed,
   matchesStatusFilter,
   resolveFinalsVerdict,
   resolveSubjectStatus,
-  type SubjectOutcome
+  type SubjectOutcome,
+  type SubjectStatus
 } from './subjectStatus'
 
 // The period ran 09 mar – 18 jul 2026, so "today" sits comfortably after it.
@@ -31,6 +35,12 @@ describe('resolveSubjectStatus', () => {
       { outcome: null, period: { startsOn: '2024-03-04', endsOn: null }, finals: [] },
       today
     )
+
+    expect(status).toBe('cursando')
+  })
+
+  it('reads a subject with no period at all as cursando — there is no end date to have passed', () => {
+    const status = resolveSubjectStatus({ outcome: null, period: null, finals: [] }, today)
 
     expect(status).toBe('cursando')
   })
@@ -206,5 +216,87 @@ describe('matchesStatusFilter', () => {
     expect(matchesStatusFilter('reprobada', 'reprobadas')).toBe(true)
     expect(matchesStatusFilter('sinCerrar', 'sinCerrar')).toBe(true)
     expect(matchesStatusFilter('aprobada', 'reprobadas')).toBe(false)
+  })
+})
+
+// One expectation per status so a new SubjectStatus member fails BOTH suites
+// until someone decides which surfaces it belongs on.
+const ALL_STATUSES: SubjectStatus[] = ['cursando', 'sinCerrar', 'aprobada', 'reprobada', 'standby']
+
+describe('attendsClasses', () => {
+  it('is true only while the subject is being taken right now', () => {
+    const attending = ALL_STATUSES.filter((status) => attendsClasses(status))
+
+    expect(attending).toEqual(['cursando'])
+  })
+})
+
+describe('hasOpenCoursework', () => {
+  it('is true while cursando and while the ended period was never closed', () => {
+    const open = ALL_STATUSES.filter((status) => hasOpenCoursework(status))
+
+    expect(open).toEqual(['cursando', 'sinCerrar'])
+  })
+})
+
+describe('collectSubjectIds', () => {
+  const cursando = { id: 1, outcome: null, period: activePeriod, finals: [] }
+  const sinCerrar = { id: 2, outcome: null, period: finishedPeriod, finals: [] }
+  const aprobada = { id: 3, outcome: 'aprobada' as const, period: activePeriod, finals: [] }
+  const reprobada = { id: 4, outcome: 'reprobada' as const, period: finishedPeriod, finals: [] }
+  const standby = { id: 5, outcome: 'finalPendiente' as const, period: finishedPeriod, finals: [] }
+  const all = [cursando, sinCerrar, aprobada, reprobada, standby]
+
+  it('collects the ids whose resolved status matches the predicate', () => {
+    expect(collectSubjectIds(all, attendsClasses, today)).toEqual(new Set([1]))
+    expect(collectSubjectIds(all, hasOpenCoursework, today)).toEqual(new Set([1, 2]))
+  })
+
+  it('supports negated predicates — the surfaces hide only what they positively know is out', () => {
+    const hidden = collectSubjectIds(all, (status) => !hasOpenCoursework(status), today)
+
+    expect(hidden).toEqual(new Set([3, 4, 5]))
+  })
+
+  it('keeps a subject with no period attending forever', () => {
+    const ids = collectSubjectIds([{ id: 9, outcome: null, period: null, finals: [] }], attendsClasses, today)
+
+    expect(ids).toEqual(new Set([9]))
+  })
+
+  it('closes a finalPendiente subject only once a final was actually passed', () => {
+    const waiting = { id: 6, outcome: 'finalPendiente' as const, period: finishedPeriod, finals: [] }
+    const passed = {
+      id: 7,
+      outcome: 'finalPendiente' as const,
+      period: finishedPeriod,
+      finals: [{ result: 'aprobado' as const }]
+    }
+
+    const open = collectSubjectIds([waiting, passed], hasOpenCoursework, today)
+
+    // Neither has open coursework — standby waits on a mesa, aprobada is done —
+    // but only `passed` resolved through the approved final.
+    expect(open).toEqual(new Set())
+    expect(collectSubjectIds([passed], (status) => status === 'aprobada', today)).toEqual(new Set([7]))
+    expect(collectSubjectIds([waiting], (status) => status === 'standby', today)).toEqual(new Set([6]))
+  })
+
+  it('keeps the subject attending through the LAST day of its period — the boundary is inclusive', () => {
+    const endsToday = { id: 8, outcome: null, period: { startsOn: '2026-03-09', endsOn: '2026-08-15' }, finals: [] }
+
+    expect(collectSubjectIds([endsToday], attendsClasses, today)).toEqual(new Set([8]))
+  })
+
+  it('moves the subject to open-but-not-attending the day AFTER its period ends', () => {
+    const endedYesterday = {
+      id: 8,
+      outcome: null,
+      period: { startsOn: '2026-03-09', endsOn: '2026-08-14' },
+      finals: []
+    }
+
+    expect(collectSubjectIds([endedYesterday], attendsClasses, today)).toEqual(new Set())
+    expect(collectSubjectIds([endedYesterday], hasOpenCoursework, today)).toEqual(new Set([8]))
   })
 })

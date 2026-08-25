@@ -190,4 +190,39 @@ describe('MateriasList — pendientes', () => {
 
     expect(screen.getByText('1 pendiente')).toBeInTheDocument()
   })
+
+  // A closed subject has no coursework left to owe — a PENDIENTES count on it
+  // (even "Sin pendientes") would read as something still expected of you.
+  it('drops the count entirely once the subject is closed', () => {
+    renderList([{ ...base, periodId: 1, period: finishedPeriod, outcome: 'aprobada', pendingDeadlines: 2 }])
+
+    expect(screen.queryByText('2 pendientes')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sin pendientes')).not.toBeInTheDocument()
+  })
+
+  it('drops the count for a subject waiting on its final', () => {
+    renderList([
+      { ...base, periodId: 1, period: finishedPeriod, outcome: 'finalPendiente', finals: [], pendingDeadlines: 3 }
+    ])
+
+    expect(screen.queryByText('3 pendientes')).not.toBeInTheDocument()
+  })
+
+  it('keeps the count while the ended period is still sin cerrar — work may still be owed', () => {
+    renderList([{ ...base, periodId: 1, period: finishedPeriod, outcome: null, pendingDeadlines: 2 }])
+
+    expect(screen.getByText('2 pendientes')).toBeInTheDocument()
+  })
+
+  it('drops the pendientes segment from the compact meta line too', () => {
+    render(
+      <MateriasList
+        subjects={[{ ...base, periodId: 1, period: finishedPeriod, outcome: 'aprobada', pendingDeadlines: 2 }]}
+        now={today}
+        compact
+      />
+    )
+
+    expect(screen.getByText('DC-201 · 1er Cuatrimestre 2026 · 75% requerido')).toBeInTheDocument()
+  })
 })

@@ -6,18 +6,20 @@
 // Amendment 8: creation moved to the subject detail screen (see
 // `materias/containers/SubjectDetailContainer.tsx`) — this screen keeps
 // EDIT (which reuses the same `NuevaEntregaModal`, fixed to the deadline's
-// existing `subjectId`), toggle-done, and delete only. There is no
-// `materias:list` query here anymore since no create/subject-picker
-// affordance exists on this screen.
+// existing `subjectId`), toggle-done, and delete only. The ['materias']
+// query here is READ-ONLY status facts for the open-coursework filter, not
+// a create/subject-picker affordance (none exists on this screen).
 //
 // `entregas:setDone` is a SEPARATE command from `entregas:update` (design §2
 // "Deliberate lifecycle asymmetry" applies within the deadline lifecycle
 // too — see `shared/ipc/entregas.ts`), so the done checkbox fires its own
 // mutation directly from the row, independent of the edit modal.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { DeadlineWithSubject } from '../../../shared/ipc/entregas'
+import { materiasApi } from '../../materias/adapters/materiasApi'
+import { collectSubjectIds, hasOpenCoursework } from '../../materias/domain/subjectStatus'
 import { entregasApi } from '../adapters/entregasApi'
 import { classifyDeadline } from '../domain/deadline'
 import { DeleteDeadlineConfirmDialog } from '../components/DeleteDeadlineConfirmDialog'
@@ -36,6 +38,21 @@ export function EntregasContainer({ now = new Date() }: EntregasContainerProps =
   const [deletingDeadline, setDeletingDeadline] = useState<DeadlineWithSubject | null>(null)
 
   const { data, isLoading, isError } = useQuery({ queryKey: ['entregas'], queryFn: entregasApi.list })
+
+  // The entregas payload only names its subject — the outcome/period/finals
+  // facts live in the ['materias'] list (invalidated by every outcome/final/
+  // period write), so the filter below follows a subject being closed
+  // without this screen owning any invalidation.
+  const { data: subjectFacts } = useQuery({ queryKey: ['materias'], queryFn: materiasApi.list })
+
+  // A deadline is coursework: once its subject has none left to owe (closed,
+  // or waiting on a final), the row and the urgency counters both drop it.
+  // Fail-open: only subjects POSITIVELY known to be closed hide anything, so
+  // a still-loading or failed facts query leaves the list as it was.
+  const deadlines = useMemo(() => {
+    const closedSubjectIds = collectSubjectIds(subjectFacts ?? [], (status) => !hasOpenCoursework(status), now)
+    return (data ?? []).filter((deadline) => !closedSubjectIds.has(deadline.subjectId))
+  }, [data, subjectFacts, now])
 
   function invalidateEntregas(): void {
     void queryClient.invalidateQueries({ queryKey: ['entregas'] })
@@ -62,7 +79,6 @@ export function EntregasContainer({ now = new Date() }: EntregasContainerProps =
     }
   })
 
-  const deadlines = data ?? []
   const pendingCount = deadlines.filter((deadline) => !deadline.done).length
   const overdueCount = deadlines.filter(
     (deadline) => classifyDeadline(deadline.dueAt, deadline.done, now) === 'atrasadas'
@@ -86,7 +102,7 @@ export function EntregasContainer({ now = new Date() }: EntregasContainerProps =
       {isError && <p className="text-body-lg text-destructive">{t('entregasContainer.loadError')}</p>}
       {data && (
         <EntregasList
-          deadlines={data}
+          deadlines={deadlines}
           now={now}
           onEdit={setEditingDeadline}
           onToggleDone={(deadline, done) => setDoneMutation.mutate({ id: deadline.id, done })}

@@ -2,13 +2,19 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DashboardResult } from '../../../shared/ipc/hoy'
+import type { SubjectWithStatus } from '../../../shared/ipc/materias'
+import { materiasApi } from '../../materias/adapters/materiasApi'
 import { hoyApi } from '../adapters/hoyApi'
 import { HoyContainer } from './HoyContainer'
 
 vi.mock('../adapters/hoyApi', () => ({
   hoyApi: { dashboard: vi.fn() }
+}))
+
+vi.mock('../../materias/adapters/materiasApi', () => ({
+  materiasApi: { list: vi.fn() }
 }))
 
 beforeAll(() => {
@@ -47,12 +53,22 @@ const sampleData: DashboardResult = {
   ]
 }
 
+// The ['materias'] facts the container filters against (outcome, period
+// dates, finals) — the hoy:dashboard payload itself carries no period/finals.
+function makeFacts(overrides: Partial<SubjectWithStatus> = {}): SubjectWithStatus {
+  return { ...sampleData.subjects[0]!, period: null, program: null, finals: [], pendingDeadlines: 1, ...overrides }
+}
+
 function renderWithClient(ui: ReactNode) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
 }
 
 describe('HoyContainer (spec: "Today view on launch" — zero navigation)', () => {
+  beforeEach(() => {
+    vi.mocked(materiasApi.list).mockResolvedValue([makeFacts()])
+  })
+
   it('fetches on the ["hoy","dashboard"] query key and renders today\'s class + overdue deadline with zero clicks', async () => {
     vi.mocked(hoyApi.dashboard).mockResolvedValue(sampleData)
 
@@ -70,5 +86,33 @@ describe('HoyContainer (spec: "Today view on launch" — zero navigation)', () =
     renderWithClient(<HoyContainer now={new Date(2026, 7, 13, 9, 0)} />)
 
     expect(await screen.findByText('TP 1')).toBeInTheDocument()
+  })
+
+  // A closed subject neither attends classes nor owes deliverables — its
+  // slots and deadlines both disappear from the dashboard.
+  it('hides both the class and the deadline of a closed subject', async () => {
+    vi.mocked(hoyApi.dashboard).mockResolvedValue(sampleData)
+    vi.mocked(materiasApi.list).mockResolvedValue([makeFacts({ outcome: 'aprobada' })])
+
+    renderWithClient(<HoyContainer now={new Date(2026, 7, 13, 9, 0)} />)
+
+    expect(await screen.findByText('Hoy no tenés clases')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('TP 1')).not.toBeInTheDocument())
+    expect(screen.queryByText('Sistemas Operativos')).not.toBeInTheDocument()
+  })
+
+  // "Sin cerrar" = the period ended but the student never closed the
+  // subject: no class to attend anymore, but work may still be owed.
+  it('keeps the deadlines of a sin-cerrar subject while dropping its classes', async () => {
+    vi.mocked(hoyApi.dashboard).mockResolvedValue(sampleData)
+    vi.mocked(materiasApi.list).mockResolvedValue([
+      makeFacts({ period: { id: 1, name: '1C 2026', startsOn: '2026-03-09', endsOn: '2026-07-18' } })
+    ])
+
+    renderWithClient(<HoyContainer now={new Date(2026, 7, 13, 9, 0)} />)
+
+    expect(await screen.findByText('TP 1')).toBeInTheDocument()
+    // The subject name survives only as the deadline's subject tag, never as a class row.
+    await waitFor(() => expect(screen.getAllByText('Sistemas Operativos')).toHaveLength(1))
   })
 })
