@@ -46,11 +46,13 @@ const subject: SubjectDetailResult = {
   periodId: null,
   outcome: null,
   grade: null,
+  regularity: null,
   slots: [{ id: 1, subjectId: 1, dayOfWeek: 1, startMinutes: 600, endMinutes: 660, location: 'Aula 4' }],
   deadlines: [],
   period: null,
   program: null,
-  finals: []
+  finals: [],
+  parciales: []
 }
 
 // Spec's THEN reads "present anywhere in the app" — check the whole

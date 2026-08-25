@@ -53,6 +53,11 @@ import type {
   UpdateAcademicDateInput
 } from '../../shared/ipc/fechas'
 import type { CreateFinalExamInput, DeleteFinalExamResult, UpdateFinalExamInput } from '../../shared/ipc/finales'
+import type {
+  CreatePartialExamInput,
+  DeletePartialExamResult,
+  UpdatePartialExamInput
+} from '../../shared/ipc/parciales'
 import type { WeekScheduleResult } from '../../shared/ipc/horario'
 import type { DashboardResult } from '../../shared/ipc/hoy'
 import type { IndexStatusChangedPayload, SyncResult } from '../../shared/ipc/indexado'
@@ -61,6 +66,7 @@ import type {
   DeleteSubjectResult,
   FinalExamRecord,
   IpcResult,
+  PartialExamRecord,
   SetSubjectOutcomeInput,
   SubjectDetailResult,
   SubjectWithSlots,
@@ -101,6 +107,11 @@ declare global {
         create: (input: CreateFinalExamInput) => Promise<IpcResult<FinalExamRecord>>
         update: (input: UpdateFinalExamInput) => Promise<IpcResult<FinalExamRecord>>
         delete: (id: number) => Promise<IpcResult<DeleteFinalExamResult>>
+      }
+      parciales: {
+        create: (input: CreatePartialExamInput) => Promise<IpcResult<PartialExamRecord>>
+        update: (input: UpdatePartialExamInput) => Promise<IpcResult<PartialExamRecord>>
+        delete: (id: number) => Promise<IpcResult<DeletePartialExamResult>>
       }
       horario: {
         week: () => Promise<IpcResult<WeekScheduleResult>>

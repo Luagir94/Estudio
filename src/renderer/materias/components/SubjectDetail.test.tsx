@@ -20,6 +20,7 @@ const baseSubject: SubjectDetailResult = {
   periodId: null,
   outcome: null,
   grade: null,
+  regularity: null,
   slots: [
     { id: 1, subjectId: 1, dayOfWeek: 0, startMinutes: 600, endMinutes: 660, location: 'Aula 4' }, // Sunday
     { id: 2, subjectId: 1, dayOfWeek: 3, startMinutes: 480, endMinutes: 540, location: 'Aula 1' } // Wednesday
@@ -32,7 +33,8 @@ const baseSubject: SubjectDetailResult = {
   ],
   period: null,
   program: null,
-  finals: []
+  finals: [],
+  parciales: []
 }
 
 describe('SubjectDetail (read-only)', () => {
@@ -458,5 +460,70 @@ describe('SubjectDetail (read-only)', () => {
 
       expect(screen.queryByRole('button', { name: 'Abrir grupo del curso' })).not.toBeInTheDocument()
     })
+  })
+})
+
+// The condición is the faculty's verdict, STORED and never derived from the
+// parciales — so the header only ever reports what was recorded, and stays
+// completely silent (no "sin definir" chip) when nothing was.
+describe('SubjectDetail — regularidad badge', () => {
+  function renderDetail(subject: SubjectDetailResult) {
+    return render(
+      <SubjectDetail
+        subject={subject}
+        nextClass={null}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenExternalUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+      />
+    )
+  }
+
+  it('reports the declared condición next to the código and the asistencia', () => {
+    renderDetail({ ...baseSubject, regularity: 'promocionada' })
+
+    expect(screen.getByText('Promocionada')).toBeInTheDocument()
+    expect(screen.getByTestId('subject-detail-regularity-separator')).toBeInTheDocument()
+  })
+
+  it('renders neither the badge nor its separator when no condición is declared', () => {
+    renderDetail({ ...baseSubject, regularity: null })
+
+    expect(screen.queryByText('Regular')).not.toBeInTheDocument()
+    expect(screen.queryByText('Promocionada')).not.toBeInTheDocument()
+    expect(screen.queryByText('Libre')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('subject-detail-regularity-separator')).not.toBeInTheDocument()
+  })
+})
+
+// The PARCIALES section owns its own mutations, so it arrives as a slot the
+// same way ADJUNTOS does — this screen only reserves its position.
+describe('SubjectDetail — parciales slot', () => {
+  it('renders the injected section between ENTREGAS and NOTAS', () => {
+    render(
+      <SubjectDetail
+        subject={baseSubject}
+        nextClass={null}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenExternalUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+        parcialesSlot={<div data-testid="parciales-slot" />}
+      />
+    )
+
+    const entregas = screen.getByText('ENTREGAS')
+    const parciales = screen.getByTestId('parciales-slot')
+    const notas = screen.getByText('NOTAS')
+
+    expect(entregas.compareDocumentPosition(parciales) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(parciales.compareDocumentPosition(notas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })

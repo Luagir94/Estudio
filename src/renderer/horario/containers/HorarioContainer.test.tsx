@@ -54,6 +54,7 @@ const sampleSubjects: SubjectWithSlots[] = [
     periodId: null,
     outcome: null,
     grade: null,
+    regularity: null,
     slots: [{ id: 1, subjectId: 1, dayOfWeek: 1, startMinutes: 480, endMinutes: 570, location: 'Aula 204' }]
   }
 ]
@@ -63,7 +64,8 @@ const sampleDetail: SubjectDetailResult = {
   deadlines: [],
   period: null,
   program: null,
-  finals: []
+  finals: [],
+  parciales: []
 }
 
 // The ['materias'] facts the container filters against (outcome, period

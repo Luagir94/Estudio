@@ -137,7 +137,8 @@ describe('subjectRecordSchema — ficha de cátedra fields', () => {
     attendanceMinPercent: null,
     periodId: null,
     outcome: null,
-    grade: null
+    grade: null,
+    regularity: null
   }
 
   it('carries comision, aula and groupUrl as nullable strings, same shape as campusUrl', () => {
@@ -159,5 +160,91 @@ describe('subjectRecordSchema — ficha de cátedra fields', () => {
     const result = subjectRecordSchema.safeParse({ ...baseRecord, comision: null, aula: null, groupUrl: null })
 
     expect(result.success).toBe(true)
+  })
+})
+
+// Regularity is a SUBJECT column that rides on the subject payloads (never a
+// parciales command of its own), so its contract is asserted here next to the
+// rest of the subject record.
+describe('subjectRecordSchema — regularity', () => {
+  const baseRecord = {
+    id: 1,
+    name: 'Algoritmos',
+    code: 'ALG-101',
+    color: '#7c3aed',
+    docente: null,
+    contacto: null,
+    comision: null,
+    aula: null,
+    campusUrl: null,
+    groupUrl: null,
+    notas: null,
+    attendanceMinPercent: null,
+    periodId: null,
+    outcome: null,
+    grade: null
+  }
+
+  it.each(['regular', 'promocionada', 'libre'] as const)('carries the declared condición %s', (regularity) => {
+    const result = subjectRecordSchema.safeParse({ ...baseRecord, regularity })
+
+    expect(result.success).toBe(true)
+    if (!result.success) throw new Error('expected validation success')
+    expect(result.data.regularity).toBe(regularity)
+  })
+
+  it('accepts null — nobody has declared the condición yet', () => {
+    const result = subjectRecordSchema.safeParse({ ...baseRecord, regularity: null })
+
+    expect(result.success).toBe(true)
+    if (!result.success) throw new Error('expected validation success')
+    expect(result.data.regularity).toBeNull()
+  })
+
+  // The closed set is Zod's, not SQL's — an unknown stored value must be
+  // rejected here rather than silently rendering as a badge.
+  it('rejects a condición outside the closed set', () => {
+    expect(subjectRecordSchema.safeParse({ ...baseRecord, regularity: 'promocionado' }).success).toBe(false)
+  })
+})
+
+describe('updateSubjectScheduleInputSchema — regularity', () => {
+  const baseInput = {
+    id: 1,
+    name: 'Algoritmos',
+    code: 'ALG-101',
+    color: '#7c3aed',
+    slots: [{ dayOfWeek: 1, startMinutes: 540, endMinutes: 600, location: null }]
+  }
+
+  it('carries a declared condición through the subject update payload', () => {
+    const result = updateSubjectScheduleInputSchema.safeParse({ ...baseInput, regularity: 'promocionada' })
+
+    expect(result.success).toBe(true)
+    if (!result.success) throw new Error('expected validation success')
+    expect(result.data.regularity).toBe('promocionada')
+  })
+
+  // No editing surface ships in this slice, so the field is normally ABSENT
+  // from the payload. Absent must stay distinguishable from an explicit null,
+  // or the first "Editar materia" save would erase a stored condición.
+  it('leaves regularity undefined when the payload never mentions it', () => {
+    const result = updateSubjectScheduleInputSchema.safeParse(baseInput)
+
+    expect(result.success).toBe(true)
+    if (!result.success) throw new Error('expected validation success')
+    expect(result.data.regularity).toBeUndefined()
+  })
+
+  it('accepts an explicit null — the student withdrew the declaration', () => {
+    const result = updateSubjectScheduleInputSchema.safeParse({ ...baseInput, regularity: null })
+
+    expect(result.success).toBe(true)
+    if (!result.success) throw new Error('expected validation success')
+    expect(result.data.regularity).toBeNull()
+  })
+
+  it('rejects a condición outside the closed set', () => {
+    expect(updateSubjectScheduleInputSchema.safeParse({ ...baseInput, regularity: 'libres' }).success).toBe(false)
   })
 })

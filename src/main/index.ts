@@ -34,6 +34,8 @@ import { createSqliteAcademicDateRepository } from './fechas/adapters/sqliteAcad
 import { registerFechasHandlers } from './fechas/ipc/registerFechasHandlers'
 import { createSqliteFinalExamRepository } from './finales/adapters/sqliteFinalExamRepository'
 import { registerFinalesHandlers } from './finales/ipc/registerFinalesHandlers'
+import { createSqlitePartialExamRepository } from './parciales/adapters/sqlitePartialExamRepository'
+import { registerParcialesHandlers } from './parciales/ipc/registerParcialesHandlers'
 import { registerEntregasHandlers } from './entregas/ipc/registerEntregasHandlers'
 import { registerHoyHandlers } from './hoy/ipc/registerHoyHandlers'
 import { createSqliteChunkStore } from './indexado/adapters/sqliteChunkStore'
@@ -121,6 +123,11 @@ async function bootstrap(): Promise<void> {
   // lifecycle, so they get their own repository and command set.
   const finalExamRepository = createSqliteFinalExamRepository(db)
   registerFinalesHandlers(finalExamRepository)
+  // Parciales follow the SAME shape as final exams: cascade-deleted with the
+  // subject, own lifecycle, own repository and command set. They are read
+  // through `materias:detail` (no `parciales:list` channel exists), so this
+  // instance is not shared with anything else.
+  registerParcialesHandlers(createSqlitePartialExamRepository(db))
   // Administrative dates hang off the PROGRAM (cascade-deleted with it) and
   // own their lifecycle, so — like final exams — they get their own
   // repository and command set rather than riding inside `carreras:*`.

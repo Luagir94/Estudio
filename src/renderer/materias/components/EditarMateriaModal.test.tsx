@@ -20,11 +20,13 @@ const subject: SubjectDetailResult = {
   periodId: null,
   outcome: null,
   grade: null,
+  regularity: null,
   slots: [{ id: 1, subjectId: 1, dayOfWeek: 1, startMinutes: 600, endMinutes: 660, location: 'Aula 4' }],
   deadlines: [],
   period: null,
   program: null,
-  finals: []
+  finals: [],
+  parciales: []
 }
 
 describe('EditarMateriaModal', () => {
@@ -137,6 +139,56 @@ describe('EditarMateriaModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
 
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  // Etapa 3 (Parciales y regularidad): the condición is DECLARED, never
+  // derived — so the modal is where the student records what the facultad
+  // ruled, and "Sin definir" is a real, reachable state, not a placeholder.
+  describe('regularidad', () => {
+    it('offers the four states and preselects the stored one', () => {
+      render(
+        <EditarMateriaModal subject={{ ...subject, regularity: 'regular' }} onSubmit={vi.fn()} onClose={vi.fn()} />
+      )
+
+      expect(screen.getByRole('button', { name: 'Sin definir' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Promocionada' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Libre' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Regular' })).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('preselects Sin definir when nothing was declared yet', () => {
+      render(<EditarMateriaModal subject={{ ...subject, regularity: null }} onSubmit={vi.fn()} onClose={vi.fn()} />)
+
+      expect(screen.getByRole('button', { name: 'Sin definir' })).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('submits the declared condición', async () => {
+      const onSubmit = vi.fn()
+      render(<EditarMateriaModal subject={subject} onSubmit={onSubmit} onClose={vi.fn()} />)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Promocionada' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ regularity: 'promocionada' }), expect.anything())
+    })
+
+    it('withdraws the condición as an explicit null, not an absent field', async () => {
+      const onSubmit = vi.fn()
+      render(<EditarMateriaModal subject={{ ...subject, regularity: 'libre' }} onSubmit={onSubmit} onClose={vi.fn()} />)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Sin definir' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ regularity: null }), expect.anything())
+    })
+
+    it('teaches that the app does not compute the condición', () => {
+      render(<EditarMateriaModal subject={subject} onSubmit={vi.fn()} onClose={vi.fn()} />)
+
+      expect(screen.getByText(/La declarás vos/)).toBeInTheDocument()
+    })
   })
 
   // Slice 3 (Horario): clicking a class block opens this modal directly on

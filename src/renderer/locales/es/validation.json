@@ -34,6 +34,9 @@
     "required": "Elegí la escala de notas",
     "mustBeAbsent": "Un programa binario no puede tener escala de notas"
   },
+  "grade": {
+    "outOfRange": "La nota tiene que estar dentro de la escala de la carrera"
+  },
   "label": {
     "required": "Poné un nombre",
     "tooLong": "El nombre no puede superar los 200 caracteres"

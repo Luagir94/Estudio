@@ -43,6 +43,7 @@ import { carrerasApi } from '../../carreras/adapters/carrerasApi'
 import { EditarMateriaModal } from '../components/EditarMateriaModal'
 import { SubjectDetail } from '../components/SubjectDetail'
 import { FinalesContainer } from '../../finales/containers/FinalesContainer'
+import { ParcialesContainer } from '../../parciales/containers/ParcialesContainer'
 
 interface SubjectDetailContainerProps {
   subjectId: number
@@ -156,6 +157,10 @@ export function SubjectDetailContainer({
         onAddEntrega={() => setIsAddEntregaOpen(true)}
         onCloseSubject={() => setIsCloseOpen(true)}
         adjuntosSlot={<AdjuntosContainer subjectId={subjectId} onOpenMarkdown={setViewedAttachment} />}
+        // Unconditional, unlike FINALES below: parciales belong to the
+        // cursada itself, so they are recordable from the day the materia
+        // exists — there is no outcome to reach first.
+        parcialesSlot={<ParcialesContainer subjectId={subjectId} subjectName={data.name} parciales={data.parciales} />}
       />
 
       {/* Only once the student said the final is pending: before that there

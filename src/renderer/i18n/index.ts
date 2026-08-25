@@ -18,6 +18,7 @@ import finales from '../locales/es/finales.json'
 import horario from '../locales/es/horario.json'
 import hoy from '../locales/es/hoy.json'
 import materias from '../locales/es/materias.json'
+import parciales from '../locales/es/parciales.json'
 import validation from '../locales/es/validation.json'
 import { installZodErrorMap } from './zodErrorMap'
 
@@ -34,6 +35,7 @@ void i18next.use(initReactI18next).init({
     'entregas',
     'fechas',
     'finales',
+    'parciales',
     'adjuntos',
     'ask',
     'ajustes',
@@ -50,6 +52,7 @@ void i18next.use(initReactI18next).init({
       entregas,
       fechas,
       finales,
+      parciales,
       adjuntos,
       ask,
       ajustes,

@@ -22,6 +22,7 @@ import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
 import { classifyUrgency, formatDeadlineStatus } from '../../entregas/domain/deadline'
 import type { DeadlineUrgency } from '../../entregas/domain/deadline'
 import { groupLinkLabel } from '../domain/groupLink'
+import { RegularityBadge } from './RegularityBadge'
 import type { SubjectDetailResult } from '../../../shared/ipc/materias'
 import { Button } from '../../shared/components/ui/button'
 import { cn } from '../../shared/lib/cn'
@@ -59,6 +60,13 @@ interface SubjectDetailProps {
    * (`FinalesContainer`) without this component importing them directly.
    */
   adjuntosSlot?: React.ReactNode
+  /**
+   * Injection point for the PARCIALES section (approved design: left column,
+   * between ENTREGAS and NOTAS). `ParcialesContainer` owns its own mutations
+   * and IPC — this presentational component only reserves its slot, exactly
+   * as it does for `adjuntosSlot`.
+   */
+  parcialesSlot?: React.ReactNode
 }
 
 // Violet is reserved for interaction (Pencil design) — a status pill must
@@ -111,7 +119,8 @@ export function SubjectDetail({
   onEdit,
   onAddEntrega,
   onCloseSubject,
-  adjuntosSlot
+  adjuntosSlot,
+  parcialesSlot
 }: SubjectDetailProps): React.JSX.Element {
   const { t } = useTranslation('materias')
   // Stored subject colours are the dark palette; inline styles cannot hear
@@ -159,6 +168,19 @@ export function SubjectDetail({
                   ? t('subjectDetail.attendanceRequired', { percent: subject.attendanceMinPercent })
                   : t('subjectDetail.attendanceFree')}
               </span>
+              {/* The badge AND its separator disappear together when no
+                  condición was declared — a dangling dot would announce a
+                  missing field the header does not actually have. */}
+              {subject.regularity !== null && (
+                <>
+                  <span
+                    aria-hidden="true"
+                    data-testid="subject-detail-regularity-separator"
+                    className="h-[3px] w-[3px] rounded-full bg-muted-foreground"
+                  />
+                  <RegularityBadge regularity={subject.regularity} />
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -284,6 +306,8 @@ export function SubjectDetail({
               )
             })}
           </div>
+
+          {parcialesSlot}
 
           <div className="flex flex-col gap-2">
             <h3 className="text-label font-semibold text-muted-foreground">{t('subjectDetail.notesHeading')}</h3>

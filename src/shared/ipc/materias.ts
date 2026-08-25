@@ -117,6 +117,23 @@ const optionalAttendanceMinPercent = z.preprocess((value) => {
   return value
 }, z.number().min(0).max(100).nullable().optional())
 
+// The condición de cursada the CÁTEDRA granted. Closed set, owned here and
+// nowhere else — the column is plain text (see db/schema.ts).
+//
+// It is STORED, never derived: no arrangement of parciales, notas or
+// asistencia may produce it, because every cátedra writes its own rules
+// (promoción con 7, con 8, con asistencia, sin ella). The app records the
+// faculty's verdict and reports it; it does not legislate it. `null` = not
+// declared yet.
+//
+// Declared HERE, above the update payload that carries it, rather than down
+// with the record shapes: these are plain `const`s, so a schema referencing
+// one before its initialiser runs throws at module load (the same ordering
+// hazard `subjectDetailSchema` documents at the bottom of this file).
+export const subjectRegularitySchema = z.enum(['regular', 'promocionada', 'libre'])
+
+export type SubjectRegularity = z.infer<typeof subjectRegularitySchema>
+
 // No separate "update general fields" command exists in this slice's task
 // list (only materias:create and materias:updateSchedule are scoped) — the
 // "Editar materia" modal's 2 tabs (General + Horario) submit as ONE atomic
@@ -141,6 +158,17 @@ export const updateSubjectScheduleInputSchema = z.object({
   groupUrl: optionalTextField,
   notas: optionalNotesField,
   attendanceMinPercent: optionalAttendanceMinPercent,
+  // The condición rides on the SUBJECT's own update payload rather than on a
+  // `parciales:*` command, because it is a subject column and no parcial
+  // decides it (see subjectRegularitySchema).
+  //
+  // `.optional()` here is load-bearing and NOT the same thing as
+  // `attendanceMinPercent`'s: no editing surface ships for this field yet, so
+  // the "Editar materia" form does not send it at all. ABSENT must therefore
+  // stay distinguishable from an explicit `null`, or the first save of an
+  // unrelated field would silently erase a recorded condición. The repository
+  // writes this column ONLY when the key is present.
+  regularity: subjectRegularitySchema.nullable().optional(),
   periodId: optionalPeriodId,
   slots: z.array(scheduleSlotInputSchema).min(1, 'slots.required')
 })
@@ -191,7 +219,9 @@ export const subjectRecordSchema = z.object({
   /** What the student decided. `null` = not decided yet. */
   outcome: subjectOutcomeSchema.nullable(),
   /** Only meaningful under a `numerico` program. */
-  grade: z.number().nullable()
+  grade: z.number().nullable(),
+  /** What the cátedra granted, recorded verbatim. `null` = not declared yet. */
+  regularity: subjectRegularitySchema.nullable()
 })
 
 export type SubjectRecord = z.infer<typeof subjectRecordSchema>
@@ -257,6 +287,32 @@ export const finalExamRecordSchema = z.object({
 
 export type FinalExamRecord = z.infer<typeof finalExamRecordSchema>
 
+export const partialExamResultSchema = z.enum(['pendiente', 'aprobado', 'reprobado'])
+
+export type PartialExamResult = z.infer<typeof partialExamResultSchema>
+
+// Declared HERE for exactly the reason `finalExamRecordSchema` is: the
+// subject detail payload carries these rows, and `shared/ipc/parciales.ts`
+// already imports this module's result envelope — declaring it there would
+// close an import cycle.
+export const partialExamRecordSchema = z.object({
+  id: z.number().int(),
+  subjectId: z.number().int(),
+  label: z.string(),
+  /** `null` on purpose — a parcial exists before the cátedra publishes its date. */
+  takenOn: z.string().nullable(),
+  result: partialExamResultSchema,
+  /**
+   * The nota the cátedra put on this parcial under a `numerico` program.
+   * Unlike a mesa de final's, it is NOT approved-only: a reprobado 3 is the
+   * number on the acta. `null` is "aprobado sin nota" and the only value
+   * under `binario`.
+   */
+  grade: z.number().nullable()
+})
+
+export type PartialExamRecord = z.infer<typeof partialExamRecordSchema>
+
 // Everything `resolveSubjectStatus` needs, and nothing more. The status
 // itself is NOT computed here: it depends on "today", which is a
 // rendering-time concern (same rule as the deadline buckets — baking it into
@@ -309,7 +365,11 @@ export const subjectDetailSchema = subjectWithSlotsSchema.extend({
   program: subjectProgramSchema.nullable(),
   // FULL records here, unlike the list's `{ result }` projection: the detail
   // screen edits these rows, so it needs their ids, labels and dates.
-  finals: z.array(finalExamRecordSchema)
+  finals: z.array(finalExamRecordSchema),
+  // Parciales join the SUBJECT READ rather than getting a `parciales:list`
+  // channel of their own — exactly how `finals` travels. The only screen that
+  // shows them is this one, and it already fetches the subject.
+  parciales: z.array(partialExamRecordSchema)
 })
 
 export type SubjectDetailResult = z.infer<typeof subjectDetailSchema>

@@ -30,6 +30,16 @@ import { Label } from '../../shared/components/ui/label'
 import { ColorSwatchPicker } from '../../shared/components/ColorSwatchPicker'
 import { Textarea } from '../../shared/components/ui/textarea'
 
+// Order matches the approved design (`hjivW`): the undeclared state leads,
+// so the control reads as a declaration you make rather than a default the
+// app already chose for you.
+const REGULARITY_OPTIONS = [
+  { value: null, labelKey: 'editarMateriaModal.regularityUndefined' },
+  { value: 'regular', labelKey: 'editarMateriaModal.regularityRegular' },
+  { value: 'promocionada', labelKey: 'editarMateriaModal.regularityPromocionada' },
+  { value: 'libre', labelKey: 'editarMateriaModal.regularityLibre' }
+] as const
+
 interface EditarMateriaModalProps {
   subject: SubjectDetailResult
   onSubmit: (input: UpdateSubjectScheduleInput) => void
@@ -83,6 +93,7 @@ export function EditarMateriaModal({
       groupUrl: subject.groupUrl ?? '',
       notas: subject.notas ?? '',
       attendanceMinPercent: subject.attendanceMinPercent,
+      regularity: subject.regularity,
       periodId: subject.periodId,
       slots: subject.slots.map((slot) => ({
         dayOfWeek: slot.dayOfWeek,
@@ -236,6 +247,47 @@ export function EditarMateriaModal({
                     </Label>
                   )
                 }}
+              />
+
+              {/* The condición is DECLARED, never derived. Every cátedra promotes on
+                  its own rules (con 7, con 8, con asistencia, sin ella), so the app
+                  records the facultad's verdict instead of computing one. "Sin
+                  definir" is a first-class state, not an empty placeholder. */}
+              <Controller
+                name="regularity"
+                control={control}
+                render={({ field }) => (
+                  <>
+                    <fieldset>
+                      <legend className="mb-1 block text-label font-semibold text-secondary-foreground">
+                        {t('editarMateriaModal.regularity')}
+                      </legend>
+                      <div className="mt-2 flex w-fit gap-1 rounded-lg border border-border bg-background p-1">
+                        {REGULARITY_OPTIONS.map((option) => (
+                          <button
+                            key={option.labelKey}
+                            type="button"
+                            aria-pressed={field.value === option.value}
+                            onClick={() => field.onChange(option.value)}
+                            className={cn(
+                              'rounded-md px-3 py-2 text-body-sm font-semibold',
+                              field.value === option.value ? 'bg-primary text-white' : 'text-secondary-foreground',
+                              interactiveChip
+                            )}
+                          >
+                            {t(option.labelKey)}
+                          </button>
+                        ))}
+                      </div>
+                    </fieldset>
+                    <p className="pb-3 text-caption text-muted-foreground">
+                      <strong className="font-semibold text-secondary-foreground">
+                        {t('editarMateriaModal.regularityNoteStrong')}
+                      </strong>
+                      {t('editarMateriaModal.regularityNoteRest')}
+                    </p>
+                  </>
+                )}
               />
 
               <div className="h-px w-full bg-border" />

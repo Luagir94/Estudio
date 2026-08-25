@@ -5,15 +5,18 @@ import type {
   CreateSubjectInput,
   FinalExamRecord,
   FinalExamResult,
+  PartialExamRecord,
+  PartialExamResult,
   SetSubjectOutcomeInput,
   SubjectOutcome,
   SubjectPeriod,
   SubjectProgram,
+  SubjectRegularity,
   SubjectWithStatus,
   UpdateSubjectScheduleInput
 } from '../../../shared/ipc/materias'
 import type { AppDatabase } from '../../db/connection'
-import { deadlines, finalExams, periods, programs, scheduleSlots, subjects } from '../../db/schema'
+import { deadlines, finalExams, partialExams, periods, programs, scheduleSlots, subjects } from '../../db/schema'
 
 export interface SlotRecord {
   id: number
@@ -40,6 +43,7 @@ export interface SubjectRecord {
   periodId: number | null
   outcome: SubjectOutcome | null
   grade: number | null
+  regularity: SubjectRegularity | null
 }
 
 export interface SubjectWithSlots extends SubjectRecord {
@@ -51,6 +55,7 @@ export interface SubjectWithDetail extends SubjectWithSlots {
   period: SubjectPeriod | null
   program: SubjectProgram | null
   finals: FinalExamRecord[]
+  parciales: PartialExamRecord[]
 }
 
 export interface DeleteSubjectResult {
@@ -94,6 +99,8 @@ export interface SubjectRepository {
 
 const OUTCOMES = new Set(['aprobada', 'reprobada', 'finalPendiente'])
 const FINAL_RESULTS = new Set(['pendiente', 'aprobado', 'reprobado'])
+const REGULARITIES = new Set(['regular', 'promocionada', 'libre'])
+const PARTIAL_RESULTS = new Set(['pendiente', 'aprobado', 'reprobado'])
 
 // SQLite has no enums; an unrecognised value means the row was written by
 // something other than the validated commands, which is corruption worth
@@ -113,6 +120,26 @@ function toFinalResult(value: string): FinalExamResult {
     throw new Error(`Unknown final exam result "${value}"`)
   }
   return value as FinalExamResult
+}
+
+// Same corruption-over-coercion rule as `toOutcome`: the condición is a
+// closed set owned by Zod, and a stored value outside it means the row was
+// written by something other than the validated commands.
+function toRegularity(value: string | null): SubjectRegularity | null {
+  if (value === null) {
+    return null
+  }
+  if (!REGULARITIES.has(value)) {
+    throw new Error(`Unknown subject regularity "${value}"`)
+  }
+  return value as SubjectRegularity
+}
+
+function toPartialResult(value: string): PartialExamResult {
+  if (!PARTIAL_RESULTS.has(value)) {
+    throw new Error(`Unknown partial exam result "${value}"`)
+  }
+  return value as PartialExamResult
 }
 
 /**
@@ -154,6 +181,7 @@ function listWithStatus(db: AppDatabase): SubjectWithStatus[] {
   return allSubjects.map((subject) => ({
     ...subject,
     outcome: toOutcome(subject.outcome),
+    regularity: toRegularity(subject.regularity),
     slots: allSlots.filter((slot) => slot.subjectId === subject.id),
     period: subject.periodId === null ? null : (periodsById.get(subject.periodId) ?? null),
     program: subject.periodId === null ? null : (programsByPeriodId.get(subject.periodId) ?? null),
@@ -210,7 +238,12 @@ export function createSqliteSubjectRepository(db: AppDatabase): SubjectRepositor
             .get()
         )
 
-        return { ...insertedSubject, outcome: toOutcome(insertedSubject.outcome), slots: insertedSlots }
+        return {
+          ...insertedSubject,
+          outcome: toOutcome(insertedSubject.outcome),
+          regularity: toRegularity(insertedSubject.regularity),
+          slots: insertedSlots
+        }
       })
     },
     list() {
@@ -230,6 +263,7 @@ export function createSqliteSubjectRepository(db: AppDatabase): SubjectRepositor
       return {
         ...subject,
         outcome: toOutcome(subject.outcome),
+        regularity: toRegularity(subject.regularity),
         slots,
         deadlines: subjectDeadlines,
         period: fromList?.period ?? null,
@@ -239,7 +273,17 @@ export function createSqliteSubjectRepository(db: AppDatabase): SubjectRepositor
           .from(finalExams)
           .where(eq(finalExams.subjectId, id))
           .all()
-          .map((final) => ({ ...final, result: toFinalResult(final.result) }))
+          .map((final) => ({ ...final, result: toFinalResult(final.result) })),
+        // Joined into the subject READ rather than served by a
+        // `parciales:list` channel — exactly how `finals` travels, and for
+        // the same reason: the only screen that shows them has already
+        // fetched the subject.
+        parciales: db
+          .select()
+          .from(partialExams)
+          .where(eq(partialExams.subjectId, id))
+          .all()
+          .map((parcial) => ({ ...parcial, result: toPartialResult(parcial.result) }))
       }
     },
     updateSchedule(input) {
@@ -266,7 +310,18 @@ export function createSqliteSubjectRepository(db: AppDatabase): SubjectRepositor
             groupUrl: input.groupUrl ?? null,
             notas: input.notas ?? null,
             attendanceMinPercent: input.attendanceMinPercent ?? null,
-            periodId: input.periodId ?? null
+            periodId: input.periodId ?? null,
+            // Written ONLY when the key is present — note `!== undefined`,
+            // not the `?? null` every other optional field here uses.
+            //
+            // Those fields all come from the "Editar materia" form, which
+            // always sends them, so an absent one really does mean "cleared".
+            // The condición has NO editing surface yet: it is absent from
+            // every payload this command currently receives, and `?? null`
+            // would make saving an unrelated field silently erase the
+            // cátedra's verdict. Absent means "not mentioned"; an explicit
+            // `null` is what withdraws a declaration.
+            ...(input.regularity !== undefined ? { regularity: input.regularity } : {})
           })
           .where(eq(subjects.id, input.id))
           .returning()
@@ -290,7 +345,12 @@ export function createSqliteSubjectRepository(db: AppDatabase): SubjectRepositor
             .get()
         )
 
-        return { ...updatedSubject, outcome: toOutcome(updatedSubject.outcome), slots: insertedSlots }
+        return {
+          ...updatedSubject,
+          outcome: toOutcome(updatedSubject.outcome),
+          regularity: toRegularity(updatedSubject.regularity),
+          slots: insertedSlots
+        }
       })
     },
     remove(id) {

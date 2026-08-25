@@ -17,6 +17,7 @@ const sampleSubject = {
   periodId: null,
   outcome: null,
   grade: null,
+  regularity: null,
   slots: [{ id: 1, subjectId: 1, dayOfWeek: 1, startMinutes: 600, endMinutes: 660, location: null }]
 }
 
@@ -34,7 +35,8 @@ const sampleDetail = {
   deadlines: [{ id: 1, subjectId: 1, title: 'TP1', type: 'tp', dueAt: '2026-04-01T23:59', done: false }],
   period: null,
   program: null,
-  finals: []
+  finals: [],
+  parciales: []
 }
 
 describe('materiasApi', () => {
@@ -64,6 +66,7 @@ describe('materiasApi', () => {
           delete: vi.fn()
         },
         finales: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+        parciales: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
         entregas: { create: vi.fn(), list: vi.fn(), update: vi.fn(), setDone: vi.fn(), delete: vi.fn() },
         adjuntos: { list: vi.fn(), add: vi.fn(), open: vi.fn(), remove: vi.fn(), read: vi.fn(), write: vi.fn() },
         indexado: { sync: vi.fn(), onStatusChanged: vi.fn().mockReturnValue(vi.fn()) },

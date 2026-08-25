@@ -44,6 +44,7 @@ const sampleSubject: SubjectWithSlots = {
   periodId: null,
   outcome: null,
   grade: null,
+  regularity: null,
   slots: [{ id: 1, subjectId: 1, dayOfWeek: 1, startMinutes: 600, endMinutes: 660, location: null }]
 }
 
@@ -52,7 +53,8 @@ const sampleDetail: SubjectWithDetail = {
   deadlines: [{ id: 1, subjectId: 1, title: 'TP1', type: 'tp', dueAt: '2026-04-01T23:59', done: false }],
   period: null,
   program: null,
-  finals: []
+  finals: [],
+  parciales: []
 }
 
 describe('registerMateriasHandlers', () => {

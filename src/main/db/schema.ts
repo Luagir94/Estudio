@@ -132,6 +132,56 @@ export const subjects = sqliteTable('subjects', {
   // under 'binario' (enforced by program.ts's validateGrade). `real` because
   // a 7.5 is a real nota, not a rounding artefact. NULL means "not graded
   // yet" and is never treated as a zero when averaging.
+  grade: real('grade'),
+  // The condición de cursada the CÁTEDRA granted: 'regular' | 'promocionada'
+  // | 'libre', ZOD-OWNED (shared/ipc/materias.ts) — plain text, no CHECK and
+  // no enum table, the same policy every other closed set here follows.
+  //
+  // STORED, NEVER DERIVED. This column exists precisely because the app
+  // cannot compute it: every cátedra writes its own rules (promoción con 7,
+  // con 8, con asistencia, sin ella; regularidad con un parcial aprobado, con
+  // los dos, con recuperatorio rendido). Deriving it from `partial_exams`
+  // rows or from `attendance_min_percent` would be the app inventing a
+  // regulation and then quietly contradicting the acta. What the student
+  // records here is the faculty's verdict; the app only reports it.
+  //
+  // NULL means "not declared yet" — the honest state for a cursada in
+  // progress — and reads as the ABSENCE of a badge, never as a "sin definir"
+  // chip: an undeclared condición is not a condición.
+  regularity: text('regularity')
+})
+
+// One parcial or recuperatorio of a cursada ("1er parcial", "Recuperatorio
+// 1"). Owned by the subject and cascade-deleted with it, same rule as
+// schedule_slots, deadlines and final_exams.
+//
+// `takenOn` is NULLABLE BY DESIGN, for the same reason `final_exams.taken_on`
+// is: a parcial can be recorded before the cátedra publishes its date, and a
+// far-future sentinel would be indistinguishable from a real one.
+//
+// This table deliberately DERIVES NOTHING. It does not decide the subject's
+// `regularity` (see that column's comment), and it does not decide the
+// subject's `outcome` either — recording a result is the whole action, and
+// what the results MEAN is the cátedra's rule, not this schema's.
+export const partialExams = sqliteTable('partial_exams', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  subjectId: integer('subject_id')
+    .notNull()
+    .references(() => subjects.id, { onDelete: 'cascade' }),
+  label: text('label').notNull(),
+  takenOn: text('taken_on'),
+  // Closed set 'pendiente' | 'aprobado' | 'reprobado', zod-owned
+  // (shared/ipc/materias.ts) — same no-SQL-constraint precedent as
+  // `finalExams.result`.
+  result: text('result').notNull().default('pendiente'),
+  // The nota the cátedra put on this parcial under a 'numerico' program.
+  // Unlike `finalExams.grade` this is NOT approved-only: a reprobado 3 is
+  // exactly the number on the acta, and hiding it would lose real data. NULL
+  // is "aprobado sin nota", a first-class state and the only one under
+  // 'binario'. The scheme/range rule is the shared cross-entity one
+  // (shared/domain/grading.ts), enforced in sqlitePartialExamRepository on
+  // both create and update; no CHECK constraint, same policy as
+  // `subjects.grade` and `finalExams.grade`.
   grade: real('grade')
 })
 

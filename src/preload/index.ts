@@ -65,6 +65,7 @@ import type {
   UpdateAcademicDateInput
 } from '../shared/ipc/fechas'
 import type { CreateFinalExamInput, DeleteFinalExamResult, UpdateFinalExamInput } from '../shared/ipc/finales'
+import type { CreatePartialExamInput, DeletePartialExamResult, UpdatePartialExamInput } from '../shared/ipc/parciales'
 import type { WeekScheduleResult } from '../shared/ipc/horario'
 import type { DashboardResult } from '../shared/ipc/hoy'
 import type { IndexStatusChangedPayload, SyncResult } from '../shared/ipc/indexado'
@@ -73,6 +74,7 @@ import type {
   DeleteSubjectResult,
   FinalExamRecord,
   IpcResult,
+  PartialExamRecord,
   SetSubjectOutcomeInput,
   SubjectDetailResult,
   SubjectWithSlots,
@@ -128,6 +130,15 @@ const api = {
     update: (input: UpdateFinalExamInput): Promise<IpcResult<FinalExamRecord>> =>
       ipcRenderer.invoke('finales:update', input),
     delete: (id: number): Promise<IpcResult<DeleteFinalExamResult>> => ipcRenderer.invoke('finales:delete', { id })
+  },
+  // No `list` here on purpose: parciales ride on `materias:detail`, the same
+  // way final-exam records do.
+  parciales: {
+    create: (input: CreatePartialExamInput): Promise<IpcResult<PartialExamRecord>> =>
+      ipcRenderer.invoke('parciales:create', input),
+    update: (input: UpdatePartialExamInput): Promise<IpcResult<PartialExamRecord>> =>
+      ipcRenderer.invoke('parciales:update', input),
+    delete: (id: number): Promise<IpcResult<DeletePartialExamResult>> => ipcRenderer.invoke('parciales:delete', { id })
   },
   horario: {
     week: (): Promise<IpcResult<WeekScheduleResult>> => ipcRenderer.invoke('horario:week')

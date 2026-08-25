@@ -1,0 +1,36 @@
+{
+  "parcialesSection": {
+    "heading": "PARCIALES",
+    "add": "Agregar parcial",
+    "empty": "Todavía no anotaste ningún parcial. Podés cargarlo aunque la cátedra no haya publicado la fecha.",
+    "noDateYet": "Sin fecha todavía",
+    "resultLabels": {
+      "pendiente": "Pendiente",
+      "aprobado": "Aprobado",
+      "reprobado": "Reprobado"
+    },
+    "resultWithGrade": "{{result}} · {{grade}}",
+    "editParcial": "Editar {{label}}"
+  },
+  "nuevoParcialModal": {
+    "createDialogLabel": "Nuevo parcial",
+    "editDialogLabel": "Editar parcial",
+    "labelField": "NOMBRE DEL PARCIAL",
+    "labelPlaceholder": "1er parcial",
+    "date": "FECHA",
+    "optionalBadge": "opcional",
+    "dateHint": "Dejala vacía si la cátedra todavía no la publicó.",
+    "result": "RESULTADO",
+    "resultOptions": {
+      "pendiente": "Pendiente",
+      "aprobado": "Aprobado",
+      "reprobado": "Reprobado"
+    },
+    "grade": "NOTA",
+    "gradeHint": "Aprobado sin nota es válido: dejala vacía.",
+    "effectNote": "El resultado no decide la condición: la regularidad la declarás vos.",
+    "footerNote": "Podés cargar parciales y recuperatorios",
+    "createSubmit": "Agregar parcial",
+    "delete": "Eliminar parcial"
+  }
+}

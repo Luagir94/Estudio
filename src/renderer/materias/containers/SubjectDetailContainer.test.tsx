@@ -171,6 +171,7 @@ const sampleDetail: SubjectDetailResult = {
   periodId: null,
   outcome: null,
   grade: null,
+  regularity: null,
   slots: [{ id: 1, subjectId: 1, dayOfWeek: 1, startMinutes: 600, endMinutes: 660, location: null }],
   deadlines: [
     { id: 1, subjectId: 1, title: 'TP1', type: 'tp', dueAt: '2026-04-01T23:59', done: true },
@@ -178,7 +179,8 @@ const sampleDetail: SubjectDetailResult = {
   ],
   period: null,
   program: null,
-  finals: []
+  finals: [],
+  parciales: []
 }
 
 function renderWithClient(ui: ReactNode) {
