@@ -44,9 +44,14 @@
     "minAttendanceFree": "Libre",
     "teacher": "Docente",
     "contact": "Contacto",
+    "comision": "Comisión",
+    "classroom": "Aula",
     "campus": "Campus",
     "openCampus": "Abrir campus virtual",
-    "virtualClassroom": "Aula virtual"
+    "virtualClassroom": "Aula virtual",
+    "group": "Grupo",
+    "openGroup": "Abrir grupo del curso",
+    "groupLinkFallback": "Chat del curso"
   },
   "materiasEmptyState": {
     "title": "Todavía no cargaste materias",
@@ -100,7 +105,10 @@
     "minAttendanceInput": "Asistencia mínima (%)",
     "teacher": "Docente",
     "contact": "Contacto",
+    "comision": "Comisión",
+    "aula": "Aula",
     "campusUrl": "Campus virtual (URL)",
+    "groupUrl": "Grupo (WhatsApp / Discord)",
     "notes": "Notas",
     "deleteSubject": "Eliminar materia"
   },

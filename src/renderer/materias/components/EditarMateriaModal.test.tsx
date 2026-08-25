@@ -11,7 +11,10 @@ const subject: SubjectDetailResult = {
   color: '#7c3aed',
   docente: 'Dra. Pérez',
   contacto: null,
+  comision: 'K2051',
+  aula: null,
   campusUrl: null,
+  groupUrl: null,
   notas: null,
   attendanceMinPercent: null,
   periodId: null,
@@ -37,6 +40,39 @@ describe('EditarMateriaModal', () => {
 
     expect(screen.getByLabelText('Campus virtual (URL)')).toBeInTheDocument()
     expect(screen.getByLabelText('Notas')).toBeInTheDocument()
+  })
+
+  // Ficha de cátedra: Comisión/Aula land right after the Docente/Contacto
+  // pair, and the Grupo link field after Campus — edit-form-only, same rule
+  // as campusUrl/notas.
+  it('exposes comisión, aula and grupo fields pre-filled from the subject', () => {
+    render(<EditarMateriaModal subject={subject} onSubmit={vi.fn()} onClose={vi.fn()} />)
+
+    expect(screen.getByLabelText('Comisión')).toHaveValue('K2051')
+    expect(screen.getByLabelText('Aula')).toHaveValue('')
+    expect(screen.getByLabelText('Grupo (WhatsApp / Discord)')).toHaveValue('')
+  })
+
+  it('submits the edited comisión, aula and grupo values', async () => {
+    const onSubmit = vi.fn()
+    render(<EditarMateriaModal subject={subject} onSubmit={onSubmit} onClose={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Comisión'), { target: { value: 'K2052' } })
+    fireEvent.change(screen.getByLabelText('Aula'), { target: { value: 'Lab 3 · Edificio B' } })
+    fireEvent.change(screen.getByLabelText('Grupo (WhatsApp / Discord)'), {
+      target: { value: 'https://chat.whatsapp.com/AbC123' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        comision: 'K2052',
+        aula: 'Lab 3 · Edificio B',
+        groupUrl: 'https://chat.whatsapp.com/AbC123'
+      }),
+      expect.anything()
+    )
   })
 
   it('switches to the Horario tab and shows the shared SlotEditor pre-filled with existing slots', () => {

@@ -212,6 +212,50 @@ describe('createSqliteSubjectRepository', () => {
       expect(detail?.name).toBe('Algoritmos') // unchanged
       expect(detail?.slots).toHaveLength(1) // original slot untouched
     })
+
+    // Ficha de cátedra: comision/aula/groupUrl are edit-form-only, same rule
+    // as campusUrl — create never writes them, updateSchedule owns them.
+    it('round-trips comisión, aula and groupUrl through updateSchedule and detail', () => {
+      const repository = createSqliteSubjectRepository(db)
+      const created = repository.create({
+        name: 'Algoritmos',
+        code: 'ALG-101',
+        color: '#7c3aed',
+        docente: null,
+        contacto: null,
+        periodId,
+        slots: [{ dayOfWeek: 1, startMinutes: 600, endMinutes: 660, location: null }]
+      })
+
+      expect(created.comision).toBeNull()
+      expect(created.aula).toBeNull()
+      expect(created.groupUrl).toBeNull()
+
+      const updated = repository.updateSchedule({
+        id: created.id,
+        name: 'Algoritmos',
+        code: 'ALG-101',
+        color: '#7c3aed',
+        docente: null,
+        contacto: null,
+        comision: 'K2051',
+        aula: 'Lab 3 · Edificio B',
+        campusUrl: null,
+        groupUrl: 'https://chat.whatsapp.com/AbC123',
+        notas: null,
+        attendanceMinPercent: null,
+        slots: [{ dayOfWeek: 1, startMinutes: 600, endMinutes: 660, location: null }]
+      })
+
+      expect(updated.comision).toBe('K2051')
+      expect(updated.aula).toBe('Lab 3 · Edificio B')
+      expect(updated.groupUrl).toBe('https://chat.whatsapp.com/AbC123')
+
+      const detail = repository.detail(created.id)
+      expect(detail?.comision).toBe('K2051')
+      expect(detail?.aula).toBe('Lab 3 · Edificio B')
+      expect(detail?.groupUrl).toBe('https://chat.whatsapp.com/AbC123')
+    })
   })
 
   describe('remove (cascade delete — gate-findings/slice-2a Finding 1)', () => {

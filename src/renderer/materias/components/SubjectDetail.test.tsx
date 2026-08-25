@@ -11,7 +11,10 @@ const baseSubject: SubjectDetailResult = {
   color: '#7c3aed',
   docente: 'Dra. Pérez',
   contacto: null,
+  comision: null,
+  aula: null,
   campusUrl: 'https://campus.uni.edu/course/1',
+  groupUrl: null,
   notas: 'Trae **calculadora**',
   attendanceMinPercent: 75,
   periodId: null,
@@ -52,7 +55,7 @@ describe('SubjectDetail (read-only)', () => {
         progreso={{ done: 0, total: 1 }}
         weeklyMinutes={120}
         now={new Date('2026-04-04T09:00:00')}
-        onOpenCampusUrl={vi.fn()}
+        onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
@@ -77,7 +80,7 @@ describe('SubjectDetail (read-only)', () => {
         progreso={{ done: 0, total: 1 }}
         weeklyMinutes={120}
         now={new Date('2026-04-02T09:00:00')}
-        onOpenCampusUrl={vi.fn()}
+        onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
@@ -107,7 +110,7 @@ describe('SubjectDetail (read-only)', () => {
         progreso={{ done: 1, total: 5 }}
         weeklyMinutes={120}
         now={new Date('2026-04-04T09:00:00')}
-        onOpenCampusUrl={vi.fn()}
+        onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
@@ -133,7 +136,7 @@ describe('SubjectDetail (read-only)', () => {
         nextClass={new Date('2026-03-06T09:00:00')}
         progreso={{ done: 1, total: 4 }}
         weeklyMinutes={120}
-        onOpenCampusUrl={vi.fn()}
+        onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
         onEdit={vi.fn()}
         onAddEntrega={onAddEntrega}
@@ -152,7 +155,7 @@ describe('SubjectDetail (read-only)', () => {
         nextClass={new Date('2026-03-06T09:00:00')}
         progreso={{ done: 1, total: 4 }}
         weeklyMinutes={120}
-        onOpenCampusUrl={vi.fn()}
+        onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
@@ -173,7 +176,7 @@ describe('SubjectDetail (read-only)', () => {
         nextClass={null}
         progreso={{ done: 1, total: 4 }}
         weeklyMinutes={120}
-        onOpenCampusUrl={vi.fn()}
+        onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
@@ -194,7 +197,7 @@ describe('SubjectDetail (read-only)', () => {
         nextClass={null}
         progreso={{ done: 0, total: 0 }}
         weeklyMinutes={0}
-        onOpenCampusUrl={vi.fn()}
+        onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
@@ -212,7 +215,7 @@ describe('SubjectDetail (read-only)', () => {
         nextClass={null}
         progreso={{ done: 1, total: 4 }}
         weeklyMinutes={120}
-        onOpenCampusUrl={vi.fn()}
+        onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
@@ -226,14 +229,14 @@ describe('SubjectDetail (read-only)', () => {
   })
 
   it('renders the campusUrl affordance as a BUTTON (never a raw <a href>) and forwards the click', () => {
-    const onOpenCampusUrl = vi.fn()
+    const onOpenExternalUrl = vi.fn()
     render(
       <SubjectDetail
         subject={baseSubject}
         nextClass={null}
         progreso={{ done: 1, total: 4 }}
         weeklyMinutes={120}
-        onOpenCampusUrl={onOpenCampusUrl}
+        onOpenExternalUrl={onOpenExternalUrl}
         onBack={vi.fn()}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
@@ -247,7 +250,7 @@ describe('SubjectDetail (read-only)', () => {
 
     fireEvent.click(campusButton)
 
-    expect(onOpenCampusUrl).toHaveBeenCalledWith('https://campus.uni.edu/course/1')
+    expect(onOpenExternalUrl).toHaveBeenCalledWith('https://campus.uni.edu/course/1')
   })
 
   it('renders no campus link affordance when campusUrl is absent', () => {
@@ -257,7 +260,7 @@ describe('SubjectDetail (read-only)', () => {
         nextClass={null}
         progreso={{ done: 1, total: 4 }}
         weeklyMinutes={120}
-        onOpenCampusUrl={vi.fn()}
+        onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
@@ -275,7 +278,7 @@ describe('SubjectDetail (read-only)', () => {
         nextClass={null}
         progreso={{ done: 1, total: 4 }}
         weeklyMinutes={120}
-        onOpenCampusUrl={vi.fn()}
+        onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
@@ -295,7 +298,7 @@ describe('SubjectDetail (read-only)', () => {
         nextClass={null}
         progreso={{ done: 1, total: 4 }}
         weeklyMinutes={120}
-        onOpenCampusUrl={vi.fn()}
+        onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
@@ -315,7 +318,7 @@ describe('SubjectDetail (read-only)', () => {
         nextClass={null}
         progreso={{ done: 1, total: 4 }}
         weeklyMinutes={120}
-        onOpenCampusUrl={vi.fn()}
+        onOpenExternalUrl={vi.fn()}
         onBack={onBack}
         onEdit={onEdit}
         onAddEntrega={vi.fn()}
@@ -340,7 +343,7 @@ describe('SubjectDetail (read-only)', () => {
         nextClass={null}
         progreso={{ done: 1, total: 4 }}
         weeklyMinutes={120}
-        onOpenCampusUrl={vi.fn()}
+        onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
@@ -363,7 +366,7 @@ describe('SubjectDetail (read-only)', () => {
         nextClass={null}
         progreso={{ done: 1, total: 4 }}
         weeklyMinutes={120}
-        onOpenCampusUrl={vi.fn()}
+        onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
@@ -374,5 +377,86 @@ describe('SubjectDetail (read-only)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar materia' }))
 
     expect(onCloseSubject).toHaveBeenCalledTimes(1)
+  })
+
+  // Ficha de cátedra (approved design): the CÁTEDRA card grows Comisión and
+  // Aula as plain value rows and Grupo as a second external-link row, in the
+  // exact order Docente, Contacto, Comisión, Aula, Campus, Grupo.
+  describe('Cátedra card (ficha de cátedra)', () => {
+    const fichaSubject: SubjectDetailResult = {
+      ...baseSubject,
+      contacto: 'perez@uni.edu',
+      comision: 'K2051',
+      aula: 'Lab 3 · Edificio B',
+      groupUrl: 'https://chat.whatsapp.com/AbC123'
+    }
+
+    function renderDetail(subject: SubjectDetailResult, onOpenExternalUrl = vi.fn()) {
+      render(
+        <SubjectDetail
+          subject={subject}
+          nextClass={null}
+          progreso={{ done: 1, total: 4 }}
+          weeklyMinutes={120}
+          onOpenExternalUrl={onOpenExternalUrl}
+          onBack={vi.fn()}
+          onEdit={vi.fn()}
+          onAddEntrega={vi.fn()}
+          onCloseSubject={vi.fn()}
+        />
+      )
+    }
+
+    it('renders the six rows in order: Docente, Contacto, Comisión, Aula, Campus, Grupo', () => {
+      renderDetail(fichaSubject)
+
+      const rowLabels = ['Docente', 'Contacto', 'Comisión', 'Aula', 'Campus', 'Grupo'].map((label) =>
+        screen.getByText(label)
+      )
+      for (let index = 0; index < rowLabels.length - 1; index += 1) {
+        const position = rowLabels[index]!.compareDocumentPosition(rowLabels[index + 1]!)
+        expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      }
+    })
+
+    it('renders comisión and aula as plain values', () => {
+      renderDetail(fichaSubject)
+
+      expect(screen.getByText('K2051')).toBeInTheDocument()
+      expect(screen.getByText('Lab 3 · Edificio B')).toBeInTheDocument()
+    })
+
+    it('mirrors the existing empty-field placeholder (—) for empty comisión, aula and grupo', () => {
+      renderDetail({ ...baseSubject, contacto: null, comision: null, aula: null, campusUrl: null, groupUrl: null })
+
+      // contacto + comisión + aula + campus + grupo — docente stays filled.
+      expect(screen.getAllByText('—')).toHaveLength(5)
+    })
+
+    it('renders the Grupo row as an external-link BUTTON labeled by the URL host and forwards the click', () => {
+      const onOpenExternalUrl = vi.fn()
+      renderDetail(fichaSubject, onOpenExternalUrl)
+
+      const groupButton = screen.getByRole('button', { name: 'Abrir grupo del curso' })
+      expect(groupButton.tagName).toBe('BUTTON')
+      expect(groupButton).toHaveTextContent('WhatsApp')
+      expect(document.querySelector('a[href]')).not.toBeInTheDocument()
+
+      fireEvent.click(groupButton)
+
+      expect(onOpenExternalUrl).toHaveBeenCalledWith('https://chat.whatsapp.com/AbC123')
+    })
+
+    it('falls back to the generic group label when the host is not a known chat platform', () => {
+      renderDetail({ ...fichaSubject, groupUrl: 'https://groups.google.com/g/algoritmos' })
+
+      expect(screen.getByRole('button', { name: 'Abrir grupo del curso' })).toHaveTextContent('Chat del curso')
+    })
+
+    it('renders no group link affordance when groupUrl is absent', () => {
+      renderDetail({ ...fichaSubject, groupUrl: null })
+
+      expect(screen.queryByRole('button', { name: 'Abrir grupo del curso' })).not.toBeInTheDocument()
+    })
   })
 })

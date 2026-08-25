@@ -148,7 +148,7 @@ export function SubjectDetailContainer({
         progreso={progreso}
         weeklyMinutes={weeklyMinutes}
         now={now}
-        onOpenCampusUrl={(url) => {
+        onOpenExternalUrl={(url) => {
           void appApi.openExternal(url)
         }}
         onBack={onBack}

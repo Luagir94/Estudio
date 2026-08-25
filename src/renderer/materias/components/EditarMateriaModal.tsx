@@ -1,7 +1,8 @@
 // Presentational form (design §4, node `hjivW` — verified via the Pencil
 // MCP tools): React Hook Form + Zod, 2 tabs (General + Horario), reusing
-// the shared SlotEditor from slice 2a. campusUrl/notas live HERE ONLY (spec:
-// "Subject Field Set" — "accrue later"). This is the aggregate's ONLY other
+// the shared SlotEditor from slice 2a. campusUrl/notas — and the ficha de
+// cátedra fields comisión/aula/groupUrl — live HERE ONLY (spec: "Subject
+// Field Set" — "accrue later"). This is the aggregate's ONLY other
 // write path besides create: one submit atomically replaces both the
 // general fields AND the whole slot set.
 //
@@ -76,7 +77,10 @@ export function EditarMateriaModal({
       color: subject.color,
       docente: subject.docente ?? '',
       contacto: subject.contacto ?? '',
+      comision: subject.comision ?? '',
+      aula: subject.aula ?? '',
       campusUrl: subject.campusUrl ?? '',
+      groupUrl: subject.groupUrl ?? '',
       notas: subject.notas ?? '',
       attendanceMinPercent: subject.attendanceMinPercent,
       periodId: subject.periodId,
@@ -247,9 +251,25 @@ export function EditarMateriaModal({
                 </Label>
               </div>
 
+              <div className="flex gap-4">
+                <Label className="flex-1">
+                  {t('editarMateriaModal.comision')}
+                  <Input type="text" {...register('comision')} />
+                </Label>
+                <Label className="flex-1">
+                  {t('editarMateriaModal.aula')}
+                  <Input type="text" {...register('aula')} />
+                </Label>
+              </div>
+
               <Label>
                 {t('editarMateriaModal.campusUrl')}
                 <Input type="text" {...register('campusUrl')} />
+              </Label>
+
+              <Label>
+                {t('editarMateriaModal.groupUrl')}
+                <Input type="text" {...register('groupUrl')} />
               </Label>
 
               <Label>

@@ -69,7 +69,18 @@ export const subjects = sqliteTable('subjects', {
   color: text('color').notNull(),
   docente: text('docente'),
   contacto: text('contacto'),
+  // Ficha de cátedra (comisión/aula): plain optional text, same contract as
+  // docente/contacto — the trim/cap rules live in Zod
+  // (shared/ipc/materias.ts), never in SQL CHECKs.
+  comision: text('comision'),
+  aula: text('aula'),
   campusUrl: text('campus_url'),
+  // Link to the class chat group (WhatsApp/Discord/Telegram invite). Same
+  // contract as campusUrl: stored as-is, the https-only allowlist is
+  // enforced at OPEN time in main (app/campusUrlValidator.ts), not here —
+  // the display label is derived in the renderer domain
+  // (renderer/materias/domain/groupLink.ts).
+  groupUrl: text('group_url'),
   notas: text('notas'),
   attendanceMinPercent: integer('attendance_min_percent'),
   // Nullable: subjects created before periods existed have none, and

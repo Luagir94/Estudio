@@ -17,7 +17,10 @@ export const subjectSchema = z.object({
   color: z.string().trim().min(1, 'color is required'),
   docente: z.string().trim().min(1).nullable().optional(),
   contacto: z.string().trim().min(1).nullable().optional(),
+  comision: z.string().trim().min(1).nullable().optional(),
+  aula: z.string().trim().min(1).nullable().optional(),
   campusUrl: z.string().trim().min(1).nullable().optional(),
+  groupUrl: z.string().trim().min(1).nullable().optional(),
   notas: z.string().nullable().optional(),
   attendanceMinPercent: z.number().min(0).max(100).nullable().optional()
 })

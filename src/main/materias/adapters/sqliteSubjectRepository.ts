@@ -31,7 +31,10 @@ export interface SubjectRecord {
   color: string
   docente: string | null
   contacto: string | null
+  comision: string | null
+  aula: string | null
   campusUrl: string | null
+  groupUrl: string | null
   notas: string | null
   attendanceMinPercent: number | null
   periodId: number | null
@@ -257,7 +260,10 @@ export function createSqliteSubjectRepository(db: AppDatabase): SubjectRepositor
             color: input.color,
             docente: input.docente ?? null,
             contacto: input.contacto ?? null,
+            comision: input.comision ?? null,
+            aula: input.aula ?? null,
             campusUrl: input.campusUrl ?? null,
+            groupUrl: input.groupUrl ?? null,
             notas: input.notas ?? null,
             attendanceMinPercent: input.attendanceMinPercent ?? null,
             periodId: input.periodId ?? null

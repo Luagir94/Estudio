@@ -4,8 +4,8 @@
 // the "Cerrar materia" button (`onCloseSubject`) and the ENTREGAS section
 // header's "Agregar entrega" button (`onAddEntrega`, amendment 8, design node
 // `l4Wr1F`) — plus the back link (`onBack`); every field here is otherwise
-// non-editable, and campusUrl is opened via `onOpenCampusUrl` (backed by
-// `api.app.openExternal`), never a raw `<a href>`.
+// non-editable, and campusUrl/groupUrl are opened via `onOpenExternalUrl`
+// (backed by `api.app.openExternal`), never a raw `<a href>`.
 //
 // Design is a TWO-COLUMN layout: left column = horario semanal / entregas /
 // notas, right column = próxima clase / progreso / stats / cátedra. The
@@ -21,6 +21,7 @@ import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
 // on Entregas) — one formatter, one source of truth.
 import { classifyUrgency, formatDeadlineStatus } from '../../entregas/domain/deadline'
 import type { DeadlineUrgency } from '../../entregas/domain/deadline'
+import { groupLinkLabel } from '../domain/groupLink'
 import type { SubjectDetailResult } from '../../../shared/ipc/materias'
 import { Button } from '../../shared/components/ui/button'
 import { cn } from '../../shared/lib/cn'
@@ -37,7 +38,8 @@ interface SubjectDetailProps {
   weeklyMinutes: number
   /** Reference instant for "Próxima clase" and entrega due-date formatting. Defaults to the real clock. */
   now?: Date
-  onOpenCampusUrl: (url: string) => void
+  /** Opens an external https link (Campus / Grupo rows) via main's allowlisted `shell.openExternal`. */
+  onOpenExternalUrl: (url: string) => void
   onBack: () => void
   onEdit: () => void
   /** Opens deadline creation, fixed to this subject (amendment 8 — the ONLY entry point for creating a deadline). */
@@ -104,7 +106,7 @@ export function SubjectDetail({
   progreso,
   weeklyMinutes,
   now = new Date(),
-  onOpenCampusUrl,
+  onOpenExternalUrl,
   onBack,
   onEdit,
   onAddEntrega,
@@ -375,16 +377,42 @@ export function SubjectDetail({
               <span className="text-body-sm text-secondary-foreground">{t('subjectDetail.contact')}</span>
               <span className="text-body-sm font-semibold text-foreground">{subject.contacto ?? '—'}</span>
             </div>
-            <div className="flex items-center justify-between py-3">
+            <div className="flex items-center justify-between border-b border-border py-3 last:border-b-0">
+              <span className="text-body-sm text-secondary-foreground">{t('subjectDetail.comision')}</span>
+              <span className="text-body-sm font-semibold text-foreground">{subject.comision ?? '—'}</span>
+            </div>
+            <div className="flex items-center justify-between border-b border-border py-3 last:border-b-0">
+              <span className="text-body-sm text-secondary-foreground">{t('subjectDetail.classroom')}</span>
+              <span className="text-body-sm font-semibold text-foreground">{subject.aula ?? '—'}</span>
+            </div>
+            <div className="flex items-center justify-between border-b border-border py-3 last:border-b-0">
               <span className="text-body-sm text-secondary-foreground">{t('subjectDetail.campus')}</span>
               {subject.campusUrl ? (
                 <button
                   type="button"
                   aria-label={t('subjectDetail.openCampus')}
-                  onClick={() => onOpenCampusUrl(subject.campusUrl as string)}
+                  onClick={() => onOpenExternalUrl(subject.campusUrl as string)}
                   className={cn('flex items-center gap-1 text-body-sm font-semibold text-primary-ink', interactiveLink)}
                 >
                   {t('subjectDetail.virtualClassroom')}
+                  <ExternalLink className="h-3 w-3" aria-hidden />
+                </button>
+              ) : (
+                <span className="text-body-sm font-semibold text-foreground">—</span>
+              )}
+            </div>
+            <div className="flex items-center justify-between py-3">
+              <span className="text-body-sm text-secondary-foreground">{t('subjectDetail.group')}</span>
+              {subject.groupUrl ? (
+                <button
+                  type="button"
+                  aria-label={t('subjectDetail.openGroup')}
+                  onClick={() => onOpenExternalUrl(subject.groupUrl as string)}
+                  className={cn('flex items-center gap-1 text-body-sm font-semibold text-primary-ink', interactiveLink)}
+                >
+                  {/* Brand label derived from the URL host (domain/groupLink.ts);
+                      unknown hosts fall back to the generic copy. */}
+                  {groupLinkLabel(subject.groupUrl) ?? t('subjectDetail.groupLinkFallback')}
                   <ExternalLink className="h-3 w-3" aria-hidden />
                 </button>
               ) : (

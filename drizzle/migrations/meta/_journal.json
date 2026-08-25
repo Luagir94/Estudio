@@ -78,6 +78,13 @@
       "when": 1787952000000,
       "tag": "0010_chunk_page_citations",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1787671887008,
+      "tag": "0011_hot_oracle",
+      "breakpoints": true
     }
   ]
 }

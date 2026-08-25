@@ -130,7 +130,15 @@ export const updateSubjectScheduleInputSchema = z.object({
   color: z.string().trim().min(1, 'color.required').max(200, 'color.tooLong'),
   docente: optionalTextField,
   contacto: optionalTextField,
+  // Ficha de cátedra (comisión/aula/grupo): edit-form-only like campusUrl,
+  // same optionalTextField contract as docente/contacto. groupUrl carries NO
+  // schema-level URL check ON PURPOSE — exact parity with campusUrl, whose
+  // enforced control is main's https-only allowlist at open time
+  // (app/campusUrlValidator.ts), not this payload.
+  comision: optionalTextField,
+  aula: optionalTextField,
   campusUrl: optionalTextField,
+  groupUrl: optionalTextField,
   notas: optionalNotesField,
   attendanceMinPercent: optionalAttendanceMinPercent,
   periodId: optionalPeriodId,
@@ -169,7 +177,13 @@ export const subjectRecordSchema = z.object({
   color: z.string(),
   docente: z.string().nullable(),
   contacto: z.string().nullable(),
+  /** Ficha de cátedra — commission/section code, e.g. "K2051". */
+  comision: z.string().nullable(),
+  /** Ficha de cátedra — classroom, e.g. "Lab 3 · Edificio B". */
+  aula: z.string().nullable(),
   campusUrl: z.string().nullable(),
+  /** Link to the class chat group (WhatsApp/Discord/Telegram invite). */
+  groupUrl: z.string().nullable(),
   notas: z.string().nullable(),
   attendanceMinPercent: z.number().nullable(),
   /** `null` for subjects that predate periods, or whose period was deleted. */

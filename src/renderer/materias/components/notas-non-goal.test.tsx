@@ -37,7 +37,10 @@ const subject: SubjectDetailResult = {
   color: '#7c3aed',
   docente: 'Dra. Pérez',
   contacto: null,
+  comision: null,
+  aula: null,
   campusUrl: null,
+  groupUrl: null,
   notas: 'Trae calculadora',
   attendanceMinPercent: null,
   periodId: null,
@@ -88,7 +91,7 @@ describe('notas non-goal guard (proposal risk: "Scope creep toward notes")', () 
         nextClass={null}
         progreso={{ done: 0, total: 0 }}
         weeklyMinutes={0}
-        onOpenCampusUrl={vi.fn()}
+        onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}

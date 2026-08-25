@@ -49,6 +49,7 @@ describe('adjuntosApi', () => {
         },
         finales: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
         entregas: { create: vi.fn(), list: vi.fn(), update: vi.fn(), setDone: vi.fn(), delete: vi.fn() },
+        theme: { getPreference: vi.fn(), setPreference: vi.fn() },
         app: { openExternal: vi.fn(), exportJson: vi.fn(), onExportRequested: vi.fn() },
         ask: {
           question: vi.fn(),
