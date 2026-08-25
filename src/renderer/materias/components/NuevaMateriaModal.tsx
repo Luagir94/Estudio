@@ -143,7 +143,7 @@ export function NuevaMateriaModal({
                   legend borrows Label's own classes so the row still reads as
                   one pair of fields. */}
               <fieldset className="flex flex-1 flex-col">
-                <legend className="mb-1 block text-body-lg font-medium text-secondary-foreground">
+                <legend className="mb-1 block text-label font-semibold text-secondary-foreground">
                   {t('nuevaMateriaModal.colorLegend')}
                 </legend>
                 <Controller

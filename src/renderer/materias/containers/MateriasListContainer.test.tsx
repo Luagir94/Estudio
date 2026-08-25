@@ -203,7 +203,7 @@ describe('MateriasListContainer — período picker', () => {
   it('pre-selects the active period so the usual case needs no click', async () => {
     await openCreateForm()
 
-    const select = (await screen.findByLabelText('Período')) as HTMLSelectElement
+    const select = (await screen.findByLabelText('PERÍODO')) as HTMLSelectElement
     expect(select.value).toBe('2')
   })
 
@@ -214,17 +214,17 @@ describe('MateriasListContainer — período picker', () => {
 
     await openCreateForm()
 
-    const select = (await screen.findByLabelText('Período')) as HTMLSelectElement
+    const select = (await screen.findByLabelText('PERÍODO')) as HTMLSelectElement
     expect(select.value).toBe('')
   })
 
   it('sends the chosen period with the new subject', async () => {
     await openCreateForm()
 
-    await userEvent.type(screen.getByLabelText('Nombre'), 'Derecho Penal')
-    await userEvent.type(screen.getByLabelText('Código'), 'DP-210')
+    await userEvent.type(screen.getByLabelText('NOMBRE'), 'Derecho Penal')
+    await userEvent.type(screen.getByLabelText('CÓDIGO'), 'DP-210')
     await userEvent.click(screen.getByRole('button', { name: 'Color #4C8DFF' }))
-    await userEvent.selectOptions(await screen.findByLabelText('Período'), '2')
+    await userEvent.selectOptions(await screen.findByLabelText('PERÍODO'), '2')
     await userEvent.click(screen.getByRole('button', { name: 'Agregar horario' }))
     await userEvent.click(screen.getByRole('button', { name: 'Crear materia' }))
 
@@ -239,7 +239,7 @@ describe('MateriasListContainer — período picker', () => {
   it('offers no way to create a subject without a period', async () => {
     await openCreateForm()
 
-    await screen.findByLabelText('Período')
+    await screen.findByLabelText('PERÍODO')
 
     expect(screen.queryByRole('option', { name: 'Sin período' })).not.toBeInTheDocument()
   })
@@ -250,7 +250,7 @@ describe('MateriasListContainer — período picker', () => {
     await openCreateForm()
 
     expect(await screen.findByText('Todavía no tenés ningún período cargado')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Nombre')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('NOMBRE')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Crear materia' })).not.toBeInTheDocument()
   })
 

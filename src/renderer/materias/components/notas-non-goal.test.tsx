@@ -79,7 +79,7 @@ describe('notas non-goal guard (proposal risk: "Scope creep toward notes")', () 
     assertNoAttachmentOrSearchAffordance(container)
 
     expect(
-      screen.getByLabelText('Notas').tagName,
+      screen.getByLabelText('NOTAS').tagName,
       'notas Field Cap violated: "Notas" is no longer a plain <textarea>. Rich text is Out of Scope.'
     ).toBe('TEXTAREA')
   })

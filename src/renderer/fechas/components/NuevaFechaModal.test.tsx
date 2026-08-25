@@ -18,7 +18,7 @@ describe('NuevaFechaModal (approved design: "Nueva fecha administrativa")', () =
   it('offers the four kinds with their Spanish labels', () => {
     render(<NuevaFechaModal programId={2} programName="Abogacía" onSubmit={vi.fn()} onClose={vi.fn()} />)
 
-    const kind = screen.getByLabelText('Tipo')
+    const kind = screen.getByLabelText('TIPO')
 
     expect(Array.from(kind.querySelectorAll('option')).map((option) => option.textContent)).toEqual([
       'Inscripción a finales',
@@ -32,16 +32,16 @@ describe('NuevaFechaModal (approved design: "Nueva fecha administrativa")', () =
     render(<NuevaFechaModal programId={2} programName="Abogacía" onSubmit={vi.fn()} onClose={vi.fn()} />)
 
     expect(screen.getByText(/Clasifica la fecha/)).toBeInTheDocument()
-    expect(screen.getByText(/Sin fecha de fin, es de un solo día/)).toBeInTheDocument()
+    expect(screen.getByText(/Sin HASTA, la fecha es de un solo día/)).toBeInTheDocument()
   })
 
   it('submits the filled window, carrying the programId it was opened for', async () => {
     const onSubmit = vi.fn()
     render(<NuevaFechaModal programId={2} programName="Abogacía" onSubmit={onSubmit} onClose={vi.fn()} />)
 
-    await userEvent.type(screen.getByLabelText('Título'), 'Inscripción a finales — Diciembre')
-    await userEvent.type(screen.getByLabelText('Desde'), '2026-12-01')
-    await userEvent.type(screen.getByLabelText('Hasta (opcional)'), '2026-12-05')
+    await userEvent.type(screen.getByLabelText('TÍTULO'), 'Inscripción a finales — Diciembre')
+    await userEvent.type(screen.getByLabelText('DESDE'), '2026-12-01')
+    await userEvent.type(screen.getByLabelText('HASTA (OPCIONAL)'), '2026-12-05')
     await userEvent.click(screen.getByRole('button', { name: 'Crear fecha' }))
 
     await waitFor(() =>
@@ -59,8 +59,8 @@ describe('NuevaFechaModal (approved design: "Nueva fecha administrativa")', () =
     const onSubmit = vi.fn()
     render(<NuevaFechaModal programId={2} programName="Abogacía" onSubmit={onSubmit} onClose={vi.fn()} />)
 
-    await userEvent.type(screen.getByLabelText('Título'), 'Vencimiento de regularidad')
-    await userEvent.type(screen.getByLabelText('Desde'), '2026-12-20')
+    await userEvent.type(screen.getByLabelText('TÍTULO'), 'Vencimiento de regularidad')
+    await userEvent.type(screen.getByLabelText('DESDE'), '2026-12-20')
     await userEvent.click(screen.getByRole('button', { name: 'Crear fecha' }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ endsOn: null })))
@@ -70,9 +70,9 @@ describe('NuevaFechaModal (approved design: "Nueva fecha administrativa")', () =
     const onSubmit = vi.fn()
     render(<NuevaFechaModal programId={2} programName="Abogacía" onSubmit={onSubmit} onClose={vi.fn()} />)
 
-    await userEvent.type(screen.getByLabelText('Título'), 'Inscripción')
-    await userEvent.type(screen.getByLabelText('Desde'), '2026-12-05')
-    await userEvent.type(screen.getByLabelText('Hasta (opcional)'), '2026-12-01')
+    await userEvent.type(screen.getByLabelText('TÍTULO'), 'Inscripción')
+    await userEvent.type(screen.getByLabelText('DESDE'), '2026-12-05')
+    await userEvent.type(screen.getByLabelText('HASTA (OPCIONAL)'), '2026-12-01')
     await userEvent.click(screen.getByRole('button', { name: 'Crear fecha' }))
 
     expect(await screen.findByText('La fecha de fin no puede ser anterior a la de inicio')).toBeInTheDocument()
@@ -82,7 +82,7 @@ describe('NuevaFechaModal (approved design: "Nueva fecha administrativa")', () =
   it('refuses an empty title with the app own copy, not a machine key', async () => {
     render(<NuevaFechaModal programId={2} programName="Abogacía" onSubmit={vi.fn()} onClose={vi.fn()} />)
 
-    await userEvent.type(screen.getByLabelText('Desde'), '2026-12-01')
+    await userEvent.type(screen.getByLabelText('DESDE'), '2026-12-01')
     await userEvent.click(screen.getByRole('button', { name: 'Crear fecha' }))
 
     expect(await screen.findByText('Poné un título')).toBeInTheDocument()
@@ -101,9 +101,9 @@ describe('NuevaFechaModal (approved design: "Nueva fecha administrativa")', () =
         />
       )
 
-      expect(screen.getByLabelText('Título')).toHaveValue('Inscripción a finales — Diciembre')
-      expect(screen.getByLabelText('Desde')).toHaveValue('2026-12-01')
-      expect(screen.getByLabelText('Hasta (opcional)')).toHaveValue('2026-12-05')
+      expect(screen.getByLabelText('TÍTULO')).toHaveValue('Inscripción a finales — Diciembre')
+      expect(screen.getByLabelText('DESDE')).toHaveValue('2026-12-01')
+      expect(screen.getByLabelText('HASTA (OPCIONAL)')).toHaveValue('2026-12-05')
 
       await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 

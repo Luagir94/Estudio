@@ -62,8 +62,8 @@ describe('FechasCardContainer', () => {
     await screen.findByText('Inscripción a finales')
 
     await userEvent.click(screen.getByRole('button', { name: 'Agregar fecha' }))
-    await userEvent.type(screen.getByLabelText('Título'), 'Vencimiento de regularidad')
-    await userEvent.type(screen.getByLabelText('Desde'), '2026-12-20')
+    await userEvent.type(screen.getByLabelText('TÍTULO'), 'Vencimiento de regularidad')
+    await userEvent.type(screen.getByLabelText('DESDE'), '2026-12-20')
     await userEvent.click(screen.getByRole('button', { name: 'Crear fecha' }))
 
     await waitFor(() =>
@@ -82,8 +82,8 @@ describe('FechasCardContainer', () => {
     renderCard()
 
     await userEvent.click(await screen.findByRole('button', { name: /Inscripción a finales/ }))
-    await userEvent.clear(screen.getByLabelText('Título'))
-    await userEvent.type(screen.getByLabelText('Título'), 'Inscripción a finales — Diciembre')
+    await userEvent.clear(screen.getByLabelText('TÍTULO'))
+    await userEvent.type(screen.getByLabelText('TÍTULO'), 'Inscripción a finales — Diciembre')
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     await waitFor(() =>
@@ -107,7 +107,7 @@ describe('FechasCardContainer', () => {
     expect(fechasApiMock.delete).not.toHaveBeenCalled()
     // The confirmation REPLACES the form (same rule as EditarCarreraModal), so
     // the shared label is never ambiguous on screen.
-    expect(screen.queryByLabelText('Título')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('TÍTULO')).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Eliminar fecha' }))
 
@@ -123,8 +123,8 @@ describe('FechasCardContainer', () => {
     await screen.findByText('Inscripción a finales')
 
     await userEvent.click(screen.getByRole('button', { name: 'Agregar fecha' }))
-    await userEvent.type(screen.getByLabelText('Título'), 'X')
-    await userEvent.type(screen.getByLabelText('Desde'), '2026-12-20')
+    await userEvent.type(screen.getByLabelText('TÍTULO'), 'X')
+    await userEvent.type(screen.getByLabelText('DESDE'), '2026-12-20')
     await userEvent.click(screen.getByRole('button', { name: 'Crear fecha' }))
 
     expect(await screen.findByText('No se pudo completar la creación. Probá de nuevo.')).toBeInTheDocument()

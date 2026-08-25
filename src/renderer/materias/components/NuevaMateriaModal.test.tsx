@@ -42,8 +42,8 @@ describe('NuevaMateriaModal', () => {
       />
     )
 
-    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Algoritmos' } })
-    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ALG-101' } })
+    fireEvent.change(screen.getByLabelText('NOMBRE'), { target: { value: 'Algoritmos' } })
+    fireEvent.change(screen.getByLabelText('CÓDIGO'), { target: { value: 'ALG-101' } })
     fireEvent.click(screen.getByRole('button', { name: 'Color #22D3EE' }))
     // docente/contacto left blank on purpose (spec: "Create subject with
     // only required fields")
@@ -68,7 +68,7 @@ describe('NuevaMateriaModal', () => {
       />
     )
 
-    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ALG-101' } })
+    fireEvent.change(screen.getByLabelText('CÓDIGO'), { target: { value: 'ALG-101' } })
     fireEvent.click(screen.getByRole('button', { name: 'Color #22D3EE' }))
     fireEvent.click(screen.getByRole('button', { name: 'Crear materia' }))
 

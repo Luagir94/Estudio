@@ -31,12 +31,12 @@
   "nuevaInstanciaModal": {
     "dialogLabel": "Nueva mesa de final",
     "title": "Nueva mesa de final",
-    "labelField": "Nombre de la mesa",
+    "labelField": "NOMBRE DE LA MESA",
     "labelPlaceholder": "3ra mesa — Turno diciembre",
-    "date": "Fecha",
+    "date": "FECHA",
     "optionalBadge": "opcional",
     "dateHint": "Dejala vacía si la institución todavía no publicó el calendario. La cargás después y listo.",
-    "result": "Resultado",
+    "result": "RESULTADO",
     "resultOptions": {
       "pendiente": "Pendiente",
       "aprobado": "Aprobado",
@@ -49,7 +49,7 @@
   "aprobarFinalModal": {
     "dialogLabel": "Aprobar final",
     "title": "Aprobar final",
-    "gradeLabel": "Nota (0 a {{scale}}) · opcional",
+    "gradeLabel": "NOTA (0 A {{scale}}) · OPCIONAL",
     "gradeNotANumber": "La nota tiene que ser un número entre 0 y {{scale}}.",
     "infoNote": "La nota queda en la mesa aprobada y entra al promedio de la carrera. Si la dejás vacía, la materia queda Aprobada sin nota.",
     "footerNote": "Podés cambiarla después",

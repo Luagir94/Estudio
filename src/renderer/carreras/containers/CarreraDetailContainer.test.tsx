@@ -136,9 +136,9 @@ describe('CarreraDetailContainer', () => {
     renderDetail()
     await openModal()
 
-    await userEvent.selectOptions(screen.getByLabelText('Nombre'), '2do cuatrimestre')
-    await userEvent.type(screen.getByLabelText('Desde'), '2026-08-12')
-    await userEvent.type(screen.getByLabelText('Hasta'), '2026-12-04')
+    await userEvent.selectOptions(screen.getByLabelText('NOMBRE'), '2do cuatrimestre')
+    await userEvent.type(screen.getByLabelText('DESDE'), '2026-08-12')
+    await userEvent.type(screen.getByLabelText('HASTA'), '2026-12-04')
     await userEvent.click(screen.getByRole('button', { name: 'Crear período' }))
 
     await waitFor(() => {
@@ -158,7 +158,7 @@ describe('CarreraDetailContainer', () => {
     expect(screen.getByRole('option', { name: '2do cuatrimestre' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: '3er cuatrimestre' })).not.toBeInTheDocument()
 
-    await userEvent.selectOptions(screen.getByLabelText('Tipo'), 'bimestre')
+    await userEvent.selectOptions(screen.getByLabelText('TIPO'), 'bimestre')
 
     expect(await screen.findByRole('option', { name: '4to bimestre' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: '2do cuatrimestre' })).not.toBeInTheDocument()
@@ -169,19 +169,19 @@ describe('CarreraDetailContainer', () => {
     renderDetail()
     await openModal()
 
-    await userEvent.selectOptions(screen.getByLabelText('Nombre'), '2do cuatrimestre')
-    await userEvent.selectOptions(screen.getByLabelText('Tipo'), 'anual')
+    await userEvent.selectOptions(screen.getByLabelText('NOMBRE'), '2do cuatrimestre')
+    await userEvent.selectOptions(screen.getByLabelText('TIPO'), 'anual')
 
-    expect(screen.getByLabelText('Nombre')).toHaveValue('')
+    expect(screen.getByLabelText('NOMBRE')).toHaveValue('')
   })
 
   it('creates an open-ended period when the end date is waived', async () => {
     renderDetail()
     await openModal()
 
-    await userEvent.selectOptions(screen.getByLabelText('Tipo'), 'curso')
-    await userEvent.selectOptions(screen.getByLabelText('Nombre'), 'Curso')
-    await userEvent.type(screen.getByLabelText('Desde'), '2026-09-01')
+    await userEvent.selectOptions(screen.getByLabelText('TIPO'), 'curso')
+    await userEvent.selectOptions(screen.getByLabelText('NOMBRE'), 'Curso')
+    await userEvent.type(screen.getByLabelText('DESDE'), '2026-09-01')
     await userEvent.click(screen.getByRole('checkbox', { name: /Sin fecha de fin/ }))
     await userEvent.click(screen.getByRole('button', { name: 'Crear período' }))
 
@@ -198,10 +198,10 @@ describe('CarreraDetailContainer', () => {
     renderDetail()
     await openModal()
 
-    await userEvent.selectOptions(screen.getByLabelText('Tipo'), 'curso')
-    await userEvent.selectOptions(screen.getByLabelText('Nombre'), 'Curso')
-    await userEvent.type(screen.getByLabelText('Desde'), '2026-09-01')
-    await userEvent.type(screen.getByLabelText('Hasta'), '2026-11-30')
+    await userEvent.selectOptions(screen.getByLabelText('TIPO'), 'curso')
+    await userEvent.selectOptions(screen.getByLabelText('NOMBRE'), 'Curso')
+    await userEvent.type(screen.getByLabelText('DESDE'), '2026-09-01')
+    await userEvent.type(screen.getByLabelText('HASTA'), '2026-11-30')
     await userEvent.click(screen.getByRole('button', { name: 'Crear período' }))
 
     await waitFor(() => {
@@ -217,7 +217,7 @@ describe('CarreraDetailContainer', () => {
 
     expect(screen.queryByLabelText('Año')).not.toBeInTheDocument()
 
-    await userEvent.type(screen.getByLabelText('Desde'), '2026-08-12')
+    await userEvent.type(screen.getByLabelText('DESDE'), '2026-08-12')
 
     expect(await screen.findByText('Año 2026')).toBeInTheDocument()
   })
@@ -226,8 +226,8 @@ describe('CarreraDetailContainer', () => {
     renderDetail()
     await openModal()
 
-    await userEvent.type(screen.getByLabelText('Desde'), '2026-11-03')
-    await userEvent.type(screen.getByLabelText('Hasta'), '2027-03-15')
+    await userEvent.type(screen.getByLabelText('DESDE'), '2026-11-03')
+    await userEvent.type(screen.getByLabelText('HASTA'), '2027-03-15')
 
     expect(await screen.findByText('Año 2026')).toBeInTheDocument()
   })
@@ -238,10 +238,10 @@ describe('CarreraDetailContainer', () => {
     renderDetail()
     await openModal()
 
-    await userEvent.selectOptions(screen.getByLabelText('Tipo'), 'anual')
-    await userEvent.selectOptions(screen.getByLabelText('Nombre'), 'Anual')
-    await userEvent.type(screen.getByLabelText('Desde'), '2026-04-01')
-    await userEvent.type(screen.getByLabelText('Hasta'), '2026-06-01')
+    await userEvent.selectOptions(screen.getByLabelText('TIPO'), 'anual')
+    await userEvent.selectOptions(screen.getByLabelText('NOMBRE'), 'Anual')
+    await userEvent.type(screen.getByLabelText('DESDE'), '2026-04-01')
+    await userEvent.type(screen.getByLabelText('HASTA'), '2026-06-01')
 
     expect(await screen.findByText(/Se solapa con/)).toBeInTheDocument()
 
@@ -256,7 +256,7 @@ describe('CarreraDetailContainer', () => {
     renderDetail()
     await openModal()
 
-    await userEvent.type(screen.getByLabelText('Desde'), '2026-08-12')
+    await userEvent.type(screen.getByLabelText('DESDE'), '2026-08-12')
     await userEvent.click(screen.getByRole('button', { name: 'Crear período' }))
 
     await waitFor(() => {
@@ -269,9 +269,9 @@ describe('CarreraDetailContainer', () => {
     renderDetail()
     await openModal()
 
-    await userEvent.selectOptions(screen.getByLabelText('Nombre'), '1er cuatrimestre')
-    await userEvent.type(screen.getByLabelText('Desde'), '2026-08-12')
-    await userEvent.type(screen.getByLabelText('Hasta'), '2026-08-11')
+    await userEvent.selectOptions(screen.getByLabelText('NOMBRE'), '1er cuatrimestre')
+    await userEvent.type(screen.getByLabelText('DESDE'), '2026-08-12')
+    await userEvent.type(screen.getByLabelText('HASTA'), '2026-08-11')
     await userEvent.click(screen.getByRole('button', { name: 'Crear período' }))
 
     await waitFor(() => {
@@ -332,17 +332,17 @@ describe('CarreraDetailContainer — editar y eliminar períodos', () => {
   it('opens the period already filled in', async () => {
     await openEditModal()
 
-    expect(screen.getByLabelText('Nombre')).toHaveValue('1er cuatrimestre')
-    expect(screen.getByLabelText('Tipo')).toHaveValue('cuatrimestre')
-    expect(screen.getByLabelText('Desde')).toHaveValue('2026-03-09')
-    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-07-18')
+    expect(screen.getByLabelText('NOMBRE')).toHaveValue('1er cuatrimestre')
+    expect(screen.getByLabelText('TIPO')).toHaveValue('cuatrimestre')
+    expect(screen.getByLabelText('DESDE')).toHaveValue('2026-03-09')
+    expect(screen.getByLabelText('HASTA')).toHaveValue('2026-07-18')
   })
 
   it('saves the corrected dates without the programId — a period does not change carrera', async () => {
     await openEditModal()
 
-    await userEvent.clear(screen.getByLabelText('Desde'))
-    await userEvent.type(screen.getByLabelText('Desde'), '2026-03-16')
+    await userEvent.clear(screen.getByLabelText('DESDE'))
+    await userEvent.type(screen.getByLabelText('DESDE'), '2026-03-16')
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     await waitFor(() => {
@@ -402,8 +402,8 @@ describe('CarreraDetailContainer — editar y eliminar períodos', () => {
   it('opens a pre-catalogue period empty rather than guessing its tipo', async () => {
     await openLegacyEditModal()
 
-    expect(screen.getByLabelText('Tipo')).toHaveValue('')
-    expect(screen.getByLabelText('Nombre')).toHaveValue('')
+    expect(screen.getByLabelText('TIPO')).toHaveValue('')
+    expect(screen.getByLabelText('NOMBRE')).toHaveValue('')
     expect(screen.getByText(/se guardó como/i)).toHaveTextContent('Clases de inglés')
   })
 
@@ -432,8 +432,8 @@ describe('CarreraDetailContainer — editar y eliminar períodos', () => {
     })
     await openLegacyEditModal()
 
-    await userEvent.selectOptions(screen.getByLabelText('Tipo'), 'curso')
-    await userEvent.selectOptions(screen.getByLabelText('Nombre'), 'Curso')
+    await userEvent.selectOptions(screen.getByLabelText('TIPO'), 'curso')
+    await userEvent.selectOptions(screen.getByLabelText('NOMBRE'), 'Curso')
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     await waitFor(() => {
@@ -867,15 +867,15 @@ describe('CarreraDetailContainer — editar carrera', () => {
   it('opens the carrera already filled in', async () => {
     await openEditModal()
 
-    expect(screen.getByLabelText('Nombre')).toHaveValue('Abogacía')
-    expect(screen.getByLabelText('Institución')).toHaveValue('Universidad de Buenos Aires')
+    expect(screen.getByLabelText('NOMBRE')).toHaveValue('Abogacía')
+    expect(screen.getByLabelText('INSTITUCIÓN')).toHaveValue('Universidad de Buenos Aires')
   })
 
   it('saves the corrected fields with the id', async () => {
     await openEditModal()
 
-    await userEvent.clear(screen.getByLabelText('Nombre'))
-    await userEvent.type(screen.getByLabelText('Nombre'), 'Abogacía (UBA)')
+    await userEvent.clear(screen.getByLabelText('NOMBRE'))
+    await userEvent.type(screen.getByLabelText('NOMBRE'), 'Abogacía (UBA)')
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     await waitFor(() => {
@@ -898,7 +898,7 @@ describe('CarreraDetailContainer — editar carrera', () => {
   it('does not submit a carrera with no name', async () => {
     await openEditModal()
 
-    await userEvent.clear(screen.getByLabelText('Nombre'))
+    await userEvent.clear(screen.getByLabelText('NOMBRE'))
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     await waitFor(() => {
@@ -928,7 +928,7 @@ describe('CarreraDetailContainer — editar carrera', () => {
 
     expect(screen.getByText(/no se puede cambiar/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Aprobado / Desaprobado' })).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Escala')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('ESCALA')).not.toBeInTheDocument()
   })
 
   // Nothing recorded means nothing to reinterpret — a carrera created with the
@@ -1002,15 +1002,15 @@ describe('CarreraDetailContainer — nueva materia', () => {
   it('pre-selects the active period of this carrera', async () => {
     await openSubjectModal()
 
-    const select = (await screen.findByLabelText('Período')) as HTMLSelectElement
+    const select = (await screen.findByLabelText('PERÍODO')) as HTMLSelectElement
     expect(select.value).toBe('2')
   })
 
   it('creates the subject in the chosen period', async () => {
     await openSubjectModal()
 
-    await userEvent.type(screen.getByLabelText('Nombre'), 'Derecho Penal')
-    await userEvent.type(screen.getByLabelText('Código'), 'DP-210')
+    await userEvent.type(screen.getByLabelText('NOMBRE'), 'Derecho Penal')
+    await userEvent.type(screen.getByLabelText('CÓDIGO'), 'DP-210')
     await userEvent.click(screen.getByRole('button', { name: 'Color #4C8DFF' }))
     await userEvent.click(screen.getByRole('button', { name: 'Agregar horario' }))
     await userEvent.click(screen.getByRole('button', { name: 'Crear materia' }))
@@ -1025,8 +1025,8 @@ describe('CarreraDetailContainer — nueva materia', () => {
   it('closes the form once the subject is created', async () => {
     await openSubjectModal()
 
-    await userEvent.type(screen.getByLabelText('Nombre'), 'Derecho Penal')
-    await userEvent.type(screen.getByLabelText('Código'), 'DP-210')
+    await userEvent.type(screen.getByLabelText('NOMBRE'), 'Derecho Penal')
+    await userEvent.type(screen.getByLabelText('CÓDIGO'), 'DP-210')
     await userEvent.click(screen.getByRole('button', { name: 'Color #4C8DFF' }))
     await userEvent.click(screen.getByRole('button', { name: 'Agregar horario' }))
     await userEvent.click(screen.getByRole('button', { name: 'Crear materia' }))
@@ -1042,7 +1042,7 @@ describe('CarreraDetailContainer — nueva materia', () => {
     await openSubjectModal()
 
     expect(await screen.findByText('Todavía no tenés ningún período cargado')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Nombre')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('NOMBRE')).not.toBeInTheDocument()
   })
 })
 

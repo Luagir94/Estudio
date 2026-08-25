@@ -31,15 +31,15 @@ describe('EditarMateriaModal', () => {
   it('renders the General tab by default, pre-filled from the subject', () => {
     render(<EditarMateriaModal subject={subject} onSubmit={vi.fn()} onClose={vi.fn()} />)
 
-    expect(screen.getByLabelText('Nombre')).toHaveValue('Algoritmos')
-    expect(screen.getByLabelText('Docente')).toHaveValue('Dra. Pérez')
+    expect(screen.getByLabelText('NOMBRE')).toHaveValue('Algoritmos')
+    expect(screen.getByLabelText('DOCENTE')).toHaveValue('Dra. Pérez')
   })
 
   it('exposes campusUrl and notas fields — edit-form-only per spec "Subject Field Set"', () => {
     render(<EditarMateriaModal subject={subject} onSubmit={vi.fn()} onClose={vi.fn()} />)
 
-    expect(screen.getByLabelText('Campus virtual (URL)')).toBeInTheDocument()
-    expect(screen.getByLabelText('Notas')).toBeInTheDocument()
+    expect(screen.getByLabelText('CAMPUS VIRTUAL (URL)')).toBeInTheDocument()
+    expect(screen.getByLabelText('NOTAS')).toBeInTheDocument()
   })
 
   // Ficha de cátedra: Comisión/Aula land right after the Docente/Contacto
@@ -48,18 +48,18 @@ describe('EditarMateriaModal', () => {
   it('exposes comisión, aula and grupo fields pre-filled from the subject', () => {
     render(<EditarMateriaModal subject={subject} onSubmit={vi.fn()} onClose={vi.fn()} />)
 
-    expect(screen.getByLabelText('Comisión')).toHaveValue('K2051')
-    expect(screen.getByLabelText('Aula')).toHaveValue('')
-    expect(screen.getByLabelText('Grupo (WhatsApp / Discord)')).toHaveValue('')
+    expect(screen.getByLabelText('COMISIÓN')).toHaveValue('K2051')
+    expect(screen.getByLabelText('AULA')).toHaveValue('')
+    expect(screen.getByLabelText('GRUPO (WHATSAPP / DISCORD)')).toHaveValue('')
   })
 
   it('submits the edited comisión, aula and grupo values', async () => {
     const onSubmit = vi.fn()
     render(<EditarMateriaModal subject={subject} onSubmit={onSubmit} onClose={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('Comisión'), { target: { value: 'K2052' } })
-    fireEvent.change(screen.getByLabelText('Aula'), { target: { value: 'Lab 3 · Edificio B' } })
-    fireEvent.change(screen.getByLabelText('Grupo (WhatsApp / Discord)'), {
+    fireEvent.change(screen.getByLabelText('COMISIÓN'), { target: { value: 'K2052' } })
+    fireEvent.change(screen.getByLabelText('AULA'), { target: { value: 'Lab 3 · Edificio B' } })
+    fireEvent.change(screen.getByLabelText('GRUPO (WHATSAPP / DISCORD)'), {
       target: { value: 'https://chat.whatsapp.com/AbC123' }
     })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
@@ -80,7 +80,7 @@ describe('EditarMateriaModal', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Horario' }))
 
-    expect(screen.getByLabelText('Hora de inicio')).toHaveValue('10:00')
+    expect(screen.getByLabelText('HORA DE INICIO')).toHaveValue('10:00')
   })
 
   it('submitting without changes preserves every field (spec: "Partial edit update")', async () => {
@@ -107,7 +107,7 @@ describe('EditarMateriaModal', () => {
     const onSubmit = vi.fn()
     render(<EditarMateriaModal subject={subject} onSubmit={onSubmit} onClose={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('Notas'), { target: { value: 'Trae calculadora' } })
+    fireEvent.change(screen.getByLabelText('NOTAS'), { target: { value: 'Trae calculadora' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
@@ -124,7 +124,7 @@ describe('EditarMateriaModal', () => {
   it('blocks submit and shows a validation error when name is cleared', async () => {
     render(<EditarMateriaModal subject={subject} onSubmit={vi.fn()} onClose={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('NOMBRE'), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     expect(await screen.findByText('Poné un nombre')).toBeInTheDocument()
@@ -146,6 +146,6 @@ describe('EditarMateriaModal', () => {
     render(<EditarMateriaModal subject={subject} onSubmit={vi.fn()} onClose={vi.fn()} initialTab="horario" />)
 
     expect(screen.getByRole('tab', { name: 'Horario' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByLabelText('Hora de inicio')).toHaveValue('10:00')
+    expect(screen.getByLabelText('HORA DE INICIO')).toHaveValue('10:00')
   })
 })

@@ -4,8 +4,10 @@
 // trap (focus moves in on mount, Tab/Shift+Tab wrap, focus returns to the
 // opener on unmount). Consumers keep supplying their own `aria-label`.
 //
-// Design's modal pattern (verified against `A1dN7`/`hjivW` via the Pencil
-// MCP tools): dialog over a `#05050899` scrim, 14px-radius panel, a header
+// Design's modal pattern (verified against every `Modal` frame in the .pen via
+// the Pencil MCP tools): dialog over a `#05050899` scrim, 12px-radius panel
+// (`rounded-xl`; all 18 modal frames agree, and 14px is not a step in the
+// design's 4/6/8/12 radius set — an earlier note here said 14px), a header
 // section (title block + close `x` icon) with a bottom hairline, a padded
 // body, and a footer section with a top hairline on the canvas-tint `$bg`
 // (not the panel's `$surface`) — each section owns its own padding, there

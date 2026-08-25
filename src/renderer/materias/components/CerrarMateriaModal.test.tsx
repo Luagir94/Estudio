@@ -104,7 +104,7 @@ describe('CerrarMateriaModal — undecided subject starts with nothing selected'
     renderModal()
 
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
-    expect(screen.queryByLabelText(/Nota/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/NOTA/)).not.toBeInTheDocument()
     expect(screen.getByText(NEUTRAL_PROMPT)).toBeInTheDocument()
   })
 
@@ -187,7 +187,7 @@ describe('CerrarMateriaModal — reopen option', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Reabrir/ }))
 
-    expect(screen.queryByLabelText(/Nota/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/NOTA/)).not.toBeInTheDocument()
   })
 
   it('submits outcome null and grade null', () => {

@@ -23,7 +23,7 @@
     "saveChanges": "Guardar cambios"
   },
   "fields": {
-    "name": "Nombre"
+    "name": "NOMBRE"
   },
   "sidebar": {
     "appTitle": "Mi Cursada",
@@ -47,10 +47,10 @@
     "localStorage": "Guardado local"
   },
   "slotEditor": {
-    "day": "Día",
-    "startTime": "Hora de inicio",
-    "endTime": "Hora de fin",
-    "location": "Lugar",
+    "day": "DÍA",
+    "startTime": "HORA DE INICIO",
+    "endTime": "HORA DE FIN",
+    "location": "LUGAR",
     "removeSlot": "Quitar horario",
     "addSlot": "Agregar horario"
   },

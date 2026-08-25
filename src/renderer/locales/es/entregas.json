@@ -46,9 +46,9 @@
     "createSubmit": "Agregar entrega",
     "editTitle": "Editar entrega",
     "editSubtitle": "Corregí los datos y guardá los cambios",
-    "titleField": "Título",
-    "type": "Tipo",
-    "dueAt": "Fecha límite"
+    "titleField": "TÍTULO",
+    "type": "TIPO",
+    "dueAt": "FECHA LÍMITE"
   },
   "deleteDeadlineConfirmDialog": {
     "dialogLabel": "Eliminar {{title}}",

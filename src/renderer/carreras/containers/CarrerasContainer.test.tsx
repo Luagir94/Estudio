@@ -70,7 +70,7 @@ describe('CarrerasContainer', () => {
     await screen.findByText('Abogacía')
 
     await userEvent.click(screen.getByRole('button', { name: 'Agregar carrera' }))
-    await userEvent.type(screen.getByLabelText('Nombre'), 'Medicina')
+    await userEvent.type(screen.getByLabelText('NOMBRE'), 'Medicina')
     await userEvent.click(screen.getByRole('button', { name: 'Crear carrera' }))
 
     // TanStack Query calls the mutationFn with (variables, context), so the
@@ -87,7 +87,7 @@ describe('CarrerasContainer', () => {
     await screen.findByText('Abogacía')
 
     await userEvent.click(screen.getByRole('button', { name: 'Agregar carrera' }))
-    await userEvent.type(screen.getByLabelText('Nombre'), 'Curso de Bartender')
+    await userEvent.type(screen.getByLabelText('NOMBRE'), 'Curso de Bartender')
     await userEvent.click(screen.getByRole('button', { name: 'Aprobado / Desaprobado' }))
     await userEvent.click(screen.getByRole('button', { name: 'Crear carrera' }))
 
@@ -103,11 +103,11 @@ describe('CarrerasContainer', () => {
     await screen.findByText('Abogacía')
 
     await userEvent.click(screen.getByRole('button', { name: 'Agregar carrera' }))
-    expect(screen.getByLabelText('Escala')).toBeInTheDocument()
+    expect(screen.getByLabelText('ESCALA')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Aprobado / Desaprobado' }))
 
-    expect(screen.queryByLabelText('Escala')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('ESCALA')).not.toBeInTheDocument()
   })
 
   it('does not submit a program with no name', async () => {
@@ -128,7 +128,7 @@ describe('CarrerasContainer', () => {
     await screen.findByText('Abogacía')
 
     await userEvent.click(screen.getByRole('button', { name: 'Agregar carrera' }))
-    await userEvent.type(screen.getByLabelText('Nombre'), 'Medicina')
+    await userEvent.type(screen.getByLabelText('NOMBRE'), 'Medicina')
     await userEvent.click(screen.getByRole('button', { name: 'Crear carrera' }))
 
     await waitFor(() => {

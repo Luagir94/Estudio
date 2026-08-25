@@ -222,16 +222,16 @@ describe('PeriodDetailContainer — editar el período', () => {
   it('opens the period already filled in', async () => {
     await openEditModal()
 
-    expect(screen.getByLabelText('Tipo')).toHaveValue('cuatrimestre')
-    expect(screen.getByLabelText('Nombre')).toHaveValue('2do cuatrimestre')
-    expect(screen.getByLabelText('Desde')).toHaveValue('2026-08-12')
+    expect(screen.getByLabelText('TIPO')).toHaveValue('cuatrimestre')
+    expect(screen.getByLabelText('NOMBRE')).toHaveValue('2do cuatrimestre')
+    expect(screen.getByLabelText('DESDE')).toHaveValue('2026-08-12')
   })
 
   it('saves the corrected dates without the programId — a period does not change carrera', async () => {
     await openEditModal()
 
-    await userEvent.clear(screen.getByLabelText('Desde'))
-    await userEvent.type(screen.getByLabelText('Desde'), '2026-08-17')
+    await userEvent.clear(screen.getByLabelText('DESDE'))
+    await userEvent.type(screen.getByLabelText('DESDE'), '2026-08-17')
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     await waitFor(() => {
@@ -281,7 +281,7 @@ describe('PeriodDetailContainer — nueva materia', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Agregar materia' }))
 
-    const select = (await screen.findByLabelText('Período')) as HTMLSelectElement
+    const select = (await screen.findByLabelText('PERÍODO')) as HTMLSelectElement
     expect(select.value).toBe('2')
   })
 
@@ -290,8 +290,8 @@ describe('PeriodDetailContainer — nueva materia', () => {
     await screen.findByRole('heading', { name: '2do cuatrimestre' })
     await userEvent.click(screen.getByRole('button', { name: 'Agregar materia' }))
 
-    await userEvent.type(await screen.findByLabelText('Nombre'), 'Derecho Civil')
-    await userEvent.type(screen.getByLabelText('Código'), 'DC-210')
+    await userEvent.type(await screen.findByLabelText('NOMBRE'), 'Derecho Civil')
+    await userEvent.type(screen.getByLabelText('CÓDIGO'), 'DC-210')
     await userEvent.click(screen.getByRole('button', { name: 'Color #4C8DFF' }))
     await userEvent.click(screen.getByRole('button', { name: 'Agregar horario' }))
     await userEvent.click(screen.getByRole('button', { name: 'Crear materia' }))

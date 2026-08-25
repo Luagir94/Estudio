@@ -16,9 +16,9 @@ describe('NuevaEntregaModal (design node HE9Wn — reused for create AND edit, s
 
     expect(screen.getByRole('dialog', { name: 'Nueva entrega' })).toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'TP 2 — Scheduler' } })
-    fireEvent.change(screen.getByLabelText('Tipo'), { target: { value: 'Trabajo práctico' } })
-    fireEvent.change(screen.getByLabelText('Fecha límite'), { target: { value: '2027-08-18T23:59' } })
+    fireEvent.change(screen.getByLabelText('TÍTULO'), { target: { value: 'TP 2 — Scheduler' } })
+    fireEvent.change(screen.getByLabelText('TIPO'), { target: { value: 'Trabajo práctico' } })
+    fireEvent.change(screen.getByLabelText('FECHA LÍMITE'), { target: { value: '2027-08-18T23:59' } })
     fireEvent.click(screen.getByRole('button', { name: 'Agregar entrega' }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
@@ -61,8 +61,8 @@ describe('NuevaEntregaModal (design node HE9Wn — reused for create AND edit, s
 
     expect(screen.getByRole('dialog', { name: 'Editar entrega' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Título')).toHaveValue('TP 2 — Scheduler')
-    expect(screen.getByLabelText('Fecha límite')).toHaveValue('2027-08-18T23:59')
+    expect(screen.getByLabelText('TÍTULO')).toHaveValue('TP 2 — Scheduler')
+    expect(screen.getByLabelText('FECHA LÍMITE')).toHaveValue('2027-08-18T23:59')
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 

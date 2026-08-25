@@ -40,7 +40,7 @@ describe('AprobarFinalModal', () => {
   it('submits the typed nota as a number', () => {
     const handlers = renderModal()
 
-    fireEvent.change(screen.getByLabelText(/Nota \(0 a 10\)/), { target: { value: '8' } })
+    fireEvent.change(screen.getByLabelText(/NOTA \(0 A 10\)/), { target: { value: '8' } })
     fireEvent.click(screen.getByRole('button', { name: 'Marcar aprobado' }))
 
     expect(handlers.onSubmit).toHaveBeenCalledWith(8)
@@ -59,7 +59,7 @@ describe('AprobarFinalModal', () => {
   it('pre-fills the nota already recorded on the mesa', () => {
     renderModal({ result: 'aprobado', grade: 7.5 })
 
-    expect(screen.getByLabelText(/Nota \(0 a 10\)/)).toHaveValue(7.5)
+    expect(screen.getByLabelText(/NOTA \(0 A 10\)/)).toHaveValue(7.5)
   })
 
   // Same dual-call pattern as CerrarMateriaModal: the shared validateGrade
@@ -68,7 +68,7 @@ describe('AprobarFinalModal', () => {
   it('rejects a nota over the scale with the app copy and blocks the submit', () => {
     const handlers = renderModal()
 
-    fireEvent.change(screen.getByLabelText(/Nota \(0 a 10\)/), { target: { value: '11' } })
+    fireEvent.change(screen.getByLabelText(/NOTA \(0 A 10\)/), { target: { value: '11' } })
 
     expect(screen.getByText('La nota tiene que ser un número entre 0 y 10.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Marcar aprobado' })).toBeDisabled()

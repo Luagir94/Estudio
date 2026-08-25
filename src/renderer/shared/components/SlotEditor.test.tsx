@@ -15,7 +15,7 @@ describe('SlotEditor', () => {
       />
     )
 
-    const startInputs = screen.getAllByLabelText('Hora de inicio')
+    const startInputs = screen.getAllByLabelText('HORA DE INICIO')
     expect(startInputs).toHaveLength(2)
     expect(startInputs[0]).toHaveValue('10:00')
     expect(startInputs[1]).toHaveValue('08:00')
@@ -38,7 +38,7 @@ describe('SlotEditor', () => {
       <SlotEditor value={[{ dayOfWeek: 1, startMinutes: 600, endMinutes: 660, location: null }]} onChange={onChange} />
     )
 
-    fireEvent.change(screen.getByLabelText('Hora de inicio'), { target: { value: '09:30' } })
+    fireEvent.change(screen.getByLabelText('HORA DE INICIO'), { target: { value: '09:30' } })
 
     expect(onChange).toHaveBeenCalledWith([{ dayOfWeek: 1, startMinutes: 570, endMinutes: 660, location: null }])
   })

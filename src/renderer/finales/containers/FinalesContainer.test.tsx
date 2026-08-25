@@ -140,7 +140,7 @@ describe('FinalesContainer', () => {
   }
 
   async function submitNewInstance(dialog: HTMLElement): Promise<void> {
-    fireEvent.change(within(dialog).getByLabelText('Nombre de la mesa'), { target: { value: '3ra mesa' } })
+    fireEvent.change(within(dialog).getByLabelText('NOMBRE DE LA MESA'), { target: { value: '3ra mesa' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Agregar mesa' }))
     await waitFor(() => expect(finalesApi.create).toHaveBeenCalled())
   }
@@ -259,7 +259,7 @@ describe('FinalesContainer — aprobar con nota', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Aprobado' }))
     const dialog = screen.getByRole('dialog', { name: 'Aprobar final' })
-    fireEvent.change(within(dialog).getByLabelText(/Nota \(0 a 10\)/), { target: { value: '8' } })
+    fireEvent.change(within(dialog).getByLabelText(/NOTA \(0 A 10\)/), { target: { value: '8' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Marcar aprobado' }))
 
     await waitFor(() =>
@@ -298,7 +298,7 @@ describe('FinalesContainer — aprobar con nota', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Aprobado · 8' }))
 
     const dialog = screen.getByRole('dialog', { name: 'Aprobar final' })
-    expect(within(dialog).getByLabelText(/Nota \(0 a 10\)/)).toHaveValue(8)
+    expect(within(dialog).getByLabelText(/NOTA \(0 A 10\)/)).toHaveValue(8)
   })
 
   it('cancelling the modal fires nothing', () => {

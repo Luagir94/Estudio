@@ -339,7 +339,7 @@ describe('SubjectDetailContainer', () => {
       // Nothing is pre-selected on an undecided subject — the outcome is an
       // explicit click, and only then does the nota field appear.
       fireEvent.click(screen.getByRole('button', { name: /Aprobada/ }))
-      fireEvent.change(screen.getByLabelText(/Nota/), { target: { value: '7' } })
+      fireEvent.change(screen.getByLabelText(/NOTA/), { target: { value: '7' } })
       fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
       await waitFor(() => {
@@ -370,7 +370,7 @@ describe('SubjectDetailContainer', () => {
       await openCloseForm({ ...sampleDetail, program: numericProgram })
 
       fireEvent.click(screen.getByRole('button', { name: /Reprobada/ }))
-      fireEvent.change(screen.getByLabelText(/Nota/), { target: { value: '3' } })
+      fireEvent.change(screen.getByLabelText(/NOTA/), { target: { value: '3' } })
       fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
       await waitFor(() => {
@@ -398,14 +398,14 @@ describe('SubjectDetailContainer', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /Final pendiente/ }))
 
-      expect(screen.queryByLabelText(/Nota/)).not.toBeInTheDocument()
+      expect(screen.queryByLabelText(/NOTA/)).not.toBeInTheDocument()
     })
 
     it('refuses a grade above the program scale', async () => {
       await openCloseForm({ ...sampleDetail, program: numericProgram })
 
       fireEvent.click(screen.getByRole('button', { name: /Aprobada/ }))
-      fireEvent.change(screen.getByLabelText(/Nota/), { target: { value: '11' } })
+      fireEvent.change(screen.getByLabelText(/NOTA/), { target: { value: '11' } })
 
       expect(await screen.findByText('La nota tiene que ser un número entre 0 y 10.')).toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
@@ -422,7 +422,7 @@ describe('SubjectDetailContainer', () => {
       // the choose-first prompt, so the no-grade explainer needs a selection.
       fireEvent.click(screen.getByRole('button', { name: /Aprobada/ }))
 
-      expect(screen.queryByLabelText(/Nota/)).not.toBeInTheDocument()
+      expect(screen.queryByLabelText(/NOTA/)).not.toBeInTheDocument()
       expect(screen.getByText(/no lleva nota/)).toBeInTheDocument()
     })
 
