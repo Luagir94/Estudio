@@ -123,6 +123,16 @@
         "hint": "Solo vos podés marcar esto — la app nunca lo hace sola."
       }
     },
+    "reopenOption": {
+      "label": "Reabrir — sigue en curso",
+      "hint": "Borra el cierre y vuelve a Cursando (o Sin cerrar si el período ya terminó)."
+    },
+    "selectOutcomePrompt": "Elegí cómo terminó la cursada para poder guardar.",
+    "reopenErasesClosureAndGrade": "La materia está cerrada como {{outcome}} · {{grade}}. Reabrirla borra ese cierre y su nota.",
+    "reopenErasesClosure": "La materia está cerrada como {{outcome}}. Reabrirla borra ese cierre.",
+    "reopenFromFinalPendiente": "La materia está en Final pendiente. Reabrirla la vuelve a En curso; las mesas cargadas se conservan por si volvés a Final pendiente.",
+    "replacesCurrentClosure": "Reemplaza el cierre actual: {{outcome}}",
+    "replacesCurrentClosureWithGrade": "Reemplaza el cierre actual: {{outcome}} · {{grade}}",
     "gradeNotANumber": "La nota tiene que ser un número entre 0 y {{scale}}.",
     "gradeLabel": "Nota (0 a {{scale}}) · opcional",
     "failGradeNote": "Cargala solo si tu institución registra la nota del aplazo: cuenta en el promedio con aplazos, no en el otro.",

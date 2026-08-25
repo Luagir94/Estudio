@@ -42,10 +42,23 @@ interface CerrarMateriaModalProps {
 // `cerrarMateriaModal.outcomes.<value>` — this only fixes the order.
 const OUTCOME_VALUES: SubjectOutcome[] = ['aprobada', 'finalPendiente', 'reprobada']
 
+// What the option list can hold: the three closures, plus "Reabrir" once
+// there is a recorded outcome to undo (it submits outcome null).
+type OutcomeSelection = SubjectOutcome | 'reopen'
+
 export function CerrarMateriaModal({ subject, onSubmit, onClose }: CerrarMateriaModalProps): React.JSX.Element {
   const { t } = useTranslation('materias')
-  const [outcome, setOutcome] = useState<SubjectOutcome>(subject.outcome ?? 'aprobada')
+  // Seeded from the STORED outcome only. An undecided subject used to open
+  // with "aprobada" pre-selected — one click from wrongly closing it — so
+  // now nothing is selected until the student says how it actually ended,
+  // and Guardar stays disabled until then.
+  const [outcome, setOutcome] = useState<OutcomeSelection | null>(subject.outcome)
   const [grade, setGrade] = useState(subject.grade === null ? '' : String(subject.grade))
+
+  // "Reabrir" exists only once there IS a closure to erase, and renders
+  // FIRST so the escape hatch is never buried under the three closures. It
+  // must not appear on an undecided subject — there is nothing to undo.
+  const optionValues: OutcomeSelection[] = subject.outcome === null ? OUTCOME_VALUES : ['reopen', ...OUTCOME_VALUES]
 
   const isNumeric = subject.program?.gradingScheme === 'numerico'
   // A grade needs a SETTLED result under a numeric program — and an aplazo is
@@ -80,8 +93,37 @@ export function CerrarMateriaModal({ subject, onSubmit, onClose }: CerrarMateria
         })()
       : null
 
+  // The messages under the form share ONE note area, most consequential
+  // first: choose-first prompt (nothing selected yet), the warn-styled
+  // erasures (reopen / stored-nota loss — these two are mutually exclusive
+  // by selection), the replace-existing notice, then the no-grade explainer.
+  const outcomeLabel = subject.outcome === null ? null : t(`cerrarMateriaModal.outcomes.${subject.outcome}.label`)
+
+  const reopenWarning =
+    outcome === 'reopen' && subject.outcome !== null
+      ? subject.outcome === 'finalPendiente'
+        ? t('cerrarMateriaModal.reopenFromFinalPendiente')
+        : subject.grade === null
+          ? t('cerrarMateriaModal.reopenErasesClosure', { outcome: outcomeLabel })
+          : t('cerrarMateriaModal.reopenErasesClosureAndGrade', { outcome: outcomeLabel, grade: subject.grade })
+      : null
+
+  // Overwriting a recorded closure is legal (`setOutcome` always overwrites)
+  // but must never be silent: a DIFFERENT non-reopen selection names what is
+  // about to be replaced. Re-selecting the current outcome replaces nothing.
+  const replaceNotice =
+    subject.outcome !== null && outcome !== null && outcome !== 'reopen' && outcome !== subject.outcome
+      ? subject.grade === null
+        ? t('cerrarMateriaModal.replacesCurrentClosure', { outcome: outcomeLabel })
+        : t('cerrarMateriaModal.replacesCurrentClosureWithGrade', { outcome: outcomeLabel, grade: subject.grade })
+      : null
+
   const submit = (): void => {
-    if (gradeError !== null) {
+    if (outcome === null || gradeError !== null) {
+      return
+    }
+    if (outcome === 'reopen') {
+      onSubmit({ id: subject.id, outcome: null, grade: null })
       return
     }
     onSubmit({ id: subject.id, outcome, grade: showsGrade ? parsedGrade : null })
@@ -103,7 +145,7 @@ export function CerrarMateriaModal({ subject, onSubmit, onClose }: CerrarMateria
               {t('cerrarMateriaModal.howItEndedLegend')}
             </legend>
             <div className="flex flex-col gap-2">
-              {OUTCOME_VALUES.map((value) => (
+              {optionValues.map((value) => (
                 <button
                   key={value}
                   type="button"
@@ -117,10 +159,14 @@ export function CerrarMateriaModal({ subject, onSubmit, onClose }: CerrarMateria
                   )}
                 >
                   <strong className="text-body font-semibold text-foreground">
-                    {t(`cerrarMateriaModal.outcomes.${value}.label`)}
+                    {value === 'reopen'
+                      ? t('cerrarMateriaModal.reopenOption.label')
+                      : t(`cerrarMateriaModal.outcomes.${value}.label`)}
                   </strong>
                   <span className="text-caption text-muted-foreground">
-                    {t(`cerrarMateriaModal.outcomes.${value}.hint`)}
+                    {value === 'reopen'
+                      ? t('cerrarMateriaModal.reopenOption.hint')
+                      : t(`cerrarMateriaModal.outcomes.${value}.hint`)}
                   </span>
                 </button>
               ))}
@@ -146,23 +192,33 @@ export function CerrarMateriaModal({ subject, onSubmit, onClose }: CerrarMateria
           )}
           {gradeError && <p className="text-body-lg text-destructive">{gradeError}</p>}
 
-          {showsErasureWarning && (
+          {outcome === null ? (
+            <div className="flex items-start gap-3 rounded-lg border border-border bg-muted px-4 py-3">
+              <Info className="mt-px h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <p className="text-body-sm leading-relaxed text-secondary-foreground">
+                {t('cerrarMateriaModal.selectOutcomePrompt')}
+              </p>
+            </div>
+          ) : reopenWarning !== null || showsErasureWarning ? (
             <div className="flex items-start gap-3 rounded-lg border border-warn bg-warn-soft px-4 py-3">
               <TriangleAlert className="mt-px h-4 w-4 shrink-0 text-warn" aria-hidden="true" />
               <p className="text-body-sm leading-relaxed text-secondary-foreground">
-                {t('cerrarMateriaModal.finalPendienteErasesGrade', { grade: subject.grade })}
+                {reopenWarning ?? t('cerrarMateriaModal.finalPendienteErasesGrade', { grade: subject.grade })}
               </p>
             </div>
-          )}
-
-          {!isNumeric && (
+          ) : replaceNotice !== null ? (
+            <div className="flex items-start gap-3 rounded-lg border border-primary bg-sidebar-accent px-4 py-3">
+              <Info className="mt-px h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
+              <p className="text-body-sm leading-relaxed text-secondary-foreground">{replaceNotice}</p>
+            </div>
+          ) : !isNumeric ? (
             <div className="flex items-start gap-3 rounded-lg bg-muted px-4 py-3">
               <Info className="mt-px h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
               <p className="text-body-sm leading-relaxed text-secondary-foreground">
                 {subject.program ? t('cerrarMateriaModal.binaryNoGrade') : t('cerrarMateriaModal.noProgramNoGrade')}
               </p>
             </div>
-          )}
+          ) : null}
         </DialogBody>
 
         <DialogFooter>
@@ -171,7 +227,7 @@ export function CerrarMateriaModal({ subject, onSubmit, onClose }: CerrarMateria
             <Button type="button" variant="outline" onClick={onClose}>
               {t('common:actions.cancel')}
             </Button>
-            <Button type="button" onClick={submit} disabled={gradeError !== null}>
+            <Button type="button" onClick={submit} disabled={outcome === null || gradeError !== null}>
               {t('common:actions.saveChanges')}
             </Button>
           </div>

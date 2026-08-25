@@ -381,6 +381,19 @@ describe('createSqliteSubjectRepository — period, outcome and grade', () => {
     })
   })
 
+  // Reopening: the form's "Reabrir" option submits outcome null — the row
+  // must drop BOTH the decision and its grade, or a later close would
+  // resurrect a stale nota.
+  it('setOutcome with outcome null clears the stored decision and its grade', () => {
+    const subject = createSubject(numericPeriodId)
+    repository.setOutcome({ id: subject.id, outcome: 'aprobada', grade: 8 })
+
+    expect(repository.setOutcome({ id: subject.id, outcome: null, grade: null })).toMatchObject({
+      outcome: null,
+      grade: null
+    })
+  })
+
   // The rule lives in shared/domain/grading.ts — main enforces the same one
   // the form applies, so a hand-crafted payload cannot get past it.
   it('setOutcome refuses a grade above the program scale', () => {

@@ -333,6 +333,9 @@ describe('SubjectDetailContainer', () => {
     it('records "aprobada" with its grade and closes the form', async () => {
       await openCloseForm({ ...sampleDetail, program: numericProgram })
 
+      // Nothing is pre-selected on an undecided subject — the outcome is an
+      // explicit click, and only then does the nota field appear.
+      fireEvent.click(screen.getByRole('button', { name: /Aprobada/ }))
       fireEvent.change(screen.getByLabelText(/Nota/), { target: { value: '7' } })
       fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
@@ -398,6 +401,7 @@ describe('SubjectDetailContainer', () => {
     it('refuses a grade above the program scale', async () => {
       await openCloseForm({ ...sampleDetail, program: numericProgram })
 
+      fireEvent.click(screen.getByRole('button', { name: /Aprobada/ }))
       fireEvent.change(screen.getByLabelText(/Nota/), { target: { value: '11' } })
 
       expect(await screen.findByText('La nota tiene que ser un número entre 0 y 10.')).toBeInTheDocument()
@@ -411,8 +415,26 @@ describe('SubjectDetailContainer', () => {
         program: { id: 2, name: 'Curso de Bartender', gradingScheme: 'binario', gradeScale: null }
       })
 
+      // The note area holds ONE message: until an outcome is picked it shows
+      // the choose-first prompt, so the no-grade explainer needs a selection.
+      fireEvent.click(screen.getByRole('button', { name: /Aprobada/ }))
+
       expect(screen.queryByLabelText(/Nota/)).not.toBeInTheDocument()
       expect(screen.getByText(/no lleva nota/)).toBeInTheDocument()
+    })
+
+    // The reopen flow rides the SAME form and the SAME mutation: "Reabrir"
+    // submits outcome null, and the repository clears outcome and grade.
+    it('reopens a decided subject — Reabrir submits outcome null and grade null', async () => {
+      await openCloseForm({ ...sampleDetail, program: numericProgram, outcome: 'aprobada', grade: 7 })
+
+      fireEvent.click(screen.getByRole('button', { name: /Reabrir/ }))
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+      await waitFor(() => {
+        expect(vi.mocked(materiasApi.setOutcome).mock.calls[0]?.[0]).toEqual({ id: 1, outcome: null, grade: null })
+      })
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Cerrar materia' })).not.toBeInTheDocument())
     })
   })
 
