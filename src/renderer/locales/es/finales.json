@@ -59,6 +59,10 @@
     "dialogLabel": "Dar por reprobada {{name}}",
     "confirmQuestion": "¿Dar por reprobada \"{{name}}\"? La materia queda marcada como reprobada.",
     "reversibleHint": "No es definitivo: después podés abrir \"Cerrar materia\" de nuevo y elegir otro resultado.",
+    "gradeLabel": "APLAZO (0 A {{scale}}) · OPCIONAL",
+    "gradeNotANumber": "La nota tiene que ser un número entre 0 y {{scale}}.",
+    "infoNote": "El aplazo cuenta en el promedio con aplazos. Si lo dejás vacío, la materia queda Reprobada sin nota.",
+    "footerNote": "Podés cambiarlo después",
     "confirm": "Darla por reprobada"
   }
 }

@@ -354,3 +354,77 @@ describe('FinalesContainer — aprobar con nota', () => {
     )
   })
 })
+
+// Giving up under a 'numerico' program may carry the aplazo: the confirm
+// dialog's optional field replaces the old hardcoded grade null, so the
+// number the student actually got can reach the promedio con aplazos.
+describe('FinalesContainer — dar por reprobada con aplazo', () => {
+  const numericProgram: SubjectProgram = { id: 1, name: 'Abogacía', gradingScheme: 'numerico', gradeScale: 10 }
+  const binaryProgram: SubjectProgram = { id: 2, name: 'Curso', gradingScheme: 'binario', gradeScale: null }
+
+  beforeEach(() => {
+    // reset, not clear: earlier describes install rejected/never-resolving
+    // implementations on these shared module mocks.
+    vi.resetAllMocks()
+    vi.mocked(materiasApi.setOutcome).mockResolvedValue({
+      id: 5,
+      name: 'Algoritmos',
+      code: 'ALG-101',
+      color: '#7c3aed',
+      docente: null,
+      contacto: null,
+      campusUrl: null,
+      notas: null,
+      attendanceMinPercent: null,
+      periodId: null,
+      outcome: 'reprobada',
+      grade: null,
+      slots: [],
+      period: null,
+      program: null,
+      finals: [],
+      pendingDeadlines: 0
+    })
+  })
+
+  function openGiveUpDialog(program: SubjectProgram | null): HTMLElement {
+    renderWithClient(
+      <FinalesContainer subjectId={5} subjectName="Algoritmos" program={program} finals={allFailedFinals} />
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Darla por reprobada' }))
+    return screen.getByRole('dialog', { name: 'Dar por reprobada Algoritmos' })
+  }
+
+  it('sends the typed aplazo to setOutcome under a numeric program', async () => {
+    const dialog = openGiveUpDialog(numericProgram)
+
+    fireEvent.change(within(dialog).getByLabelText(/APLAZO \(0 A 10\)/), { target: { value: '2' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Darla por reprobada' }))
+
+    await waitFor(() => {
+      expect(vi.mocked(materiasApi.setOutcome).mock.calls[0]?.[0]).toEqual({ id: 5, outcome: 'reprobada', grade: 2 })
+    })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('sends grade null when the aplazo is left empty', async () => {
+    const dialog = openGiveUpDialog(numericProgram)
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Darla por reprobada' }))
+
+    await waitFor(() => {
+      expect(vi.mocked(materiasApi.setOutcome).mock.calls[0]?.[0]).toEqual({ id: 5, outcome: 'reprobada', grade: null })
+    })
+  })
+
+  it('offers no aplazo field and sends grade null under a pass/fail program', async () => {
+    const dialog = openGiveUpDialog(binaryProgram)
+
+    expect(within(dialog).queryByLabelText(/APLAZO/)).not.toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Darla por reprobada' }))
+
+    await waitFor(() => {
+      expect(vi.mocked(materiasApi.setOutcome).mock.calls[0]?.[0]).toEqual({ id: 5, outcome: 'reprobada', grade: null })
+    })
+  })
+})

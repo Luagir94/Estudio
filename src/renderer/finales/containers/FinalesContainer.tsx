@@ -142,9 +142,10 @@ export function FinalesContainer({
       {isGiveUpOpen && (
         <GiveUpConfirmDialog
           subjectName={subjectName}
+          program={program}
           error={describeIpcError(giveUpMutation.error)}
           pending={giveUpMutation.isPending}
-          onConfirm={() => giveUpMutation.mutate({ id: subjectId, outcome: 'reprobada', grade: null })}
+          onConfirm={(grade) => giveUpMutation.mutate({ id: subjectId, outcome: 'reprobada', grade })}
           onCancel={() => setIsGiveUpOpen(false)}
         />
       )}

@@ -10,7 +10,7 @@
 // cerrar" banner, which only rendered once a período had ENDED — so a
 // promoción could not be recorded during the cursada, and because
 // `finalPendiente` is set here, the finales section was unreachable too.
-import { Info } from 'lucide-react'
+import { Info, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { validateGrade } from '../../../shared/domain/grading'
@@ -57,6 +57,13 @@ export function CerrarMateriaModal({ subject, onSubmit, onClose }: CerrarMateria
   // so there is no number to record.
   const showsGrade = isNumeric && (outcome === 'aprobada' || outcome === 'reprobada')
   const parsedGrade = grade.trim() === '' ? null : Number(grade)
+
+  // Moving a GRADED subject to `finalPendiente` erases its stored nota on
+  // purpose (`submit` sends grade null and the repository writes it — the
+  // definitive result will come from the mesas de final). That stays; what
+  // must not stay is the silence, so the note area turns into a warning
+  // naming the nota about to go.
+  const showsErasureWarning = subject.grade !== null && outcome === 'finalPendiente'
 
   const gradeError =
     showsGrade && parsedGrade !== null && subject.program
@@ -138,6 +145,15 @@ export function CerrarMateriaModal({ subject, onSubmit, onClose }: CerrarMateria
             </div>
           )}
           {gradeError && <p className="text-body-lg text-destructive">{gradeError}</p>}
+
+          {showsErasureWarning && (
+            <div className="flex items-start gap-3 rounded-lg border border-warn bg-warn-soft px-4 py-3">
+              <TriangleAlert className="mt-px h-4 w-4 shrink-0 text-warn" aria-hidden="true" />
+              <p className="text-body-sm leading-relaxed text-secondary-foreground">
+                {t('cerrarMateriaModal.finalPendienteErasesGrade', { grade: subject.grade })}
+              </p>
+            </div>
+          )}
 
           {!isNumeric && (
             <div className="flex items-start gap-3 rounded-lg bg-muted px-4 py-3">
