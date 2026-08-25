@@ -1,0 +1,1 @@
+ALTER TABLE `final_exams` ADD `grade` real;

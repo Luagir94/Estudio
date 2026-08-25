@@ -5,6 +5,7 @@ import {
   createProgram,
   formatAverage,
   hasRecordedEvaluations,
+  resolveEffectiveGrade,
   validateGrade
 } from './program'
 
@@ -273,5 +274,22 @@ describe('hasRecordedEvaluations', () => {
         { grade: null, outcome: null, hasApprovedFinal: false }
       ])
     ).toBe(true)
+  })
+})
+
+// Which grade actually counts for the promedios: a subject closed with its
+// own nota keeps it, and a subject passed via final falls back to the nota
+// recorded on its approved mesa.
+describe('resolveEffectiveGrade', () => {
+  it('prefers the subject own nota over the approved final one', () => {
+    expect(resolveEffectiveGrade({ grade: 8, approvedFinalGrade: 6 })).toBe(8)
+  })
+
+  it('falls back to the approved final nota when the subject has none', () => {
+    expect(resolveEffectiveGrade({ grade: null, approvedFinalGrade: 9 })).toBe(9)
+  })
+
+  it('reads null when neither carries a nota', () => {
+    expect(resolveEffectiveGrade({ grade: null, approvedFinalGrade: null })).toBeNull()
   })
 })

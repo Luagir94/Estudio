@@ -232,7 +232,13 @@ export const finalExamRecordSchema = z.object({
   label: z.string(),
   /** `null` on purpose — you can record a mesa before its date is published. */
   takenOn: z.string().nullable(),
-  result: finalExamResultSchema
+  result: finalExamResultSchema,
+  /**
+   * The nota of an APPROVED mesa under a `numerico` program. `null` on every
+   * other result, on "aprobada sin nota", and always under `binario` — the
+   * write rule lives in main's final-exam repository.
+   */
+  grade: z.number().nullable()
 })
 
 export type FinalExamRecord = z.infer<typeof finalExamRecordSchema>

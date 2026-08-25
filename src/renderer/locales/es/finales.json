@@ -20,6 +20,7 @@
       "aprobado": "Aprobado",
       "reprobado": "Reprobado"
     },
+    "approvedWithGrade": "Aprobado · {{grade}}",
     "deleteInstance": "Borrar {{label}}",
     "failedAll_one": "Reprobaste la mesa y no queda ninguna abierta",
     "failedAll_other": "Reprobaste las {{count}} mesas y no queda ninguna abierta",
@@ -44,6 +45,15 @@
     "standbyNote": "Al guardarla, la materia vuelve a final pendiente esperando esta mesa. No se pisa ningún resultado anterior.",
     "footerNote": "Podés cargar todas las mesas que necesites",
     "submit": "Agregar mesa"
+  },
+  "aprobarFinalModal": {
+    "dialogLabel": "Aprobar final",
+    "title": "Aprobar final",
+    "gradeLabel": "Nota (0 a {{scale}}) · opcional",
+    "gradeNotANumber": "La nota tiene que ser un número entre 0 y {{scale}}.",
+    "infoNote": "La nota queda en la mesa aprobada y entra al promedio de la carrera. Si la dejás vacía, la materia queda Aprobada sin nota.",
+    "footerNote": "Podés cambiarla después",
+    "submit": "Marcar aprobado"
   },
   "giveUpConfirmDialog": {
     "dialogLabel": "Dar por reprobada {{name}}",

@@ -124,7 +124,9 @@ describe('createSqliteProgramRepository', () => {
     const listed = repository.list()
 
     expect(listed[0]!.subjectCount).toBe(1)
-    expect(listed[0]!.gradedSubjects).toEqual([{ grade: 8, outcome: 'aprobada', hasApprovedFinal: false }])
+    expect(listed[0]!.gradedSubjects).toEqual([
+      { grade: 8, outcome: 'aprobada', hasApprovedFinal: false, approvedFinalGrade: null }
+    ])
   })
 
   it('leaves a subject with no period out of every program', () => {
@@ -154,8 +156,89 @@ describe('createSqliteProgramRepository', () => {
     db.insert(finalExams).values({ subjectId: subject.id, label: '2da', result: 'aprobado' }).run()
 
     expect(repository.list()[0]!.gradedSubjects).toEqual([
-      { grade: null, outcome: 'finalPendiente', hasApprovedFinal: true }
+      { grade: null, outcome: 'finalPendiente', hasApprovedFinal: true, approvedFinalGrade: null }
     ])
+  })
+
+  // The nota of a subject passed via final lives on the approved mesa
+  // (final_exams.grade) — it rides along here as a FACT so the renderer can
+  // feed it into the promedio without main deciding which grade counts.
+  describe('approvedFinalGrade', () => {
+    function seedSubject(db: ReturnType<typeof createTestDb>) {
+      const repository = createSqliteProgramRepository(db)
+      const program = repository.create(abogacia)
+      const period = repository.createPeriod({
+        programId: program.id,
+        name: '1er 2026',
+        kind: 'cuatrimestre',
+        startsOn: '2026-03-09',
+        endsOn: '2026-07-18'
+      })
+      const subject = db
+        .insert(subjects)
+        .values({ name: 'Teoría', code: 'TE-1', color: '#fff', periodId: period.id, outcome: 'finalPendiente' })
+        .returning()
+        .get()
+      return { repository, subject }
+    }
+
+    it('surfaces the nota of the approved instance', () => {
+      const { repository, subject } = seedSubject(db)
+      db.insert(finalExams).values({ subjectId: subject.id, label: '1ra', result: 'aprobado', grade: 8 }).run()
+
+      expect(repository.list()[0]!.gradedSubjects).toEqual([
+        { grade: null, outcome: 'finalPendiente', hasApprovedFinal: true, approvedFinalGrade: 8 }
+      ])
+    })
+
+    it('reads null while the approved instance carries no nota', () => {
+      const { repository, subject } = seedSubject(db)
+      db.insert(finalExams).values({ subjectId: subject.id, label: '1ra', result: 'aprobado', grade: null }).run()
+
+      expect(repository.list()[0]!.gradedSubjects[0]).toMatchObject({
+        hasApprovedFinal: true,
+        approvedFinalGrade: null
+      })
+    })
+
+    // Several 'aprobado' rows should not happen through the UI, but nothing
+    // in the schema forbids them — the pick has to be deterministic, not
+    // whichever row the query happened to return first.
+    it('picks the latest-dated approved instance when several exist', () => {
+      const { repository, subject } = seedSubject(db)
+      db.insert(finalExams)
+        .values({ subjectId: subject.id, label: 'vieja', takenOn: '2026-03-05', result: 'aprobado', grade: 6 })
+        .run()
+      db.insert(finalExams)
+        .values({ subjectId: subject.id, label: 'nueva', takenOn: '2026-08-05', result: 'aprobado', grade: 9 })
+        .run()
+
+      expect(repository.list()[0]!.gradedSubjects[0]!.approvedFinalGrade).toBe(9)
+    })
+
+    it('ranks an undated approved instance below any dated one', () => {
+      const { repository, subject } = seedSubject(db)
+      db.insert(finalExams)
+        .values({ subjectId: subject.id, label: 'sin fecha', takenOn: null, result: 'aprobado', grade: 4 })
+        .run()
+      db.insert(finalExams)
+        .values({ subjectId: subject.id, label: 'con fecha', takenOn: '2026-03-05', result: 'aprobado', grade: 7 })
+        .run()
+
+      expect(repository.list()[0]!.gradedSubjects[0]!.approvedFinalGrade).toBe(7)
+    })
+
+    it('breaks a date tie toward the highest id', () => {
+      const { repository, subject } = seedSubject(db)
+      db.insert(finalExams)
+        .values({ subjectId: subject.id, label: 'primera', takenOn: null, result: 'aprobado', grade: 6 })
+        .run()
+      db.insert(finalExams)
+        .values({ subjectId: subject.id, label: 'segunda', takenOn: null, result: 'aprobado', grade: 9 })
+        .run()
+
+      expect(repository.list()[0]!.gradedSubjects[0]!.approvedFinalGrade).toBe(9)
+    })
   })
 
   it('updatePeriod corrects the name, kind and dates', () => {

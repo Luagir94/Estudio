@@ -122,6 +122,24 @@ export function hasRecordedEvaluations(
   return subjects.some((subject) => subject.grade !== null || subject.outcome !== null || subject.hasApprovedFinal)
 }
 
+/**
+ * The grade that counts for the promedios. The subject's own nota wins — it
+ * is the student's explicit record (materias:setOutcome) — and the nota on
+ * the approved final instance fills in when the subject was passed via final
+ * and never graded directly (the CerrarMateriaModal offers no nota field for
+ * `finalPendiente`; the number lives on the approved mesa instead).
+ *
+ * Main ships both numbers as facts (`gradedSubjectSchema`); WHICH one counts
+ * is this rule, and it lives here so every promedio surface answers the same
+ * way.
+ */
+export function resolveEffectiveGrade(subject: {
+  grade: number | null
+  approvedFinalGrade: number | null
+}): number | null {
+  return subject.grade ?? subject.approvedFinalGrade
+}
+
 export interface ProgramAverage {
   /** Average over every graded subject. `null` when nothing is graded. */
   withFailed: number | null

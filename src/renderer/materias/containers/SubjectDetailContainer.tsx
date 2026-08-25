@@ -162,7 +162,7 @@ export function SubjectDetailContainer({
           is nothing to record, and showing an empty mesa list on a subject
           still being cursada would invite noise. */}
       {data.outcome === 'finalPendiente' && (
-        <FinalesContainer subjectId={subjectId} subjectName={data.name} finals={data.finals} />
+        <FinalesContainer subjectId={subjectId} subjectName={data.name} program={data.program} finals={data.finals} />
       )}
 
       {isCloseOpen && (

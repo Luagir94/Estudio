@@ -195,7 +195,14 @@ export type SubjectOutcome = z.infer<typeof subjectOutcomeSchema>
 export const gradedSubjectSchema = z.object({
   grade: z.number().nullable(),
   outcome: subjectOutcomeSchema.nullable(),
-  hasApprovedFinal: z.boolean()
+  hasApprovedFinal: z.boolean(),
+  /**
+   * The nota recorded on the subject's approved final instance, `null` when
+   * there is none or it carries no nota. A FACT like the others — which
+   * grade actually counts for the promedio is the renderer's rule
+   * (carreras/domain/program.ts's `resolveEffectiveGrade`), not main's.
+   */
+  approvedFinalGrade: z.number().nullable()
 })
 
 export type GradedSubjectRecord = z.infer<typeof gradedSubjectSchema>

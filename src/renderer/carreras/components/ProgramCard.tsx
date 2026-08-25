@@ -13,7 +13,7 @@ import { interactiveSurface } from '../../shared/lib/interactive'
 import { subjectColorForScheme } from '../../shared/lib/subjectColorScheme'
 import { usePrefersLightScheme } from '../../shared/lib/usePrefersLightScheme'
 import { formatPeriodRange, isOpenEnded, periodStatus } from '../domain/period'
-import { calculateProgramAverage } from '../domain/program'
+import { calculateProgramAverage, resolveEffectiveGrade } from '../domain/program'
 import { isPassed } from '../../materias/domain/subjectStatus'
 import type { PeriodRecord, ProgramWithPeriods } from '../../../shared/ipc/carreras'
 
@@ -34,7 +34,7 @@ function SchemeBadge({ program }: { program: ProgramWithPeriods }): React.JSX.El
   }
 
   const average = calculateProgramAverage(
-    program.gradedSubjects.map((subject) => ({ grade: subject.grade, passed: isPassed(subject) }))
+    program.gradedSubjects.map((subject) => ({ grade: resolveEffectiveGrade(subject), passed: isPassed(subject) }))
   )
 
   return (

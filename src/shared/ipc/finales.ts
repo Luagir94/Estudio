@@ -35,11 +35,29 @@ export const createFinalExamInputSchema = z.object({
 
 export type CreateFinalExamInput = z.infer<typeof createFinalExamInputSchema>
 
+// Creation deliberately takes no grade (mesas are born pendiente); the nota
+// only ever arrives through the update that approves the mesa. Same
+// empty-string preprocess as materias.ts's setSubjectOutcomeInputSchema —
+// HTML number inputs emit strings, '' when cleared — and the same division
+// of labor: the payload alone cannot know the program's scheme, so the
+// range/scheme rule runs in main (shared/domain/grading.ts).
+const optionalGrade = z.preprocess((value) => {
+  if (value === '' || value === undefined || value === null) {
+    return null
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isNaN(parsed) ? value : parsed
+  }
+  return value
+}, z.number().nullable().default(null))
+
 export const updateFinalExamInputSchema = z.object({
   id: z.number().int().positive(),
   label: z.string().trim().min(1, 'label.required').max(200, 'label.tooLong'),
   takenOn: optionalDate,
-  result: finalExamResultSchema
+  result: finalExamResultSchema,
+  grade: optionalGrade
 })
 
 export type UpdateFinalExamInput = z.infer<typeof updateFinalExamInputSchema>

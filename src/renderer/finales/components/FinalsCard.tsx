@@ -36,6 +36,27 @@ const RESULT_STYLES: Record<FinalExamResult, string> = {
 
 const RESULTS: FinalExamResult[] = ['pendiente', 'aprobado', 'reprobado']
 
+// A nota is quoted "7,5", never "7.5" — same voice as the promedios
+// (carreras/domain/program.ts's formatAverage), but without its forced two
+// decimals: a mesa's nota is what the acta says, an 8 reads "8".
+const gradeFormat = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 })
+
+/**
+ * The chip's label. The nota rides INSIDE the approved chip — the approved
+ * design adds no column — and only there: no other result may carry one
+ * (the server clears it on those transitions).
+ */
+function resultChipLabel(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  final: FinalExamRecord,
+  result: FinalExamResult
+): string {
+  if (result === 'aprobado' && final.result === 'aprobado' && final.grade !== null) {
+    return t('finalsCard.approvedWithGrade', { grade: gradeFormat.format(final.grade) })
+  }
+  return t(`finalsCard.resultLabels.${result}`)
+}
+
 export function FinalsCard({ finals, onAdd, onSetResult, onDelete, onGiveUp }: FinalsCardProps): React.JSX.Element {
   const { t } = useTranslation('finales')
   const counts = countFinalsByResult(finals)
@@ -113,7 +134,7 @@ export function FinalsCard({ finals, onAdd, onSetResult, onDelete, onGiveUp }: F
                         interactiveChip
                       )}
                     >
-                      {t(`finalsCard.resultLabels.${result}`)}
+                      {resultChipLabel(t, final, result)}
                     </button>
                   ))}
                 </span>

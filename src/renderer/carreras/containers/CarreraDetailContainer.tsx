@@ -13,7 +13,12 @@ import { describeIpcError } from '../../shared/lib/ipcErrorCopy'
 import { isPassed } from '../../materias/domain/subjectStatus'
 import { carrerasApi } from '../adapters/carrerasApi'
 import { derivePeriodYear, formatPeriodRange, listCurrentPeriods, pickDefaultPeriodId } from '../domain/period'
-import { approvedProgressPercent, calculateProgramAverage, formatAverage } from '../domain/program'
+import {
+  approvedProgressPercent,
+  calculateProgramAverage,
+  formatAverage,
+  resolveEffectiveGrade
+} from '../domain/program'
 import { DeletePeriodConfirmDialog } from '../components/DeletePeriodConfirmDialog'
 import { DeleteProgramConfirmDialog } from '../components/DeleteProgramConfirmDialog'
 import { EditarCarreraModal } from '../components/EditarCarreraModal'
@@ -169,7 +174,7 @@ export function CarreraDetailContainer({
     const total = data?.subjectCount ?? 0
     return {
       average: calculateProgramAverage(
-        gradedSubjects.map((subject) => ({ grade: subject.grade, passed: isPassed(subject) }))
+        gradedSubjects.map((subject) => ({ grade: resolveEffectiveGrade(subject), passed: isPassed(subject) }))
       ),
       approved,
       total,

@@ -625,8 +625,8 @@ describe('CarreraDetailContainer — avance académico', () => {
     carrerasApiMock.detail.mockResolvedValue({
       ...abogacia,
       gradedSubjects: [
-        { grade: 8, outcome: 'aprobada' as const, hasApprovedFinal: false },
-        { grade: 9, outcome: 'aprobada' as const, hasApprovedFinal: false }
+        { grade: 8, outcome: 'aprobada' as const, hasApprovedFinal: false, approvedFinalGrade: null },
+        { grade: 9, outcome: 'aprobada' as const, hasApprovedFinal: false, approvedFinalGrade: null }
       ]
     })
     renderDetail()
@@ -634,6 +634,23 @@ describe('CarreraDetailContainer — avance académico', () => {
     const card = await findCard()
     expect(within(card).getByText('8,50')).toBeInTheDocument()
     expect(within(card).getByText('promedio general')).toBeInTheDocument()
+  })
+
+  // A subject passed via final carries its nota on the approved mesa, not on
+  // the subject row — the promedio has to read it through the same effective
+  // grade the domain resolves (resolveEffectiveGrade).
+  it('feeds the approved final nota into the promedio when the subject has none of its own', async () => {
+    carrerasApiMock.detail.mockResolvedValue({
+      ...abogacia,
+      gradedSubjects: [
+        { grade: 8, outcome: 'aprobada' as const, hasApprovedFinal: false, approvedFinalGrade: null },
+        { grade: null, outcome: 'finalPendiente' as const, hasApprovedFinal: true, approvedFinalGrade: 9 }
+      ]
+    })
+    renderDetail()
+
+    const card = await findCard()
+    expect(within(card).getByText('8,50')).toBeInTheDocument()
   })
 
   // Nothing graded — the empty numerico case and the whole binario scheme —
@@ -654,10 +671,10 @@ describe('CarreraDetailContainer — avance académico', () => {
       ...abogacia,
       subjectCount: 6,
       gradedSubjects: [
-        { grade: 8, outcome: 'aprobada' as const, hasApprovedFinal: false },
-        { grade: null, outcome: 'finalPendiente' as const, hasApprovedFinal: true },
-        { grade: 2, outcome: 'reprobada' as const, hasApprovedFinal: true },
-        { grade: null, outcome: null, hasApprovedFinal: false }
+        { grade: 8, outcome: 'aprobada' as const, hasApprovedFinal: false, approvedFinalGrade: null },
+        { grade: null, outcome: 'finalPendiente' as const, hasApprovedFinal: true, approvedFinalGrade: null },
+        { grade: 2, outcome: 'reprobada' as const, hasApprovedFinal: true, approvedFinalGrade: null },
+        { grade: null, outcome: null, hasApprovedFinal: false, approvedFinalGrade: null }
       ]
     })
     renderDetail()
@@ -669,7 +686,7 @@ describe('CarreraDetailContainer — avance académico', () => {
   it('reads singular when exactly one subject is approved', async () => {
     carrerasApiMock.detail.mockResolvedValue({
       ...abogacia,
-      gradedSubjects: [{ grade: 9, outcome: 'aprobada' as const, hasApprovedFinal: false }]
+      gradedSubjects: [{ grade: 9, outcome: 'aprobada' as const, hasApprovedFinal: false, approvedFinalGrade: null }]
     })
     renderDetail()
 
@@ -682,9 +699,9 @@ describe('CarreraDetailContainer — avance académico', () => {
       ...abogacia,
       subjectCount: 6,
       gradedSubjects: [
-        { grade: 8, outcome: 'aprobada' as const, hasApprovedFinal: false },
-        { grade: 7, outcome: 'aprobada' as const, hasApprovedFinal: false },
-        { grade: 9, outcome: 'aprobada' as const, hasApprovedFinal: false }
+        { grade: 8, outcome: 'aprobada' as const, hasApprovedFinal: false, approvedFinalGrade: null },
+        { grade: 7, outcome: 'aprobada' as const, hasApprovedFinal: false, approvedFinalGrade: null },
+        { grade: 9, outcome: 'aprobada' as const, hasApprovedFinal: false, approvedFinalGrade: null }
       ]
     })
     renderDetail()
@@ -891,7 +908,7 @@ describe('CarreraDetailContainer — editar carrera', () => {
   it('locks the grading scheme once something has been graded, and says why', async () => {
     carrerasApiMock.detail.mockResolvedValue({
       ...abogacia,
-      gradedSubjects: [{ grade: 8, outcome: 'aprobada', hasApprovedFinal: false }]
+      gradedSubjects: [{ grade: 8, outcome: 'aprobada', hasApprovedFinal: false, approvedFinalGrade: null }]
     })
     await openEditModal()
 
@@ -931,7 +948,7 @@ describe('CarreraDetailContainer — editar carrera', () => {
       ...abogacia,
       gradingScheme: 'binario' as const,
       gradeScale: null,
-      gradedSubjects: [{ grade: null, outcome: 'aprobada' as const, hasApprovedFinal: false }]
+      gradedSubjects: [{ grade: null, outcome: 'aprobada' as const, hasApprovedFinal: false, approvedFinalGrade: null }]
     })
     await openEditModal()
 

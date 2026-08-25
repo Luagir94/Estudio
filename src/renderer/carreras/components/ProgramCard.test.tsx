@@ -34,8 +34,8 @@ const numericProgram: ProgramWithPeriods = {
   ],
   subjectCount: 2,
   gradedSubjects: [
-    { grade: 8, outcome: 'aprobada', hasApprovedFinal: false },
-    { grade: 7, outcome: 'aprobada', hasApprovedFinal: false }
+    { grade: 8, outcome: 'aprobada', hasApprovedFinal: false, approvedFinalGrade: null },
+    { grade: 7, outcome: 'aprobada', hasApprovedFinal: false, approvedFinalGrade: null }
   ]
 }
 
@@ -53,7 +53,7 @@ describe('ProgramCard', () => {
   it('says so when a numeric program has no grades yet', () => {
     renderCard({
       ...numericProgram,
-      gradedSubjects: [{ grade: null, outcome: null, hasApprovedFinal: false }]
+      gradedSubjects: [{ grade: null, outcome: null, hasApprovedFinal: false, approvedFinalGrade: null }]
     })
 
     expect(screen.getByText('Sin notas todavía')).toBeInTheDocument()
@@ -63,8 +63,8 @@ describe('ProgramCard', () => {
     renderCard({
       ...numericProgram,
       gradedSubjects: [
-        { grade: 8, outcome: 'aprobada', hasApprovedFinal: false },
-        { grade: 2, outcome: 'reprobada', hasApprovedFinal: false }
+        { grade: 8, outcome: 'aprobada', hasApprovedFinal: false, approvedFinalGrade: null },
+        { grade: 2, outcome: 'reprobada', hasApprovedFinal: false, approvedFinalGrade: null }
       ]
     })
 
@@ -74,10 +74,24 @@ describe('ProgramCard', () => {
   it('counts a standby subject with an approved final as passed', () => {
     renderCard({
       ...numericProgram,
-      gradedSubjects: [{ grade: 6, outcome: 'finalPendiente', hasApprovedFinal: true }]
+      gradedSubjects: [{ grade: 6, outcome: 'finalPendiente', hasApprovedFinal: true, approvedFinalGrade: null }]
     })
 
     expect(screen.getByText('Promedio 6')).toBeInTheDocument()
+  })
+
+  // The list card and the detail screen must quote the SAME promedio: a
+  // subject passed via final feeds its approved mesa's nota here too.
+  it('reads the nota of an approved final into the average', () => {
+    renderCard({
+      ...numericProgram,
+      gradedSubjects: [
+        { grade: 8, outcome: 'aprobada', hasApprovedFinal: false, approvedFinalGrade: null },
+        { grade: null, outcome: 'finalPendiente', hasApprovedFinal: true, approvedFinalGrade: 9 }
+      ]
+    })
+
+    expect(screen.getByText('Promedio 8.5')).toBeInTheDocument()
   })
 
   it('shows the scheme instead of an average for a pass/fail program', () => {

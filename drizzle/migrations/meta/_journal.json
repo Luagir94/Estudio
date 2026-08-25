@@ -64,6 +64,13 @@
       "when": 1787363392227,
       "tag": "0008_clear_lockjaw",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1787631712893,
+      "tag": "0009_silly_the_professor",
+      "breakpoints": true
     }
   ]
 }

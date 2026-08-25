@@ -6,7 +6,14 @@ import type { FinalExamRecord } from '../../../shared/ipc/materias'
 import { FinalsCard } from './FinalsCard'
 
 function final(overrides: Partial<FinalExamRecord> & { id: number }): FinalExamRecord {
-  return { subjectId: 1, label: `${overrides.id}ra mesa`, takenOn: null, result: 'pendiente', ...overrides }
+  return {
+    subjectId: 1,
+    label: `${overrides.id}ra mesa`,
+    takenOn: null,
+    result: 'pendiente',
+    grade: null,
+    ...overrides
+  }
 }
 
 function renderCard(finals: FinalExamRecord[]) {
@@ -65,6 +72,34 @@ describe('FinalsCard', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Darla por reprobada' }))
 
     expect(handlers.onGiveUp).toHaveBeenCalledTimes(1)
+  })
+
+  // The nota of a mesa reads inside its own result chip — no new column.
+  it('appends the nota to the approved chip', () => {
+    renderCard([final({ id: 1, result: 'aprobado', grade: 8 })])
+
+    expect(screen.getByRole('button', { name: 'Aprobado · 8' })).toBeInTheDocument()
+  })
+
+  it('prints a fractional nota with a comma, the same voice as the promedios', () => {
+    renderCard([final({ id: 1, result: 'aprobado', grade: 7.5 })])
+
+    expect(screen.getByRole('button', { name: 'Aprobado · 7,5' })).toBeInTheDocument()
+  })
+
+  it('keeps the plain Aprobado label while the approved mesa has no nota', () => {
+    renderCard([final({ id: 1, result: 'aprobado', grade: null })])
+
+    expect(screen.getByRole('button', { name: 'Aprobado' })).toBeInTheDocument()
+  })
+
+  // The nota belongs to the APPROVED result: a mesa that was failed keeps its
+  // plain chip even if a stale grade ever reached the payload.
+  it('never appends a nota to an unapproved chip', () => {
+    renderCard([final({ id: 1, result: 'reprobado', grade: 8 })])
+
+    expect(screen.getByRole('button', { name: 'Reprobado' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Reprobado · / })).not.toBeInTheDocument()
   })
 
   it('records how an instance went', async () => {

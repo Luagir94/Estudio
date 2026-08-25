@@ -91,6 +91,27 @@ function toProgramRecord(row: ProgramRow): ProgramRecord {
 }
 
 /**
+ * Whether `candidate` beats `current` as THE approved instance of a subject:
+ * later taken_on first, null dates last, higher id on a tie. Total order over
+ * distinct rows, so the pick never depends on query order.
+ */
+function ranksAboveApproved(
+  candidate: { id: number; takenOn: string | null },
+  current: { id: number; takenOn: string | null }
+): boolean {
+  if (candidate.takenOn !== current.takenOn) {
+    if (candidate.takenOn === null) {
+      return false
+    }
+    if (current.takenOn === null) {
+      return true
+    }
+    return candidate.takenOn > current.takenOn
+  }
+  return candidate.id > current.id
+}
+
+/**
  * Loads periods and subject roll-ups for a set of programs in a FIXED number
  * of queries (four), never one per program — the Carreras screen renders
  * every program at once.
@@ -118,14 +139,28 @@ function assemble(db: AppDatabase, programRows: ProgramRow[]): ProgramWithPeriod
     .where(inArray(periods.programId, programIds))
     .all()
 
-  const approvedFinalSubjectIds = new Set(
-    db
-      .select({ subjectId: finalExams.subjectId })
-      .from(finalExams)
-      .where(eq(finalExams.result, 'aprobado'))
-      .all()
-      .map((row) => row.subjectId)
-  )
+  // One approved instance per subject, picked DETERMINISTICALLY when the
+  // data somehow holds several (nothing in the schema forbids it): the
+  // latest taken_on wins, undated rows rank below any dated one, and a tie
+  // breaks toward the highest id — never whichever row the query returned
+  // first. The map's presence answers hasApprovedFinal; its grade ships as
+  // the approvedFinalGrade fact.
+  const approvedFinalBySubject = new Map<number, { id: number; takenOn: string | null; grade: number | null }>()
+  for (const row of db
+    .select({
+      id: finalExams.id,
+      subjectId: finalExams.subjectId,
+      takenOn: finalExams.takenOn,
+      grade: finalExams.grade
+    })
+    .from(finalExams)
+    .where(eq(finalExams.result, 'aprobado'))
+    .all()) {
+    const current = approvedFinalBySubject.get(row.subjectId)
+    if (!current || ranksAboveApproved(row, current)) {
+      approvedFinalBySubject.set(row.subjectId, row)
+    }
+  }
 
   const periodsByProgram = new Map<number, PeriodRecord[]>()
   for (const row of periodRows) {
@@ -137,10 +172,12 @@ function assemble(db: AppDatabase, programRows: ProgramRow[]): ProgramWithPeriod
   const subjectsByProgram = new Map<number, GradedSubjectRecord[]>()
   for (const row of subjectRows) {
     const bucket = subjectsByProgram.get(row.programId) ?? []
+    const approvedFinal = approvedFinalBySubject.get(row.id)
     bucket.push({
       grade: row.grade,
       outcome: toOutcome(row.outcome),
-      hasApprovedFinal: approvedFinalSubjectIds.has(row.id)
+      hasApprovedFinal: approvedFinal !== undefined,
+      approvedFinalGrade: approvedFinal?.grade ?? null
     })
     subjectsByProgram.set(row.programId, bucket)
   }

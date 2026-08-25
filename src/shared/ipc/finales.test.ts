@@ -63,12 +63,28 @@ describe('updateFinalExamInputSchema', () => {
     result: 'reprobado' as const
   }
 
-  it('parses a valid payload', () => {
-    expect(updateFinalExamInputSchema.parse(valid)).toEqual(valid)
+  it('parses a valid payload — grade defaults to null when omitted', () => {
+    expect(updateFinalExamInputSchema.parse(valid)).toEqual({ ...valid, grade: null })
   })
 
   it('normalizes a cleared date to null, same as create', () => {
     expect(updateFinalExamInputSchema.parse({ ...valid, takenOn: '' }).takenOn).toBeNull()
+  })
+
+  it('keeps the nota riding along with an approval', () => {
+    expect(updateFinalExamInputSchema.parse({ ...valid, result: 'aprobado', grade: 8 }).grade).toBe(8)
+  })
+
+  it.each([
+    ['empty string (cleared number input)', ''],
+    ['undefined (field never sent)', undefined],
+    ['explicit null', null]
+  ])('normalizes a missing nota to null — %s', (_case, grade) => {
+    expect(updateFinalExamInputSchema.parse({ ...valid, grade }).grade).toBeNull()
+  })
+
+  it('coerces a numeric-string nota, same as materias:setOutcome', () => {
+    expect(updateFinalExamInputSchema.parse({ ...valid, result: 'aprobado', grade: '7.5' }).grade).toBe(7.5)
   })
 
   it.each([
@@ -77,7 +93,8 @@ describe('updateFinalExamInputSchema', () => {
     ['non-integer id', { ...valid, id: 1.5 }],
     ['missing result — required here, NOT defaulted like create', { id: 3, label: valid.label, takenOn: null }],
     ['result outside the enum', { ...valid, result: 'libre' }],
-    ['blank label', { ...valid, label: '  ' }]
+    ['blank label', { ...valid, label: '  ' }],
+    ['non-numeric nota', { ...valid, grade: 'ocho' }]
   ])('rejects %s', (_case, payload) => {
     expect(updateFinalExamInputSchema.safeParse(payload).success).toBe(false)
   })

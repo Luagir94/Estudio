@@ -32,7 +32,8 @@ const sampleFinal: FinalExamRecord = {
   subjectId: 7,
   label: 'Mesa de agosto',
   takenOn: '2026-08-10',
-  result: 'aprobado'
+  result: 'aprobado',
+  grade: null
 }
 
 describe('registerFinalesHandlers', () => {
@@ -127,7 +128,7 @@ describe('registerFinalesHandlers', () => {
   })
 
   describe('finales:update', () => {
-    it('parses a valid payload and returns the updated final exam', () => {
+    it('parses a valid payload and returns the updated final exam — grade defaults to null', () => {
       const result = invoke('finales:update', {
         id: 1,
         label: 'Mesa de agosto',
@@ -139,9 +140,28 @@ describe('registerFinalesHandlers', () => {
         id: 1,
         label: 'Mesa de agosto',
         takenOn: '2026-08-10',
-        result: 'aprobado'
+        result: 'aprobado',
+        grade: null
       })
       expect(result).toEqual({ ok: true, data: sampleFinal })
+    })
+
+    it('hands the repository the nota riding along with an approval', () => {
+      invoke('finales:update', {
+        id: 1,
+        label: 'Mesa de agosto',
+        takenOn: '2026-08-10',
+        result: 'aprobado',
+        grade: 8
+      })
+
+      expect(repository.update).toHaveBeenCalledWith({
+        id: 1,
+        label: 'Mesa de agosto',
+        takenOn: '2026-08-10',
+        result: 'aprobado',
+        grade: 8
+      })
     })
 
     it('rejects an invalid payload without calling the repository (result is required here, not defaulted)', () => {

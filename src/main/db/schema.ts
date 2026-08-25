@@ -109,7 +109,15 @@ export const finalExams = sqliteTable('final_exams', {
     .references(() => subjects.id, { onDelete: 'cascade' }),
   label: text('label').notNull(),
   takenOn: text('taken_on'),
-  result: text('result').notNull().default('pendiente')
+  result: text('result').notNull().default('pendiente'),
+  // The nota of an APPROVED sitting under a 'numerico' program — the nota of
+  // a subject passed via final lives here, not on the subject row (whose
+  // `grade` is written only by materias:setOutcome). NULL is "aprobada sin
+  // nota", a first-class state, and the only state under 'binario'. The write
+  // rule — approved-only, program-validated, cleared on leaving 'aprobado' —
+  // is enforced in sqliteFinalExamRepository.update; no CHECK constraint,
+  // same policy as `subjects.grade`.
+  grade: real('grade')
 })
 
 // No independent lifecycle: rows here are only ever written as part of a

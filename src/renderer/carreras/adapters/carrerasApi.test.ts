@@ -13,7 +13,7 @@ const sampleProgram: ProgramWithPeriods = {
     { id: 3, programId: 1, name: '1er 2026', kind: 'cuatrimestre', startsOn: '2026-03-09', endsOn: '2026-07-18' }
   ],
   subjectCount: 1,
-  gradedSubjects: [{ grade: 8, outcome: 'aprobada', hasApprovedFinal: false }]
+  gradedSubjects: [{ grade: 8, outcome: 'aprobada', hasApprovedFinal: false, approvedFinalGrade: null }]
 }
 
 const carreras = {

@@ -8,7 +8,8 @@ const sampleFinal: FinalExamRecord = {
   subjectId: 1,
   label: 'Primera mesa',
   takenOn: '2026-12-10',
-  result: 'aprobado'
+  result: 'aprobado',
+  grade: null
 }
 
 describe('finalesApi', () => {
@@ -68,9 +69,29 @@ describe('finalesApi', () => {
   it('update parses and returns the corrected final', async () => {
     vi.mocked(window.api.finales.update).mockResolvedValue({ ok: true, data: { ...sampleFinal, result: 'reprobado' } })
 
-    const result = await finalesApi.update({ id: 1, label: 'Primera mesa', takenOn: '2026-12-10', result: 'reprobado' })
+    const result = await finalesApi.update({
+      id: 1,
+      label: 'Primera mesa',
+      takenOn: '2026-12-10',
+      result: 'reprobado',
+      grade: null
+    })
 
     expect(result.result).toBe('reprobado')
+  })
+
+  it('update keeps the nota an approved mesa carries', async () => {
+    vi.mocked(window.api.finales.update).mockResolvedValue({ ok: true, data: { ...sampleFinal, grade: 8 } })
+
+    const result = await finalesApi.update({
+      id: 1,
+      label: 'Primera mesa',
+      takenOn: '2026-12-10',
+      result: 'aprobado',
+      grade: 8
+    })
+
+    expect(result.grade).toBe(8)
   })
 
   it('delete parses and returns the deleted id', async () => {
