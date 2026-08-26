@@ -365,3 +365,105 @@ describe('HorarioGrid', () => {
     })
   })
 })
+
+describe('HorarioGrid — classes sharing the same hours', () => {
+  function mondayWith(slots: WeekDayColumn['slots']): WeekDayColumn[] {
+    const columns = emptyColumns()
+    columns[0] = { mondayFirstIndex: 0, dayOfWeek: 1, slots }
+    return columns
+  }
+
+  function mondaySlot(slotId: number, subjectName: string, startMinutes: number, endMinutes: number) {
+    return {
+      slotId,
+      dayOfWeek: 1,
+      subjectId: slotId,
+      subjectName,
+      subjectColor: '#4c8dff',
+      startMinutes,
+      endMinutes,
+      location: null
+    }
+  }
+
+  /*
+   * The bug: two classes at the same hour were painted at the same left edge
+   * with the same width, so the last one drawn covered the other completely
+   * and a class disappeared from the week with nothing to hint it was there.
+   */
+  it('renders BOTH classes when two share the same hour', () => {
+    render(
+      <HorarioGrid
+        columns={mondayWith([mondaySlot(1, 'ITICS', 480, 540), mondaySlot(2, 'Análisis Matemático', 480, 540)])}
+        todayMondayFirstIndex={null}
+        onSelectClass={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('ITICS')).toBeInTheDocument()
+    expect(screen.getByText('Análisis Matemático')).toBeInTheDocument()
+  })
+
+  it('offsets the two blocks to different lanes of the same width', () => {
+    render(
+      <HorarioGrid
+        columns={mondayWith([mondaySlot(1, 'ITICS', 480, 540), mondaySlot(2, 'Análisis Matemático', 480, 540)])}
+        todayMondayFirstIndex={null}
+        onSelectClass={vi.fn()}
+      />
+    )
+
+    const [first, second] = screen.getAllByRole('button')
+
+    expect(first!.style.left).not.toBe(second!.style.left)
+    expect(first!.style.width).toBe(second!.style.width)
+  })
+
+  it('keeps a class with no collision on the full column width', () => {
+    render(
+      <HorarioGrid
+        columns={mondayWith([mondaySlot(1, 'ITICS', 480, 540), mondaySlot(2, 'Análisis Matemático', 600, 660)])}
+        todayMondayFirstIndex={null}
+        onSelectClass={vi.fn()}
+      />
+    )
+
+    const [first, second] = screen.getAllByRole('button')
+
+    expect(first!.style.left).toBe(second!.style.left)
+    expect(first!.style.width).toBe(second!.style.width)
+  })
+
+  it('still routes a click on a shared-hour block to its own subject', () => {
+    const onSelectClass = vi.fn()
+    render(
+      <HorarioGrid
+        columns={mondayWith([mondaySlot(1, 'ITICS', 480, 540), mondaySlot(2, 'Análisis Matemático', 480, 540)])}
+        todayMondayFirstIndex={null}
+        onSelectClass={onSelectClass}
+      />
+    )
+
+    fireEvent.click(screen.getByText('Análisis Matemático'))
+
+    expect(onSelectClass).toHaveBeenCalledWith(2)
+  })
+
+  /*
+   * Three classes at the same hour leave each lane ~60px wide, which truncates
+   * the name to a few characters and hides the time entirely. The block still
+   * has to be identifiable, so it carries the whole thing as a tooltip — the
+   * one place the hidden information is recoverable without a click.
+   */
+  it('carries the full subject name and hours as a tooltip', () => {
+    render(
+      <HorarioGrid
+        columns={mondayWith([mondaySlot(1, 'Análisis Matemático II', 480, 600)])}
+        todayMondayFirstIndex={null}
+        onSelectClass={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('button')).toHaveAttribute('title', 'Análisis Matemático II · 08:00 – 10:00')
+  })
+})

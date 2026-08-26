@@ -3,7 +3,9 @@ import {
   getNowOffsetFraction,
   getWeekOccurrenceDate,
   hasWeekendClasses,
+  layoutDaySlots,
   projectWeek,
+  type WeekProjectionSlot,
   type WeekProjectionSubject
 } from './weekProjection'
 
@@ -159,5 +161,84 @@ describe('getNowOffsetFraction (the Horario grid\'s "now" line, on the same minu
 
   it('returns null at an end boundary that midnight can actually reach (a 20:00 cut-off)', () => {
     expect(getNowOffsetFraction(new Date(2026, 7, 13, 20, 0), 480, 1200)).toBeNull()
+  })
+})
+
+describe('layoutDaySlots (side-by-side lanes for classes that share the same hours)', () => {
+  function slot(slotId: number, startMinutes: number, endMinutes: number): WeekProjectionSlot {
+    return {
+      subjectId: slotId,
+      subjectName: `Materia ${slotId}`,
+      subjectColor: '#4c8dff',
+      slotId,
+      dayOfWeek: 1,
+      startMinutes,
+      endMinutes,
+      location: null
+    }
+  }
+
+  it('gives a day with no collisions a single full-width lane per slot', () => {
+    const laid = layoutDaySlots([slot(1, 480, 540), slot(2, 600, 660)])
+
+    expect(laid.map(({ slotId, lane, laneCount }) => ({ slotId, lane, laneCount }))).toEqual([
+      { slotId: 1, lane: 0, laneCount: 1 },
+      { slotId: 2, lane: 0, laneCount: 1 }
+    ])
+  })
+
+  // The bug this whole feature exists for: two classes at the same hour used
+  // to be painted on top of each other, so only the last one drawn was
+  // readable and the other silently vanished from the week.
+  it('splits two classes sharing the same hour into two lanes', () => {
+    const laid = layoutDaySlots([slot(1, 480, 540), slot(2, 480, 540)])
+
+    expect(laid.map(({ slotId, lane, laneCount }) => ({ slotId, lane, laneCount }))).toEqual([
+      { slotId: 1, lane: 0, laneCount: 2 },
+      { slotId: 2, lane: 1, laneCount: 2 }
+    ])
+  })
+
+  // Back-to-back classes are not a collision (slotOverlap's half-open rule),
+  // so they must NOT cost the day half its width.
+  it('keeps back-to-back classes on one lane', () => {
+    const laid = layoutDaySlots([slot(1, 480, 540), slot(2, 540, 600)])
+
+    expect(laid.every(({ lane, laneCount }) => lane === 0 && laneCount === 1)).toBe(true)
+  })
+
+  // A long class overlapping two short consecutive ones needs TWO lanes, not
+  // three: the shorts do not overlap each other, so the second reuses the
+  // lane the first has already vacated.
+  it('reuses a freed lane inside the same cluster instead of adding one', () => {
+    const laid = layoutDaySlots([slot(1, 480, 720), slot(2, 540, 600), slot(3, 600, 660)])
+
+    expect(laid.map(({ slotId, lane, laneCount }) => ({ slotId, lane, laneCount }))).toEqual([
+      { slotId: 1, lane: 0, laneCount: 2 },
+      { slotId: 2, lane: 1, laneCount: 2 },
+      { slotId: 3, lane: 1, laneCount: 2 }
+    ])
+  })
+
+  // Width is decided per cluster, not per day: an afternoon class alone on
+  // the calendar keeps the whole column even though the morning is split.
+  it('scopes laneCount to each cluster of touching classes', () => {
+    const laid = layoutDaySlots([slot(1, 480, 540), slot(2, 480, 540), slot(3, 840, 900)])
+
+    expect(laid.map(({ slotId, laneCount }) => ({ slotId, laneCount }))).toEqual([
+      { slotId: 1, laneCount: 2 },
+      { slotId: 2, laneCount: 2 },
+      { slotId: 3, laneCount: 1 }
+    ])
+  })
+
+  it('carries every projection field through untouched', () => {
+    const [laid] = layoutDaySlots([slot(7, 480, 540)])
+
+    expect(laid).toMatchObject(slot(7, 480, 540))
+  })
+
+  it('returns an empty layout for an empty day', () => {
+    expect(layoutDaySlots([])).toEqual([])
   })
 })

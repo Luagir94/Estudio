@@ -74,6 +74,69 @@ export function projectWeek(subjects: WeekProjectionSubject[]): WeekDayColumn[] 
   })
 }
 
+/** A projected slot plus where it sits when classes share the same hours. */
+export interface WeekProjectionSlotLayout extends WeekProjectionSlot {
+  /** 0-based lane within its cluster of colliding classes. */
+  lane: number
+  /** How many lanes that cluster needs — the slot's share of the column width. */
+  laneCount: number
+}
+
+/**
+ * Splits a day's slots into side-by-side lanes so classes that share the
+ * same hours stay BOTH readable. Painting them at the same left edge meant
+ * the last one drawn covered the others, which silently deleted a class
+ * from the week (the grid is the only screen showing all subjects at once,
+ * so nothing else contradicted it).
+ *
+ * Lanes are assigned per CLUSTER of transitively touching classes, not per
+ * day: an afternoon class alone on the calendar keeps the full column even
+ * when the morning is split in two. Within a cluster a slot takes the first
+ * lane already free at its start time, so a long class overlapping two
+ * consecutive short ones costs two lanes rather than three.
+ *
+ * Expects `slots` ordered ascending by `startMinutes` — which is exactly
+ * what `projectWeek` hands back — and preserves that order.
+ */
+export function layoutDaySlots(slots: WeekProjectionSlot[]): WeekProjectionSlotLayout[] {
+  const laid: WeekProjectionSlotLayout[] = []
+  // Index into `laid` where the current cluster starts, so its laneCount can
+  // be written back over every member once the cluster's width is known.
+  let clusterStart = 0
+  // Per lane, the end minute of the last class placed on it.
+  let laneEnds: number[] = []
+  let clusterEnd = -1
+
+  function closeCluster(): void {
+    for (let index = clusterStart; index < laid.length; index += 1) {
+      laid[index]!.laneCount = laneEnds.length
+    }
+    clusterStart = laid.length
+    laneEnds = []
+    clusterEnd = -1
+  }
+
+  for (const slot of slots) {
+    // `>=`, not `>`: the same HALF-OPEN rule `slotsOverlap` applies. A class
+    // starting exactly when the cluster's last one ends is back-to-back, so
+    // it opens a fresh cluster and gets the column to itself.
+    if (clusterEnd >= 0 && slot.startMinutes >= clusterEnd) {
+      closeCluster()
+    }
+
+    let lane = laneEnds.findIndex((end) => end <= slot.startMinutes)
+    if (lane === -1) {
+      lane = laneEnds.length
+    }
+    laneEnds[lane] = slot.endMinutes
+    laid.push({ ...slot, lane, laneCount: 1 })
+    clusterEnd = Math.max(clusterEnd, slot.endMinutes)
+  }
+  closeCluster()
+
+  return laid
+}
+
 /**
  * Whether either weekend day carries at least one class. When BOTH are empty
  * the grid collapses the Sábado/Domingo columns to narrow, dimmed tracks;

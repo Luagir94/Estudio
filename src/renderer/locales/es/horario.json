@@ -6,6 +6,7 @@
     "loadError": "No se pudo cargar el horario."
   },
   "grid": {
-    "timeRange": "{{start}} – {{end}}"
+    "timeRange": "{{start}} – {{end}}",
+    "blockTooltip": "{{subject}} · {{start}} – {{end}}"
   }
 }

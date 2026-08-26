@@ -8,7 +8,7 @@
 // through the subject (spec: "Editing a class routes through the subject" —
 // there is no direct-edit affordance on this screen).
 import { useTranslation } from 'react-i18next'
-import { getNowOffsetFraction, hasWeekendClasses } from '../domain/weekProjection'
+import { getNowOffsetFraction, hasWeekendClasses, layoutDaySlots } from '../domain/weekProjection'
 import type { WeekDayColumn, WeekProjectionSlot } from '../domain/weekProjection'
 import { cn } from '../../shared/lib/cn'
 import { interactive } from '../../shared/lib/interactive'
@@ -38,6 +38,13 @@ const BLOCK_MIN_HEIGHT_PX = 30
 // above — so that slack has to be paid back explicitly, or the last row sits
 // flush against the window edge.
 const GRID_BOTTOM_SPACE = 'pb-6'
+// The horizontal breathing room a block leaves on each side of its column —
+// what `inset-x-1` used to hard-code before lanes made the left edge depend
+// on how many classes share the hour.
+const COLUMN_INSET_PX = 4
+// Design's `Overlap Band`: 2px between two lanes, so the seam reads as two
+// blocks rather than one wide block with a hairline in it.
+const LANE_GAP_PX = 2
 
 /** Position of a minute-of-day within the grid body, as a CSS percentage. */
 function percentOf(minutes: number): string {
@@ -47,6 +54,21 @@ function percentOf(minutes: number): string {
 /** Span of a duration within the grid body, as a CSS percentage. */
 function percentSpan(minutes: number): string {
   return `${(minutes / GRID_TOTAL_MINUTES) * 100}%`
+}
+
+/**
+ * Horizontal placement of a block inside its day column. With one lane the
+ * result is exactly the old `inset-x-1` (the gap collapses to zero), so a
+ * day with no collisions looks untouched; with more, the lanes split the
+ * same track evenly and each block keeps the 2px seam the design carries.
+ */
+function laneStyle(lane: number, laneCount: number): { left: string; width: string } {
+  const track = `(100% - ${COLUMN_INSET_PX * 2}px)`
+  const gap = laneCount > 1 ? LANE_GAP_PX : 0
+  return {
+    left: `calc(${COLUMN_INSET_PX}px + ${track} * ${lane} / ${laneCount})`,
+    width: `calc(${track} / ${laneCount} - ${gap}px)`
+  }
 }
 
 function formatTime(minutes: number): string {
@@ -107,16 +129,27 @@ function DayColumn({
           <span className="absolute left-0 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-violet" />
         </div>
       )}
-      {slots.map((slot) => (
+      {layoutDaySlots(slots).map((slot) => (
         <button
           key={slot.slotId}
           type="button"
           onClick={() => onSelectClass(slot.subjectId)}
+          // Three classes at the same hour leave each lane ~60px wide: the
+          // name truncates to a few characters and the time drops out
+          // entirely. This is the one place that hidden information stays
+          // recoverable without opening the subject. `title` is last in the
+          // accessible-name cascade, so the button's own text still names it.
+          title={t('grid.blockTooltip', {
+            subject: slot.subjectName,
+            start: formatTime(slot.startMinutes),
+            end: formatTime(slot.endMinutes)
+          })}
           style={{
             top: percentOf(slot.startMinutes),
             height: percentSpan(slot.endMinutes - slot.startMinutes),
             minHeight: BLOCK_MIN_HEIGHT_PX,
-            borderLeftColor: subjectColorForScheme(slot.subjectColor, scheme)
+            borderLeftColor: subjectColorForScheme(slot.subjectColor, scheme),
+            ...laneStyle(slot.lane, slot.laneCount)
           }}
           // `bg-muted`, not `bg-card`: the day column is already `bg-card`, so
           // a block painted the same had no surface of its own — only the 3px
@@ -132,7 +165,10 @@ function DayColumn({
           // semantic layer stops at `muted` — its only name for #272730 is
           // `border`, and a background called `border` would read as a lie.
           className={cn(
-            'absolute inset-x-1 flex flex-col overflow-hidden rounded-md border-l-[3px] bg-muted p-2',
+            // No `inset-x-1`: the horizontal edges come from `laneStyle`
+            // now, because where a block starts depends on how many classes
+            // share its hour.
+            'absolute flex flex-col overflow-hidden rounded-md border-l-[3px] bg-muted p-2',
             'text-left leading-tight',
             interactive,
             'hover:bg-hairline active:bg-muted'
@@ -153,7 +189,12 @@ function DayColumn({
                 block rather than a small one. Below both lines' worth of room
                 (11px + 10px at leading-tight, plus the 4px gap = 30.25px) the
                 time is dropped and the name keeps the block to itself. */}
-            <span className="truncate text-micro text-muted-foreground [@container(max-height:30px)]:hidden">
+            {/* ...and the same trade in the OTHER axis, now that a shared
+                hour can halve a block's width. `08:00 – 09:00` needs ~62px
+                at 10px; under that the time would truncate to a meaningless
+                `08:0…`, so the name keeps the lane to itself — which is what
+                the design's narrow overlap lanes show. */}
+            <span className="truncate text-micro text-muted-foreground [@container(max-height:30px)]:hidden [@container(max-width:64px)]:hidden">
               {t('grid.timeRange', { start: formatTime(slot.startMinutes), end: formatTime(slot.endMinutes) })}
             </span>
           </div>
