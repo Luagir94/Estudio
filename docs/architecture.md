@@ -22,7 +22,10 @@ src/
 ├── preload/
 │   └── index.ts           # thin typed forwarder (contextBridge)
 ├── renderer/              # React app
-│   ├── App.tsx            # screen switch (no router yet)
+│   ├── App.tsx            # provider stack (query client, router, error boundary)
+│   ├── router.tsx         # route tree — every address the app has
+│   ├── Shell.tsx          # sidebar + routed main region + Ask panel
+│   ├── navigation.ts      # sidebar domain <-> path map
 │   ├── adjuntos/ ajustes/ ask/ carreras/ entregas/
 │   ├── finales/ horario/ hoy/ materias/
 │   │                      # each: domain/ · adapters/ · containers/ · components/
@@ -94,6 +97,22 @@ SQLite via `better-sqlite3` and Drizzle ORM. The database lives at `userData/cou
 
 Schema: `src/main/db/schema.ts`. Migrations are authored with `npm run db:generate`, bundled into the packaged app (`drizzle/migrations/`), and applied **forward-only at startup** by `src/main/db/migrate.ts` — when a migration is pending, the DB file is first copied aside as `course-companion.db.bak-<n>` before the migrator runs.
 
+## Navigation
+
+Screens are addresses. `src/renderer/router.tsx` is the renderer's navigation composition root — the one module that names every domain and every path — and it is deliberately the counterpart of `bootstrap()` on the main side rather than a `shared/` module.
+
+- **TanStack Router over hash history.** The window loads over `file://`, where a path history has no server to fall back on; a hash keeps every screen in `window.history`, so a reload resumes where you were and Alt+Left and the mouse's back button work with nothing wired in the renderer. The main process's `will-navigate` lockdown compares origin and pathname, neither of which a hash touches, so the security baseline is untouched.
+- **Flat routes, thin adapters.** Each screen declares its full path; there is no per-domain chrome to hang a layout route off. The route components only translate a path into the props feature containers already take (`subjectId`, `onBack`, `onSelectPeriod`), so containers stay prop-driven and router-unaware — and testable without a router.
+- **Ids are validated at the boundary.** A path segment is a string, so every `$id` route parses through `parseRouteId` and redirects on anything that is not a positive safe integer. Without it, `Number('abc')` would put `NaN` in a query key and send it over IPC.
+- **Two crash boundaries, one screen.** The router installs its own boundary around each routed screen, so a screen's render throw never reaches the root `ErrorBoundary`. Both render `CrashFallback`, so which one caught it is invisible.
+
+| Path                                                                             | Screen                   |
+| -------------------------------------------------------------------------------- | ------------------------ |
+| `/`                                                                              | redirects to `/hoy`      |
+| `/hoy` · `/planificador` · `/horario` · `/entregas` · `/ajustes`                 | one container each       |
+| `/materias` · `/materias/$subjectId`                                             | list · subject detail    |
+| `/carreras` · `/carreras/$programId` · `/carreras/$programId/periodos/$periodId` | list · carrera · período |
+
 ## Security model
 
 - **Renderer isolation**: `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true` (`src/main/window.ts`).
@@ -116,5 +135,4 @@ The guard covers static imports, re-exports, dynamic `import()` (string and no-s
 ## Design source and deliberate omissions
 
 - `design/course-companion` is an encrypted Pencil (`.pen`) design file — the visual source of truth for the UI, edited with Pencil tooling and marked binary in `.gitattributes`.
-- **No router yet**: screens are switched with component state in `App.tsx`; adopting TanStack Router is deferred.
 - **Windows-only packaging**: `dist:win` (NSIS) is the only distribution target today.
