@@ -32,21 +32,25 @@ const PERIODS: PlannablePeriod[] = [
   { id: 2, name: '1er Cuatrimestre 2027', startsOn: '2027-03-01', endsOn: '2027-07-31', programName: 'Ingeniería' }
 ]
 
-function renderScreen(overrides: Partial<Parameters<typeof PlanificadorScreen>[0]> = {}) {
+type ScreenProps = Parameters<typeof PlanificadorScreen>[0]
+
+function renderScreen(overrides: Partial<ScreenProps> = {}) {
   const handlers = { onSelectPeriod: vi.fn(), onAdd: vi.fn(), onRemove: vi.fn() }
-  render(
-    <PlanificadorScreen
-      periods={PERIODS}
-      selectedPeriodId={2}
-      candidates={[]}
-      draft={[]}
-      clashes={[]}
-      load={{ totalMinutes: 0, classCount: 0, subjectCount: 0 }}
-      {...handlers}
-      {...overrides}
-    />
-  )
-  return handlers
+  const props = (extra: Partial<ScreenProps>): ScreenProps => ({
+    periods: PERIODS,
+    selectedPeriodId: 2,
+    candidates: [],
+    draft: [],
+    clashes: [],
+    load: { totalMinutes: 0, classCount: 0, subjectCount: 0 },
+    ...handlers,
+    ...extra
+  })
+  const view = render(<PlanificadorScreen {...props(overrides)} />)
+  return {
+    ...handlers,
+    rerender: (next: Partial<ScreenProps>) => view.rerender(<PlanificadorScreen {...props(next)} />)
+  }
 }
 
 describe('PlanificadorScreen', () => {
@@ -173,7 +177,9 @@ describe('PlanificadorScreen', () => {
         draft: [draftSubject(1, 'Análisis Matemático II', [slot(MONDAY, 1080, 1260), slot(WEDNESDAY, 1080, 1260)])]
       })
 
-      expect(screen.getByText('Lun 18:00–21:00 · Mié 18:00–21:00')).toBeInTheDocument()
+      // Read off the row, not one text node: each class is now its own span
+      // so a collision can be marked on the hour that has it.
+      expect(screen.getByTestId('planificador-draft-row')).toHaveTextContent('Lun 18:00–21:00 · Mié 18:00–21:00')
     })
 
     it('offers a button that takes a materia back out', async () => {
@@ -191,7 +197,53 @@ describe('PlanificadorScreen', () => {
     })
   })
 
+  describe('clashing hours', () => {
+    // ITICS meets four times a week and collides on exactly one of them.
+    // Painting all four said "this materia is a problem"; the design says
+    // "this HOUR is".
+    it('marks only the class that collides', () => {
+      renderScreen({
+        draft: [
+          draftSubject(1, 'ITICS', [slot(MONDAY, 480, 540), slot(WEDNESDAY, 480, 540)]),
+          draftSubject(2, 'Redes', [slot(MONDAY, 480, 540)])
+        ],
+        clashes: [
+          {
+            first: { id: 1, name: 'ITICS' },
+            second: { id: 2, name: 'Redes' },
+            dayOfWeek: MONDAY,
+            startMinutes: 480,
+            endMinutes: 540
+          }
+        ]
+      })
+
+      const rows = screen.getAllByTestId('planificador-draft-row')
+
+      expect(within(rows[0]!).getByText('Lun 08:00–09:00')).toHaveClass('text-(--color-warn)')
+      expect(within(rows[0]!).getByText('Mié 08:00–09:00')).not.toHaveClass('text-(--color-warn)')
+    })
+
+    it('leaves every hour quiet when nothing collides', () => {
+      renderScreen({ draft: [draftSubject(1, 'ITICS', [slot(MONDAY, 480, 540)])], clashes: [] })
+
+      expect(screen.getByText('Lun 08:00–09:00')).not.toHaveClass('text-(--color-warn)')
+    })
+  })
+
   describe('clash notice', () => {
+    const CLASH = {
+      first: { id: 1, name: 'Análisis' },
+      second: { id: 2, name: 'Redes' },
+      dayOfWeek: WEDNESDAY,
+      startMinutes: 1140,
+      endMinutes: 1260
+    }
+    const CLASHING_DRAFT = [
+      draftSubject(1, 'Análisis', [slot(WEDNESDAY, 1080, 1260)]),
+      draftSubject(2, 'Redes', [slot(WEDNESDAY, 1140, 1320)])
+    ]
+
     it('names both materias and the overlapping window', () => {
       renderScreen({
         draft: [
@@ -256,6 +308,55 @@ describe('PlanificadorScreen', () => {
       renderScreen({ draft: [draftSubject(1, 'Análisis', [slot(MONDAY, 1080, 1260)])], clashes: [] })
 
       expect(screen.queryByText(/se superpone con/)).not.toBeInTheDocument()
+    })
+
+    // An aviso you cannot put down is a nag. Closing one silences THAT
+    // collision — and only while it lasts (see below).
+    it('lets the student close the notice', async () => {
+      renderScreen({ draft: CLASHING_DRAFT, clashes: [CLASH] })
+
+      await userEvent.click(screen.getByRole('button', { name: 'Cerrar el aviso de Análisis y Redes' }))
+
+      expect(screen.queryByText(/se superpone con/)).not.toBeInTheDocument()
+    })
+
+    // Closing is the last thing on this screen that could be mistaken for a
+    // decision, so it gets the same guard the rest of the notice has: it
+    // silences a message, it does not touch the borrador.
+    it('leaves the draft untouched when the notice is closed', async () => {
+      const handlers = renderScreen({ draft: CLASHING_DRAFT, clashes: [CLASH] })
+
+      await userEvent.click(screen.getByRole('button', { name: 'Cerrar el aviso de Análisis y Redes' }))
+
+      expect(handlers.onRemove).not.toHaveBeenCalled()
+    })
+
+    it('keeps the other notices open', async () => {
+      const second = {
+        first: { id: 1, name: 'Análisis' },
+        second: { id: 3, name: 'Física' },
+        dayOfWeek: MONDAY,
+        startMinutes: 600,
+        endMinutes: 660
+      }
+      renderScreen({ draft: CLASHING_DRAFT, clashes: [CLASH, second] })
+
+      await userEvent.click(screen.getByRole('button', { name: 'Cerrar el aviso de Análisis y Redes' }))
+
+      expect(screen.getByText('Análisis se superpone con Física')).toBeInTheDocument()
+    })
+
+    // Silencing is not solving. The moment the overlap is actually gone the
+    // silence expires with it, so the same pair colliding again is announced
+    // again instead of staying quietly hidden.
+    it('speaks up again when the same collision comes back', async () => {
+      const { rerender } = renderScreen({ draft: CLASHING_DRAFT, clashes: [CLASH] })
+      await userEvent.click(screen.getByRole('button', { name: 'Cerrar el aviso de Análisis y Redes' }))
+
+      rerender({ draft: CLASHING_DRAFT, clashes: [] })
+      rerender({ draft: CLASHING_DRAFT, clashes: [CLASH] })
+
+      expect(screen.getByText('Análisis se superpone con Redes')).toBeInTheDocument()
     })
   })
 

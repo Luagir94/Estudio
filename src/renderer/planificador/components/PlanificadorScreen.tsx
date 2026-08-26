@@ -12,14 +12,25 @@
 // × away, and never withholds the + from a materia that would collide. Its own
 // approved copy is the specification — "el planificador avisa, no decide" —
 // and the tests hold that line.
+//
+// Closing a notice is the same promise seen from the other side: it silences a
+// MESSAGE and leaves the borrador exactly as it was. Which is also why the
+// silence is not permanent — see `dismissed` below.
 import { Lock, Plus, TriangleAlert, X } from 'lucide-react'
+import { Fragment, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
 import { cn } from '../../shared/lib/cn'
 import { interactive, interactiveGhost } from '../../shared/lib/interactive'
 import { DotBadge } from '../../shared/components/ui/dot-badge'
 import { Select } from '../../shared/components/ui/select'
-import { type DraftSubject, type ScheduleClash, weeklyLoadFraction, type WeeklyLoad } from '../domain/draftSchedule'
+import {
+  clashingSlotIds,
+  type DraftSubject,
+  type ScheduleClash,
+  weeklyLoadFraction,
+  type WeeklyLoad
+} from '../domain/draftSchedule'
 import type { PlannablePeriod } from '../domain/plannablePeriods'
 import type { Candidate, UnmetRequirement } from '../domain/requirements'
 
@@ -72,6 +83,15 @@ function dayLabels(slots: { dayOfWeek: number }[], weekdays: string[]): string[]
   return indexes.map((index) => weekdays[index] ?? '')
 }
 
+/**
+ * Identity of one collision: the pair and the window it happens in. Stable
+ * across renders, so it doubles as the React key and as the handle a dismissal
+ * is remembered by.
+ */
+function clashKey(clash: ScheduleClash): string {
+  return `${clash.first.id}-${clash.second.id}-${clash.dayOfWeek}-${clash.startMinutes}`
+}
+
 const ROW_SHELL = 'flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-3'
 const ICON_BUTTON = 'flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg bg-muted'
 
@@ -90,9 +110,28 @@ export function PlanificadorScreen({
   const weekdaysShort = t('common:weekdaysShort3', { returnObjects: true }) as string[]
   const weekdaysLong = t('common:weekdaysLong', { returnObjects: true }) as string[]
   const selectedPeriod = periods.find((period) => period.id === selectedPeriodId) ?? null
-  // Derived from the clashes rather than passed alongside them: one source,
-  // so a row can never be painted urgent without a notice explaining why.
-  const clashingSubjectIds = new Set(clashes.flatMap((clash) => [clash.first.id, clash.second.id]))
+  // Read from ALL clashes, not just the open notices. Closing a notice
+  // silences an interruption; it does not un-collide the hours. The mark stays
+  // as the quiet, permanent record of a decision the student already made.
+  const clashingSlots = clashingSlotIds(draft, clashes)
+
+  // View state, not a verdict — which is why it lives here and not in the
+  // container. It is kept only for as long as the collision it silenced: the
+  // moment the student actually resolves the overlap the key is dropped, so
+  // the same pair colliding again is announced again rather than staying
+  // quietly hidden. That prune is the React-sanctioned "adjust state while
+  // rendering" — it is conditional and converges on the next pass.
+  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(() => new Set())
+  const stillDismissed = clashes.map(clashKey).filter((key) => dismissed.has(key))
+  if (stillDismissed.length !== dismissed.size) {
+    setDismissed(new Set(stillDismissed))
+  }
+  const silenced = new Set(stillDismissed)
+  const openClashes = clashes.filter((clash) => !silenced.has(clashKey(clash)))
+
+  function dismiss(clash: ScheduleClash): void {
+    setDismissed((current) => new Set(current).add(clashKey(clash)))
+  }
 
   function missingLine(unmet: UnmetRequirement): string {
     if (unmet.subjectName === null) {
@@ -216,62 +255,61 @@ export function PlanificadorScreen({
           >
             <h2 className="text-label font-semibold text-muted-foreground">{t('draft.heading')}</h2>
             {draft.length === 0 && <p className="text-body-lg text-muted-foreground">{t('draft.empty')}</p>}
-            {draft.map((subject) => {
-              const clashing = clashingSubjectIds.has(subject.id)
-              return (
-                <div
-                  key={subject.id}
-                  data-testid="planificador-draft-row"
-                  className={cn(ROW_SHELL, clashing && 'border-destructive')}
-                >
-                  <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
-                    <span className="text-body-lg font-semibold text-foreground">{subject.name}</span>
-                    <span
-                      className={cn(
-                        'text-body-sm',
-                        clashing ? 'font-semibold text-destructive' : 'text-muted-foreground'
-                      )}
-                    >
-                      {subject.slots.length === 0
-                        ? t('draft.noSchedule')
-                        : [...subject.slots]
-                            .sort(
-                              (a, b) =>
-                                toMondayFirstIndex(a.dayOfWeek) - toMondayFirstIndex(b.dayOfWeek) ||
-                                a.startMinutes - b.startMinutes
-                            )
-                            .map((slot) =>
-                              t('draft.slot', {
-                                day: weekdaysShort[toMondayFirstIndex(slot.dayOfWeek)],
-                                start: formatTime(slot.startMinutes),
-                                end: formatTime(slot.endMinutes)
-                              })
-                            )
-                            .join(' · ')}
-                    </span>
-                  </div>
-                  {/* Offered on EVERY row, clashing or not. A notice that took
-                      the control away would be deciding. */}
-                  <button
-                    type="button"
-                    onClick={() => onRemove(subject.id)}
-                    aria-label={t('draft.remove', { subject: subject.name })}
-                    className={cn(ICON_BUTTON, 'text-secondary-foreground', interactiveGhost)}
-                  >
-                    <X className="h-4 w-4" aria-hidden />
-                  </button>
+            {draft.map((subject) => (
+              <div key={subject.id} data-testid="planificador-draft-row" className={ROW_SHELL}>
+                <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
+                  <span className="text-body-lg font-semibold text-foreground">{subject.name}</span>
+                  {/* One span per CLASS, not one string per materia. A materia
+                      that meets four times a week and collides once has three
+                      perfectly good hours, and they stay quiet. */}
+                  <span className="text-body-sm text-muted-foreground">
+                    {subject.slots.length === 0
+                      ? t('draft.noSchedule')
+                      : [...subject.slots]
+                          .sort(
+                            (a, b) =>
+                              toMondayFirstIndex(a.dayOfWeek) - toMondayFirstIndex(b.dayOfWeek) ||
+                              a.startMinutes - b.startMinutes
+                          )
+                          .map((slot, index) => (
+                            <Fragment key={slot.id}>
+                              {index > 0 && ' · '}
+                              <span className={cn(clashingSlots.has(slot.id) && 'font-semibold text-(--color-warn)')}>
+                                {t('draft.slot', {
+                                  day: weekdaysShort[toMondayFirstIndex(slot.dayOfWeek)],
+                                  start: formatTime(slot.startMinutes),
+                                  end: formatTime(slot.endMinutes)
+                                })}
+                              </span>
+                            </Fragment>
+                          ))}
+                  </span>
                 </div>
-              )
-            })}
+                {/* Offered on EVERY row, clashing or not. A notice that took
+                      the control away would be deciding. */}
+                <button
+                  type="button"
+                  onClick={() => onRemove(subject.id)}
+                  aria-label={t('draft.remove', { subject: subject.name })}
+                  className={cn(ICON_BUTTON, 'text-secondary-foreground', interactiveGhost)}
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+            ))}
 
-            {clashes.map((clash) => (
+            {/* `warn`, not `urgent`. A collision is not an error — the student
+                is allowed to keep it, and the copy says so. Urgent is this
+                app's colour for something that went WRONG, and spending it
+                here left nothing louder to say when something does. */}
+            {openClashes.map((clash) => (
               <div
-                key={`${clash.first.id}-${clash.second.id}-${clash.dayOfWeek}-${clash.startMinutes}`}
+                key={clashKey(clash)}
                 data-testid="planificador-clash"
-                className="flex gap-3 rounded-lg border border-destructive bg-(--color-urgent-soft) px-4 py-3"
+                className="flex items-start gap-3 rounded-lg border border-(--color-warn) bg-(--color-warn-soft) p-3"
               >
-                <TriangleAlert className="mt-[2px] h-4 w-4 shrink-0 text-destructive" aria-hidden />
-                <div className="flex min-w-0 flex-col gap-1">
+                <TriangleAlert className="h-4 w-4 shrink-0 text-(--color-warn)" aria-hidden />
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <span className="text-body-lg font-semibold text-foreground">
                     {t('clash.title', { first: clash.first.name, second: clash.second.name })}
                   </span>
@@ -283,6 +321,14 @@ export function PlanificadorScreen({
                     })}
                   </span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => dismiss(clash)}
+                  aria-label={t('clash.dismiss', { first: clash.first.name, second: clash.second.name })}
+                  className={cn('shrink-0 text-muted-foreground', interactiveGhost)}
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
               </div>
             ))}
 

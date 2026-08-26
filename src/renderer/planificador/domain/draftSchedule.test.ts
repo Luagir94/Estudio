@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  clashingSlotIds,
   type DraftSubject,
   findScheduleClashes,
   summarizeWeeklyLoad,
@@ -136,6 +137,47 @@ describe('findScheduleClashes', () => {
     ])
 
     expect(clashes.map((clash) => clash.dayOfWeek)).toEqual([MONDAY, 0])
+  })
+})
+
+describe('clashingSlotIds', () => {
+  it('finds nothing without clashes', () => {
+    expect(clashingSlotIds([subject(1, 'Análisis', [slot(MONDAY, 1080, 1260)])], [])).toEqual(new Set())
+  })
+
+  // The point of the whole helper: a materia that meets four times a week and
+  // collides once is NOT four collisions. Widening the mark to the materia
+  // would tell the student to fix a timetable that is mostly fine.
+  it('marks only the class inside the overlapping window', () => {
+    const monday = slot(MONDAY, 480, 540)
+    const wednesday = slot(WEDNESDAY, 480, 540)
+    const clashes = findScheduleClashes([
+      subject(1, 'ITICS', [monday, wednesday]),
+      subject(2, 'Redes', [slot(MONDAY, 480, 540)])
+    ])
+
+    const marked = clashingSlotIds([subject(1, 'ITICS', [monday, wednesday])], clashes)
+
+    expect(marked.has(monday.id)).toBe(true)
+    expect(marked.has(wednesday.id)).toBe(false)
+  })
+
+  it('marks the class on BOTH sides of the collision', () => {
+    const mine = slot(MONDAY, 480, 600)
+    const theirs = slot(MONDAY, 540, 660)
+    const draft = [subject(1, 'ITICS', [mine]), subject(2, 'Redes', [theirs])]
+
+    const marked = clashingSlotIds(draft, findScheduleClashes(draft))
+
+    expect(marked).toEqual(new Set([mine.id, theirs.id]))
+  })
+
+  // Same line `findScheduleClashes` holds: a class ending 21:00 and one
+  // starting 21:00 is a real timetable, so nothing is marked either.
+  it('leaves touching endpoints alone', () => {
+    const draft = [subject(1, 'Análisis', [slot(MONDAY, 1080, 1260)]), subject(2, 'Redes', [slot(MONDAY, 1260, 1380)])]
+
+    expect(clashingSlotIds(draft, findScheduleClashes(draft))).toEqual(new Set())
   })
 })
 

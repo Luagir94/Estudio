@@ -78,6 +78,44 @@ export function findScheduleClashes(subjects: readonly DraftSubject[]): Schedule
   return clashes
 }
 
+/**
+ * The ids of the drafted slots that actually sit inside a collision.
+ *
+ * The unit here is the CLASS, not the materia, and that distinction is the
+ * whole reason this exists. A materia can meet four times a week and collide
+ * on exactly one of them; marking the materia would tell the student that a
+ * timetable which is three-quarters fine is a problem. Marking the hour tells
+ * them WHICH hour to move.
+ *
+ * A slot counts when a clash names its materia, falls on its day, and its own
+ * hours overlap the clash window. The overlap test is strict on both ends, the
+ * same line `findScheduleClashes` holds — a class ending 21:00 and one
+ * starting 21:00 is a real timetable, and neither gets marked.
+ *
+ * Like everything else in this module it REPORTS. Nothing may read it to block
+ * a draft line.
+ */
+export function clashingSlotIds(subjects: readonly DraftSubject[], clashes: readonly ScheduleClash[]): Set<number> {
+  const marked = new Set<number>()
+
+  for (const subject of subjects) {
+    for (const slot of subject.slots) {
+      const collides = clashes.some(
+        (clash) =>
+          (clash.first.id === subject.id || clash.second.id === subject.id) &&
+          clash.dayOfWeek === slot.dayOfWeek &&
+          slot.startMinutes < clash.endMinutes &&
+          clash.startMinutes < slot.endMinutes
+      )
+      if (collides) {
+        marked.add(slot.id)
+      }
+    }
+  }
+
+  return marked
+}
+
 export interface WeeklyLoad {
   /** Total class time per week, in minutes. Callers format to hours. */
   totalMinutes: number

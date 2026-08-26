@@ -34,7 +34,8 @@
   },
   "clash": {
     "title": "{{first}} se superpone con {{second}}",
-    "body": "{{day}} {{start}}–{{end}}. Podés dejarla igual: el planificador avisa, no decide."
+    "body": "{{day}} {{start}}–{{end}}. Podés dejarla igual: el planificador avisa, no decide.",
+    "dismiss": "Cerrar el aviso de {{first}} y {{second}}"
   },
   "weeklyLoad": {
     "heading": "CARGA SEMANAL",

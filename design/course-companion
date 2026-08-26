@@ -14471,7 +14471,7 @@
                   "id": "NyUcp",
                   "layoutPosition": "absolute",
                   "x": 360,
-                  "y": 200,
+                  "y": 120,
                   "name": "Modal",
                   "clip": true,
                   "width": 560,
@@ -14605,6 +14605,7 @@
                       "id": "wFrbn",
                       "name": "Modal Body",
                       "width": "fill_container",
+                      "height": 284,
                       "layout": "vertical",
                       "gap": 12,
                       "padding": 24,
@@ -14927,6 +14928,45 @@
                                   "fill": "$text-muted"
                                 }
                               ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Qkl2Y",
+                          "name": "Slot Overlap Warning",
+                          "height": 32,
+                          "fill": "$warn-soft",
+                          "cornerRadius": 6,
+                          "stroke": "$warn",
+                          "strokeWidth": 1,
+                          "strokeAlignment": "inner",
+                          "gap": 8,
+                          "padding": [
+                            8,
+                            12
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "izxva",
+                              "name": "Warn",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "triangle-alert",
+                              "library": "lucide",
+                              "fill": "$warn"
+                            },
+                            {
+                              "type": "text",
+                              "id": "G77403",
+                              "name": "Warn Text",
+                              "fill": "$warn",
+                              "content": "Se superpone con Matemática Discreta · Jueves 08:00 – 09:30",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 12,
+                              "fontWeight": "600"
                             }
                           ]
                         },
@@ -26505,47 +26545,79 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "z5hCp",
-                                  "name": "Operating Systems",
-                                  "clip": true,
+                                  "id": "jzp0v",
+                                  "name": "Overlap Band 08:00",
                                   "width": "fill_container",
                                   "height": 51,
-                                  "fill": "$surface-sunken",
-                                  "cornerRadius": 6,
-                                  "stroke": "$subject-1",
-                                  "strokeWidth": {
-                                    "left": 3
-                                  },
-                                  "strokeAlignment": "inner",
-                                  "layout": "vertical",
-                                  "gap": 4,
-                                  "padding": [
-                                    5,
-                                    8
-                                  ],
+                                  "gap": 2,
                                   "children": [
                                     {
-                                      "type": "text",
-                                      "id": "ve6XS",
-                                      "name": "Block Name",
-                                      "fill": "$text-primary",
-                                      "textGrowth": "fixed-width",
+                                      "type": "frame",
+                                      "id": "f1fdM",
+                                      "name": "Operating Systems",
+                                      "clip": true,
                                       "width": "fill_container",
-                                      "content": "Sistemas Operativos",
-                                      "lineHeight": 1.15,
-                                      "fontFamily": "$font-ui",
-                                      "fontSize": 12,
-                                      "fontWeight": "600"
+                                      "height": "fill_container",
+                                      "fill": "$surface-sunken",
+                                      "cornerRadius": 6,
+                                      "stroke": "$subject-1",
+                                      "strokeWidth": {
+                                        "left": 3
+                                      },
+                                      "strokeAlignment": "inner",
+                                      "layout": "vertical",
+                                      "gap": 4,
+                                      "padding": [
+                                        5,
+                                        8
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "D8hLZm",
+                                          "name": "Block Name",
+                                          "fill": "$text-primary",
+                                          "content": "Sistemas Operativos",
+                                          "lineHeight": 1.15,
+                                          "fontFamily": "$font-ui",
+                                          "fontSize": 12,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
                                     },
                                     {
-                                      "type": "text",
-                                      "id": "fi7Wa",
-                                      "name": "Block Time",
-                                      "fill": "$text-muted",
-                                      "content": "08:00 – 09:30",
-                                      "fontFamily": "$font-ui",
-                                      "fontSize": 10,
-                                      "fontWeight": "normal"
+                                      "type": "frame",
+                                      "id": "WUqIF",
+                                      "name": "Discrete Math",
+                                      "clip": true,
+                                      "width": "fill_container",
+                                      "height": "fill_container",
+                                      "fill": "$surface-sunken",
+                                      "cornerRadius": 6,
+                                      "stroke": "$subject-5",
+                                      "strokeWidth": {
+                                        "left": 3
+                                      },
+                                      "strokeAlignment": "inner",
+                                      "layout": "vertical",
+                                      "gap": 4,
+                                      "padding": [
+                                        5,
+                                        8
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "fulFO",
+                                          "name": "Block Name",
+                                          "fill": "$text-primary",
+                                          "content": "Matemática Discreta",
+                                          "lineHeight": 1.15,
+                                          "fontFamily": "$font-ui",
+                                          "fontSize": 12,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
                                     }
                                   ]
                                 },
@@ -27314,7 +27386,7 @@
                               "type": "text",
                               "id": "Xtx6w",
                               "name": "Disponibles Heading",
-                              "fill": "$urgent",
+                              "fill": "$text-muted",
                               "content": "DISPONIBLES PARA CURSAR",
                               "fontFamily": "$font-ui",
                               "fontSize": 10,
