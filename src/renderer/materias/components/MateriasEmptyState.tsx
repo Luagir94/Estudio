@@ -22,7 +22,7 @@ export function MateriasEmptyState({ onAddSubject, onGoToCarreras }: MateriasEmp
     <div className="flex flex-col items-center gap-4 rounded-xl border border-border bg-card px-6 py-12 text-center">
       {/* 56px circle — one step up from the other empty states' 48px: this is
           the app's front door, not a corner of a populated screen. */}
-      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-violet-soft">
+      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft">
         <GraduationCap className="h-6 w-6 text-primary-ink" aria-hidden="true" />
       </span>
       <div className="flex flex-col gap-1">

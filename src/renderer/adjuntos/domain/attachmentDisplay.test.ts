@@ -131,7 +131,7 @@ describe('originBadgeFor', () => {
     expect(originBadgeFor('ai-generated')).toEqual({
       label: 'IA',
       icon: 'sparkles',
-      classes: 'bg-violet-soft text-primary-ink'
+      classes: 'bg-brand-soft text-primary-ink'
     })
   })
 })

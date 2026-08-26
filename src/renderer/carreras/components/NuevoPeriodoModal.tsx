@@ -250,13 +250,13 @@ export function NuevoPeriodoModal({
             )}
 
             {/* `accent-*` matches the entregas checkbox: a checked box is the
-                design's violet everywhere, not the OS blue in half the app. */}
+                design's brand accent everywhere, not the OS blue in half the app. */}
             <label className="group flex items-center gap-3">
               <input
                 type="checkbox"
                 checked={isOpenEnded}
                 onChange={(event) => toggleOpenEnded(event.target.checked)}
-                className={cn('h-4 w-4 rounded-sm border-border accent-(--color-violet)', interactive)}
+                className={cn('h-4 w-4 rounded-sm border-border accent-(--color-brand)', interactive)}
               />
               <span className="text-body-sm font-semibold text-secondary-foreground transition-colors duration-150 group-hover:text-foreground">
                 {t('nuevoPeriodoModal.openEnded')}

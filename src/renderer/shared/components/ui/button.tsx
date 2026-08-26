@@ -5,7 +5,7 @@
 // the confirm button (see DeleteSubjectConfirmDialog).
 //
 // The two fills do NOT share a foreground, and neither is `--color-ink`.
-// Each carries the ink its own luminance demands: violet is a dark fill and
+// Each carries the ink its own luminance demands: the brand fill can be dark or light and
 // takes white (4.54:1), coral is a LIGHT fill and takes near-black (7.03:1).
 // Painting both with the same light ink is what put the delete button at
 // 2.80:1 — under the 4.5 floor, on the one button that cannot be undone.

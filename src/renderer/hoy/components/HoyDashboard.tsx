@@ -98,7 +98,7 @@ export function HoyDashboard({
 }: HoyDashboardProps): React.JSX.Element {
   const { t } = useTranslation('hoy')
   // In-progress-first rule (see getNextClassHighlight): at most ONE row
-  // carries the violet accent + "starts in" pill; after the last class the
+  // carries the brand accent + "starts in" pill; after the last class the
   // list goes back to plain surface rows.
   const nextClassHighlight = getNextClassHighlight(todayClasses, now)
   // Monday-first, same consolidated table every other weekday label reads.
@@ -130,7 +130,7 @@ export function HoyDashboard({
             // worth drawing, not a one-line apology — a coffee break, plus
             // where the week picks up again when that is derivable.
             <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card px-6 py-10 text-center">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-soft">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft">
                 <Coffee className="h-5 w-5 text-primary-ink" aria-hidden="true" />
               </span>
               <div className="flex flex-col gap-1">

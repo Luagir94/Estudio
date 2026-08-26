@@ -158,7 +158,7 @@ const ORIGIN_BADGES: Partial<Record<AttachmentOrigin, OriginBadgeInfo>> = {
   'ai-generated': {
     label: i18n.t('adjuntos:attachmentDisplay.originBadgeAi'),
     icon: 'sparkles',
-    classes: 'bg-violet-soft text-primary-ink'
+    classes: 'bg-brand-soft text-primary-ink'
   }
 }
 

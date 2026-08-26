@@ -8,7 +8,7 @@ interface AskTriggerProps {
 
 /**
  * The global entry point (design `Grupo — Preguntar` → `AskTrigger`): 56px,
- * violet fill, fixed to the bottom-right of the window so it rides above
+ * brand fill, fixed to the bottom-right of the window so it rides above
  * whatever screen is mounted. The panel is available everywhere because the
  * corpus is global — it is not a Materias affordance.
  *

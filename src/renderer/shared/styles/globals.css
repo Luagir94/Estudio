@@ -25,27 +25,27 @@
   --color-ink: #f4f4f7;
   --color-ink-secondary: #9e9eac;
   /* Was #7e7e8f, which cleared 4.5:1 on `surface` and on NOTHING below it —
-     4.25 on `surface-sunken`, 4.08 on `violet-soft`, 3.88 on `ok-soft`. It is
+     4.25 on `surface-sunken`, 4.08 on `brand-soft`, 3.88 on `ok-soft`. It is
      the most-used ink in the app (row captions, dates, "Finalizado" badges),
      so it was also the largest single block of failing text. Lightened to the
      minimum that clears AA on all seven surfaces (worst case 4.66 on
      `ok-soft`) while keeping 18 steps of separation from `ink-secondary`, so
      the muted/secondary hierarchy still reads. */
   --color-ink-muted: #8c8c9b;
-  --color-violet: #7f5af0;
-  --color-violet-soft: #221b3d;
-  /* The SAME brand violet, one step lighter, for violet used as TEXT (pen
-     token `accent-text`). `--color-violet` stays exactly as it is because it
+  --color-brand: #7f5af0;
+  --color-brand-soft: #221b3d;
+  /* The SAME brand hue, one step lighter, for the brand used as TEXT (pen
+     token `accent-text`). `--color-brand` stays exactly as it is because it
      is a FILL: white on it clears AA at 4.54, and lightening it would break
      that. As ink, though, it cleared nothing — 4.04 on `surface`, 3.58 on its
-     own `violet-soft` backing. Fill and ink are two jobs, so they are two
+     own `brand-soft` backing. Fill and ink are two jobs, so they are two
      tokens. */
-  --color-violet-ink: #997bf3;
+  --color-brand-ink: #997bf3;
   --color-urgent: #ff6b5b;
   --color-urgent-soft: #2e1815;
   /* Foregrounds for the two solid action fills. They are NOT the same ink,
      and that is the point: the foreground follows the fill's luminance, and
-     coral is a LIGHT colour while violet is a dark one. White on coral was
+     coral is a LIGHT colour while the brand violet is a dark one. White on coral was
      2.80:1 — the worst contrast in the app, on its most destructive button.
      Near-black on coral is 7.03:1. */
   --color-on-accent: #ffffff;
@@ -77,17 +77,17 @@
   --color-popover-foreground: var(--color-ink);
   --color-border: var(--color-hairline);
   --color-input: var(--color-hairline);
-  --color-ring: var(--color-violet);
-  --color-primary: var(--color-violet);
+  --color-ring: var(--color-brand);
+  --color-primary: var(--color-brand);
   /* Was `--color-ink`, which contradicted both the design and this app's own
-     Button comment ("$accent fill with white text"): #f4f4f7 on violet is
+     Button comment ("$accent fill with white text"): #f4f4f7 on the brand is
      4.14:1, white is 4.54:1. The design was right. */
   --color-primary-foreground: var(--color-on-accent);
-  /* Violet as INK — the active/selected state's text and icons (status
+  /* The brand as INK — the active/selected state's text and icons (status
      badges, the current filter chip, the active nav row). Distinct from
      `--color-primary`, which is the same hue used as a FILL; `border-primary`
      keeps using that one, since a 1px border only owes 3:1. */
-  --color-primary-ink: var(--color-violet-ink);
+  --color-primary-ink: var(--color-brand-ink);
   --color-secondary: var(--color-surface-sunken);
   --color-secondary-foreground: var(--color-ink-secondary);
   --color-muted: var(--color-surface-sunken);
@@ -101,17 +101,17 @@
   --color-sidebar: var(--color-surface);
   --color-sidebar-foreground: var(--color-ink);
   --color-sidebar-border: var(--color-hairline);
-  --color-sidebar-primary: var(--color-violet);
+  --color-sidebar-primary: var(--color-brand);
   --color-sidebar-primary-foreground: var(--color-ink);
   /* Active nav row background (design: descendant override `fill: $accent-soft`
      on the active item, node `LczWA` instance in e.g. `dw1W7`/Materias) — was
      wrongly mapped onto `--color-surface-sunken` (the neutral hover/muted
      tone) before this corrective pass, which made the active item invisible
      against the sidebar background. */
-  --color-sidebar-accent: var(--color-violet-soft);
-  /* Violet-on-violet-soft was 3.58:1 — the current page's own label was the
+  --color-sidebar-accent: var(--color-brand-soft);
+  /* Brand-on-brand-soft was 3.58:1 — the current page's own label was the
      least readable text in the navigation. The ink variant takes it to 5.02. */
-  --color-sidebar-accent-foreground: var(--color-violet-ink);
+  --color-sidebar-accent-foreground: var(--color-brand-ink);
 
   --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
   --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
@@ -209,7 +209,7 @@
  * `var()`, and this unlayered override outranks the theme layer.
  *
  * Only raw tokens appear here. `on-accent` keeps #ffffff (white on the light
- * violet still clears AA) and `scrim` keeps #05050899 — a scrim's job is to
+ * brand still clears AA) and `scrim` keeps #05050899 — a scrim's job is to
  * darken whatever is behind it, in either scheme. `on-urgent` DOES flip:
  * near-black on the dark coral, white on the light #c22f20.
  *
@@ -227,9 +227,9 @@
     --color-ink: #1b1b22;
     --color-ink-secondary: #565664;
     --color-ink-muted: #63636f;
-    --color-violet: #6d4ae7;
-    --color-violet-soft: #ece6fd;
-    --color-violet-ink: #5f3bd8;
+    --color-brand: #6d4ae7;
+    --color-brand-soft: #ece6fd;
+    --color-brand-ink: #5f3bd8;
     --color-urgent: #c22f20;
     --color-urgent-soft: #fce9e6;
     --color-on-urgent: #ffffff;
@@ -335,7 +335,7 @@ body {
   }
 
   ::-webkit-scrollbar-thumb:active {
-    background-color: var(--color-violet);
+    background-color: var(--color-brand);
   }
 }
 

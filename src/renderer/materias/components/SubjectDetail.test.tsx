@@ -96,7 +96,7 @@ describe('SubjectDetail (read-only)', () => {
     expect(screen.getByText('1 día de atraso')).toBeInTheDocument()
   })
 
-  it('grades deadline status pills by urgency and never paints them violet (violet is interaction-only)', () => {
+  it('grades deadline status pills by urgency and never paints them with the brand accent (that accent is interaction-only)', () => {
     const graded: SubjectDetailResult = {
       ...baseSubject,
       deadlines: [
@@ -129,7 +129,7 @@ describe('SubjectDetail (read-only)', () => {
     expect(screen.getByText('En 2 semanas')).toHaveClass('bg-(--color-surface-sunken)', 'text-(--color-ink-muted)')
     expect(screen.getByText('Completada')).toHaveClass('bg-muted', 'text-muted-foreground')
     for (const row of screen.getAllByTestId('subject-detail-deadline')) {
-      expect(row.innerHTML).not.toContain('violet')
+      expect(row.innerHTML).not.toContain('brand')
     }
   })
 

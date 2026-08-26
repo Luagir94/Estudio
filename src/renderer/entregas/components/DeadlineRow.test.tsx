@@ -45,7 +45,7 @@ describe('DeadlineRow (design node AHToB)', () => {
     expect(screen.getByText('Completada')).toHaveClass('bg-muted', 'text-muted-foreground')
   })
 
-  describe('status pill urgency styling (violet is reserved for interaction, never for status)', () => {
+  describe('status pill urgency styling (the brand accent is reserved for interaction, never for status)', () => {
     function renderPill(dueAt: string): HTMLElement {
       render(
         <DeadlineRow
@@ -57,7 +57,7 @@ describe('DeadlineRow (design node AHToB)', () => {
         />
       )
       const pill = screen.getByText(/atraso|Hoy|Mañana|En \d/)
-      expect(pill.className).not.toContain('violet')
+      expect(pill.className).not.toContain('brand')
       return pill
     }
 

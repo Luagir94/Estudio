@@ -73,7 +73,7 @@ export function DeadlineRow({
         aria-label={deadline.done ? t('deadlineRow.markPending') : t('deadlineRow.markDone')}
         checked={deadline.done}
         onChange={(event) => onToggleDone(event.target.checked)}
-        className={cn('h-4 w-4 shrink-0 rounded-sm border-border accent-(--color-violet)', interactive)}
+        className={cn('h-4 w-4 shrink-0 rounded-sm border-border accent-(--color-brand)', interactive)}
       />
 
       {/* The row body is one of THREE targets in this row (checkbox, body,
