@@ -34,7 +34,7 @@ describe('ajustesApi', () => {
           addEntry: vi.fn(),
           removeEntry: vi.fn()
         },
-        theme: { getPreference: vi.fn(), setPreference: vi.fn() },
+        theme: { getPreference: vi.fn(), setPreference: vi.fn(), getPalette: vi.fn(), setPalette: vi.fn() },
         materias: {
           create: vi.fn(),
           list: vi.fn(),
@@ -177,6 +177,55 @@ describe('ajustesApi', () => {
         .mockResolvedValue({ ok: false, error: { code: 'THEME_WRITE_FAILED', message: 'disk is full' } })
 
       await expect(ajustesApi.setThemePreference({ preference: 'dark' })).rejects.toThrow('disk is full')
+    })
+  })
+
+  // The palette pair. Note what is NOT here: no "applies it" test, because
+  // this adapter deliberately does not — putting the palette on `<html>` is
+  // `applyPalette`'s job, and keeping the two apart is what lets boot apply a
+  // palette without a react-query cache existing yet.
+  describe('palette', () => {
+    it('parses and returns the palette on a successful envelope', async () => {
+      window.api.theme.getPalette = vi.fn().mockResolvedValue({ ok: true, data: 'cuarzo' })
+
+      await expect(ajustesApi.palette()).resolves.toBe('cuarzo')
+    })
+
+    it('throws an AjustesApiError carrying the envelope code when ok is false', async () => {
+      window.api.theme.getPalette = vi
+        .fn()
+        .mockResolvedValue({ ok: false, error: { code: 'PALETTE_READ_FAILED', message: 'settings table exploded' } })
+
+      const error: unknown = await ajustesApi.palette().catch((caught: unknown) => caught)
+
+      expect(error).toBeInstanceOf(AjustesApiError)
+      expect((error as AjustesApiError).code).toBe('PALETTE_READ_FAILED')
+    })
+
+    // Loudly here, unlike `readStoredPalette`, which degrades. This one feeds
+    // a screen that can report the failure; that one runs before there is a
+    // screen at all.
+    it('throws when the envelope data is not a known palette', async () => {
+      window.api.theme.getPalette = vi.fn().mockResolvedValue({ ok: true, data: 'violeta' })
+
+      await expect(ajustesApi.palette()).rejects.toThrow()
+    })
+  })
+
+  describe('setPalette', () => {
+    it('names the palette it is setting and returns the echoed value', async () => {
+      window.api.theme.setPalette = vi.fn().mockResolvedValue({ ok: true, data: 'grafito' })
+
+      await expect(ajustesApi.setPalette({ palette: 'grafito' })).resolves.toBe('grafito')
+      expect(window.api.theme.setPalette).toHaveBeenCalledWith({ palette: 'grafito' })
+    })
+
+    it('throws an AjustesApiError when ok is false', async () => {
+      window.api.theme.setPalette = vi
+        .fn()
+        .mockResolvedValue({ ok: false, error: { code: 'PALETTE_WRITE_FAILED', message: 'disk is full' } })
+
+      await expect(ajustesApi.setPalette({ palette: 'malva' })).rejects.toThrow('disk is full')
     })
   })
 })

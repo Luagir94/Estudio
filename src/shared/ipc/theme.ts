@@ -29,3 +29,41 @@ export const setThemePreferenceInputSchema = z.object({
 })
 
 export type SetThemePreferenceInput = z.infer<typeof setThemePreferenceInputSchema>
+
+/**
+ * The colour palettes, in the order the settings screen offers them (approved
+ * `.pen`, node `Empor` "Palette Menu").
+ *
+ * A palette is the SECOND theming axis, orthogonal to the preference above.
+ * The preference decides light or dark; the palette decides which set of
+ * chrome and accent tokens that scheme paints with. The design file models it
+ * the same way — a `palette` theme axis alongside `mode` — and both axes
+ * resolve independently, so all twelve combinations are real.
+ *
+ * These ids are NOT display names. They are the values written to
+ * `<html data-palette="…">`, which is what `globals.css` keys its override
+ * blocks on, and they are what the settings row persists. Renaming one here
+ * would compile fine and silently paint the base palette instead, because a
+ * `[data-palette]` selector nobody matches is not an error — which is why
+ * `theme.test.ts` pins the list.
+ */
+export const paletteSchema = z.enum(['amatista', 'cobalto', 'turquesa', 'cuarzo', 'malva', 'grafito'])
+
+export type Palette = z.infer<typeof paletteSchema>
+
+export const PALETTES: readonly Palette[] = ['amatista', 'cobalto', 'turquesa', 'cuarzo', 'malva', 'grafito']
+
+/**
+ * What a profile that never chose gets. `amatista` is the palette the app
+ * shipped with, and it is the one written into the base token block rather
+ * than into a `[data-palette]` override — so an unset attribute and this
+ * value paint the identical screen, and there is no flash before the stored
+ * choice is read.
+ */
+export const DEFAULT_PALETTE: Palette = 'amatista'
+
+export const setPaletteInputSchema = z.object({
+  palette: paletteSchema
+})
+
+export type SetPaletteInput = z.infer<typeof setPaletteInputSchema>

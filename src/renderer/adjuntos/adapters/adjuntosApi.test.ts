@@ -61,7 +61,7 @@ describe('adjuntosApi', () => {
           addEntry: vi.fn(),
           removeEntry: vi.fn()
         },
-        theme: { getPreference: vi.fn(), setPreference: vi.fn() },
+        theme: { getPreference: vi.fn(), setPreference: vi.fn(), getPalette: vi.fn(), setPalette: vi.fn() },
         app: { openExternal: vi.fn(), exportJson: vi.fn(), onExportRequested: vi.fn() },
         ask: {
           question: vi.fn(),

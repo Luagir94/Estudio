@@ -72,9 +72,9 @@ export function daysRemaining(dueAt: string, now: Date): number {
 export type DeadlineUrgency = 'overdue' | 'imminent' | 'thisWeek' | 'later'
 
 /**
- * 4-level urgency for the status pill (Pencil design: violet is reserved
+ * 4-level urgency for the status pill (Pencil design: the brand accent is reserved
  * for interaction, so pills grade by urgency instead of the old
- * overdue-or-violet binary). Completion is deliberately NOT this function's
+ * overdue-or-accent binary). Completion is deliberately NOT this function's
  * business — callers already know `done` and route it to the muted
  * "Completada" treatment before ever asking about urgency, exactly like
  * `classifyDeadline` checks `done` first.

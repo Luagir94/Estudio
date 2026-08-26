@@ -12,7 +12,14 @@ import {
   type ProbeCliInput,
   type SetCliOverrideInput
 } from '../../../shared/ipc/cli'
-import { themePreferenceSchema, type SetThemePreferenceInput, type ThemePreference } from '../../../shared/ipc/theme'
+import {
+  paletteSchema,
+  themePreferenceSchema,
+  type Palette,
+  type SetPaletteInput,
+  type SetThemePreferenceInput,
+  type ThemePreference
+} from '../../../shared/ipc/theme'
 import { assertIpcOk, IpcApiError, unwrapIpcResult } from '../../shared/adapters/ipcApiError'
 
 /**
@@ -54,6 +61,17 @@ export const CLI_PREFERENCES_QUERY_KEY = ['cli', 'preferences'] as const
 /** The persisted theme preference. A settings read like the entry above — it starts no process. */
 export const THEME_PREFERENCE_QUERY_KEY = ['theme', 'preference'] as const
 
+/**
+ * The persisted palette, in its OWN entry beside the preference rather than
+ * sharing one.
+ *
+ * They are two independent axes — light/dark and which hues that scheme uses —
+ * persisted under two settings rows and answered by two channels. One shared
+ * entry would have forced a write to either half to invent a value for the
+ * other, the same reason the CLI statuses above are keyed per provider.
+ */
+export const PALETTE_QUERY_KEY = ['theme', 'palette'] as const
+
 export interface AjustesApi {
   /** Probes ONE CLI. Called from a button, or on open for a CLI already connected. */
   probe(input: ProbeCliInput): Promise<CliProviderStatus>
@@ -67,6 +85,10 @@ export interface AjustesApi {
   themePreference(): Promise<ThemePreference>
   /** Applies AND persists in one round trip, echoing the persisted value. */
   setThemePreference(input: SetThemePreferenceInput): Promise<ThemePreference>
+  /** The persisted palette — `amatista` for a profile that never chose. */
+  palette(): Promise<Palette>
+  /** Persists and echoes. Putting it on `<html>` is `applyPalette`'s job, not the bridge's. */
+  setPalette(input: SetPaletteInput): Promise<Palette>
 }
 
 export const ajustesApi: AjustesApi = {
@@ -87,5 +109,11 @@ export const ajustesApi: AjustesApi = {
   },
   async setThemePreference(input) {
     return unwrapIpcResult(await window.api.theme.setPreference(input), themePreferenceSchema, AjustesApiError)
+  },
+  async palette() {
+    return unwrapIpcResult(await window.api.theme.getPalette(), paletteSchema, AjustesApiError)
+  },
+  async setPalette(input) {
+    return unwrapIpcResult(await window.api.theme.setPalette(input), paletteSchema, AjustesApiError)
   }
 }

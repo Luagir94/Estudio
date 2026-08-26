@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ThemePreference } from '../../shared/ipc/theme'
-import { createThemeService, THEME_PREFERENCE_KEY } from './themeService'
+import { createThemeService, PALETTE_KEY, THEME_PREFERENCE_KEY } from './themeService'
 
 /**
  * In-memory stand-in for the generic app-settings store — the service only
@@ -108,6 +108,74 @@ describe('createThemeService', () => {
       service().applyStoredPreference()
 
       expect(settings.set).not.toHaveBeenCalled()
+    })
+  })
+
+  // The palette half is pure persistence: it has no `nativeTheme` counterpart
+  // to apply, because which token block wins is a `data-palette` attribute
+  // the renderer owns, not a switch Electron controls.
+  describe('getPalette', () => {
+    it('reports amatista for a profile that never chose', () => {
+      expect(service().getPalette()).toBe('amatista')
+    })
+
+    it('reports the persisted palette', () => {
+      settings.rows.set(PALETTE_KEY, 'cuarzo')
+
+      expect(service().getPalette()).toBe('cuarzo')
+    })
+
+    // A drifted row here is quieter than a drifted theme row — the value ends
+    // up in a DOM attribute, and an attribute selector nobody matches paints
+    // the base palette without complaining. So it degrades on the read side.
+    it('degrades a drifted persisted value to amatista instead of throwing', () => {
+      settings.rows.set(PALETTE_KEY, 'violeta')
+
+      expect(service().getPalette()).toBe('amatista')
+    })
+
+    it('reads without ever applying a native theme source', () => {
+      service().getPalette()
+
+      expect(applyThemeSource).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('setPalette', () => {
+    it('persists the palette under its own key', () => {
+      service().setPalette('malva')
+
+      expect(settings.set).toHaveBeenCalledWith(PALETTE_KEY, 'malva')
+    })
+
+    it('returns the value it persisted, so the handler echoes reality', () => {
+      expect(service().setPalette('grafito')).toBe('grafito')
+    })
+
+    it('round-trips through getPalette', () => {
+      const themeService = service()
+
+      themeService.setPalette('turquesa')
+
+      expect(themeService.getPalette()).toBe('turquesa')
+    })
+
+    // The two axes are orthogonal. Choosing a palette must not touch
+    // `themeSource`, or picking a colour would quietly override light/dark.
+    it('never applies a native theme source', () => {
+      service().setPalette('cobalto')
+
+      expect(applyThemeSource).not.toHaveBeenCalled()
+    })
+
+    it('leaves the theme preference untouched', () => {
+      const themeService = service()
+
+      themeService.setPreference('dark')
+      themeService.setPalette('cobalto')
+
+      expect(themeService.getPreference()).toBe('dark')
+      expect(themeService.getPalette()).toBe('cobalto')
     })
   })
 })

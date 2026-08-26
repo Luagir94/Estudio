@@ -41,7 +41,9 @@ describe('registerThemeHandlers', () => {
     themeService = {
       getPreference: vi.fn(() => 'system' as const),
       setPreference: vi.fn((preference) => preference),
-      applyStoredPreference: vi.fn()
+      applyStoredPreference: vi.fn(),
+      getPalette: vi.fn(() => 'amatista' as const),
+      setPalette: vi.fn((palette) => palette)
     }
     registerThemeHandlers({ themeService })
   })
@@ -110,6 +112,85 @@ describe('registerThemeHandlers', () => {
       await invoke('theme:setPreference', { preference: 'dark' })
 
       expect(logErrorMock).toHaveBeenCalledWith('theme:setPreference failed', expect.any(Error))
+    })
+  })
+
+  // Mirrors the preference channels, minus the apply. Persisting belongs to
+  // `themeService` and is tested there; this only proves the composition.
+  describe('theme:getPalette', () => {
+    it('returns the current palette in the ok envelope', async () => {
+      themeService.getPalette = vi.fn(() => 'cuarzo' as const)
+
+      const result = await invoke('theme:getPalette')
+
+      expect(result).toEqual({ ok: true, data: 'cuarzo' })
+    })
+
+    it('never throws across the bridge when the service does', async () => {
+      themeService.getPalette = vi.fn(() => {
+        throw new Error('settings table exploded')
+      })
+
+      const result = (await invoke('theme:getPalette')) as { ok: boolean; error: { code: string } }
+
+      expect(result.ok).toBe(false)
+      expect(result.error.code).toBe('PALETTE_READ_FAILED')
+    })
+  })
+
+  describe('theme:setPalette', () => {
+    it('sets the named palette and echoes the persisted value', async () => {
+      const result = await invoke('theme:setPalette', { palette: 'malva' })
+
+      expect(result).toEqual({ ok: true, data: 'malva' })
+      expect(themeService.setPalette).toHaveBeenCalledTimes(1)
+      expect(themeService.setPalette).toHaveBeenCalledWith('malva')
+    })
+
+    it.each([
+      ['an empty payload', {}],
+      ['no payload at all', undefined],
+      ['a palette outside the union', { palette: 'violeta' }],
+      ['the theme payload shape', { preference: 'dark' }]
+    ])('rejects %s without touching the service', async (_label, payload) => {
+      const result = (await invoke('theme:setPalette', payload)) as { ok: boolean; error: { code: string } }
+
+      expect(result.ok).toBe(false)
+      expect(result.error.code).toBe('VALIDATION_ERROR')
+      expect(themeService.setPalette).not.toHaveBeenCalled()
+    })
+
+    // The two axes are independent all the way down to the bridge: choosing a
+    // colour must never move light/dark.
+    it('leaves the theme preference channels alone', async () => {
+      await invoke('theme:setPalette', { palette: 'cobalto' })
+
+      expect(themeService.setPreference).not.toHaveBeenCalled()
+      expect(themeService.applyStoredPreference).not.toHaveBeenCalled()
+    })
+
+    it('never throws across the bridge when the service does', async () => {
+      themeService.setPalette = vi.fn(() => {
+        throw new Error('disk is full')
+      })
+
+      const result = (await invoke('theme:setPalette', { palette: 'grafito' })) as {
+        ok: boolean
+        error: { code: string }
+      }
+
+      expect(result.ok).toBe(false)
+      expect(result.error.code).toBe('PALETTE_WRITE_FAILED')
+    })
+
+    it('logs the unexpected write failure with its channel name', async () => {
+      themeService.setPalette = vi.fn(() => {
+        throw new Error('disk is full')
+      })
+
+      await invoke('theme:setPalette', { palette: 'grafito' })
+
+      expect(logErrorMock).toHaveBeenCalledWith('theme:setPalette failed', expect.any(Error))
     })
   })
 })

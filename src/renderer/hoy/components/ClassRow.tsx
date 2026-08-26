@@ -111,7 +111,7 @@ export function ClassRow({
         'flex items-center gap-4 rounded-lg border bg-card px-4 py-3',
         // The accent border is the ONLY surface change — the row keeps its
         // card background so the highlight reads as an outline, not a fill.
-        isNextClass ? 'border-violet' : 'border-border'
+        isNextClass ? 'border-brand' : 'border-border'
       )}
     >
       <div className="flex w-[52px] shrink-0 flex-col gap-1">
@@ -130,7 +130,7 @@ export function ClassRow({
         {isNextClass && (
           // `text-label` is the scale's 10px step WITH its 0.6px uppercase
           // tracking baked in — exactly the pill's spec, no ad-hoc sizing.
-          <span className="shrink-0 rounded-full bg-violet-soft px-2 py-0.5 text-label font-semibold uppercase text-violet-ink">
+          <span className="shrink-0 rounded-full bg-brand-soft px-2 py-0.5 text-label font-semibold uppercase text-brand-ink">
             {formatStartsIn(t, minutesUntilStart)}
           </span>
         )}
@@ -182,7 +182,7 @@ export function ClassRow({
         type="button"
         aria-label={tc('classRow.apunte', { subject: subjectName })}
         onClick={onOpenApunte}
-        className={cn(CONTROL_BASE, hasNote ? 'bg-violet-soft text-primary-ink' : CONTROL_UNSET, interactiveChip)}
+        className={cn(CONTROL_BASE, hasNote ? 'bg-brand-soft text-primary-ink' : CONTROL_UNSET, interactiveChip)}
       >
         <NotebookPen className="h-3.5 w-3.5" aria-hidden="true" />
       </button>

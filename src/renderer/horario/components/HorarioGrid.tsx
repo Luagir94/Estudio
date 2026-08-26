@@ -136,10 +136,10 @@ function DayColumn({
         <div
           data-testid="now-indicator"
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 z-10 h-0.5 bg-violet"
+          className="pointer-events-none absolute inset-x-0 z-10 h-0.5 bg-brand"
           style={{ top: `${nowFraction * 100}%` }}
         >
-          <span className="absolute left-0 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-violet" />
+          <span className="absolute left-0 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-brand" />
         </div>
       )}
       {layoutDaySlots(slots).map((slot) => {

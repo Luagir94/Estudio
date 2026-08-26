@@ -2,8 +2,24 @@
  * Theme tokens (design/course-companion.pen, recorded in
  * sdd/course-companion/ui-design obs #93 — this file is the single source
  * of truth for the values, do not hand-copy hex codes into components).
- * Dark is the DEFAULT scheme; the `prefers-color-scheme: light` block below
- * re-paints the raw tokens when the OS asks for light.
+ *
+ * TWO INDEPENDENT AXES paint this app, and they are answered by two different
+ * mechanisms on purpose:
+ *
+ *   scheme  — light or dark. Answered by `prefers-color-scheme`, which the
+ *             main process steers through `nativeTheme.themeSource`. Dark is
+ *             the DEFAULT; the media query below re-paints the raw tokens.
+ *   palette — which set of chrome and accent hues that scheme uses. Answered
+ *             by `<html data-palette="…">`, written by the renderer
+ *             (`shared/lib/applyPalette.ts`). `amatista` is the base and has
+ *             NO override block: an unset attribute paints it, which is what
+ *             keeps the frame before the stored choice is read from flashing.
+ *
+ * The two multiply: every non-base palette therefore declares a dark block AND
+ * a light one, and the light half MUST live inside the media query at
+ * `:root[data-palette='…']` specificity. A palette that only declared its dark
+ * values would out-specify the plain `:root` light block and paint a dark
+ * canvas in light mode — see "Palette overrides" at the bottom of this file.
  *
  * Tailwind v4 is CSS-first: `@theme` both declares the CSS custom
  * properties AND generates matching utility classes (e.g. `--color-primary`
@@ -25,29 +41,32 @@
   --color-ink: #f4f4f7;
   --color-ink-secondary: #9e9eac;
   /* Was #7e7e8f, which cleared 4.5:1 on `surface` and on NOTHING below it —
-     4.25 on `surface-sunken`, 4.08 on `violet-soft`, 3.88 on `ok-soft`. It is
+     4.25 on `surface-sunken`, 4.08 on `brand-soft`, 3.88 on `ok-soft`. It is
      the most-used ink in the app (row captions, dates, "Finalizado" badges),
      so it was also the largest single block of failing text. Lightened to the
      minimum that clears AA on all seven surfaces (worst case 4.66 on
      `ok-soft`) while keeping 18 steps of separation from `ink-secondary`, so
      the muted/secondary hierarchy still reads. */
   --color-ink-muted: #8c8c9b;
-  --color-violet: #7f5af0;
-  --color-violet-soft: #221b3d;
-  /* The SAME brand violet, one step lighter, for violet used as TEXT (pen
-     token `accent-text`). `--color-violet` stays exactly as it is because it
-     is a FILL: white on it clears AA at 4.54, and lightening it would break
-     that. As ink, though, it cleared nothing — 4.04 on `surface`, 3.58 on its
-     own `violet-soft` backing. Fill and ink are two jobs, so they are two
-     tokens. */
-  --color-violet-ink: #997bf3;
+  --color-brand: #7f5af0;
+  --color-brand-soft: #221b3d;
+  /* The SAME brand hue, shifted, for the brand used as TEXT (pen token
+     `accent-text`). `--color-brand` cannot double as ink: it is tuned as a
+     FILL, against the foreground `--color-on-accent` carries. As ink on the
+     app's own surfaces it cleared nothing — 4.04 on `surface`, 3.58 on its
+     own `brand-soft` backing. Fill and ink are two jobs, so they are two
+     tokens, and every palette below ships both. */
+  --color-brand-ink: #997bf3;
   --color-urgent: #ff6b5b;
   --color-urgent-soft: #2e1815;
   /* Foregrounds for the two solid action fills. They are NOT the same ink,
      and that is the point: the foreground follows the fill's luminance, and
-     coral is a LIGHT colour while violet is a dark one. White on coral was
-     2.80:1 — the worst contrast in the app, on its most destructive button.
-     Near-black on coral is 7.03:1. */
+     coral is a LIGHT colour while amatista's violet is a dark one. White on
+     coral was 2.80:1 — the worst contrast in the app, on its most destructive
+     button. Near-black on coral is 7.03:1.
+
+     `on-accent` is per-palette for exactly this reason: five of the six brand
+     fills are light in dark mode, so they carry near-black ink, not white. */
   --color-on-accent: #ffffff;
   --color-on-urgent: #0b0b0e;
   /* Subject-outcome tokens (design: the ESTADO badges on nodes `gs3CM` /
@@ -77,17 +96,18 @@
   --color-popover-foreground: var(--color-ink);
   --color-border: var(--color-hairline);
   --color-input: var(--color-hairline);
-  --color-ring: var(--color-violet);
-  --color-primary: var(--color-violet);
+  --color-ring: var(--color-brand);
+  --color-primary: var(--color-brand);
   /* Was `--color-ink`, which contradicted both the design and this app's own
-     Button comment ("$accent fill with white text"): #f4f4f7 on violet is
-     4.14:1, white is 4.54:1. The design was right. */
+     Button comment ("$accent fill with white text"): on amatista's violet,
+     #f4f4f7 is 4.14:1 and white is 4.54:1. The design was right — and routing
+     it through `on-accent` is what lets each palette pick its own side. */
   --color-primary-foreground: var(--color-on-accent);
-  /* Violet as INK — the active/selected state's text and icons (status
+  /* The brand as INK — the active/selected state's text and icons (status
      badges, the current filter chip, the active nav row). Distinct from
      `--color-primary`, which is the same hue used as a FILL; `border-primary`
      keeps using that one, since a 1px border only owes 3:1. */
-  --color-primary-ink: var(--color-violet-ink);
+  --color-primary-ink: var(--color-brand-ink);
   --color-secondary: var(--color-surface-sunken);
   --color-secondary-foreground: var(--color-ink-secondary);
   --color-muted: var(--color-surface-sunken);
@@ -101,17 +121,18 @@
   --color-sidebar: var(--color-surface);
   --color-sidebar-foreground: var(--color-ink);
   --color-sidebar-border: var(--color-hairline);
-  --color-sidebar-primary: var(--color-violet);
+  --color-sidebar-primary: var(--color-brand);
   --color-sidebar-primary-foreground: var(--color-ink);
   /* Active nav row background (design: descendant override `fill: $accent-soft`
      on the active item, node `LczWA` instance in e.g. `dw1W7`/Materias) — was
      wrongly mapped onto `--color-surface-sunken` (the neutral hover/muted
      tone) before this corrective pass, which made the active item invisible
      against the sidebar background. */
-  --color-sidebar-accent: var(--color-violet-soft);
-  /* Violet-on-violet-soft was 3.58:1 — the current page's own label was the
-     least readable text in the navigation. The ink variant takes it to 5.02. */
-  --color-sidebar-accent-foreground: var(--color-violet-ink);
+  --color-sidebar-accent: var(--color-brand-soft);
+  /* Brand-on-brand-soft was 3.58:1 — the current page's own label was the
+     least readable text in the navigation. The ink variant takes it to 5.02,
+     and every palette below holds that pair to at least 4.5. */
+  --color-sidebar-accent-foreground: var(--color-brand-ink);
 
   --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
   --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
@@ -209,7 +230,7 @@
  * `var()`, and this unlayered override outranks the theme layer.
  *
  * Only raw tokens appear here. `on-accent` keeps #ffffff (white on the light
- * violet still clears AA) and `scrim` keeps #05050899 — a scrim's job is to
+ * brand still clears AA) and `scrim` keeps #05050899 — a scrim's job is to
  * darken whatever is behind it, in either scheme. `on-urgent` DOES flip:
  * near-black on the dark coral, white on the light #c22f20.
  *
@@ -227,9 +248,9 @@
     --color-ink: #1b1b22;
     --color-ink-secondary: #565664;
     --color-ink-muted: #63636f;
-    --color-violet: #6d4ae7;
-    --color-violet-soft: #ece6fd;
-    --color-violet-ink: #5f3bd8;
+    --color-brand: #6d4ae7;
+    --color-brand-soft: #ece6fd;
+    --color-brand-ink: #5f3bd8;
     --color-urgent: #c22f20;
     --color-urgent-soft: #fce9e6;
     --color-on-urgent: #ffffff;
@@ -245,6 +266,184 @@
     --color-subject-6: #c026d3;
     --color-subject-7: #059669;
     --color-subject-8: #ca8a04;
+  }
+}
+
+/*
+ * PALETTE OVERRIDES (design/course-companion.pen, `palette` theme axis;
+ * settings row "Paleta" on node `WHzRs`). Each block re-paints the eleven raw
+ * chrome-and-brand tokens; every semantic alias in `@theme` follows for free,
+ * because each alias is a `var()` reference resolved at USE time.
+ *
+ * AMATISTA IS ABSENT ON PURPOSE. It is the base declared above, so
+ * `data-palette="amatista"` and no attribute at all paint the identical
+ * screen — which is what makes the frame before the stored choice is read
+ * correct rather than merely brief.
+ *
+ * SPECIFICITY IS LOAD-BEARING HERE. `:root[data-palette='…']` is 0,2,0 and the
+ * light block further down is a plain `:root` at 0,1,0. A palette that
+ * declared only its dark values would therefore WIN in light mode and paint a
+ * dark canvas on a light OS. That is why every palette repeats itself inside
+ * the media query at matching specificity, and why adding a seventh means
+ * adding TWO blocks, never one.
+ *
+ * WHAT A PALETTE DOES NOT TOUCH: `urgent`, `ok`, `warn` and their soft
+ * backings, the eight `subject-*` hues, and `scrim`. Those are semantic — a
+ * passed subject is green because it passed, not because of a colour
+ * preference — and `shared/lib/subjectColorScheme.ts` mirrors the subject
+ * pairs at runtime for inline styles, so moving them would mean moving stored
+ * per-subject data too.
+ *
+ * Every value below is AA-verified against its own palette's surfaces: ink,
+ * secondary ink, muted ink and `brand-ink` each clear 4.5:1 on canvas,
+ * surface, sunken, brand-soft and the three status backings, and
+ * `on-accent` clears 4.5:1 on `brand`. Worst case in the set is 4.54.
+ * Do not hand-tune one hex without re-checking that whole row.
+ */
+/* Cobalto. Deep blue. */
+:root[data-palette='cobalto'] {
+  --color-canvas: #0a0c0f;
+  --color-surface: #12151c;
+  --color-surface-sunken: #191d24;
+  --color-hairline: #242933;
+  --color-ink: #e3e6ee;
+  --color-ink-secondary: #9aa4b6;
+  --color-ink-muted: #838ea5;
+  --color-brand: #538aea;
+  --color-brand-soft: #192538;
+  --color-brand-ink: #618edb;
+  --color-on-accent: #0a0c0f;
+}
+
+/* Turquesa. Cyan. */
+:root[data-palette='turquesa'] {
+  --color-canvas: #0a0e0f;
+  --color-surface: #13191b;
+  --color-surface-sunken: #1a2123;
+  --color-hairline: #252f32;
+  --color-ink: #eff4f5;
+  --color-ink-secondary: #9fb1b7;
+  --color-ink-muted: #859ba3;
+  --color-brand: #55cfe7;
+  --color-brand-soft: #1b3237;
+  --color-brand-ink: #30a8c0;
+  --color-on-accent: #0a0e0f;
+}
+
+/* Cuarzo. Rose. */
+:root[data-palette='cuarzo'] {
+  --color-canvas: #0f0b0d;
+  --color-surface: #1b1318;
+  --color-surface-sunken: #231a20;
+  --color-hairline: #31262d;
+  --color-ink: #ebe0e7;
+  --color-ink-secondary: #b39eab;
+  --color-ink-muted: #a18797;
+  --color-brand: #e45899;
+  --color-brand-soft: #361c28;
+  --color-brand-ink: #d5679a;
+  --color-on-accent: #0f0b0d;
+}
+
+/* Malva. Orchid. */
+:root[data-palette='malva'] {
+  --color-canvas: #0e0b0f;
+  --color-surface: #1a131b;
+  --color-surface-sunken: #221a23;
+  --color-hairline: #302631;
+  --color-ink: #ece3ed;
+  --color-ink-secondary: #b19eb3;
+  --color-ink-muted: #9f87a1;
+  --color-brand: #d864d8;
+  --color-brand-soft: #312131;
+  --color-brand-ink: #c86fc8;
+  --color-on-accent: #0e0b0f;
+}
+
+/* Grafito. Slate — the quiet one, and the only brand fill that stays desaturated. */
+:root[data-palette='grafito'] {
+  --color-canvas: #0c0c0e;
+  --color-surface: #151619;
+  --color-surface-sunken: #1c1e21;
+  --color-hairline: #292a2e;
+  --color-ink: #e5e7eb;
+  --color-ink-secondary: #a4a6ad;
+  --color-ink-muted: #8c8f97;
+  --color-brand: #7d91bf;
+  --color-brand-soft: #25272d;
+  --color-brand-ink: #838faa;
+  --color-on-accent: #0c0c0e;
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-palette='cobalto'] {
+    --color-canvas: #f3f4f6;
+    --color-surface: #ffffff;
+    --color-surface-sunken: #eaecf0;
+    --color-hairline: #dbdfe6;
+    --color-ink: #232a39;
+    --color-ink-secondary: #4d576a;
+    --color-ink-muted: #5c687f;
+    --color-brand: #2a6ee5;
+    --color-brand-soft: #e8eef8;
+    --color-brand-ink: #2d66c8;
+    --color-on-accent: #ffffff;
+  }
+
+  :root[data-palette='turquesa'] {
+    --color-canvas: #f3f6f6;
+    --color-surface: #ffffff;
+    --color-surface-sunken: #eaeff0;
+    --color-hairline: #dce3e5;
+    --color-ink: #202d32;
+    --color-ink-secondary: #485a60;
+    --color-ink-muted: #586d74;
+    --color-brand: #157e93;
+    --color-brand-soft: #e8f5f7;
+    --color-brand-ink: #217283;
+    --color-on-accent: #ffffff;
+  }
+
+  :root[data-palette='cuarzo'] {
+    --color-canvas: #f6f4f5;
+    --color-surface: #ffffff;
+    --color-surface-sunken: #f0ebee;
+    --color-hairline: #e4dce1;
+    --color-ink: #372530;
+    --color-ink-secondary: #67515f;
+    --color-ink-muted: #7b6071;
+    --color-brand: #db2479;
+    --color-brand-soft: #f7e9ef;
+    --color-brand-ink: #b83271;
+    --color-on-accent: #ffffff;
+  }
+
+  :root[data-palette='malva'] {
+    --color-canvas: #f6f4f6;
+    --color-surface: #ffffff;
+    --color-surface-sunken: #efebf0;
+    --color-hairline: #e4dce4;
+    --color-ink: #362537;
+    --color-ink-secondary: #655167;
+    --color-ink-muted: #79607b;
+    --color-brand: #c030c0;
+    --color-brand-soft: #f5eaf5;
+    --color-brand-ink: #a33ea3;
+    --color-on-accent: #ffffff;
+  }
+
+  :root[data-palette='grafito'] {
+    --color-canvas: #f4f5f5;
+    --color-surface: #ffffff;
+    --color-surface-sunken: #ecedee;
+    --color-hairline: #dfdfe2;
+    --color-ink: #282b34;
+    --color-ink-secondary: #55575e;
+    --color-ink-muted: #666870;
+    --color-brand: #5b74ae;
+    --color-brand-soft: #eeeff2;
+    --color-brand-ink: #5d6a89;
+    --color-on-accent: #ffffff;
   }
 }
 
@@ -335,7 +534,7 @@ body {
   }
 
   ::-webkit-scrollbar-thumb:active {
-    background-color: var(--color-violet);
+    background-color: var(--color-brand);
   }
 }
 

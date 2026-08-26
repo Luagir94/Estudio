@@ -93,7 +93,7 @@ export function AskModelPicker({ value, groups, disabled, onChange }: AskModelPi
                         setOpen(false)
                       }}
                       className={`flex w-full items-center gap-2 rounded-md px-2.5 py-[7px] text-left ${
-                        isSelected ? 'bg-violet-soft' : ''
+                        isSelected ? 'bg-brand-soft' : ''
                       }`}
                     >
                       <span className="flex min-w-0 flex-1 items-center gap-1.5">

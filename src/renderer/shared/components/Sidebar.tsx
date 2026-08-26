@@ -170,7 +170,7 @@ export function Sidebar({
             collapsed ? 'justify-center px-0' : 'gap-3 px-3',
             // `sidebar-accent-foreground` is the token that EXISTS for ink on
             // `sidebar-accent`; this row was using `sidebar-primary` (the raw
-            // fill violet) instead, which is what made the current page's own
+            // fill brand) instead, which is what made the current page's own
             // label the least readable text in the nav.
             isActive
               ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground'
@@ -178,7 +178,7 @@ export function Sidebar({
           )
           // Hover is branched rather than shared because the active item
           // already OWNS a fill: a neutral `hover:bg-muted` on it would paint
-          // the violet away and make the current page look unselected while
+          // the brand accent away and make the current page look unselected while
           // the mouse rests on it. The active row deepens its own tint; the
           // rest borrow the neutral one.
           const navButtonClassName = cn(

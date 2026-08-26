@@ -352,7 +352,7 @@ describe('HorarioGrid', () => {
   })
 
   describe('"now" line (today\'s column only, on the same 08:00..24:00 scale as class blocks)', () => {
-    it("renders the 2px violet line with its 8px dot at the current time in today's column", () => {
+    it("renders the 2px brand-accent line with its 8px dot at the current time in today's column", () => {
       render(
         <HorarioGrid
           columns={emptyColumns()}
@@ -365,8 +365,8 @@ describe('HorarioGrid', () => {
 
       const line = screen.getByTestId('now-indicator')
       expect(line).toHaveStyle({ top: '25%' })
-      expect(line).toHaveClass('h-0.5', 'bg-violet')
-      expect(line.firstElementChild).toHaveClass('h-2', 'w-2', 'rounded-full', 'bg-violet')
+      expect(line).toHaveClass('h-0.5', 'bg-brand')
+      expect(line.firstElementChild).toHaveClass('h-2', 'w-2', 'rounded-full', 'bg-brand')
       expect(screen.getAllByRole('list')[0]).toContainElement(line)
     })
 

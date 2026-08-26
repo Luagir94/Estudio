@@ -350,7 +350,7 @@ export function SubjectDetail({
         </div>
 
         <div className="flex w-full flex-col gap-3 min-[820px]:w-[336px] min-[820px]:shrink-0">
-          <div className="flex flex-col gap-2 rounded-xl border border-primary bg-(--color-violet-soft) p-4">
+          <div className="flex flex-col gap-2 rounded-xl border border-primary bg-(--color-brand-soft) p-4">
             <span className="text-overline font-semibold text-primary-ink">{t('subjectDetail.nextClassHeading')}</span>
             {nextClass ? (
               <>

@@ -55,13 +55,13 @@ describe('ClassRow (design node G07yA)', () => {
     expect(screen.queryByText('null')).not.toBeInTheDocument()
   })
 
-  describe('next-class highlight (violet accent border + "starts in" pill; uppercase via CSS, not in the string)', () => {
-    it('under an hour away, renders the minutes pill and the violet accent border', () => {
+  describe('next-class highlight (brand accent border + "starts in" pill; uppercase via CSS, not in the string)', () => {
+    it('under an hour away, renders the minutes pill and the brand accent border', () => {
       renderRow({ minutesUntilStart: 45 })
 
       const pill = screen.getByText('En 45 min')
-      expect(pill).toHaveClass('uppercase', 'rounded-full', 'bg-violet-soft', 'text-violet-ink')
-      expect(screen.getByText('Sistemas Operativos').closest('div')).toHaveClass('border-violet')
+      expect(pill).toHaveClass('uppercase', 'rounded-full', 'bg-brand-soft', 'text-brand-ink')
+      expect(screen.getByText('Sistemas Operativos').closest('div')).toHaveClass('border-brand')
     })
 
     it('an hour or more away, renders hours and minutes', () => {
@@ -154,7 +154,7 @@ describe('ClassRow (design node G07yA)', () => {
       renderRow({ hasNote: true })
 
       expect(screen.getByRole('button', { name: 'Apunte de la clase de Sistemas Operativos' })).toHaveClass(
-        'bg-violet-soft',
+        'bg-brand-soft',
         'text-primary-ink'
       )
     })

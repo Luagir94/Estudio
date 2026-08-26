@@ -28,11 +28,13 @@ import type { TFunction } from 'i18next'
 import { Info } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { CLI_PROVIDERS, type CliPreference, type CliProvider } from '../../../shared/ipc/cli'
-import type { ThemePreference } from '../../../shared/ipc/theme'
+import type { Palette, ThemePreference } from '../../../shared/ipc/theme'
+import { applyPalette } from '../../shared/lib/applyPalette'
 import {
   ajustesApi,
   CLI_PREFERENCES_QUERY_KEY,
   cliStatusQueryKey,
+  PALETTE_QUERY_KEY,
   THEME_PREFERENCE_QUERY_KEY
 } from '../adapters/ajustesApi'
 import { AppearanceCard } from '../components/AppearanceCard'
@@ -72,6 +74,29 @@ export function AjustesContainer(): React.JSX.Element {
     // instead of costing a second settings read.
     onSuccess: (preference) => {
       queryClient.setQueryData(THEME_PREFERENCE_QUERY_KEY, preference)
+    }
+  })
+
+  // The palette's own entry, read on mount like the preference above and for
+  // the same reason: it starts no process. `main.tsx` already applied the
+  // stored palette before the first paint, so this read is not what puts it on
+  // screen — it is what lets the select show the right option instead of
+  // guessing the default.
+  const { data: palette } = useQuery({
+    queryKey: PALETTE_QUERY_KEY,
+    queryFn: ajustesApi.palette
+  })
+
+  const paletteMutation = useMutation({
+    mutationFn: (next: Palette) => ajustesApi.setPalette({ palette: next }),
+    onSuccess: (next) => {
+      // APPLY, then cache. The main process persists a palette but applies
+      // nothing — unlike the theme preference, which `nativeTheme.themeSource`
+      // puts into effect on the way through. So the repaint is this line, and
+      // it deliberately happens only after the write came back: a palette on
+      // screen that failed to persist would be a lie the next launch corrects.
+      applyPalette(next)
+      queryClient.setQueryData(PALETTE_QUERY_KEY, next)
     }
   })
 
@@ -127,10 +152,17 @@ export function AjustesContainer(): React.JSX.Element {
       </div>
 
       {/* First card of the screen (approved `.pen` ordering), before the CLI
-          rows. Rendered only once the persisted preference has answered — the
-          same no-claims-before-the-read rule the provider rows follow. */}
-      {themePreference && (
-        <AppearanceCard value={themePreference} onChange={(preference) => themeMutation.mutate(preference)} />
+          rows. Rendered only once BOTH persisted values have answered — the
+          same no-claims-before-the-read rule the provider rows follow. Waiting
+          on both rather than rendering each row as it arrives keeps the card
+          from changing height under the cursor on every open. */}
+      {themePreference && palette && (
+        <AppearanceCard
+          value={themePreference}
+          onChange={(preference) => themeMutation.mutate(preference)}
+          palette={palette}
+          onPaletteChange={(next) => paletteMutation.mutate(next)}
+        />
       )}
 
       {/* One row per CLI (approved `.pen`), in one of three honest states:

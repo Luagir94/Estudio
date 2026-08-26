@@ -96,7 +96,7 @@ beforeEach(() => {
       addEntry: vi.fn(),
       removeEntry: vi.fn()
     },
-    theme: { getPreference: vi.fn(), setPreference: vi.fn() }
+    theme: { getPreference: vi.fn(), setPreference: vi.fn(), getPalette: vi.fn(), setPalette: vi.fn() }
   }
 })
 

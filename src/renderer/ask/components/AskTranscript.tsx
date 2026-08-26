@@ -135,7 +135,7 @@ export function AskTranscript({ entries, liveArtifact }: AskTranscriptProps): Re
         if (entry.kind === 'question') {
           return (
             <div key={entry.id} className="flex justify-end">
-              <p className="max-w-[280px] rounded-xl bg-violet-soft px-3 py-2.5 text-body leading-relaxed text-foreground">
+              <p className="max-w-[280px] rounded-xl bg-brand-soft px-3 py-2.5 text-body leading-relaxed text-foreground">
                 {entry.text}
               </p>
             </div>

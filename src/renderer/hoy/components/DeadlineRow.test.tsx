@@ -30,13 +30,13 @@ describe('DeadlineRow (design node AHToB — read-only, no checkbox/edit/delete 
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
-  describe('status pill urgency styling (violet is reserved for interaction, never for status)', () => {
+  describe('status pill urgency styling (the brand accent is reserved for interaction, never for status)', () => {
     const now = new Date(2026, 7, 13, 9, 0)
 
     function renderPill(dueAt: string, done = false): HTMLElement {
       render(<DeadlineRow deadline={{ ...overdueDeadline, dueAt, done }} now={now} />)
       const pill = screen.getByText(/atraso|Hoy|Mañana|En \d|Completada/)
-      expect(pill.className).not.toContain('violet')
+      expect(pill.className).not.toContain('brand')
       return pill
     }
 

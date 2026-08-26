@@ -2,8 +2,9 @@
 import { QueryClient, QueryClientProvider, useQueries } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CLI_PROVIDERS } from '../../../shared/ipc/cli'
+import type { Palette } from '../../../shared/ipc/theme'
 import { CONNECT_ACTION, DETECTING_LABEL, RETRY_ACTION } from '../domain/connectionDisplay'
 import { AjustesContainer } from './AjustesContainer'
 
@@ -89,7 +90,10 @@ beforeEach(() => {
     },
     theme: {
       getPreference: vi.fn().mockResolvedValue({ ok: true, data: 'system' }),
-      setPreference: vi.fn().mockResolvedValue({ ok: true, data: 'system' })
+      setPreference: vi.fn().mockResolvedValue({ ok: true, data: 'system' }),
+      getPalette: vi.fn().mockResolvedValue({ ok: true, data: 'amatista' }),
+      // Echoes whatever it was asked to persist, like the real handler does.
+      setPalette: vi.fn((input: { palette: Palette }) => Promise.resolve({ ok: true as const, data: input.palette }))
     },
     materias: {
       create: vi.fn(),
@@ -433,6 +437,91 @@ describe('AjustesContainer — apariencia', () => {
     await waitFor(() => expect(window.api.theme.setPreference).toHaveBeenCalledTimes(1))
     expect(window.api.cli.probe).not.toHaveBeenCalled()
     expect(window.api.cli.setOverride).not.toHaveBeenCalled()
+  })
+})
+
+describe('AjustesContainer — paleta', () => {
+  afterEach(() => {
+    delete document.documentElement.dataset.palette
+  })
+
+  it('shows the persisted palette as the selected option', async () => {
+    window.api.theme.getPalette = vi.fn().mockResolvedValue({ ok: true, data: 'malva' })
+
+    renderWithClient(<AjustesContainer />)
+
+    expect(await screen.findByRole('combobox', { name: 'Paleta' })).toHaveValue('malva')
+  })
+
+  // Same no-claims-before-the-read rule as the theme half, and the card waits
+  // on BOTH: rendering one row while the other loads would change the card's
+  // height under the cursor on every open.
+  it('renders no appearance card while the palette is still being read', () => {
+    window.api.theme.getPalette = vi.fn().mockReturnValue(new Promise(() => {}))
+
+    renderWithClient(<AjustesContainer />)
+
+    expect(screen.queryByRole('heading', { name: 'Apariencia' })).not.toBeInTheDocument()
+  })
+
+  it('persists the chosen palette and updates the cache from the echoed value without a re-read', async () => {
+    renderWithClient(<AjustesContainer />)
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Paleta' }), { target: { value: 'cobalto' } })
+
+    await waitFor(() => expect(window.api.theme.setPalette).toHaveBeenCalledWith({ palette: 'cobalto' }))
+    expect(await screen.findByRole('combobox', { name: 'Paleta' })).toHaveValue('cobalto')
+    expect(window.api.theme.getPalette).toHaveBeenCalledTimes(1)
+  })
+
+  // THE repaint. Unlike the theme preference, which `nativeTheme.themeSource`
+  // puts into effect on the main side, nothing applies a palette but this — so
+  // if the attribute stops being written the setting silently does nothing
+  // until the next launch.
+  it('puts the chosen palette on the document element', async () => {
+    renderWithClient(<AjustesContainer />)
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Paleta' }), { target: { value: 'turquesa' } })
+
+    await waitFor(() => expect(document.documentElement.getAttribute('data-palette')).toBe('turquesa'))
+  })
+
+  // A palette on screen that failed to persist is a lie the next launch
+  // corrects, so the repaint waits for the write to come back.
+  it('leaves the document alone when the write fails', async () => {
+    window.api.theme.setPalette = vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: { code: 'PALETTE_WRITE_FAILED', message: 'disk is full' } })
+
+    renderWithClient(<AjustesContainer />)
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Paleta' }), { target: { value: 'grafito' } })
+
+    await waitFor(() => expect(window.api.theme.setPalette).toHaveBeenCalledTimes(1))
+    expect(document.documentElement.getAttribute('data-palette')).toBeNull()
+  })
+
+  // The two axes are independent all the way up. Picking a colour must not
+  // move light/dark, and it must not become a back door into the CLI fan-out
+  // this screen removed either.
+  it('writes no theme preference and spawns no probe when the palette changes', async () => {
+    renderWithClient(<AjustesContainer />)
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Paleta' }), { target: { value: 'cuarzo' } })
+
+    await waitFor(() => expect(window.api.theme.setPalette).toHaveBeenCalledTimes(1))
+    expect(window.api.theme.setPreference).not.toHaveBeenCalled()
+    expect(window.api.cli.probe).not.toHaveBeenCalled()
+    expect(window.api.cli.setOverride).not.toHaveBeenCalled()
+  })
+
+  it('writes no palette when the theme changes', async () => {
+    renderWithClient(<AjustesContainer />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Oscuro' }))
+
+    await waitFor(() => expect(window.api.theme.setPreference).toHaveBeenCalledTimes(1))
+    expect(window.api.theme.setPalette).not.toHaveBeenCalled()
   })
 })
 

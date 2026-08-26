@@ -78,7 +78,7 @@ export function MarkdownView({ blocks }: MarkdownViewProps): React.JSX.Element {
               <ul key={index} className="flex flex-col gap-1.5">
                 {block.items.map((item, itemIndex) => (
                   <li key={itemIndex} className="flex gap-2 text-body leading-[1.6] text-secondary-foreground">
-                    {/* Accent bullet (design: violet "•"; bold leads inside
+                    {/* Accent bullet (design: brand-accent "•"; bold leads inside
                         the item get 13/600 primary via InlineSpans' bold). */}
                     <span className="select-none text-primary-ink" aria-hidden="true">
                       •

@@ -118,9 +118,9 @@ describe('HoyDashboard (design node E2pJ95 — Grupo Hoy, zero-navigation, read-
 
       const pill = screen.getByText('En 45 min')
       expect(pill.closest('div')).toHaveTextContent('Ingeniería de Software')
-      expect(pill.closest('div')).toHaveClass('border-violet')
+      expect(pill.closest('div')).toHaveClass('border-brand')
       expect(screen.getByText('Sistemas Operativos').closest('div')).toHaveClass('border-border')
-      expect(screen.getByText('Sistemas Operativos').closest('div')).not.toHaveClass('border-violet')
+      expect(screen.getByText('Sistemas Operativos').closest('div')).not.toHaveClass('border-brand')
     })
 
     it('reads "Ahora" on the class currently in progress', () => {

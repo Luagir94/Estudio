@@ -4,8 +4,8 @@
 // ignore. Which date this is, and whether there is one at all, is decided by
 // `pickImminentAcademicDate` in the domain; this component only draws it.
 //
-// Warn, not urgent and never the violet accent: an inscription window closing
-// in three days is a heads-up, not an emergency, and violet is reserved for
+// Warn, not urgent and never the brand accent: an inscription window closing
+// in three days is a heads-up, not an emergency, and the accent is reserved for
 // interaction (this callout is not clickable).
 import { CalendarClock } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
