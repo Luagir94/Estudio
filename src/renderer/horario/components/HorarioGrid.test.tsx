@@ -46,7 +46,14 @@ describe('HorarioGrid', () => {
    * the empty-weekend collapse has its own describe below.)
    */
   it('renders all seven day headers, Monday-first, including the weekend', () => {
-    render(<HorarioGrid columns={withSaturdayClass()} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
+    render(
+      <HorarioGrid
+        columns={withSaturdayClass()}
+        todayMondayFirstIndex={null}
+        onOpenApunte={vi.fn()}
+        onOpenClase={vi.fn()}
+      />
+    )
 
     for (const label of ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']) {
       expect(screen.getByText(label)).toBeInTheDocument()
@@ -74,7 +81,7 @@ describe('HorarioGrid', () => {
       ]
     }
 
-    render(<HorarioGrid columns={columns} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
+    render(<HorarioGrid columns={columns} todayMondayFirstIndex={null} onOpenApunte={vi.fn()} onOpenClase={vi.fn()} />)
 
     expect(screen.getByText('Taller de Domingo')).toBeInTheDocument()
   })
@@ -98,13 +105,13 @@ describe('HorarioGrid', () => {
       ]
     }
 
-    render(<HorarioGrid columns={columns} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
+    render(<HorarioGrid columns={columns} todayMondayFirstIndex={null} onOpenApunte={vi.fn()} onOpenClase={vi.fn()} />)
 
     expect(screen.getByText('Sistemas Operativos')).toBeInTheDocument()
     expect(screen.getByText('08:00 – 09:30')).toBeInTheDocument()
   })
 
-  it('clicking a class block calls onSelectClass with its subjectId', () => {
+  it('clicking a class block body opens that class, dated to the current week', () => {
     const columns = emptyColumns()
     columns[0] = {
       mondayFirstIndex: 0,
@@ -122,17 +129,21 @@ describe('HorarioGrid', () => {
         }
       ]
     }
-    const onSelectClass = vi.fn()
+    const onOpenClase = vi.fn()
 
-    render(<HorarioGrid columns={columns} todayMondayFirstIndex={null} onSelectClass={onSelectClass} />)
+    render(
+      <HorarioGrid columns={columns} todayMondayFirstIndex={null} onOpenApunte={vi.fn()} onOpenClase={onOpenClase} />
+    )
 
-    fireEvent.click(screen.getByRole('button', { name: /Sistemas Operativos/ }))
+    fireEvent.click(screen.getByTestId('horario-class-block'))
 
-    expect(onSelectClass).toHaveBeenCalledWith(7)
+    expect(onOpenClase).toHaveBeenCalledWith(expect.objectContaining({ subjectId: 7, dayOfWeek: 1, startMinutes: 480 }))
   })
 
   it("marks today's column with data-today so it can be visually highlighted (design: accent column)", () => {
-    render(<HorarioGrid columns={emptyColumns()} todayMondayFirstIndex={3} onSelectClass={vi.fn()} />)
+    render(
+      <HorarioGrid columns={emptyColumns()} todayMondayFirstIndex={3} onOpenApunte={vi.fn()} onOpenClase={vi.fn()} />
+    )
 
     const columnsRendered = screen.getAllByRole('list')
     expect(columnsRendered[3]).toHaveAttribute('data-today', 'true')
@@ -144,7 +155,9 @@ describe('HorarioGrid', () => {
    * grid body. It now runs 08:00..22:00 in 2-hour rows, covering up to 24:00.
    */
   it('renders hour marks from 08:00 through 22:00', () => {
-    render(<HorarioGrid columns={emptyColumns()} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
+    render(
+      <HorarioGrid columns={emptyColumns()} todayMondayFirstIndex={null} onOpenApunte={vi.fn()} onOpenClase={vi.fn()} />
+    )
 
     for (const mark of ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00']) {
       expect(screen.getByText(mark)).toBeInTheDocument()
@@ -170,7 +183,7 @@ describe('HorarioGrid', () => {
       ]
     }
 
-    render(<HorarioGrid columns={columns} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
+    render(<HorarioGrid columns={columns} todayMondayFirstIndex={null} onOpenApunte={vi.fn()} onOpenClase={vi.fn()} />)
 
     expect(screen.getByText('Redes Nocturno')).toBeInTheDocument()
     expect(screen.getByText('21:00 – 23:00')).toBeInTheDocument()
@@ -182,7 +195,9 @@ describe('HorarioGrid', () => {
    * 08:00..24:00 window (960 minutes) instead of a fixed px-per-minute scale.
    */
   it('gives day columns no fixed pixel height so they fill the available space', () => {
-    render(<HorarioGrid columns={emptyColumns()} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
+    render(
+      <HorarioGrid columns={emptyColumns()} todayMondayFirstIndex={null} onOpenApunte={vi.fn()} onOpenClase={vi.fn()} />
+    )
 
     for (const column of screen.getAllByRole('list')) {
       expect(column.style.height).toBe('')
@@ -208,9 +223,9 @@ describe('HorarioGrid', () => {
       ]
     }
 
-    render(<HorarioGrid columns={columns} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
+    render(<HorarioGrid columns={columns} todayMondayFirstIndex={null} onOpenApunte={vi.fn()} onOpenClase={vi.fn()} />)
 
-    const block = screen.getByRole('button', { name: /Sistemas Operativos/ })
+    const block = screen.getByTestId('horario-class-block')
     expect(block).toHaveStyle({ top: '12.5%', height: '12.5%' })
   })
 
@@ -239,9 +254,9 @@ describe('HorarioGrid', () => {
       ]
     }
 
-    render(<HorarioGrid columns={columns} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
+    render(<HorarioGrid columns={columns} todayMondayFirstIndex={null} onOpenApunte={vi.fn()} onOpenClase={vi.fn()} />)
 
-    expect(screen.getByRole('button', { name: /Sistemas Operativos/ })).toHaveStyle({ minHeight: '30px' })
+    expect(screen.getByTestId('horario-class-block')).toHaveStyle({ minHeight: '30px' })
   })
 
   /*
@@ -275,7 +290,7 @@ describe('HorarioGrid', () => {
       ]
     }
 
-    render(<HorarioGrid columns={columns} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
+    render(<HorarioGrid columns={columns} todayMondayFirstIndex={null} onOpenApunte={vi.fn()} onOpenClase={vi.fn()} />)
 
     const time = screen.getByText('10:00 – 10:30')
     expect(time).toHaveClass('[@container(max-height:30px)]:hidden')
@@ -283,14 +298,23 @@ describe('HorarioGrid', () => {
   })
 
   it('renders no class blocks for a day with zero slots', () => {
-    render(<HorarioGrid columns={emptyColumns()} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
+    render(
+      <HorarioGrid columns={emptyColumns()} todayMondayFirstIndex={null} onOpenApunte={vi.fn()} onOpenClase={vi.fn()} />
+    )
 
     expect(screen.queryAllByRole('button')).toHaveLength(0)
   })
 
   describe('weekend collapse (both weekend days empty -> narrow, dimmed SÁB/DOM columns)', () => {
     it('collapses the weekend columns when neither Saturday nor Sunday has a class', () => {
-      render(<HorarioGrid columns={emptyColumns()} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
+      render(
+        <HorarioGrid
+          columns={emptyColumns()}
+          todayMondayFirstIndex={null}
+          onOpenApunte={vi.fn()}
+          onOpenClase={vi.fn()}
+        />
+      )
 
       expect(screen.getByText('SÁB')).toBeInTheDocument()
       expect(screen.getByText('DOM')).toBeInTheDocument()
@@ -307,7 +331,14 @@ describe('HorarioGrid', () => {
     })
 
     it('renders all seven columns normally when a weekend day has a class', () => {
-      render(<HorarioGrid columns={withSaturdayClass()} todayMondayFirstIndex={null} onSelectClass={vi.fn()} />)
+      render(
+        <HorarioGrid
+          columns={withSaturdayClass()}
+          todayMondayFirstIndex={null}
+          onOpenApunte={vi.fn()}
+          onOpenClase={vi.fn()}
+        />
+      )
 
       expect(screen.getByText('Sábado')).toBeInTheDocument()
       expect(screen.getByText('Domingo')).toBeInTheDocument()
@@ -327,7 +358,8 @@ describe('HorarioGrid', () => {
           columns={emptyColumns()}
           todayMondayFirstIndex={0}
           now={new Date(2026, 7, 10, 12, 0)} // Monday 12:00 — 240 of 960 minutes into 08:00..24:00
-          onSelectClass={vi.fn()}
+          onOpenApunte={vi.fn()}
+          onOpenClase={vi.fn()}
         />
       )
 
@@ -344,7 +376,8 @@ describe('HorarioGrid', () => {
           columns={emptyColumns()}
           todayMondayFirstIndex={0}
           now={new Date(2026, 7, 10, 7, 0)}
-          onSelectClass={vi.fn()}
+          onOpenApunte={vi.fn()}
+          onOpenClase={vi.fn()}
         />
       )
 
@@ -357,7 +390,8 @@ describe('HorarioGrid', () => {
           columns={emptyColumns()}
           todayMondayFirstIndex={null}
           now={new Date(2026, 7, 10, 12, 0)}
-          onSelectClass={vi.fn()}
+          onOpenApunte={vi.fn()}
+          onOpenClase={vi.fn()}
         />
       )
 
@@ -396,7 +430,8 @@ describe('HorarioGrid — classes sharing the same hours', () => {
       <HorarioGrid
         columns={mondayWith([mondaySlot(1, 'ITICS', 480, 540), mondaySlot(2, 'Análisis Matemático', 480, 540)])}
         todayMondayFirstIndex={null}
-        onSelectClass={vi.fn()}
+        onOpenApunte={vi.fn()}
+        onOpenClase={vi.fn()}
       />
     )
 
@@ -409,11 +444,12 @@ describe('HorarioGrid — classes sharing the same hours', () => {
       <HorarioGrid
         columns={mondayWith([mondaySlot(1, 'ITICS', 480, 540), mondaySlot(2, 'Análisis Matemático', 480, 540)])}
         todayMondayFirstIndex={null}
-        onSelectClass={vi.fn()}
+        onOpenApunte={vi.fn()}
+        onOpenClase={vi.fn()}
       />
     )
 
-    const [first, second] = screen.getAllByRole('button')
+    const [first, second] = screen.getAllByTestId('horario-class-block')
 
     expect(first!.style.left).not.toBe(second!.style.left)
     expect(first!.style.width).toBe(second!.style.width)
@@ -424,29 +460,31 @@ describe('HorarioGrid — classes sharing the same hours', () => {
       <HorarioGrid
         columns={mondayWith([mondaySlot(1, 'ITICS', 480, 540), mondaySlot(2, 'Análisis Matemático', 600, 660)])}
         todayMondayFirstIndex={null}
-        onSelectClass={vi.fn()}
+        onOpenApunte={vi.fn()}
+        onOpenClase={vi.fn()}
       />
     )
 
-    const [first, second] = screen.getAllByRole('button')
+    const [first, second] = screen.getAllByTestId('horario-class-block')
 
     expect(first!.style.left).toBe(second!.style.left)
     expect(first!.style.width).toBe(second!.style.width)
   })
 
-  it('still routes a click on a shared-hour block to its own subject', () => {
-    const onSelectClass = vi.fn()
+  it('still routes a click on a shared-hour block to its own class', () => {
+    const onOpenClase = vi.fn()
     render(
       <HorarioGrid
         columns={mondayWith([mondaySlot(1, 'ITICS', 480, 540), mondaySlot(2, 'Análisis Matemático', 480, 540)])}
         todayMondayFirstIndex={null}
-        onSelectClass={onSelectClass}
+        onOpenApunte={vi.fn()}
+        onOpenClase={onOpenClase}
       />
     )
 
     fireEvent.click(screen.getByText('Análisis Matemático'))
 
-    expect(onSelectClass).toHaveBeenCalledWith(2)
+    expect(onOpenClase).toHaveBeenCalledWith(expect.objectContaining({ subjectId: 2 }))
   })
 
   /*
@@ -460,10 +498,142 @@ describe('HorarioGrid — classes sharing the same hours', () => {
       <HorarioGrid
         columns={mondayWith([mondaySlot(1, 'Análisis Matemático II', 480, 600)])}
         todayMondayFirstIndex={null}
-        onSelectClass={vi.fn()}
+        onOpenApunte={vi.fn()}
+        onOpenClase={vi.fn()}
       />
     )
 
-    expect(screen.getByRole('button')).toHaveAttribute('title', 'Análisis Matemático II · 08:00 – 10:00')
+    expect(screen.getByTestId('horario-class-block')).toHaveAttribute('title', 'Análisis Matemático II · 08:00 – 10:00')
+  })
+})
+
+describe('HorarioGrid — the two things a class block can do', () => {
+  function mondayColumns(): WeekDayColumn[] {
+    const columns = emptyColumns()
+    columns[0] = {
+      mondayFirstIndex: 0,
+      dayOfWeek: 1,
+      slots: [
+        {
+          subjectId: 7,
+          subjectName: 'Sistemas Operativos',
+          subjectColor: '#4c8dff',
+          slotId: 100,
+          dayOfWeek: 1,
+          startMinutes: 480,
+          endMinutes: 570,
+          location: 'Aula 204'
+        }
+      ]
+    }
+    return columns
+  }
+
+  /*
+   * The schedule is edited a handful of times a cuatrimestre; the class it
+   * describes is worked with every week. So the block BODY opens the class and
+   * the schedule keeps a corner control — the same split ClassRow already
+   * makes in Hoy, where the notebook button sits beside the attendance pair.
+   */
+  it('offers the apunte as its own control, not as the block body', () => {
+    const onOpenApunte = vi.fn()
+    const onOpenClase = vi.fn()
+
+    render(
+      <HorarioGrid
+        columns={mondayColumns()}
+        todayMondayFirstIndex={null}
+        onOpenApunte={onOpenApunte}
+        onOpenClase={onOpenClase}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apunte de la clase de Sistemas Operativos' }))
+
+    expect(onOpenApunte).toHaveBeenCalledWith(expect.objectContaining({ subjectId: 7 }))
+    expect(onOpenClase).not.toHaveBeenCalled()
+  })
+
+  /*
+   * A <button> cannot contain another <button>, so the corner control is a
+   * SIBLING laid over the block rather than a child of it. If it ever became a
+   * child the markup would be invalid and the browser would reparent it,
+   * silently breaking both clicks.
+   */
+  it('keeps the apunte control outside the block body', () => {
+    render(
+      <HorarioGrid
+        columns={mondayColumns()}
+        todayMondayFirstIndex={null}
+        onOpenApunte={vi.fn()}
+        onOpenClase={vi.fn()}
+      />
+    )
+
+    const block = screen.getByTestId('horario-class-block')
+    const edit = screen.getByRole('button', { name: 'Apunte de la clase de Sistemas Operativos' })
+
+    expect(block).not.toContainElement(edit)
+  })
+
+  /*
+   * The control is positioned OFF the block's box, so its left edge is the
+   * block's own `calc()` lane geometry composed one level deeper. If that
+   * composition ever produced something the CSS parser drops, the control
+   * would silently pile up at the column's left edge on top of the block.
+   */
+  it('anchors the apunte control to the block lane it belongs to', () => {
+    render(
+      <HorarioGrid
+        columns={mondayColumns()}
+        todayMondayFirstIndex={null}
+        onOpenApunte={vi.fn()}
+        onOpenClase={vi.fn()}
+      />
+    )
+
+    const edit = screen.getByTestId('horario-class-apunte')
+
+    expect(edit.style.left).toContain('21px')
+    expect(edit.style.top).not.toBe('')
+  })
+
+  it('gives every class its own apunte control when two share an hour', () => {
+    const columns = emptyColumns()
+    columns[0] = {
+      mondayFirstIndex: 0,
+      dayOfWeek: 1,
+      slots: [
+        {
+          subjectId: 1,
+          subjectName: 'ITICS',
+          subjectColor: '#4c8dff',
+          slotId: 1,
+          dayOfWeek: 1,
+          startMinutes: 480,
+          endMinutes: 540,
+          location: null
+        },
+        {
+          subjectId: 2,
+          subjectName: 'Análisis Matemático',
+          subjectColor: '#4c8dff',
+          slotId: 2,
+          dayOfWeek: 1,
+          startMinutes: 480,
+          endMinutes: 540,
+          location: null
+        }
+      ]
+    }
+    const onOpenApunte = vi.fn()
+
+    render(
+      <HorarioGrid columns={columns} todayMondayFirstIndex={null} onOpenApunte={onOpenApunte} onOpenClase={vi.fn()} />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apunte de la clase de Análisis Matemático' }))
+
+    expect(onOpenApunte).toHaveBeenCalledWith(expect.objectContaining({ subjectId: 2 }))
   })
 })

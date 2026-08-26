@@ -7,6 +7,7 @@
   },
   "grid": {
     "timeRange": "{{start}} – {{end}}",
-    "blockTooltip": "{{subject}} · {{start}} – {{end}}"
+    "blockTooltip": "{{subject}} · {{start}} – {{end}}",
+    "openApunte": "Apunte de la clase de {{subject}}"
   }
 }

@@ -5,6 +5,8 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SubjectDetailResult, SubjectWithSlots, SubjectWithStatus } from '../../../shared/ipc/materias'
 import { materiasApi } from '../../materias/adapters/materiasApi'
+import { adjuntosApi } from '../../adjuntos/adapters/adjuntosApi'
+import { clasesApi } from '../../clases/adapters/clasesApi'
 import { horarioApi } from '../adapters/horarioApi'
 import { HorarioContainer } from './HorarioContainer'
 
@@ -16,25 +18,28 @@ vi.mock('../../materias/adapters/materiasApi', () => ({
   materiasApi: { detail: vi.fn(), updateSchedule: vi.fn(), list: vi.fn() }
 }))
 
-vi.mock('../../materias/components/EditarMateriaModal', () => ({
-  EditarMateriaModal: ({
-    initialTab,
-    onSubmit,
-    onClose
-  }: {
-    initialTab?: string
-    onSubmit: (input: unknown) => void
-    onClose: () => void
-  }) => (
-    <div role="dialog" aria-label="Editar materia" data-initial-tab={initialTab}>
-      <button type="button" onClick={() => onSubmit({ id: 1, name: 'Stub', code: 'STUB', color: '#000', slots: [] })}>
-        stub-edit-submit
-      </button>
+vi.mock('../../clases/containers/ClaseModalContainer', () => ({
+  ClaseModalContainer: ({ subjectId, date, onClose }: { subjectId: number; date: string; onClose: () => void }) => (
+    <div role="dialog" aria-label="Clase" data-subject-id={subjectId} data-date={date}>
       <button type="button" onClick={onClose}>
-        stub-edit-close
+        stub-clase-close
       </button>
     </div>
   )
+}))
+
+vi.mock('../../adjuntos/containers/AttachmentViewerContainer', () => ({
+  AttachmentViewerContainer: ({ attachment }: { attachment: { fileName: string } }) => (
+    <div data-testid="apunte-editor">{attachment.fileName}</div>
+  )
+}))
+
+vi.mock('../../clases/adapters/clasesApi', () => ({
+  clasesApi: { saveNote: vi.fn() }
+}))
+
+vi.mock('../../adjuntos/adapters/adjuntosApi', () => ({
+  adjuntosApi: { list: vi.fn() }
 }))
 
 const sampleSubjects: SubjectWithSlots[] = [
@@ -88,6 +93,8 @@ describe('HorarioContainer', () => {
     vi.mocked(materiasApi.list).mockResolvedValue(sampleSubjects.map((subject) => makeFacts(subject)))
     vi.mocked(materiasApi.detail).mockResolvedValue(sampleDetail)
     vi.mocked(materiasApi.updateSchedule).mockResolvedValue(sampleSubjects[0]!)
+    vi.mocked(adjuntosApi.list).mockResolvedValue([])
+    vi.mocked(clasesApi.saveNote).mockResolvedValue({ subjectId: 1, date: '2026-03-02', apunteId: 5 })
   })
 
   it('fetches on the ["horario","week"] query key and renders the grid with the projected class', async () => {
@@ -97,13 +104,19 @@ describe('HorarioContainer', () => {
     expect(horarioApi.week).toHaveBeenCalledTimes(1)
   })
 
-  it('clicking a class block fetches the subject detail and opens Editar materia on the Horario tab', async () => {
+  /*
+   * Editing the horario is NOT one of this screen's affordances any more. It
+   * is already a click away from the materia, so a shortcut here was a
+   * duplicate — and it was occupying the only room left for the apunte, which
+   * had no other path to a class that is not today.
+   */
+  it('offers no schedule-edit shortcut, because the materia already carries one', async () => {
     renderWithClient(<HorarioContainer now={new Date('2026-03-04T09:00:00')} />)
 
-    fireEvent.click(await screen.findByRole('button', { name: /Sistemas Operativos/ }))
+    await screen.findByTestId('horario-class-block')
 
-    expect(await screen.findByRole('dialog', { name: 'Editar materia' })).toHaveAttribute('data-initial-tab', 'horario')
-    expect(materiasApi.detail).toHaveBeenCalledWith(1)
+    expect(screen.queryByRole('button', { name: /Editar horario/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Editar materia' })).not.toBeInTheDocument()
   })
 
   // Closed or final-stage subjects no longer attend classes, so their slots
@@ -129,13 +142,66 @@ describe('HorarioContainer', () => {
     await waitFor(() => expect(screen.queryByText('Redes')).not.toBeInTheDocument())
   })
 
-  it('submitting the modal calls materiasApi.updateSchedule and closes it', async () => {
+  it('never writes the schedule from this screen', async () => {
     renderWithClient(<HorarioContainer now={new Date('2026-03-04T09:00:00')} />)
 
-    fireEvent.click(await screen.findByRole('button', { name: /Sistemas Operativos/ }))
-    fireEvent.click(await screen.findByText('stub-edit-submit'))
+    fireEvent.click(await screen.findByTestId('horario-class-block'))
+    await screen.findByRole('dialog', { name: 'Clase' })
 
-    await waitFor(() => expect(materiasApi.updateSchedule).toHaveBeenCalledTimes(1))
+    expect(materiasApi.updateSchedule).not.toHaveBeenCalled()
+  })
+
+  /*
+   * The reason this screen took the class dialog at all: before it, an apunte
+   * could ONLY be written from Hoy, which mounts the dialog with today's date.
+   * A class that happened on Monday was unreachable from Tuesday onward — the
+   * subject detail's APUNTES section is an index of existing apuntes and has
+   * no add path by design. The grid is the surface that knows every weekday.
+   */
+  it('clicking a class block body opens that class dated to the CURRENT week, not to today', async () => {
+    // Wednesday. The sample subject's only slot is a Monday one, so the class
+    // it opens is two days in the past — exactly the case Hoy cannot reach.
+    renderWithClient(<HorarioContainer now={new Date('2026-03-04T09:00:00')} />)
+
+    fireEvent.click(await screen.findByTestId('horario-class-block'))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Clase' })
+    expect(dialog).toHaveAttribute('data-date', '2026-03-02')
+    expect(dialog).toHaveAttribute('data-subject-id', '1')
+  })
+
+  it('reads the class off the subject detail, so the dialog carries its marks and apuntes', async () => {
+    renderWithClient(<HorarioContainer now={new Date('2026-03-04T09:00:00')} />)
+
+    fireEvent.click(await screen.findByTestId('horario-class-block'))
+
+    await screen.findByRole('dialog', { name: 'Clase' })
+    expect(materiasApi.detail).toHaveBeenCalledWith(1)
+  })
+
+  it('closes the class dialog on its own request', async () => {
+    renderWithClient(<HorarioContainer now={new Date('2026-03-04T09:00:00')} />)
+
+    fireEvent.click(await screen.findByTestId('horario-class-block'))
+    fireEvent.click(await screen.findByText('stub-clase-close'))
+
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  /*
+   * Two dialogs over one grid, each with its own trigger — opening one while
+   * the other's state lingered would mount both over the same subject.
+   */
+  /*
+   * The corner control opens the class's APUNTE — a markdown document — while
+   * the block body marks asistencia. Two targets, two different jobs, and the
+   * corner one is what its notebook icon has always promised.
+   */
+  it('opens the apunte from the block corner control', async () => {
+    renderWithClient(<HorarioContainer now={new Date('2026-03-04T09:00:00')} />)
+
+    fireEvent.click(await screen.findByTestId('horario-class-apunte'))
+
+    await waitFor(() => expect(clasesApi.saveNote).toHaveBeenCalled())
   })
 })
