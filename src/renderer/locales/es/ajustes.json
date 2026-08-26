@@ -48,11 +48,23 @@
   },
   "appearanceCard": {
     "title": "Apariencia",
-    "description": "Elegí el tema de la aplicación",
+    "description": "Claro, oscuro o lo que diga el sistema",
     "option": {
       "system": "Sistema",
       "light": "Claro",
       "dark": "Oscuro"
+    },
+    "palette": {
+      "title": "Paleta",
+      "description": "El color de acento y los tonos de la interfaz",
+      "option": {
+        "amatista": "Amatista",
+        "cobalto": "Cobalto",
+        "turquesa": "Turquesa",
+        "cuarzo": "Cuarzo",
+        "malva": "Malva",
+        "grafito": "Grafito"
+      }
     }
   },
   "ajustesContainer": {

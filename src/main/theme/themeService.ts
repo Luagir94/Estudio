@@ -1,4 +1,11 @@
-import { DEFAULT_THEME_PREFERENCE, themePreferenceSchema, type ThemePreference } from '../../shared/ipc/theme'
+import {
+  DEFAULT_PALETTE,
+  DEFAULT_THEME_PREFERENCE,
+  paletteSchema,
+  themePreferenceSchema,
+  type Palette,
+  type ThemePreference
+} from '../../shared/ipc/theme'
 
 /**
  * Where the preference lives: one row in the generic `app_settings` key/value
@@ -6,6 +13,9 @@ import { DEFAULT_THEME_PREFERENCE, themePreferenceSchema, type ThemePreference }
  * a single enum-valued string needs no table of its own.
  */
 export const THEME_PREFERENCE_KEY = 'app.themePreference'
+
+/** The palette's own row in that same store, for the same reason. */
+export const PALETTE_KEY = 'app.palette'
 
 /** The `get`/`set` slice of `AppSettingsRepository` this service needs. */
 export interface ThemeSettingsPort {
@@ -20,6 +30,10 @@ export interface ThemeService {
   setPreference(preference: ThemePreference): ThemePreference
   /** Startup half: re-applies last session's choice before the window opens. A pure read. */
   applyStoredPreference(): void
+  /** The persisted palette, or the default when nothing (valid) was ever chosen. */
+  getPalette(): Palette
+  /** Persists the palette and returns what was persisted. Applies nothing here — see below. */
+  setPalette(palette: Palette): Palette
 }
 
 interface CreateThemeServiceDeps {
@@ -42,6 +56,14 @@ export function createThemeService({ settings, applyThemeSource }: CreateThemeSe
     return themePreferenceSchema.safeParse(settings.get(THEME_PREFERENCE_KEY)).data ?? DEFAULT_THEME_PREFERENCE
   }
 
+  function getPalette(): Palette {
+    // Same safeParse-with-fallback discipline. A drifted row matters more
+    // here than it looks: the value is written straight into a DOM attribute
+    // the stylesheet keys on, so an unrecognized one would paint the base
+    // palette silently rather than fail loudly.
+    return paletteSchema.safeParse(settings.get(PALETTE_KEY)).data ?? DEFAULT_PALETTE
+  }
+
   return {
     getPreference,
     setPreference(preference) {
@@ -53,6 +75,20 @@ export function createThemeService({ settings, applyThemeSource }: CreateThemeSe
     },
     applyStoredPreference() {
       applyThemeSource(getPreference())
+    },
+
+    // The palette has no main-side counterpart to `nativeTheme.themeSource`,
+    // and that asymmetry is the design, not an omission. A preference decides
+    // how `prefers-color-scheme` RESOLVES, which only Electron can do; a
+    // palette only decides which token block wins, which is a `data-palette`
+    // attribute the renderer owns. So this half of the service is pure
+    // persistence — there is deliberately no `applyStoredPalette`.
+    getPalette,
+    setPalette(palette) {
+      // Persist FIRST, same reason as `setPreference`: the echoed value must
+      // never claim a choice that failed to outlive the process.
+      settings.set(PALETTE_KEY, palette)
+      return palette
     }
   }
 }

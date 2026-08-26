@@ -84,7 +84,7 @@ import type {
   SubjectWithStatus,
   UpdateSubjectScheduleInput
 } from '../../shared/ipc/materias'
-import type { SetThemePreferenceInput, ThemePreference } from '../../shared/ipc/theme'
+import type { Palette, SetPaletteInput, SetThemePreferenceInput, ThemePreference } from '../../shared/ipc/theme'
 
 declare global {
   interface Window {
@@ -180,6 +180,10 @@ declare global {
         getPreference: () => Promise<IpcResult<ThemePreference>>
         /** Applies `nativeTheme.themeSource` AND persists in one round trip, echoing the persisted value. */
         setPreference: (input: SetThemePreferenceInput) => Promise<IpcResult<ThemePreference>>
+        /** The persisted palette — `amatista` for a profile that never chose. */
+        getPalette: () => Promise<IpcResult<Palette>>
+        /** Persists only, echoing the persisted value; applying it is `applyPalette`'s job in the renderer. */
+        setPalette: (input: SetPaletteInput) => Promise<IpcResult<Palette>>
       }
       app: {
         openExternal: (input: OpenExternalInput) => Promise<IpcResult<undefined>>

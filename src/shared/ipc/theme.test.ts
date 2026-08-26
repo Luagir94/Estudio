@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_PALETTE,
   DEFAULT_THEME_PREFERENCE,
+  PALETTES,
+  paletteSchema,
+  setPaletteInputSchema,
   setThemePreferenceInputSchema,
   THEME_PREFERENCES,
   themePreferenceSchema
@@ -50,5 +54,58 @@ describe('setThemePreferenceInputSchema', () => {
     ['a preference outside the union', { preference: 'sepia' }]
   ])('refuses %s', (_label, payload) => {
     expect(setThemePreferenceInputSchema.safeParse(payload).success).toBe(false)
+  })
+})
+
+// The palette ids double as the `<html data-palette="…">` values that
+// `globals.css` keys its override blocks on. A drifted id is invisible at
+// runtime — an unmatched attribute selector simply paints the base palette —
+// so the list is pinned here rather than trusted.
+
+describe('paletteSchema', () => {
+  it.each(['amatista', 'cobalto', 'turquesa', 'cuarzo', 'malva', 'grafito'] as const)('accepts %s', (palette) => {
+    expect(paletteSchema.parse(palette)).toBe(palette)
+  })
+
+  it.each(['violeta', 'oceano', '', 'Amatista', 'system', 1, null, undefined])('refuses %j', (value) => {
+    expect(paletteSchema.safeParse(value).success).toBe(false)
+  })
+})
+
+describe('PALETTES', () => {
+  it('lists the six palettes in the approved menu order', () => {
+    expect(PALETTES).toEqual(['amatista', 'cobalto', 'turquesa', 'cuarzo', 'malva', 'grafito'])
+  })
+
+  it('holds exactly the values the schema accepts', () => {
+    expect([...PALETTES].sort()).toEqual([...paletteSchema.options].sort())
+  })
+})
+
+describe('DEFAULT_PALETTE', () => {
+  // `amatista` is the palette written into the BASE token block, not into a
+  // `[data-palette]` override. An unset attribute and this value must paint
+  // the same screen, which is what keeps the pre-read frame from flashing.
+  it('is amatista', () => {
+    expect(DEFAULT_PALETTE).toBe('amatista')
+  })
+
+  it('is the first option offered', () => {
+    expect(PALETTES[0]).toBe(DEFAULT_PALETTE)
+  })
+})
+
+describe('setPaletteInputSchema', () => {
+  it('parses a named palette', () => {
+    expect(setPaletteInputSchema.parse({ palette: 'cobalto' })).toEqual({ palette: 'cobalto' })
+  })
+
+  it.each([
+    ['an empty payload', {}],
+    ['no payload at all', undefined],
+    ['a palette outside the union', { palette: 'sepia' }],
+    ['the theme payload shape', { preference: 'dark' }]
+  ])('refuses %s', (_label, payload) => {
+    expect(setPaletteInputSchema.safeParse(payload).success).toBe(false)
   })
 })

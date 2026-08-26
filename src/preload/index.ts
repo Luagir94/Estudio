@@ -92,7 +92,7 @@ import type {
   SubjectWithStatus,
   UpdateSubjectScheduleInput
 } from '../shared/ipc/materias'
-import type { SetThemePreferenceInput, ThemePreference } from '../shared/ipc/theme'
+import type { Palette, SetPaletteInput, SetThemePreferenceInput, ThemePreference } from '../shared/ipc/theme'
 
 // Per-domain command/query bridges are added here as each domain slice
 // lands (design §2: "one typed `api` object per domain via
@@ -249,7 +249,11 @@ const api = {
     // Applies `nativeTheme.themeSource` AND persists in one round trip; the
     // echoed value is what the renderer writes into its cache.
     setPreference: (input: SetThemePreferenceInput): Promise<IpcResult<ThemePreference>> =>
-      ipcRenderer.invoke('theme:setPreference', input)
+      ipcRenderer.invoke('theme:setPreference', input),
+    getPalette: (): Promise<IpcResult<Palette>> => ipcRenderer.invoke('theme:getPalette'),
+    // Persists only — the renderer is what puts the choice on
+    // `<html data-palette>`, so there is no native counterpart to apply here.
+    setPalette: (input: SetPaletteInput): Promise<IpcResult<Palette>> => ipcRenderer.invoke('theme:setPalette', input)
   },
   app: {
     openExternal: (input: OpenExternalInput): Promise<IpcResult<undefined>> =>
