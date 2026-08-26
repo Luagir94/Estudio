@@ -30,6 +30,8 @@ import { createWarmPromptSession, type WarmPromptSession } from './claude/warmPr
 import { clearProvider, validateModelId } from './claude/claudeExecutableValidator'
 import { PROVIDER_SPECS } from './cli/providerSpec'
 import { createSqliteClaseRepository } from './clases/adapters/sqliteClaseRepository'
+import { createSqliteClassNoteBackfillPorts } from './clases/adapters/sqliteClassNoteBackfillPorts'
+import { backfillClassNotes } from './clases/classNoteBackfill'
 import { registerClasesHandlers } from './clases/ipc/registerClasesHandlers'
 import { createSqliteDeadlineRepository } from './entregas/adapters/sqliteDeadlineRepository'
 import { createSqliteAcademicDateRepository } from './fechas/adapters/sqliteAcademicDateRepository'
@@ -120,7 +122,11 @@ async function bootstrap(): Promise<void> {
   // `hoy:dashboard` (a read) use this same instance, the way
   // subjectRepository is already shared.
   const claseRepository = createSqliteClaseRepository(db)
-  registerClasesHandlers(claseRepository)
+  // `registerClasesHandlers` is NOT called here, even though this is where its
+  // repository is born: an apunte is a markdown attachment now, so the note
+  // commands need `attachmentService`, which cannot exist until the storage
+  // and indexing ports below are wired. The registration therefore happens
+  // right after that service — see "clases:* note commands" further down.
   // Read-model query over the SAME three repositories — no separate table and
   // no write path of its own (the class marks Hoy now offers are written
   // through `clases:*`, above).
@@ -205,6 +211,36 @@ async function bootstrap(): Promise<void> {
     storage: attachmentStorage,
     subjectRepository
   })
+
+  // clases:* note commands. Deferred from where `claseRepository` was created
+  // (above) purely by dependency order: an apunte is a markdown ATTACHMENT, so
+  // writing one means a file, a preview and an FTS re-index — and that is
+  // `attachmentService`, which only exists from here down.
+  //
+  // The port is adapted inline rather than passing the whole service: the
+  // clases slice states the two verbs it needs (`ClassNoteWriterPort`) and
+  // gets exactly those, so it can never grow a second way to write a file.
+  registerClasesHandlers(claseRepository, {
+    save: async (subjectId, classDate, content) => {
+      const result = await attachmentService.saveClassNote(subjectId, classDate, content)
+      if (!result.ok) return result
+      return result.deleted ? { ok: true, deleted: true } : { ok: true, deleted: false, apunteId: result.attachment.id }
+    },
+    remove: (subjectId, classDate) => attachmentService.deleteClassNote(subjectId, classDate)
+  })
+
+  // Moves any apunte still living as a `class_notes` ROW into the attachment
+  // it is now. A SQL migration cannot do this — every legacy apunte has to
+  // become a FILE — so it runs here, once the write path it needs exists.
+  //
+  // NOT awaited: the table drains a few rows at a time and the window must
+  // not wait on disk to appear. Idempotent and self-draining, so a boot that
+  // dies mid-migration simply resumes on the next one.
+  void backfillClassNotes(
+    createSqliteClassNoteBackfillPorts(db, (subjectId, classDate, content) =>
+      attachmentService.saveClassNote(subjectId, classDate, content)
+    )
+  )
 
   // CLI detection/probe, once per supported provider.
   // `createSqliteAppSettingsRepository` satisfies the probe service's

@@ -346,11 +346,23 @@ export type AttendanceRecord = z.infer<typeof attendanceRecordSchema>
 // One plain-text apunte for one class, on the same `(subjectId, date)` anchor
 // and with the same plain-text contract as `subjects.notas`. Deliberately not
 // indexed for Ask — apuntes are stored and displayed, nothing more.
+// An apunte de clase, as it travels on `materias:detail` and `hoy:dashboard`.
+//
+// NO BODY. An apunte is a markdown ATTACHMENT now — its text lives in a file,
+// read through `adjuntos:read` when the editor opens it. Shipping the body on
+// these two payloads would turn one subject-detail fetch into N disk reads,
+// for text no list ever renders in full.
+//
+// What the list DOES need is one line, and that is `preview`: the apunte's
+// first line, kept on the attachment row itself so the list stays a single
+// query.
 export const classNoteRecordSchema = z.object({
+  /** The ATTACHMENT's id — what `adjuntos:read`/`adjuntos:write` address, and what opens the editor. */
   id: z.number().int(),
   subjectId: z.number().int(),
+  /** Local calendar date, `YYYY-MM-DD` — the class this apunte belongs to. */
   date: z.string(),
-  body: z.string()
+  preview: z.string()
 })
 
 export type ClassNoteRecord = z.infer<typeof classNoteRecordSchema>

@@ -1,8 +1,8 @@
-import { and, eq } from 'drizzle-orm'
-import type { ClassDayInput, SaveClassNoteInput, SetAttendanceInput } from '../../../shared/ipc/clases'
+import { and, desc, eq, isNotNull } from 'drizzle-orm'
+import type { ClassDayInput, SetAttendanceInput } from '../../../shared/ipc/clases'
 import type { AttendanceRecord, AttendanceStatus, ClassNoteRecord } from '../../../shared/ipc/materias'
 import type { AppDatabase } from '../../db/connection'
-import { attendanceRecords, classNotes } from '../../db/schema'
+import { attachments, attendanceRecords } from '../../db/schema'
 
 /**
  * The write port for one class, addressed as `(subjectId, date)`.
@@ -27,12 +27,35 @@ export interface ClaseRepository {
   clearAttendance(input: ClassDayInput): boolean
   listAttendanceBySubject(subjectId: number): AttendanceRecord[]
   listAttendance(): AttendanceRecord[]
-  /** Writes or rewrites the apunte for one class. Returns the stored row either way. */
-  saveNote(input: SaveClassNoteInput): ClassNoteRecord
-  /** Removes the apunte. False if there was nothing to delete. */
-  deleteNote(input: ClassDayInput): boolean
+  /**
+   * The apuntes of one subject, newest class first.
+   *
+   * READ ONLY, and that asymmetry is deliberate: an apunte is a markdown
+   * ATTACHMENT, so its writes belong to `attachmentService` (which owns the
+   * file, the preview and the FTS re-index) and there is no `saveNote` here
+   * to let a second write path exist. These two readers stay in the clases
+   * slice because the two payloads that carry apuntes — `materias:detail` and
+   * `hoy:dashboard` — are assembled beside the marks they travel with.
+   */
   listNotesBySubject(subjectId: number): ClassNoteRecord[]
   listNotes(): ClassNoteRecord[]
+}
+
+/**
+ * An apunte row, projected out of the attachment it actually is.
+ *
+ * `title` carries the preview (see `UpdateAttachmentInput`) and is nullable at
+ * the column level, so an apunte written before it had one — or by a path
+ * that forgot — degrades to an empty preview rather than crashing a list. The
+ * apunte itself is never lost: the file is the apunte, this is only its label.
+ */
+function toClassNoteRecord(row: {
+  id: number
+  subjectId: number
+  classDate: string | null
+  title: string | null
+}): ClassNoteRecord {
+  return { id: row.id, subjectId: row.subjectId, date: row.classDate ?? '', preview: row.title ?? '' }
 }
 
 const STATUSES = new Set(['presente', 'ausente', 'feriado'])
@@ -107,30 +130,23 @@ export function createSqliteClaseRepository(db: AppDatabase): ClaseRepository {
     listAttendance() {
       return db.select().from(attendanceRecords).all().map(toAttendanceRecord)
     },
-    saveNote(input) {
-      return db
-        .insert(classNotes)
-        .values({ subjectId: input.subjectId, date: input.date, body: input.body })
-        .onConflictDoUpdate({
-          target: [classNotes.subjectId, classNotes.date],
-          set: { body: input.body }
-        })
-        .returning()
-        .get()
-    },
-    deleteNote(input) {
-      const removed = db
-        .delete(classNotes)
-        .where(and(eq(classNotes.subjectId, input.subjectId), eq(classNotes.date, input.date)))
-        .returning()
-        .all()
-      return removed.length > 0
-    },
     listNotesBySubject(subjectId) {
-      return db.select().from(classNotes).where(eq(classNotes.subjectId, subjectId)).all()
+      return db
+        .select()
+        .from(attachments)
+        .where(and(eq(attachments.subjectId, subjectId), isNotNull(attachments.classDate)))
+        .orderBy(desc(attachments.classDate))
+        .all()
+        .map(toClassNoteRecord)
     },
     listNotes() {
-      return db.select().from(classNotes).all()
+      return db
+        .select()
+        .from(attachments)
+        .where(isNotNull(attachments.classDate))
+        .orderBy(desc(attachments.classDate))
+        .all()
+        .map(toClassNoteRecord)
     }
   }
 }

@@ -29,7 +29,13 @@ import type {
   ProbeCliInput,
   SetCliOverrideInput
 } from '../shared/ipc/cli'
-import type { ClassDayInput, ClassDayResult, SaveClassNoteInput, SetAttendanceInput } from '../shared/ipc/clases'
+import type {
+  ClassDayInput,
+  ClassDayResult,
+  SaveClassNoteInput,
+  SaveClassNoteResult,
+  SetAttendanceInput
+} from '../shared/ipc/clases'
 import type {
   CreatePeriodInput,
   CreateProgramInput,
@@ -79,7 +85,6 @@ import type { DashboardResult } from '../shared/ipc/hoy'
 import type { IndexStatusChangedPayload, SyncResult } from '../shared/ipc/indexado'
 import type {
   AttendanceRecord,
-  ClassNoteRecord,
   CreateSubjectInput,
   DeleteSubjectResult,
   FinalExamRecord,
@@ -159,7 +164,7 @@ const api = {
       ipcRenderer.invoke('clases:setAttendance', input),
     clearAttendance: (input: ClassDayInput): Promise<IpcResult<ClassDayResult>> =>
       ipcRenderer.invoke('clases:clearAttendance', input),
-    saveNote: (input: SaveClassNoteInput): Promise<IpcResult<ClassNoteRecord>> =>
+    saveNote: (input: SaveClassNoteInput): Promise<IpcResult<SaveClassNoteResult>> =>
       ipcRenderer.invoke('clases:saveNote', input),
     deleteNote: (input: ClassDayInput): Promise<IpcResult<ClassDayResult>> =>
       ipcRenderer.invoke('clases:deleteNote', input)

@@ -66,12 +66,12 @@ describe('findAttendanceStatus', () => {
 
 describe('findClassNote', () => {
   const notes = [
-    { id: 1, subjectId: 7, date: '2026-08-14', body: 'Round robin.' },
-    { id: 2, subjectId: 9, date: '2026-08-14', body: 'Otra materia.' }
+    { id: 1, subjectId: 7, date: '2026-08-14', preview: 'Round robin.' },
+    { id: 2, subjectId: 9, date: '2026-08-14', preview: 'Otra materia.' }
   ]
 
   it('answers with the apunte for that subject on that day', () => {
-    expect(findClassNote(notes, 7, '2026-08-14')?.body).toBe('Round robin.')
+    expect(findClassNote(notes, 7, '2026-08-14')?.preview).toBe('Round robin.')
   })
 
   it('answers null when that class has no apunte', () => {

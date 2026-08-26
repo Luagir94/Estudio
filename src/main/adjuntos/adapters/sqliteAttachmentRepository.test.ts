@@ -46,7 +46,8 @@ describe('createSqliteAttachmentRepository', () => {
       sizeBytes: 1024,
       title: null,
       createdAt: '2026-08-16T10:00',
-      origin: 'user'
+      origin: 'user',
+      classDate: null
     })
 
     expect(inserted).toMatchObject({
@@ -71,7 +72,8 @@ describe('createSqliteAttachmentRepository', () => {
       sizeBytes: 1024,
       title: null,
       createdAt: '2026-08-16T10:00',
-      origin: 'user'
+      origin: 'user',
+      classDate: null
     })
 
     expect(inserted.indexStatus).toBe('pending')
@@ -79,7 +81,7 @@ describe('createSqliteAttachmentRepository', () => {
   })
 
   // cli-generated-artifacts spec "Generated artifact is marked and badged":
-  // `origin: 'ai-generated'` must round-trip through a real `:memory:` +
+  // `origin: 'ai-generated', classDate: null` must round-trip through a real `:memory:` +
   // production `migrate()` exactly like any other column.
   it('inserts an attachment with origin "ai-generated" and round-trips it back unchanged', () => {
     const repository = createSqliteAttachmentRepository(db)
@@ -96,7 +98,8 @@ describe('createSqliteAttachmentRepository', () => {
       // omitting it here would be a TypeScript compile error, not a runtime
       // one; every insert() call site in the codebase must pass it
       // explicitly, on purpose.
-      origin: 'ai-generated'
+      origin: 'ai-generated',
+      classDate: null
     })
 
     expect(inserted.origin).toBe('ai-generated')
@@ -138,7 +141,8 @@ describe('createSqliteAttachmentRepository', () => {
       sizeBytes: 2048,
       title: null,
       createdAt: '2026-08-16T10:05',
-      origin: 'user'
+      origin: 'user',
+      classDate: null
     })
 
     expect(repository.get(inserted.id)).toMatchObject({ id: inserted.id, fileName: 'foto.png' })
@@ -161,7 +165,8 @@ describe('createSqliteAttachmentRepository', () => {
       sizeBytes: 10,
       title: null,
       createdAt: '2026-08-16T10:00',
-      origin: 'user'
+      origin: 'user',
+      classDate: null
     })
     repository.insert({
       subjectId: otherSubjectId,
@@ -171,7 +176,8 @@ describe('createSqliteAttachmentRepository', () => {
       sizeBytes: 10,
       title: null,
       createdAt: '2026-08-16T10:01',
-      origin: 'user'
+      origin: 'user',
+      classDate: null
     })
 
     const listed = repository.listBySubject(subjectId)
@@ -196,7 +202,8 @@ describe('createSqliteAttachmentRepository', () => {
       sizeBytes: 10,
       title: null,
       createdAt: '2026-08-16T12:00',
-      origin: 'user'
+      origin: 'user',
+      classDate: null
     })
     repository.insert({
       subjectId,
@@ -206,7 +213,8 @@ describe('createSqliteAttachmentRepository', () => {
       sizeBytes: 10,
       title: null,
       createdAt: '2026-08-16T08:00',
-      origin: 'user'
+      origin: 'user',
+      classDate: null
     })
     repository.insert({
       subjectId,
@@ -216,7 +224,8 @@ describe('createSqliteAttachmentRepository', () => {
       sizeBytes: 10,
       title: null,
       createdAt: '2026-08-16T20:00',
-      origin: 'user'
+      origin: 'user',
+      classDate: null
     })
 
     const listed = repository.listBySubject(subjectId)
@@ -234,7 +243,8 @@ describe('createSqliteAttachmentRepository', () => {
       sizeBytes: 10,
       title: null,
       createdAt: '2026-08-16T10:00',
-      origin: 'user'
+      origin: 'user',
+      classDate: null
     })
 
     const removed = repository.remove(inserted.id)
@@ -259,7 +269,8 @@ describe('createSqliteAttachmentRepository', () => {
       sizeBytes: 10,
       title: null,
       createdAt: '2026-08-16T10:00',
-      origin: 'user'
+      origin: 'user',
+      classDate: null
     })
     repository.insert({
       subjectId,
@@ -269,7 +280,8 @@ describe('createSqliteAttachmentRepository', () => {
       sizeBytes: 10,
       title: null,
       createdAt: '2026-08-16T10:01',
-      origin: 'user'
+      origin: 'user',
+      classDate: null
     })
 
     db.delete(subjects).where(eq(subjects.id, subjectId)).run()
@@ -305,7 +317,8 @@ describe('createSqliteAttachmentRepository — update', () => {
       sizeBytes: 1024,
       title: null,
       createdAt: '2026-08-16T10:00',
-      origin: 'user'
+      origin: 'user',
+      classDate: null
     })
   }
 
@@ -334,7 +347,8 @@ describe('createSqliteAttachmentRepository — update', () => {
       mimeType: null,
       title: null,
       createdAt: '2026-08-16T10:00',
-      origin: 'user'
+      origin: 'user',
+      classDate: null
     })
   })
 

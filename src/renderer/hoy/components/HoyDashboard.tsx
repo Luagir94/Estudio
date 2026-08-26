@@ -79,7 +79,7 @@ interface HoyDashboardProps {
    */
   onMarkAttendance: (subjectId: number, status: AttendanceStatus | null) => void
   /** Opens the class dialog (asistencia + apunte) for one of today's classes. */
-  onOpenClase: (subjectId: number) => void
+  onOpenApunte: (subjectId: number) => void
 }
 
 export function HoyDashboard({
@@ -94,7 +94,7 @@ export function HoyDashboard({
   imminentAcademicDate = null,
   now = new Date(),
   onMarkAttendance,
-  onOpenClase
+  onOpenApunte
 }: HoyDashboardProps): React.JSX.Element {
   const { t } = useTranslation('hoy')
   // In-progress-first rule (see getNextClassHighlight): at most ONE row
@@ -158,7 +158,7 @@ export function HoyDashboard({
                   attendanceStatus={classItem.attendanceStatus}
                   hasNote={classItem.hasNote}
                   onMarkAttendance={(status) => onMarkAttendance(classItem.subjectId, status)}
-                  onOpenClase={() => onOpenClase(classItem.subjectId)}
+                  onOpenApunte={() => onOpenApunte(classItem.subjectId)}
                 />
               ))}
               {freeBlocks.map((block, index) => (

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import type { ClaseRepository } from '../adapters/sqliteClaseRepository'
 import type { AttendanceRecord, ClassNoteRecord } from '../../../shared/ipc/materias'
 
@@ -28,10 +28,11 @@ function invoke(channel: string, payload?: unknown) {
 }
 
 const sampleMark: AttendanceRecord = { id: 1, subjectId: 7, date: '2026-08-14', status: 'presente' }
-const sampleNote: ClassNoteRecord = { id: 2, subjectId: 7, date: '2026-08-14', body: 'Round robin.' }
+const sampleNote: ClassNoteRecord = { id: 2, subjectId: 7, date: '2026-08-14', preview: 'Round robin.' }
 
 describe('registerClasesHandlers', () => {
   let repository: ClaseRepository
+  let classNotes: { save: Mock; remove: Mock }
 
   beforeEach(() => {
     ipcMainMock.handlers.clear()
@@ -42,12 +43,14 @@ describe('registerClasesHandlers', () => {
       clearAttendance: vi.fn().mockReturnValue(true),
       listAttendanceBySubject: vi.fn().mockReturnValue([sampleMark]),
       listAttendance: vi.fn().mockReturnValue([sampleMark]),
-      saveNote: vi.fn().mockReturnValue(sampleNote),
-      deleteNote: vi.fn().mockReturnValue(true),
       listNotesBySubject: vi.fn().mockReturnValue([sampleNote]),
       listNotes: vi.fn().mockReturnValue([sampleNote])
     }
-    registerClasesHandlers(repository)
+    classNotes = {
+      save: vi.fn().mockResolvedValue({ ok: true }),
+      remove: vi.fn().mockResolvedValue(true)
+    }
+    registerClasesHandlers(repository, classNotes)
   })
 
   // Four, not five: there is no `clases:list` — marks and apuntes ride on
@@ -106,41 +109,84 @@ describe('registerClasesHandlers', () => {
     })
   })
 
+  // Both note commands go to the WRITER PORT, not to the repository: an
+  // apunte is a markdown attachment, so writing one means a file, a preview
+  // and an FTS re-index — work `attachmentService` already owns. The
+  // repository only reads apuntes now.
   describe('clases:saveNote', () => {
-    it('parses a valid payload and returns the stored apunte', () => {
-      const result = invoke('clases:saveNote', { subjectId: 7, date: '2026-08-14', body: 'Round robin.' })
+    it('hands the apunte to the writer port and echoes the class', async () => {
+      const result = await invoke('clases:saveNote', { subjectId: 7, date: '2026-08-14', body: 'Round robin.' })
 
-      expect(result).toEqual({ ok: true, data: sampleNote })
-      expect(repository.saveNote).toHaveBeenCalledWith({ subjectId: 7, date: '2026-08-14', body: 'Round robin.' })
+      expect(result).toEqual({ ok: true, data: { subjectId: 7, date: '2026-08-14' } })
+      expect(classNotes.save).toHaveBeenCalledWith(7, '2026-08-14', 'Round robin.')
     })
 
-    it('rejects an oversized body without touching the repository', () => {
-      const result = invoke('clases:saveNote', { subjectId: 7, date: '2026-08-14', body: 'a'.repeat(20001) })
+    /*
+     * The response carries the CLASS, never the stored row. The apunte's text
+     * lives in a file now, and echoing a body the caller just sent would be
+     * inventing a second source of truth for it.
+     */
+    it('never echoes the apunte body back', async () => {
+      const result = (await invoke('clases:saveNote', {
+        subjectId: 7,
+        date: '2026-08-14',
+        body: 'Round robin.'
+      })) as { data: Record<string, unknown> }
+
+      expect(result.data).not.toHaveProperty('body')
+      expect(result.data).not.toHaveProperty('preview')
+    })
+
+    it('rejects an oversized body without touching the writer', async () => {
+      const result = await invoke('clases:saveNote', { subjectId: 7, date: '2026-08-14', body: 'a'.repeat(20001) })
 
       expect(result).toMatchObject({ ok: false, error: { code: 'VALIDATION_ERROR' } })
-      expect(repository.saveNote).not.toHaveBeenCalled()
+      expect(classNotes.save).not.toHaveBeenCalled()
+    })
+
+    /*
+     * A write that failed on disk must reach the student as a failure. The
+     * apunte is the one thing in this dialog that cannot be re-derived, so a
+     * silent ok here would be the app telling them their work was saved when
+     * it was not.
+     */
+    it('maps the writer-s typed failure onto the error envelope', async () => {
+      classNotes.save = vi.fn().mockResolvedValue({ ok: false, code: 'WRITE_FAILED', message: 'disk full' })
+
+      const result = await invoke('clases:saveNote', { subjectId: 7, date: '2026-08-14', body: 'Round robin.' })
+
+      expect(result).toMatchObject({ ok: false, error: { code: 'WRITE_FAILED' } })
+    })
+
+    it('reports an unexpected throw instead of crossing the bridge with it', async () => {
+      classNotes.save = vi.fn().mockRejectedValue(new Error('boom'))
+
+      const result = await invoke('clases:saveNote', { subjectId: 7, date: '2026-08-14', body: 'Round robin.' })
+
+      expect(result).toMatchObject({ ok: false, error: { code: 'SAVE_NOTE_FAILED' } })
     })
   })
 
   describe('clases:deleteNote', () => {
-    it('echoes the class whose apunte was deleted', () => {
-      expect(invoke('clases:deleteNote', { subjectId: 7, date: '2026-08-14' })).toEqual({
+    it('echoes the class whose apunte was deleted', async () => {
+      expect(await invoke('clases:deleteNote', { subjectId: 7, date: '2026-08-14' })).toEqual({
         ok: true,
         data: { subjectId: 7, date: '2026-08-14' }
       })
+      expect(classNotes.remove).toHaveBeenCalledWith(7, '2026-08-14')
     })
 
-    it('succeeds even when the class had no apunte', () => {
-      repository.deleteNote = vi.fn().mockReturnValue(false)
+    it('succeeds even when the class had no apunte', async () => {
+      classNotes.remove = vi.fn().mockResolvedValue(false)
 
-      expect(invoke('clases:deleteNote', { subjectId: 7, date: '2026-08-14' })).toMatchObject({ ok: true })
+      expect(await invoke('clases:deleteNote', { subjectId: 7, date: '2026-08-14' })).toMatchObject({ ok: true })
     })
 
-    it('rejects a missing date without touching the repository', () => {
-      const result = invoke('clases:deleteNote', { subjectId: 7 })
+    it('rejects a missing date without touching the writer', async () => {
+      const result = await invoke('clases:deleteNote', { subjectId: 7 })
 
       expect(result).toMatchObject({ ok: false, error: { code: 'VALIDATION_ERROR' } })
-      expect(repository.deleteNote).not.toHaveBeenCalled()
+      expect(classNotes.remove).not.toHaveBeenCalled()
     })
   })
 })

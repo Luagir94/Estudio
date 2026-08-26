@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { MAX_MARKDOWN_TEXT_BYTES } from '../../shared/ipc/adjuntos'
 import type { AttachmentStorage } from './adapters/fileAttachmentStorage'
 import type { AttachmentRecord, AttachmentRepository } from './adapters/sqliteAttachmentRepository'
+import { classNoteFileName, classNotePreview } from './domain/classNoteDocument'
 import { sanitizeFileName } from './domain/attachmentPaths'
 import { MAX_ATTACHMENT_BYTES } from './domain/limits'
 
@@ -42,6 +43,19 @@ export type ReadAttachmentTextServiceResult =
 
 export type UpdateAttachmentTextErrorCode = 'ATTACHMENT_NOT_FOUND' | 'NOT_MARKDOWN' | 'FILE_TOO_LARGE' | 'WRITE_FAILED'
 
+export type SaveClassNoteErrorCode = 'FILE_TOO_LARGE' | 'WRITE_FAILED'
+
+/**
+ * `deleted` is the answer to "was the apunte emptied?" — an apunte with no
+ * text is not a blank document, it is NO document, so the save path removes
+ * it. Callers report the class as having no apunte rather than as having an
+ * empty one.
+ */
+export type SaveClassNoteServiceResult =
+  | { ok: true; deleted: true }
+  | { ok: true; deleted: false; attachment: AttachmentRecord }
+  | { ok: false; code: SaveClassNoteErrorCode; message: string }
+
 export type UpdateAttachmentTextServiceResult =
   { ok: true; attachment: AttachmentRecord } | { ok: false; code: UpdateAttachmentTextErrorCode; message: string }
 
@@ -69,6 +83,21 @@ export interface AttachmentService {
    * makes the re-index idempotent).
    */
   updateAttachmentText(id: number, content: string): Promise<UpdateAttachmentTextServiceResult>
+  /**
+   * Writes the apunte of ONE class as an ordinary `.md` attachment, creating
+   * it or overwriting it in place.
+   *
+   * This exists as its own call site — rather than the clases slice reaching
+   * for `addAttachments` — because an apunte is keyed by its CLASS, not by
+   * its filename: saving twice on the same day must overwrite, never mint a
+   * second document. The `(subject_id, class_date)` unique index is the
+   * backstop; `findClassNote` is how this path honours it.
+   *
+   * Emptying the apunte DELETES it (see `SaveClassNoteServiceResult`).
+   */
+  saveClassNote(subjectId: number, classDate: string, content: string): Promise<SaveClassNoteServiceResult>
+  /** Removes the apunte of one class, file and row. `false` when that class had none — not an error. */
+  deleteClassNote(subjectId: number, classDate: string): Promise<boolean>
 }
 
 /** Case-insensitive: `resumen.MD` is as much markdown as `resumen.md`. */
@@ -151,6 +180,9 @@ export function createAttachmentService({
               sizeBytes,
               title: null,
               createdAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+              // A picker-driven upload is never the apunte of a class — that
+              // has its own write path, and this one must say so explicitly.
+              classDate: null,
               // A picker-driven upload is always a 'user' origin
               // (cli-generated-artifacts spec "User upload defaults to
               // 'user' origin") — the 'ai-generated' origin is written only
@@ -210,6 +242,8 @@ export function createAttachmentService({
           sizeBytes,
           title: null,
           createdAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+          // A generated artifact belongs to the MATERIA, not to one class.
+          classDate: null,
           // The generated write path is the ONLY call site that ever writes
           // 'ai-generated' (cli-generated-artifacts spec "Generated artifact
           // is marked and badged").
@@ -317,7 +351,17 @@ export function createAttachmentService({
       // The row may have been deleted between the get above and this update
       // (the delete handler commits rows first) — treat it as not-found, the
       // rewritten file will be cleaned with the rest of the subject dir.
-      const updated = repository.update(id, { sizeBytes, indexStatus: 'pending' })
+      // A class apunte carries a one-line preview in `title` for the APUNTES
+      // list. It has to be refreshed HERE too, not only in `saveClassNote`:
+      // the viewer is where an apunte is actually edited, and a preview that
+      // still quoted the first draft would be a lie the list keeps telling.
+      // Ordinary attachments omit the key entirely so their title is left
+      // untouched — omitted and null are different instructions.
+      const updated = repository.update(id, {
+        sizeBytes,
+        indexStatus: 'pending',
+        ...(row.classDate === null ? {} : { title: classNotePreview(content) })
+      })
       if (!updated) {
         return { ok: false, code: 'ATTACHMENT_NOT_FOUND', message: `No attachment with id ${id}` }
       }
@@ -334,6 +378,119 @@ export function createAttachmentService({
         fileName: row.fileName
       })
       return { ok: true, attachment: updated }
+    },
+
+    async saveClassNote(subjectId, classDate, content) {
+      // An emptied apunte is a DELETED apunte — there is no such stored thing
+      // as a blank one, which is what keeps "this class has an apunte" a
+      // question the row's mere presence answers. Same rule `class_notes`
+      // carried before apuntes became attachments.
+      const preview = classNotePreview(content)
+      if (preview === null) {
+        await this.deleteClassNote(subjectId, classDate)
+        return { ok: true, deleted: true }
+      }
+
+      // Byte length, not character length — same authoritative check as
+      // `updateAttachmentText`, and for the same reason: a zod cap counts
+      // characters, so multibyte content can be over the BYTE cap at a legal
+      // character count.
+      const sizeBytes = Buffer.byteLength(content, 'utf8')
+      if (sizeBytes > MAX_MARKDOWN_TEXT_BYTES) {
+        return {
+          ok: false,
+          code: 'FILE_TOO_LARGE',
+          message: `The apunte for ${classDate} exceeds the ${MAX_MARKDOWN_TEXT_BYTES}-byte limit`
+        }
+      }
+
+      const existing = repository.findClassNote(subjectId, classDate)
+      // Overwrite IN PLACE when the class already has one: the apunte is keyed
+      // by its class, so a second save on the same day is an edit, never a
+      // second document. Reusing the stored file's own basename is what makes
+      // the write land on the same file instead of minting a new one.
+      const storedFileName = existing
+        ? path.basename(existing.storedPath)
+        : `${randomUUID()}-${classNoteFileName(classDate)}`
+
+      let storedPath: string
+      try {
+        storedPath = await storage.writeIntoSubjectDir(subjectId, storedFileName, content)
+      } catch (error) {
+        log.error(`attachmentService.saveClassNote failed for subject ${subjectId} on ${classDate}`, error)
+        return { ok: false, code: 'WRITE_FAILED', message: error instanceof Error ? error.message : 'Unknown error' }
+      }
+
+      let record: AttachmentRecord
+      if (existing) {
+        const updated = repository.update(existing.id, { sizeBytes, indexStatus: 'pending', title: preview })
+        // The row can only be gone if something deleted it between the find
+        // and here; the rewritten file is cleaned with the rest of the
+        // subject dir, and re-inserting would resurrect a deleted apunte.
+        if (!updated) {
+          return { ok: false, code: 'WRITE_FAILED', message: `The apunte for ${classDate} was deleted mid-save` }
+        }
+        record = updated
+      } else {
+        try {
+          record = repository.insert({
+            subjectId,
+            fileName: classNoteFileName(classDate),
+            storedPath,
+            mimeType: null,
+            sizeBytes,
+            // The preview the APUNTES list renders — see UpdateAttachmentInput.
+            title: preview,
+            createdAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+            origin: 'class-note',
+            // The whole point: this is what makes the row an apunte rather
+            // than an ordinary attachment, and what the APUNTES list keys on.
+            classDate
+          })
+        } catch (insertError) {
+          // Same orphan-cleanup rule as every other write path here: the file
+          // already landed, and a failed insert must not leave it behind.
+          log.error(
+            `attachmentService.saveClassNote insert failed for subject ${subjectId} on ${classDate}`,
+            insertError
+          )
+          await storage.removeFile(storedPath).catch(() => {})
+          return {
+            ok: false,
+            code: 'WRITE_FAILED',
+            message: insertError instanceof Error ? insertError.message : 'Unknown error'
+          }
+        }
+      }
+
+      // Same push seam and fire-and-forget enqueue as every other write path.
+      // The enqueue is the reason this feature exists at all: it is what puts
+      // the student's own class notes into `attachment_chunks_fts`, which is
+      // the only thing "Preguntá a tus materiales" ever searched.
+      notifyStatusChanged(subjectId)
+      indexer.enqueue({
+        attachmentId: record.id,
+        subjectId,
+        storedPath: record.storedPath,
+        fileName: record.fileName
+      })
+      return { ok: true, deleted: false, attachment: record }
+    },
+
+    async deleteClassNote(subjectId, classDate) {
+      const existing = repository.findClassNote(subjectId, classDate)
+      if (!existing) {
+        return false
+      }
+      // Row first, file second — the same order the delete handler uses. A
+      // committed row with a surviving file is a leak; a missing row with a
+      // live file is a ghost the list would keep showing.
+      repository.remove(existing.id)
+      await storage.removeFile(existing.storedPath).catch((error) => {
+        log.error(`attachmentService.deleteClassNote could not remove ${existing.storedPath}`, error)
+      })
+      notifyStatusChanged(subjectId)
+      return true
     }
   }
 }

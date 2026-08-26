@@ -15,6 +15,7 @@ function attachment(overrides: Partial<Attachment> = {}): Attachment {
     createdAt: '2026-08-12T10:00',
     indexStatus: 'pending',
     origin: 'user',
+    classDate: null,
     ...overrides
   }
 }
@@ -64,10 +65,10 @@ describe('AttachmentRow — index status badge', () => {
 
 // AI-generated provenance badge (cli-generated-artifacts spec "Origin
 // provenance column and badge") — renders BESIDE the existing indexStatus
-// badge, only for `origin: 'ai-generated'`.
+// badge, only for `origin: 'ai-generated', classDate: null`.
 describe('AttachmentRow — origin badge', () => {
   it('shows the IA badge alongside the index status badge for an ai-generated attachment', () => {
-    const { container } = renderRow({ origin: 'ai-generated', indexStatus: 'pending' })
+    const { container } = renderRow({ origin: 'ai-generated', classDate: null, indexStatus: 'pending' })
 
     expect(screen.getByText('IA')).toBeInTheDocument()
     expect(container.querySelector('svg.lucide-sparkles')).not.toBeNull()
@@ -76,7 +77,7 @@ describe('AttachmentRow — origin badge', () => {
   })
 
   it('does not show the IA badge for a normal user upload', () => {
-    renderRow({ origin: 'user' })
+    renderRow({ origin: 'user', classDate: null })
 
     expect(screen.queryByText('IA')).not.toBeInTheDocument()
   })

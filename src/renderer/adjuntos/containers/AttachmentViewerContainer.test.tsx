@@ -15,7 +15,8 @@ const sampleAttachment: Attachment = {
   title: null,
   createdAt: '2026-08-18T10:00',
   indexStatus: 'indexed',
-  origin: 'user'
+  origin: 'user',
+  classDate: null
 }
 
 function renderWithClient(ui: ReactNode) {

@@ -12,9 +12,9 @@ interface ModalOverrides {
   date?: string
   occurrence?: ClassSlotLike | null
   attendanceStatus?: AttendanceStatus | null
-  noteBody?: string
+
   error?: string | null
-  onSubmit?: (values: { status: AttendanceStatus | null; body: string }) => void
+  onSubmit?: (values: { status: AttendanceStatus | null }) => void
   onClose?: () => void
 }
 
@@ -27,7 +27,7 @@ function renderModal(overrides: ModalOverrides = {}) {
       date={overrides.date ?? '2026-08-13'}
       occurrence={overrides.occurrence === undefined ? thursdayMorning : overrides.occurrence}
       attendanceStatus={overrides.attendanceStatus ?? null}
-      noteBody={overrides.noteBody ?? ''}
+
       error={overrides.error ?? null}
       onSubmit={onSubmit}
       onClose={onClose}
@@ -79,26 +79,21 @@ describe('ClaseModal (approved design — one surface per materia + fecha)', () 
   })
 
   describe('saving', () => {
-    // One "Guardar clase" writes BOTH halves of the class — that is what makes
-    // this one surface instead of two.
-    it('submits the mark and the apunte together', async () => {
+    it('submits the mark it was given', async () => {
       const { onSubmit } = renderModal()
 
       await userEvent.click(screen.getByRole('button', { name: 'Presente' }))
-      await userEvent.type(screen.getByLabelText('APUNTE DE LA CLASE'), 'Round robin y starvation.')
-      await userEvent.click(screen.getByRole('button', { name: 'Guardar clase' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Guardar asistencia' }))
 
-      expect(onSubmit).toHaveBeenCalledWith({ status: 'presente', body: 'Round robin y starvation.' })
+      expect(onSubmit).toHaveBeenCalledWith({ status: 'presente' })
     })
 
-    it('prefills what the class already carries', async () => {
-      const { onSubmit } = renderModal({ attendanceStatus: 'ausente', noteBody: 'Falté, pedir apuntes.' })
+    it('prefills the mark the class already carries', async () => {
+      const { onSubmit } = renderModal({ attendanceStatus: 'ausente' })
 
-      expect(screen.getByLabelText('APUNTE DE LA CLASE')).toHaveValue('Falté, pedir apuntes.')
+      await userEvent.click(screen.getByRole('button', { name: 'Guardar asistencia' }))
 
-      await userEvent.click(screen.getByRole('button', { name: 'Guardar clase' }))
-
-      expect(onSubmit).toHaveBeenCalledWith({ status: 'ausente', body: 'Falté, pedir apuntes.' })
+      expect(onSubmit).toHaveBeenCalledWith({ status: 'ausente' })
     })
 
     // Clicking the pressed option clears the mark, exactly as the row's toggle
@@ -107,34 +102,32 @@ describe('ClaseModal (approved design — one surface per materia + fecha)', () 
       const { onSubmit } = renderModal({ attendanceStatus: 'presente' })
 
       await userEvent.click(screen.getByRole('button', { name: 'Presente' }))
-      await userEvent.click(screen.getByRole('button', { name: 'Guardar clase' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Guardar asistencia' }))
 
-      expect(onSubmit).toHaveBeenCalledWith({ status: null, body: '' })
+      expect(onSubmit).toHaveBeenCalledWith({ status: null })
     })
 
-    // An emptied apunte is a DELETED apunte — the container turns the empty
-    // body into `clases:deleteNote`.
-    it('submits an empty body when the apunte is cleared', async () => {
-      const { onSubmit } = renderModal({ noteBody: 'Sobra.' })
+    /*
+     * THE boundary this dialog now holds. An apunte is a markdown document
+     * with its own editor and its own save; if a textarea ever reappeared
+     * here there would be two surfaces writing one apunte, and the last one
+     * to save would silently win. There is no field to find because there is
+     * no second writer.
+     */
+    it('offers no way to write an apunte', () => {
+      renderModal({ attendanceStatus: 'presente' })
 
-      await userEvent.clear(screen.getByLabelText('APUNTE DE LA CLASE'))
-      await userEvent.click(screen.getByRole('button', { name: 'Guardar clase' }))
-
-      expect(onSubmit).toHaveBeenCalledWith({ status: null, body: '' })
+      expect(screen.queryByLabelText('APUNTE DE LA CLASE')).not.toBeInTheDocument()
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     })
 
-    it('refuses an apunte past the cap and says so in Spanish', async () => {
+    it('never reports an apunte on what it submits', async () => {
       const { onSubmit } = renderModal()
 
-      const textarea = screen.getByLabelText('APUNTE DE LA CLASE')
-      await userEvent.click(textarea)
-      // `type` would emit 20 001 keystrokes; the field's value is what the
-      // resolver reads.
-      await userEvent.paste('a'.repeat(20001))
-      await userEvent.click(screen.getByRole('button', { name: 'Guardar clase' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Guardar asistencia' }))
 
-      expect(await screen.findByText('El apunte no puede superar los 20.000 caracteres')).toBeInTheDocument()
-      expect(onSubmit).not.toHaveBeenCalled()
+      // Exact-argument matching, so a stray `body` key would fail this.
+      expect(onSubmit).toHaveBeenCalledWith({ status: null })
     })
   })
 
@@ -142,7 +135,7 @@ describe('ClaseModal (approved design — one surface per materia + fecha)', () 
     renderModal()
 
     expect(screen.getByText('Marcar la clase actualiza el porcentaje de asistencia de la materia.')).toBeInTheDocument()
-    expect(screen.getByText('Una marca y un apunte por clase')).toBeInTheDocument()
+    expect(screen.getByText('Una marca por clase')).toBeInTheDocument()
   })
 
   it('shows the failure in place of the footer note when a write did not go through', () => {

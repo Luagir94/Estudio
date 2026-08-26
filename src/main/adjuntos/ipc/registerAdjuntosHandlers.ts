@@ -44,7 +44,8 @@ function toAttachment(record: AttachmentRecord): Attachment {
     title: record.title,
     createdAt: record.createdAt,
     indexStatus: record.indexStatus,
-    origin: record.origin
+    origin: record.origin,
+    classDate: record.classDate
   }
 }
 
@@ -68,6 +69,12 @@ export function registerAdjuntosHandlers({
     }
 
     try {
+      // EVERY attachment, apuntes included. They are attachments in every
+      // mechanical sense — same file storage, same editor, same FTS index —
+      // and the viewer reads its header row off this very list, so filtering
+      // them here would leave the one screen that must open an apunte unable
+      // to find it. Which rows a given SECTION shows is a display question,
+      // answered in the renderer (see AdjuntosContainer).
       return ipcOk(repository.listBySubject(parsed.data.subjectId).map(toAttachment))
     } catch (error) {
       log.error('adjuntos:list failed', error)

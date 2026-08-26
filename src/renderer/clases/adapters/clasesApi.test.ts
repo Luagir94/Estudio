@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AttendanceRecord, ClassNoteRecord } from '../../../shared/ipc/materias'
+import type { AttendanceRecord } from '../../../shared/ipc/materias'
 import { ClasesApiError, clasesApi } from './clasesApi'
 
 const sampleMark: AttendanceRecord = { id: 1, subjectId: 7, date: '2026-08-14', status: 'presente' }
-const sampleNote: ClassNoteRecord = { id: 2, subjectId: 7, date: '2026-08-14', body: 'Round robin.' }
+// saveNote echoes the CLASS, not a stored apunte: the apunte is a markdown
+// file now, so there is no row to hand back.
+// saveNote also hands back the apunte's ATTACHMENT id — the caller's next
+// move is to open that document in the editor.
+const sampleSaved = { subjectId: 7, date: '2026-08-14', apunteId: 42 }
 
 describe('clasesApi', () => {
   beforeEach(() => {
@@ -53,10 +57,10 @@ describe('clasesApi', () => {
     })
   })
 
-  it('saveNote parses and returns the stored apunte', async () => {
-    vi.mocked(window.api.clases.saveNote).mockResolvedValue({ ok: true, data: sampleNote })
+  it('saveNote parses the class plus the id of the apunte it wrote', async () => {
+    vi.mocked(window.api.clases.saveNote).mockResolvedValue({ ok: true, data: sampleSaved })
 
-    expect(await clasesApi.saveNote({ subjectId: 7, date: '2026-08-14', body: 'Round robin.' })).toEqual(sampleNote)
+    expect(await clasesApi.saveNote({ subjectId: 7, date: '2026-08-14', body: 'Round robin.' })).toEqual(sampleSaved)
   })
 
   it('deleteNote parses and echoes the class whose apunte was removed', async () => {

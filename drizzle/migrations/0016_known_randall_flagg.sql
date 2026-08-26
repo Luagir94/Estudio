@@ -1,0 +1,2 @@
+ALTER TABLE `attachments` ADD `class_date` text;--> statement-breakpoint
+CREATE UNIQUE INDEX `attachments_subject_class_date_unique` ON `attachments` (`subject_id`,`class_date`) WHERE "attachments"."class_date" is not null;

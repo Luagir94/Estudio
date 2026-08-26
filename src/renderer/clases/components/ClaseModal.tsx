@@ -1,10 +1,15 @@
-// Presentational form (approved design): ONE surface per `(materia, fecha)`.
+// Presentational form (approved design): the ASISTENCIA of one
+// `(materia, fecha)`, and nothing else.
 //
-// The pair is the whole model — there is no stored "class session" row to
-// edit, so this dialog is not a record editor, it is the two things you can
-// say about a day: whether you were there, and what was given. Both are
-// written by one "Guardar clase", which is what makes this a single surface
-// instead of a mark widget plus a notes screen.
+// The apunte used to live here too, in a textarea. It was taken out
+// deliberately: an apunte is a markdown DOCUMENT now — a real `.md` file with
+// its own editor, its own history and its own place in the search index — and
+// a dialog is not where you write a document. Cramming one into a textarea
+// beside a three-button toggle made the writing surface as small as the
+// smallest thing on the screen.
+//
+// So this dialog has NO write path to an apunte at all. That is the point:
+// there is exactly one surface that edits an apunte, and it is the editor.
 //
 // Reached from two places, and it is the same dialog in both: a ClassRow's
 // apunte button in Hoy, and an APUNTES DE CLASE row in the subject detail.
@@ -12,37 +17,19 @@
 // Molded on `NuevoParcialModal` (header + body + footer sections, segmented
 // control as a fieldset, effect callout, footer note that yields to a
 // failure) and on `EditarMateriaModal`'s NOTAS field for the textarea.
-import { zodResolver } from '@hookform/resolvers/zod'
 import { Percent } from 'lucide-react'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { z } from 'zod'
-import { CLASS_NOTE_BODY_MAX_CHARS } from '../../../shared/ipc/clases'
 import type { AttendanceStatus } from '../../../shared/ipc/materias'
 import { formatClassDateLong } from '../domain/classDate'
 import type { ClassSlotLike } from '../domain/classOccurrence'
 import { Button } from '../../shared/components/ui/button'
 import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogOverlay } from '../../shared/components/ui/dialog'
-import { Label } from '../../shared/components/ui/label'
-import { Textarea } from '../../shared/components/ui/textarea'
 import { cn } from '../../shared/lib/cn'
 import { interactiveChip } from '../../shared/lib/interactive'
-import { translateValidationMessage } from '../../shared/lib/translateValidationMessage'
-
-// Deliberately NOT `saveClassNoteInputSchema.omit(...)`, unlike the parcial
-// form's reuse of its command schema: the command refuses an empty body
-// because an emptied apunte is a DELETED apunte, and it is this dialog that
-// makes that call (`clases:deleteNote`). What the two must agree on is the
-// CAP, and they do — one exported constant, no second copy of the number.
-const noteFormSchema = z.object({
-  body: z.string().max(CLASS_NOTE_BODY_MAX_CHARS, 'body.tooLong')
-})
 
 // Order fixed here; the labels live in the catalog.
 const STATUSES: AttendanceStatus[] = ['presente', 'ausente', 'feriado']
-
-const NOTE_FIELD_ID = 'clase-modal-note'
 
 function formatTime(minutes: number): string {
   const hours = Math.floor(minutes / 60)
@@ -76,8 +63,6 @@ function buildSubtitle(subjectName: string, occurrence: ClassSlotLike | null): s
 export interface ClaseFormValues {
   /** `null` = leave the class UNMARKED, which the container turns into `clases:clearAttendance`. */
   status: AttendanceStatus | null
-  /** Empty = no apunte, which the container turns into `clases:deleteNote`. */
-  body: string
 }
 
 interface ClaseModalProps {
@@ -92,8 +77,6 @@ interface ClaseModalProps {
    */
   occurrence: ClassSlotLike | null
   attendanceStatus: AttendanceStatus | null
-  /** The stored apunte, or '' when the class has none. */
-  noteBody: string
   /**
    * Why the last save did not go through. Already app-owned Spanish copy
    * (`shared/lib/ipcErrorCopy.ts`) — never the raw IPC message.
@@ -110,22 +93,16 @@ export function ClaseModal({
   date,
   occurrence,
   attendanceStatus,
-  noteBody,
   error,
   pending,
   onSubmit,
   onClose
 }: ClaseModalProps): React.JSX.Element {
   const { t } = useTranslation('clases')
-  // The mark is not a form FIELD — it is three buttons with no input behind
-  // them — so it is plain state rather than a `Controller`. The textarea is
-  // the only thing the resolver has to validate.
+  // Plain state, no react-hook-form: the mark is three buttons with no input
+  // behind them, so there is no field to register and nothing to validate.
+  // The form library left with the textarea that needed it.
   const [status, setStatus] = useState<AttendanceStatus | null>(attendanceStatus)
-  const {
-    register,
-    handleSubmit,
-    formState: { errors }
-  } = useForm({ resolver: zodResolver(noteFormSchema), defaultValues: { body: noteBody } })
 
   const title = t('claseModal.title', { date: formatClassDateLong(date) })
 
@@ -137,7 +114,13 @@ export function ClaseModal({
           <p className="text-body-sm text-muted-foreground">{buildSubtitle(subjectName, occurrence)}</p>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit((values) => onSubmit({ status, body: values.body }))} className="contents">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            onSubmit({ status })
+          }}
+          className="contents"
+        >
           <DialogBody>
             {/* A fieldset, not a `Label`: this control is three buttons, and a
                 `<label>` can only point at one of them — it would take the
@@ -170,25 +153,6 @@ export function ClaseModal({
                 ))}
               </div>
             </fieldset>
-
-            <div className="flex flex-col">
-              <div className="flex items-baseline justify-between gap-4">
-                {/* `htmlFor` rather than nesting: the hint sits on the same
-                    line as the label, outside it, so the pair cannot be one
-                    wrapping element. */}
-                <Label htmlFor={NOTE_FIELD_ID}>{t('claseModal.note')}</Label>
-                <span className="text-body-sm text-muted-foreground">{t('claseModal.noteHint')}</span>
-              </div>
-              <Textarea
-                id={NOTE_FIELD_ID}
-                placeholder={t('claseModal.notePlaceholder')}
-                className="min-h-28"
-                {...register('body')}
-              />
-            </div>
-            {errors.body && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.body.message)}</p>
-            )}
 
             <div className="flex items-start gap-3 rounded-lg border border-primary bg-sidebar-accent px-4 py-3">
               <Percent className="mt-px h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />

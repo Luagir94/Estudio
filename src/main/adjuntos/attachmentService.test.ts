@@ -242,7 +242,13 @@ describe('createAttachmentService', () => {
 
       const rows = repository.listBySubject(subjectId)
       expect(rows).toHaveLength(1)
-      expect(rows[0]).toMatchObject({ origin: 'ai-generated', title: null, mimeType: null, fileName: 'resumen.md' })
+      expect(rows[0]).toMatchObject({
+        origin: 'ai-generated',
+        classDate: null,
+        title: null,
+        mimeType: null,
+        fileName: 'resumen.md'
+      })
     })
 
     it('computes sizeBytes via Buffer.byteLength, not character length (multibyte content)', async () => {
@@ -338,7 +344,8 @@ describe('attachmentService — markdown text (viewer/editor)', () => {
       sizeBytes: 1024,
       title: null,
       createdAt: '2026-08-16T10:00',
-      origin: 'user'
+      origin: 'user',
+      classDate: null
     })
   }
 

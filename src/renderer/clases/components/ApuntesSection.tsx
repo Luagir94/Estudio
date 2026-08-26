@@ -3,14 +3,14 @@
 //
 // Molded on the PARCIALES section directly above the NOTAS field — same
 // heading step, same row surface — with ONE deliberate difference: there is
-// no add button. An apunte belongs to a class, so it is written from the
-// class (Hoy's ClassRow, or a row here reopening the same dialog); a "+
-// Agregar apunte" here would have to ask which class it was, which is the one
-// question the surface it came from already answered.
+// no add button. An apunte belongs to a class, so it is created from the
+// class (Hoy's ClassRow, a Horario block); a "+ Agregar apunte" here would
+// have to ask which class it was, which is the one question the surface it
+// came from already answered.
 //
 // The row body is a BUTTON, the same additive affordance the parciales and
-// entregas rows already document: it is the way back into the class dialog,
-// which is where an apunte is edited and deleted.
+// entregas rows already document: it is the way into the markdown editor,
+// which is where an apunte is read, written and deleted.
 import { Calendar } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ClassNoteRecord } from '../../../shared/ipc/materias'
@@ -20,11 +20,11 @@ import { interactiveSurface } from '../../shared/lib/interactive'
 
 interface ApuntesSectionProps {
   notes: ClassNoteRecord[]
-  /** Opens the class dialog for that date — the one entry point to editing and deleting an apunte. */
-  onOpenClase: (date: string) => void
+  /** Opens that apunte in the markdown editor — the ONE surface allowed to write its text. */
+  onOpenApunte: (noteId: number) => void
 }
 
-export function ApuntesSection({ notes, onOpenClase }: ApuntesSectionProps): React.JSX.Element {
+export function ApuntesSection({ notes, onOpenApunte }: ApuntesSectionProps): React.JSX.Element {
   const { t } = useTranslation('clases')
   // Newest first. An apunte is read to remember the LAST class, not the first
   // one of the cuatrimestre — and ISO dates sort chronologically as strings,
@@ -45,7 +45,7 @@ export function ApuntesSection({ notes, onOpenClase }: ApuntesSectionProps): Rea
           key={note.id}
           type="button"
           data-testid="subject-detail-apunte"
-          onClick={() => onOpenClase(note.date)}
+          onClick={() => onOpenApunte(note.id)}
           className={cn(
             'flex w-full items-center gap-4 rounded-lg border border-border bg-background px-4 py-3 text-left',
             interactiveSurface
@@ -58,7 +58,7 @@ export function ApuntesSection({ notes, onOpenClase }: ApuntesSectionProps): Rea
 
           {/* One line, clipped: the section is an index of classes, and the
               full apunte is one click away in the dialog that owns it. */}
-          <span className="min-w-0 flex-1 truncate text-body-sm text-secondary-foreground">{note.body}</span>
+          <span className="min-w-0 flex-1 truncate text-body-sm text-secondary-foreground">{note.preview}</span>
         </button>
       ))}
     </section>

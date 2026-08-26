@@ -27,7 +27,13 @@ import type {
   ProbeCliInput,
   SetCliOverrideInput
 } from '../../shared/ipc/cli'
-import type { ClassDayInput, ClassDayResult, SaveClassNoteInput, SetAttendanceInput } from '../../shared/ipc/clases'
+import type {
+  ClassDayInput,
+  ClassDayResult,
+  SaveClassNoteInput,
+  SaveClassNoteResult,
+  SetAttendanceInput
+} from '../../shared/ipc/clases'
 import type {
   CreatePeriodInput,
   CreateProgramInput,
@@ -71,7 +77,6 @@ import type { DashboardResult } from '../../shared/ipc/hoy'
 import type { IndexStatusChangedPayload, SyncResult } from '../../shared/ipc/indexado'
 import type {
   AttendanceRecord,
-  ClassNoteRecord,
   CreateSubjectInput,
   DeleteSubjectResult,
   FinalExamRecord,
@@ -130,7 +135,7 @@ declare global {
         /** Back to unmarked. Succeeds even if the class was never marked. */
         clearAttendance: (input: ClassDayInput) => Promise<IpcResult<ClassDayResult>>
         /** Writes or rewrites one class's apunte. Upsert — one apunte per `(subjectId, date)`. */
-        saveNote: (input: SaveClassNoteInput) => Promise<IpcResult<ClassNoteRecord>>
+        saveNote: (input: SaveClassNoteInput) => Promise<IpcResult<SaveClassNoteResult>>
         /** Removes the apunte. Succeeds even if the class had none. */
         deleteNote: (input: ClassDayInput) => Promise<IpcResult<ClassDayResult>>
       }

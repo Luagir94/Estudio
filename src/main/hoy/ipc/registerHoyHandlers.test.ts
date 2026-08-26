@@ -63,7 +63,7 @@ const sampleDeadline: DeadlineWithSubject = {
 
 const sampleMark: AttendanceRecord = { id: 1, subjectId: 1, date: '2026-08-17', status: 'presente' }
 
-const sampleNote: ClassNoteRecord = { id: 1, subjectId: 1, date: '2026-08-17', body: 'Round robin y starvation.' }
+const sampleNote: ClassNoteRecord = { id: 1, subjectId: 1, date: '2026-08-17', preview: 'Round robin y starvation.' }
 
 describe('registerHoyHandlers', () => {
   let subjectRepository: SubjectRepository
@@ -94,8 +94,6 @@ describe('registerHoyHandlers', () => {
       clearAttendance: vi.fn(),
       listAttendanceBySubject: vi.fn(),
       listAttendance: vi.fn().mockReturnValue([sampleMark]),
-      saveNote: vi.fn(),
-      deleteNote: vi.fn(),
       listNotesBySubject: vi.fn(),
       listNotes: vi.fn().mockReturnValue([sampleNote])
     }

@@ -11,7 +11,19 @@ import { clasesApi } from '../../clases/adapters/clasesApi'
 import { fechasApi } from '../../fechas/adapters/fechasApi'
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import { hoyApi } from '../adapters/hoyApi'
+import { adjuntosApi } from '../../adjuntos/adapters/adjuntosApi'
 import { HoyContainer } from './HoyContainer'
+
+vi.mock('../../adjuntos/adapters/adjuntosApi', () => ({
+  adjuntosApi: { read: vi.fn(), list: vi.fn() }
+}))
+
+// Hoy SWAPS ITSELF for the editor, so the stub stands in for the whole screen.
+vi.mock('../../adjuntos/containers/AttachmentViewerContainer', () => ({
+  AttachmentViewerContainer: ({ attachment }: { attachment: { fileName: string } }) => (
+    <div data-testid="apunte-editor">{attachment.fileName}</div>
+  )
+}))
 
 vi.mock('../adapters/hoyApi', () => ({
   hoyApi: { dashboard: vi.fn() }
@@ -94,6 +106,20 @@ describe('HoyContainer (spec: "Today view on launch" — zero navigation)', () =
   beforeEach(() => {
     vi.mocked(materiasApi.list).mockResolvedValue([makeFacts()])
     vi.mocked(fechasApi.list).mockResolvedValue([])
+    vi.mocked(adjuntosApi.list).mockResolvedValue([
+      {
+        id: 5,
+        subjectId: 1,
+        fileName: 'apunte-2026-08-13.md',
+        mimeType: null,
+        sizeBytes: 10,
+        title: 'Round robin.',
+        createdAt: '2026-08-13T10:00',
+        indexStatus: 'indexed',
+        origin: 'class-note',
+        classDate: '2026-08-13'
+      }
+    ])
   })
 
   it('fetches on the ["hoy","dashboard"] query key and renders today\'s class + overdue deadline with zero clicks', async () => {
@@ -217,6 +243,20 @@ describe('HoyContainer — the administrative-date callout', () => {
 
   it('stays hidden when there are no administrative dates at all', async () => {
     vi.mocked(fechasApi.list).mockResolvedValue([])
+    vi.mocked(adjuntosApi.list).mockResolvedValue([
+      {
+        id: 5,
+        subjectId: 1,
+        fileName: 'apunte-2026-08-13.md',
+        mimeType: null,
+        sizeBytes: 10,
+        title: 'Round robin.',
+        createdAt: '2026-08-13T10:00',
+        indexStatus: 'indexed',
+        origin: 'class-note',
+        classDate: '2026-08-13'
+      }
+    ])
 
     renderWithClient(<HoyContainer now={now} />)
 
@@ -237,6 +277,20 @@ describe('HoyContainer — marking today`s classes', () => {
     vi.clearAllMocks()
     vi.mocked(materiasApi.list).mockResolvedValue([makeFacts()])
     vi.mocked(fechasApi.list).mockResolvedValue([])
+    vi.mocked(adjuntosApi.list).mockResolvedValue([
+      {
+        id: 5,
+        subjectId: 1,
+        fileName: 'apunte-2026-08-13.md',
+        mimeType: null,
+        sizeBytes: 10,
+        title: 'Round robin.',
+        createdAt: '2026-08-13T10:00',
+        indexStatus: 'indexed',
+        origin: 'class-note',
+        classDate: '2026-08-13'
+      }
+    ])
     vi.mocked(clasesApi.setAttendance).mockResolvedValue({
       id: 1,
       subjectId: 1,
@@ -290,17 +344,15 @@ describe('HoyContainer — marking today`s classes', () => {
     )
   })
 
-  it('opens the class dialog for today from the apunte control, prefilled with the stored apunte', async () => {
-    vi.mocked(hoyApi.dashboard).mockResolvedValue({
-      ...sampleData,
-      classNotes: [{ id: 1, subjectId: 1, date: '2026-08-13', body: 'Round robin y starvation.' }]
-    })
-
+  /*
+   * The notebook icon means APUNTE. It used to open the class dialog, which is
+   * about asistencia — the icon was promising one thing and doing another.
+   */
+  it('opens the apunte for today from the notebook control', async () => {
     renderWithClient(<HoyContainer now={now} />)
 
     await userEvent.click(await screen.findByRole('button', { name: 'Apunte de la clase de Sistemas Operativos' }))
 
-    expect(await screen.findByRole('dialog', { name: 'Clase del jueves 13 de agosto' })).toBeInTheDocument()
-    expect(screen.getByLabelText('APUNTE DE LA CLASE')).toHaveValue('Round robin y starvation.')
+    await waitFor(() => expect(screen.getByTestId('apunte-editor')).toBeInTheDocument())
   })
 })

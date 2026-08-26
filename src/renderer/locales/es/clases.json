@@ -8,7 +8,7 @@
   },
   "apuntesSection": {
     "heading": "APUNTES DE CLASE",
-    "empty": "Todavía no escribiste ningún apunte. Se escriben desde la clase."
+    "empty": "Todavía no escribiste ningún apunte. Se escriben desde la clase, en Hoy o en el Horario."
   },
   "classRow": {
     "attendanceGroup": "Asistencia",
@@ -25,11 +25,8 @@
       "ausente": "Ausente",
       "feriado": "Feriado"
     },
-    "note": "APUNTE DE LA CLASE",
-    "noteHint": "Texto plano · uno por clase",
-    "notePlaceholder": "Qué se vio en la clase",
     "effectNote": "Marcar la clase actualiza el porcentaje de asistencia de la materia.",
-    "footerNote": "Una marca y un apunte por clase",
-    "submit": "Guardar clase"
+    "footerNote": "Una marca por clase",
+    "submit": "Guardar asistencia"
   }
 }

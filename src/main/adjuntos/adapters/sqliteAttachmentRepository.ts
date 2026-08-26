@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq, isNotNull } from 'drizzle-orm'
 import type { AppDatabase } from '../../db/connection'
 import { attachments } from '../../db/schema'
 import { InvalidIndexStatusError, isIndexStatus, type IndexStatus } from '../../indexado/domain/indexStatus'
@@ -7,13 +7,15 @@ import { InvalidIndexStatusError, isIndexStatus, type IndexStatus } from '../../
 // provenance column and badge") — same no-SQL-constraint convention as
 // `IndexStatus`/`subjects.outcome`. 'user' is a normal upload; 'ai-generated'
 // marks a row written by the ask-generated-artifacts save path.
-export type AttachmentOrigin = 'user' | 'ai-generated'
+export type AttachmentOrigin = 'user' | 'ai-generated' | 'class-note'
+
+const ORIGINS = new Set<string>(['user', 'ai-generated', 'class-note'])
 
 function toOrigin(value: string): AttachmentOrigin {
-  if (value !== 'user' && value !== 'ai-generated') {
+  if (!ORIGINS.has(value)) {
     throw new Error(`Unknown attachment origin "${value}"`)
   }
-  return value
+  return value as AttachmentOrigin
 }
 
 export interface AttachmentRecord {
@@ -34,6 +36,8 @@ export interface AttachmentRecord {
   // cli-generated-artifacts spec "Pre-existing rows migrate to 'user' by
   // default").
   origin: AttachmentOrigin
+  /** Set only on a class apunte: the local `YYYY-MM-DD` its class happened on. NULL on every other attachment. */
+  classDate: string | null
 }
 
 export interface CreateAttachmentInput {
@@ -46,9 +50,11 @@ export interface CreateAttachmentInput {
   createdAt: string
   // REQUIRED, not defaulted here (cli-generated-artifacts design "Module
   // Layout"): every call site must say explicitly whether it is writing a
-  // user upload or an ai-generated artifact — a compile error is the point,
-  // not an oversight.
+  // user upload, an ai-generated artifact, or a class apunte — a compile
+  // error is the point, not an oversight.
   origin: AttachmentOrigin
+  /** REQUIRED for the same reason as `origin`: a null here is a claim, not a default. */
+  classDate: string | null
 }
 
 /**
@@ -61,6 +67,16 @@ export interface CreateAttachmentInput {
 export interface UpdateAttachmentInput {
   sizeBytes: number
   indexStatus: IndexStatus
+  /**
+   * The apunte's PREVIEW line, refreshed on every save of a class note.
+   *
+   * It rides on `title` — the column reserved for exactly this kind of
+   * human-facing label — because the APUNTES index needs one line of each
+   * apunte and reading every apunte's FILE to render a list would turn one
+   * subject-detail fetch into N disk reads. Omitted (not null) by the
+   * ordinary markdown save path, which must leave the column alone.
+   */
+  title?: string | null
 }
 
 export interface AttachmentRepository {
@@ -73,6 +89,12 @@ export interface AttachmentRepository {
   update(id: number, input: UpdateAttachmentInput): AttachmentRecord | undefined
   /** The deleted row, or `undefined` if no row with that id existed. */
   remove(id: number): AttachmentRecord | undefined
+  /** The apunte of ONE class, or null when that class has none. The `(subjectId, classDate)` pair is the key. */
+  findClassNote(subjectId: number, classDate: string): AttachmentRecord | null
+  /** Every class apunte of one subject. Ordered by class date DESCENDING — an apunte is read to remember the LAST class. */
+  listClassNotesBySubject(subjectId: number): AttachmentRecord[]
+  /** Every class apunte, all subjects — what the Hoy dashboard needs to know which of today's classes already carry one. */
+  listClassNotes(): AttachmentRecord[]
 }
 
 /** SQLite has no enums; an unrecognised `index_status` means the row was written by something other than the validated command path (indexStatus.ts's closed set) — corruption worth failing on, same convention as `sqliteSubjectRepository.ts`'s `toOutcome`. */
@@ -118,7 +140,8 @@ export function createSqliteAttachmentRepository(db: AppDatabase): AttachmentRep
           sizeBytes: input.sizeBytes,
           title: input.title,
           createdAt: input.createdAt,
-          origin: input.origin
+          origin: input.origin,
+          classDate: input.classDate
         })
         .returning()
         .get()
@@ -127,11 +150,44 @@ export function createSqliteAttachmentRepository(db: AppDatabase): AttachmentRep
     update(id, input) {
       const record = db
         .update(attachments)
-        .set({ sizeBytes: input.sizeBytes, indexStatus: input.indexStatus })
+        // `title` is spread in only when the caller passed it: the ordinary
+        // markdown save path omits the key entirely and must leave the column
+        // untouched, which is a different thing from writing null over it.
+        .set({
+          sizeBytes: input.sizeBytes,
+          indexStatus: input.indexStatus,
+          ...('title' in input ? { title: input.title } : {})
+        })
         .where(eq(attachments.id, id))
         .returning()
         .get()
       return record ? toRecord(record) : undefined
+    },
+    findClassNote(subjectId, classDate) {
+      const record = db
+        .select()
+        .from(attachments)
+        .where(and(eq(attachments.subjectId, subjectId), eq(attachments.classDate, classDate)))
+        .get()
+      return record ? toRecord(record) : null
+    },
+    listClassNotesBySubject(subjectId) {
+      return db
+        .select()
+        .from(attachments)
+        .where(and(eq(attachments.subjectId, subjectId), isNotNull(attachments.classDate)))
+        .orderBy(desc(attachments.classDate))
+        .all()
+        .map(toRecord)
+    },
+    listClassNotes() {
+      return db
+        .select()
+        .from(attachments)
+        .where(isNotNull(attachments.classDate))
+        .orderBy(desc(attachments.classDate))
+        .all()
+        .map(toRecord)
     },
     remove(id) {
       const existing = db.select().from(attachments).where(eq(attachments.id, id)).get()

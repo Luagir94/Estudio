@@ -3,6 +3,7 @@
 // subject-detail aggregation — see gate-findings/slice-2a and tasks 3.5/
 // 3.11); the deadline domain/lifecycle (entregas:* commands) still ships in
 // slice 4.
+import { sql } from 'drizzle-orm'
 import { integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 // A Program is a carrera ("Abogacía") or a standalone course ("Curso de
@@ -423,38 +424,66 @@ export const deadlines = sqliteTable('deadlines', {
 // userData, never absolute, so a machine-specific userData root never
 // leaks into the DB and the app's only join point stays
 // `resolveAttachmentPath` (design "Path Handling").
-export const attachments = sqliteTable('attachments', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  subjectId: integer('subject_id')
-    .notNull()
-    .references(() => subjects.id, { onDelete: 'cascade' }),
-  fileName: text('file_name').notNull(),
-  storedPath: text('stored_path').notNull(),
-  // NULL in v1 — no mime-detection library in the frozen stack; the OS
-  // decides how to open the file via `shell.openPath` (design "mimeType
-  // v1"). Column reserved for a future slice.
-  mimeType: text('mime_type'),
-  sizeBytes: integer('size_bytes').notNull(),
-  // Reserved for a future rename/title-editing UI (spec "First-Slice
-  // Non-Goals") — this slice never writes or exposes it.
-  title: text('title'),
-  createdAt: text('created_at').notNull(),
-  // Closed set 'pending' | 'indexed' | 'not-indexable' (attachment-fts-index
-  // design "Status storage", spec "Status lifecycle"), zod-owned — same
-  // no-SQL-constraint precedent as `subjects.outcome`/`deadlines.type`.
-  // Defaults every pre-existing row to 'pending' on migration, which is
-  // exactly what lets Sincronizar backfill them (spec "Sincronizar picks up
-  // pre-existing and stuck attachments").
-  indexStatus: text('index_status').notNull().default('pending'),
-  // Provenance marker (cli-generated-artifacts spec "Origin provenance
-  // column and badge", design "Storage / Migration"): 'user' for a normal
-  // upload, 'ai-generated' for a document the ask-generated-artifacts save
-  // path wrote on the model's behalf. Additive, no CHECK constraint — same
-  // no-SQL-constraint precedent as `indexStatus`/`subjects.outcome`.
-  // Migration 0008 defaults every pre-existing row to 'user', same rule as
-  // `indexStatus`'s migration 0006.
-  origin: text('origin').notNull().default('user')
-})
+export const attachments = sqliteTable(
+  'attachments',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    subjectId: integer('subject_id')
+      .notNull()
+      .references(() => subjects.id, { onDelete: 'cascade' }),
+    fileName: text('file_name').notNull(),
+    storedPath: text('stored_path').notNull(),
+    // NULL in v1 — no mime-detection library in the frozen stack; the OS
+    // decides how to open the file via `shell.openPath` (design "mimeType
+    // v1"). Column reserved for a future slice.
+    mimeType: text('mime_type'),
+    sizeBytes: integer('size_bytes').notNull(),
+    // Reserved for a future rename/title-editing UI (spec "First-Slice
+    // Non-Goals") — this slice never writes or exposes it.
+    title: text('title'),
+    createdAt: text('created_at').notNull(),
+    // Closed set 'pending' | 'indexed' | 'not-indexable' (attachment-fts-index
+    // design "Status storage", spec "Status lifecycle"), zod-owned — same
+    // no-SQL-constraint precedent as `subjects.outcome`/`deadlines.type`.
+    // Defaults every pre-existing row to 'pending' on migration, which is
+    // exactly what lets Sincronizar backfill them (spec "Sincronizar picks up
+    // pre-existing and stuck attachments").
+    indexStatus: text('index_status').notNull().default('pending'),
+    // Provenance marker (cli-generated-artifacts spec "Origin provenance
+    // column and badge", design "Storage / Migration"): 'user' for a normal
+    // upload, 'ai-generated' for a document the ask-generated-artifacts save
+    // path wrote on the model's behalf, 'class-note' for the apunte of one
+    // class. Additive, no CHECK constraint — same no-SQL-constraint precedent
+    // as `indexStatus`/`subjects.outcome`. Migration 0008 defaults every
+    // pre-existing row to 'user', same rule as `indexStatus`'s migration 0006.
+    origin: text('origin').notNull().default('user'),
+    // The class this attachment IS the apunte of — local calendar date,
+    // `YYYY-MM-DD`, same contract as the `class_notes.date` it replaces.
+    //
+    // NULL for every other attachment, and that is the discriminator the whole
+    // feature rides on: a class apunte is an attachment like any other (same
+    // file storage, same editor, same FTS index — which is the point, since
+    // `attachment_chunks_fts` is the ONLY thing "Preguntá a tus materiales"
+    // searches, and `class_notes` never reached it), but it is INDEXED BY THE
+    // DAY rather than browsed by filename.
+    //
+    // Anchored to the date and not to a schedule slot for the same reason
+    // `class_notes` was: `schedule_slots` rows are replaced wholesale by every
+    // `materias:updateSchedule`, so an apunte hanging off a slot id would be
+    // cascade-deleted the first time the student fixed their horario.
+    classDate: text('class_date')
+  },
+  (table) => [
+    // ONE apunte per class, the invariant `class_notes_subject_date_unique`
+    // carried. PARTIAL on purpose: ordinary attachments all hold NULL here and
+    // must stay free to pile up per subject, which a plain unique index over a
+    // nullable pair would allow in SQLite anyway — the WHERE clause states the
+    // rule instead of leaning on NULL-comparison trivia.
+    uniqueIndex('attachments_subject_class_date_unique')
+      .on(table.subjectId, table.classDate)
+      .where(sql`${table.classDate} is not null`)
+  ]
+)
 
 // One chunk of extracted attachment text (attachment-fts-index design
 // "Storage"). Cascade-deleted with its attachment via FK, same rule as

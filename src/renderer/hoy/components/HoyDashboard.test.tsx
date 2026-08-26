@@ -79,7 +79,7 @@ describe('HoyDashboard (design node E2pJ95 — Grupo Hoy, zero-navigation, read-
         nextClass={null}
         now={new Date(2026, 7, 13, 9, 0)}
         onMarkAttendance={vi.fn()}
-        onOpenClase={vi.fn()}
+        onOpenApunte={vi.fn()}
       />
     )
 
@@ -108,7 +108,7 @@ describe('HoyDashboard (design node E2pJ95 — Grupo Hoy, zero-navigation, read-
           nextClass={null}
           now={now}
           onMarkAttendance={vi.fn()}
-          onOpenClase={vi.fn()}
+          onOpenApunte={vi.fn()}
         />
       )
     }
@@ -150,7 +150,7 @@ describe('HoyDashboard (design node E2pJ95 — Grupo Hoy, zero-navigation, read-
           todayMondayFirstIndex={5}
           nextClass={nextClass}
           onMarkAttendance={vi.fn()}
-          onOpenClase={vi.fn()}
+          onOpenApunte={vi.fn()}
         />
       )
     }

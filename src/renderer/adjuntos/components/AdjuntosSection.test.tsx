@@ -13,7 +13,8 @@ const sampleAttachment: Attachment = {
   title: null,
   createdAt: '2026-08-12T10:00',
   indexStatus: 'pending',
-  origin: 'user'
+  origin: 'user',
+  classDate: null
 }
 
 function renderSection(overrides: Partial<React.ComponentProps<typeof AdjuntosSection>> = {}) {

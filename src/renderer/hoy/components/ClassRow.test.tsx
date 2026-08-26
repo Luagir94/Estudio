@@ -15,12 +15,12 @@ interface RowOverrides {
   attendanceStatus?: AttendanceStatus | null
   hasNote?: boolean
   onMarkAttendance?: (status: AttendanceStatus | null) => void
-  onOpenClase?: () => void
+  onOpenApunte?: () => void
 }
 
 function renderRow(overrides: RowOverrides = {}) {
   const onMarkAttendance = overrides.onMarkAttendance ?? vi.fn()
-  const onOpenClase = overrides.onOpenClase ?? vi.fn()
+  const onOpenApunte = overrides.onOpenApunte ?? vi.fn()
   render(
     <ClassRow
       subjectName={overrides.subjectName ?? 'Sistemas Operativos'}
@@ -32,10 +32,10 @@ function renderRow(overrides: RowOverrides = {}) {
       attendanceStatus={overrides.attendanceStatus ?? null}
       hasNote={overrides.hasNote ?? false}
       onMarkAttendance={onMarkAttendance}
-      onOpenClase={onOpenClase}
+      onOpenApunte={onOpenApunte}
     />
   )
-  return { onMarkAttendance, onOpenClase }
+  return { onMarkAttendance, onOpenApunte }
 }
 
 describe('ClassRow (design node G07yA)', () => {
@@ -186,12 +186,12 @@ describe('ClassRow (design node G07yA)', () => {
       expect(onMarkAttendance).toHaveBeenCalledWith('ausente')
     })
 
-    it('opens the class from the apunte control', async () => {
-      const { onOpenClase } = renderRow()
+    it('opens the apunte from the notebook control', async () => {
+      const { onOpenApunte } = renderRow()
 
       await userEvent.click(screen.getByRole('button', { name: 'Apunte de la clase de Sistemas Operativos' }))
 
-      expect(onOpenClase).toHaveBeenCalledTimes(1)
+      expect(onOpenApunte).toHaveBeenCalledTimes(1)
     })
   })
 })

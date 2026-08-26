@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { openAppDatabase } from '../../db/connection'
-import { attendanceRecords, classNotes, subjects } from '../../db/schema'
+import { attachments, attendanceRecords, subjects } from '../../db/schema'
 import { createSqliteClaseRepository } from './sqliteClaseRepository'
 
 const migrationsFolder = path.join(__dirname, '../../../../drizzle/migrations')
@@ -87,55 +87,125 @@ describe('createSqliteClaseRepository', () => {
     })
   })
 
-  describe('class notes', () => {
-    it('saves an apunte for one class', () => {
-      const note = repository.saveNote({ subjectId, date: '2026-08-14', body: 'Round robin y starvation.' })
+  // An apunte is a markdown ATTACHMENT now, so this repository no longer
+  // WRITES one — `attachmentService.saveClassNote` does, because writing an
+  // apunte means a file, a preview and an FTS re-index. What is left here is
+  // the READ, and what it reads is the `attachments` rows carrying a
+  // `class_date`. These tests therefore insert attachment rows directly:
+  // that is exactly the shape the production write path leaves behind.
+  describe('class notes (projected out of attachments)', () => {
+    function insertApunte(owner: number, classDate: string, preview: string | null) {
+      return db
+        .insert(attachments)
+        .values({
+          subjectId: owner,
+          fileName: `apunte-${classDate}.md`,
+          storedPath: `${owner}/apunte-${classDate}.md`,
+          mimeType: null,
+          sizeBytes: 10,
+          title: preview,
+          createdAt: '2026-08-14T10:00',
+          origin: 'class-note',
+          classDate
+        })
+        .returning()
+        .get()
+    }
 
-      expect(note).toMatchObject({ subjectId, date: '2026-08-14', body: 'Round robin y starvation.' })
+    it('projects an apunte attachment as the class it belongs to', () => {
+      const row = insertApunte(subjectId, '2026-08-14', 'Round robin y starvation.')
+
+      expect(repository.listNotesBySubject(subjectId)).toEqual([
+        { id: row.id, subjectId, date: '2026-08-14', preview: 'Round robin y starvation.' }
+      ])
     })
 
-    it('updates the existing apunte instead of duplicating it', () => {
-      const first = repository.saveNote({ subjectId, date: '2026-08-14', body: 'Round robin.' })
-      const second = repository.saveNote({ subjectId, date: '2026-08-14', body: 'Round robin y quantum.' })
+    /*
+     * The id is the ATTACHMENT's, and that is the point: it is what the
+     * renderer hands to `adjuntos:read`/`adjuntos:write` to open the editor.
+     * A synthetic id here would be an id that opens nothing.
+     */
+    it('carries the attachment id, because that is what opens the editor', () => {
+      const row = insertApunte(subjectId, '2026-08-14', 'Algo')
 
-      expect(second.id).toBe(first.id)
-      expect(second.body).toBe('Round robin y quantum.')
-      expect(repository.listNotesBySubject(subjectId)).toHaveLength(1)
+      expect(repository.listNotesBySubject(subjectId)[0]!.id).toBe(row.id)
     })
 
-    it('deletes an apunte', () => {
-      repository.saveNote({ subjectId, date: '2026-08-14', body: 'Round robin.' })
+    /*
+     * An ordinary attachment is course material, not an apunte. Only the
+     * `class_date` tells them apart, so a list that ignored it would show
+     * every PDF the student ever uploaded as a class note.
+     */
+    it('ignores attachments that are not apuntes', () => {
+      db.insert(attachments)
+        .values({
+          subjectId,
+          fileName: 'teorica.pdf',
+          storedPath: `${subjectId}/teorica.pdf`,
+          mimeType: null,
+          sizeBytes: 2048,
+          title: null,
+          createdAt: '2026-08-14T10:00',
+          origin: 'user',
+          classDate: null
+        })
+        .run()
 
-      expect(repository.deleteNote({ subjectId, date: '2026-08-14' })).toBe(true)
       expect(repository.listNotesBySubject(subjectId)).toEqual([])
     })
 
-    it('reports deleting an apunte that was never written', () => {
-      expect(repository.deleteNote({ subjectId, date: '2026-08-14' })).toBe(false)
+    it('orders apuntes newest class first', () => {
+      insertApunte(subjectId, '2026-08-12', 'Vieja')
+      insertApunte(subjectId, '2026-08-20', 'Nueva')
+
+      expect(repository.listNotesBySubject(subjectId).map((note) => note.date)).toEqual(['2026-08-20', '2026-08-12'])
     })
 
-    it('lists every subject`s apuntes for the dashboard read', () => {
+    /*
+     * `title` is nullable at the column level, so an apunte written before it
+     * carried a preview must degrade to an empty label — never crash the list.
+     * The apunte itself is the FILE; this is only how it gets announced.
+     */
+    it('degrades a missing preview to an empty one rather than failing the list', () => {
+      insertApunte(subjectId, '2026-08-14', null)
+
+      expect(repository.listNotesBySubject(subjectId)[0]!.preview).toBe('')
+    })
+
+    it('lists every apunte across subjects for the dashboard read', () => {
       const other = db.insert(subjects).values({ name: 'Otra', code: 'O-1', color: '#fff' }).returning().get()
-      repository.saveNote({ subjectId, date: '2026-08-14', body: 'Uno' })
-      repository.saveNote({ subjectId: other.id, date: '2026-08-14', body: 'Dos' })
+      insertApunte(subjectId, '2026-08-14', 'Uno')
+      insertApunte(other.id, '2026-08-14', 'Dos')
 
       expect(repository.listNotes()).toHaveLength(2)
     })
   })
 
-  // Both tables hang off the subject with `ON DELETE CASCADE`, exactly like
-  // schedule_slots/deadlines/final_exams/partial_exams — and, like those, the
-  // rows are removed by SQLite itself, which is what makes this test a real
-  // check on `PRAGMA foreign_keys = ON` rather than on app code.
+  // Marks and apuntes both hang off the subject with `ON DELETE CASCADE` —
+  // apuntes now through `attachments`, which carried that rule already. Like
+  // the others, the rows are removed by SQLite itself, which is what makes
+  // this a real check on `PRAGMA foreign_keys = ON` rather than on app code.
   describe('cascade delete', () => {
-    it('removes a subject`s marks and apuntes when the subject is deleted', () => {
+    it('removes a subject-s marks and apuntes when the subject is deleted', () => {
       repository.setAttendance({ subjectId, date: '2026-08-14', status: 'presente' })
-      repository.saveNote({ subjectId, date: '2026-08-14', body: 'Round robin.' })
+      db.insert(attachments)
+        .values({
+          subjectId,
+          fileName: 'apunte-2026-08-14.md',
+          storedPath: `${subjectId}/apunte-2026-08-14.md`,
+          mimeType: null,
+          sizeBytes: 10,
+          title: 'Round robin.',
+          createdAt: '2026-08-14T10:00',
+          origin: 'class-note',
+          classDate: '2026-08-14'
+        })
+        .run()
 
       db.delete(subjects).where(eq(subjects.id, subjectId)).run()
 
       expect(db.select().from(attendanceRecords).all()).toEqual([])
-      expect(db.select().from(classNotes).all()).toEqual([])
+      expect(db.select().from(attachments).all()).toEqual([])
     })
   })
 })

@@ -23,7 +23,7 @@ const sampleSubject = {
 
 const sampleMark = { id: 1, subjectId: 1, date: '2026-08-17', status: 'presente' }
 
-const sampleNote = { id: 1, subjectId: 1, date: '2026-08-17', body: 'Round robin y starvation.' }
+const sampleNote = { id: 1, subjectId: 1, date: '2026-08-17', preview: 'Round robin y starvation.' }
 
 const sampleDeadline = {
   id: 1,

@@ -7,6 +7,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { clasesApi } from '../adapters/clasesApi'
 import { ClaseModalContainer } from './ClaseModalContainer'
 
+vi.mock('../../adjuntos/adapters/adjuntosApi', () => ({
+  adjuntosApi: { read: vi.fn().mockResolvedValue('Round robin y starvation.') }
+}))
+
 vi.mock('../adapters/clasesApi', () => ({
   clasesApi: {
     setAttendance: vi.fn(),
@@ -24,9 +28,7 @@ function renderWithClient(ui: ReactNode) {
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
 }
 
-function renderModal(
-  overrides: { attendanceStatus?: 'presente' | 'ausente' | 'feriado' | null; noteBody?: string } = {}
-) {
+function renderModal(overrides: { attendanceStatus?: 'presente' | 'ausente' | 'feriado' | null } = {}) {
   const onClose = vi.fn()
   renderWithClient(
     <ClaseModalContainer
@@ -35,7 +37,6 @@ function renderModal(
       date="2026-08-13"
       slots={slots}
       attendanceStatus={overrides.attendanceStatus ?? null}
-      noteBody={overrides.noteBody ?? ''}
       onClose={onClose}
     />
   )
@@ -55,7 +56,7 @@ describe('ClaseModalContainer', () => {
       status: 'presente'
     })
     vi.mocked(clasesApi.clearAttendance).mockResolvedValue({ subjectId: 7, date: '2026-08-13' })
-    vi.mocked(clasesApi.saveNote).mockResolvedValue({ id: 1, subjectId: 7, date: '2026-08-13', body: 'x' })
+    vi.mocked(clasesApi.saveNote).mockResolvedValue({ subjectId: 7, date: '2026-08-13', apunteId: 3 })
     vi.mocked(clasesApi.deleteNote).mockResolvedValue({ subjectId: 7, date: '2026-08-13' })
   })
 
@@ -67,17 +68,31 @@ describe('ClaseModalContainer', () => {
     expect(screen.getByText('Sistemas Operativos · 08:00 – 09:30 · Aula 204')).toBeInTheDocument()
   })
 
-  it('writes the mark and the apunte for the same (subject, date) pair', async () => {
+  it('writes the mark for its (subject, date) pair', async () => {
     renderModal()
 
     await userEvent.click(screen.getByRole('button', { name: 'Presente' }))
-    await userEvent.type(screen.getByLabelText('APUNTE DE LA CLASE'), 'Round robin.')
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar clase' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar asistencia' }))
 
     await waitFor(() =>
       expect(clasesApi.setAttendance).toHaveBeenCalledWith({ subjectId: 7, date: '2026-08-13', status: 'presente' })
     )
-    expect(clasesApi.saveNote).toHaveBeenCalledWith({ subjectId: 7, date: '2026-08-13', body: 'Round robin.' })
+  })
+
+  /*
+   * The dialog holds NO write path to an apunte. An apunte is a markdown
+   * document with its own editor and its own save; a second writer here would
+   * mean the last surface to save silently wins.
+   */
+  it('never writes an apunte', async () => {
+    renderModal()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Presente' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar asistencia' }))
+
+    await waitFor(() => expect(clasesApi.setAttendance).toHaveBeenCalled())
+    expect(clasesApi.saveNote).not.toHaveBeenCalled()
+    expect(clasesApi.deleteNote).not.toHaveBeenCalled()
   })
 
   // Unmarked is the absence of a row, so "no mark" is a DELETE, not a status
@@ -86,7 +101,7 @@ describe('ClaseModalContainer', () => {
     renderModal({ attendanceStatus: 'presente' })
 
     await userEvent.click(screen.getByRole('button', { name: 'Presente' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar clase' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar asistencia' }))
 
     await waitFor(() => expect(clasesApi.clearAttendance).toHaveBeenCalledWith({ subjectId: 7, date: '2026-08-13' }))
     expect(clasesApi.setAttendance).not.toHaveBeenCalled()
@@ -94,20 +109,11 @@ describe('ClaseModalContainer', () => {
 
   // Same rule for the apunte: an emptied body is a deleted apunte, never a
   // stored blank — that is what keeps "has an apunte" answerable by presence.
-  it('deletes the apunte rather than saving a blank one', async () => {
-    renderModal({ noteBody: 'Sobra.' })
-
-    await userEvent.clear(screen.getByLabelText('APUNTE DE LA CLASE'))
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar clase' }))
-
-    await waitFor(() => expect(clasesApi.deleteNote).toHaveBeenCalledWith({ subjectId: 7, date: '2026-08-13' }))
-    expect(clasesApi.saveNote).not.toHaveBeenCalled()
-  })
 
   it('closes once both writes land', async () => {
     const { onClose } = renderModal()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar clase' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar asistencia' }))
 
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
   })
@@ -117,7 +123,7 @@ describe('ClaseModalContainer', () => {
     const { onClose } = renderModal()
 
     await userEvent.click(screen.getByRole('button', { name: 'Presente' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar clase' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar asistencia' }))
 
     await waitFor(() => expect(screen.queryByText('Una marca y un apunte por clase')).not.toBeInTheDocument())
     expect(onClose).not.toHaveBeenCalled()

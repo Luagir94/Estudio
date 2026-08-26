@@ -76,8 +76,8 @@ interface ClassRowProps {
    * separate "borrar" affordance to find.
    */
   onMarkAttendance: (status: AttendanceStatus | null) => void
-  /** Opens the class (asistencia + apunte) for this row's date. */
-  onOpenClase: () => void
+  /** Opens this class's apunte in the markdown editor, creating it when the class has none. */
+  onOpenApunte: () => void
 }
 
 export function ClassRow({
@@ -90,7 +90,7 @@ export function ClassRow({
   attendanceStatus,
   hasNote,
   onMarkAttendance,
-  onOpenClase
+  onOpenApunte
 }: ClassRowProps): React.JSX.Element {
   const { t } = useTranslation('hoy')
   const { t: tc } = useTranslation('clases')
@@ -175,12 +175,13 @@ export function ClassRow({
       </fieldset>
 
       {/* Outside the fieldset on purpose: this is not a third attendance
-          option, it opens the class. Its accent tone is a STATE readout ("this
-          class already has an apunte"), not a selection. */}
+          option, it opens the APUNTE — a markdown document with its own
+          editor. Its accent tone is a STATE readout ("this class already has
+          an apunte"), not a selection. */}
       <button
         type="button"
         aria-label={tc('classRow.apunte', { subject: subjectName })}
-        onClick={onOpenClase}
+        onClick={onOpenApunte}
         className={cn(CONTROL_BASE, hasNote ? 'bg-violet-soft text-primary-ink' : CONTROL_UNSET, interactiveChip)}
       >
         <NotebookPen className="h-3.5 w-3.5" aria-hidden="true" />

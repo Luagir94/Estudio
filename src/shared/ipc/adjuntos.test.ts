@@ -9,8 +9,9 @@ import {
 } from './adjuntos'
 
 // `origin` provenance (cli-generated-artifacts spec "Origin provenance
-// column and badge"). Closed two-value set, same convention as
-// `indexStatus`'s enum on this same schema.
+// column and badge"). Closed set, same convention as `indexStatus`'s enum on
+// this same schema — 'class-note' joined it when a class apunte became a real
+// attachment so it could reach the FTS index.
 describe('attachmentSchema — origin', () => {
   const base = {
     id: 1,
@@ -20,10 +21,11 @@ describe('attachmentSchema — origin', () => {
     sizeBytes: 1024,
     title: null,
     createdAt: '2026-08-16T10:00',
-    indexStatus: 'pending' as const
+    indexStatus: 'pending' as const,
+    classDate: null
   }
 
-  it.each(['user', 'ai-generated'])('parses origin %s', (origin) => {
+  it.each(['user', 'ai-generated', 'class-note'])('parses origin %s', (origin) => {
     const result = attachmentSchema.parse({ ...base, origin })
     expect(result.origin).toBe(origin)
   })
@@ -87,6 +89,7 @@ describe('writeAttachmentTextResultSchema', () => {
       title: null,
       createdAt: '2026-08-16T10:00',
       indexStatus: 'pending',
+      classDate: null,
       origin: 'user'
     }
     expect(writeAttachmentTextResultSchema.parse(attachment)).toEqual(attachment)

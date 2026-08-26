@@ -12,8 +12,10 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { AttendanceStatus } from '../../../shared/ipc/materias'
 import { clasesApi } from '../../clases/adapters/clasesApi'
-import { ClaseModalContainer } from '../../clases/containers/ClaseModalContainer'
-import { findAttendanceStatus, findClassNote, toLocalIsoDate } from '../../clases/domain/classOccurrence'
+import type { Attachment } from '../../../shared/ipc/adjuntos'
+import { AttachmentViewerContainer } from '../../adjuntos/containers/AttachmentViewerContainer'
+import { useApunteOpener } from '../../clases/containers/useApunteOpener'
+import { toLocalIsoDate } from '../../clases/domain/classOccurrence'
 import { classifyDeadline } from '../../entregas/domain/deadline'
 import { fechasApi } from '../../fechas/adapters/fechasApi'
 import { pickImminentAcademicDate } from '../../fechas/domain/academicDate'
@@ -44,16 +46,21 @@ export function HoyContainer({ now = new Date() }: HoyContainerProps = {}): Reac
   const { t } = useTranslation('hoy')
   const queryClient = useQueryClient()
   const { data, isLoading, isError } = useQuery({ queryKey: ['hoy', 'dashboard'], queryFn: hoyApi.dashboard })
-  // Which of today's classes has its dialog open. The SUBJECT is the state,
-  // not a slot or a row index: a class is `(subjectId, date)`, and the date
-  // here is always today.
-  const [openClaseSubjectId, setOpenClaseSubjectId] = useState<number | null>(null)
+  // The apunte currently being edited, or null. Hoy SWAPS ITSELF for the
+  // editor the same way the subject detail does — an apunte is a full
+  // document, and a document does not belong in a dialog over a dashboard.
+  const [viewedApunte, setViewedApunte] = useState<Attachment | null>(null)
 
   // The dashboard payload carries no outcome/period/finals facts — those
   // live in the ['materias'] list (invalidated by every outcome/final/period
   // write), so the filters below follow a subject being closed without this
   // screen owning any invalidation.
   const { data: subjectFacts } = useQuery({ queryKey: ['materias'], queryFn: materiasApi.list })
+
+  // Resolves (or creates) the apunte behind a clicked class — the same
+  // mechanism the Horario blocks and the APUNTES list use, so "does this
+  // class have one yet?" is answered in one place instead of three.
+  const { openApunte } = useApunteOpener(setViewedApunte)
 
   // Administrative dates ride the SAME ['fechas'] cache entry the carrera
   // card writes through, so a trámite recorded there warns here without this
@@ -110,14 +117,27 @@ export function HoyContainer({ now = new Date() }: HoyContainerProps = {}): Reac
     }
   })
 
-  const openClase = openClaseSubjectId === null ? null : subjects.find((subject) => subject.id === openClaseSubjectId)
-
   const dateHeadline = capitalize(format(now, t('container.dateHeadlineFormat'), { locale: es }))
   const daySummary = t('container.daySummary', {
     classes: t('container.classesToday', { count: todayClasses.length }),
     overdue: t('container.overdueCount', { count: overdueCount }),
     upcoming: t('container.upcomingCount', { count: upcoming7Count })
   })
+
+  // Hoy SWAPS ITSELF for the editor rather than layering it over the
+  // dashboard — the same shape the subject detail uses. An apunte is a whole
+  // document; reading one over a list of the day's classes would put two
+  // unrelated things on screen and let neither have the room it needs.
+  if (viewedApunte !== null) {
+    return (
+      <AttachmentViewerContainer
+        attachment={viewedApunte}
+        subjectId={viewedApunte.subjectId}
+        subjectName={subjects.find((subject) => subject.id === viewedApunte.subjectId)?.name ?? ''}
+        onBack={() => setViewedApunte(null)}
+      />
+    )
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -136,22 +156,7 @@ export function HoyContainer({ now = new Date() }: HoyContainerProps = {}): Reac
           imminentAcademicDate={pickImminentAcademicDate(academicDates ?? [], now)}
           now={now}
           onMarkAttendance={(subjectId, status) => markMutation.mutate({ subjectId, status })}
-          onOpenClase={setOpenClaseSubjectId}
-        />
-      )}
-
-      {/* The SAME dialog the subject detail's apuntes rows open — mounted here
-          with today's date and this subject's weekly pattern, out of which it
-          composes the occurrence. */}
-      {openClase && (
-        <ClaseModalContainer
-          subjectId={openClase.id}
-          subjectName={openClase.name}
-          date={today}
-          slots={openClase.slots}
-          attendanceStatus={findAttendanceStatus(attendance, openClase.id, today)}
-          noteBody={findClassNote(classNotes, openClase.id, today)?.body ?? ''}
-          onClose={() => setOpenClaseSubjectId(null)}
+          onOpenApunte={(subjectId) => openApunte({ subjectId, date: today })}
         />
       )}
     </div>

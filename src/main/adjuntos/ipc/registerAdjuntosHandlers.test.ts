@@ -41,7 +41,8 @@ const sampleRecord: AttachmentRecord = {
   title: null,
   createdAt: '2026-08-16T10:00',
   indexStatus: 'pending',
-  origin: 'user'
+  origin: 'user',
+  classDate: null
 }
 
 const sampleAttachment = {
@@ -53,7 +54,8 @@ const sampleAttachment = {
   title: null,
   createdAt: '2026-08-16T10:00',
   indexStatus: 'pending',
-  origin: 'user'
+  origin: 'user',
+  classDate: null
 }
 
 describe('registerAdjuntosHandlers', () => {
@@ -75,13 +77,18 @@ describe('registerAdjuntosHandlers', () => {
       get: vi.fn().mockReturnValue(sampleRecord),
       insert: vi.fn(),
       update: vi.fn().mockReturnValue(sampleRecord),
-      remove: vi.fn().mockReturnValue(sampleRecord)
+      remove: vi.fn().mockReturnValue(sampleRecord),
+      findClassNote: vi.fn().mockReturnValue(null),
+      listClassNotesBySubject: vi.fn().mockReturnValue([]),
+      listClassNotes: vi.fn().mockReturnValue([])
     }
     service = {
       addAttachments: vi.fn().mockResolvedValue({ added: [sampleRecord], failures: [] }),
       addGeneratedAttachment: vi.fn().mockResolvedValue({ ok: true }),
       readAttachmentText: vi.fn().mockResolvedValue({ ok: true, content: '# Resumen' }),
-      updateAttachmentText: vi.fn().mockResolvedValue({ ok: true, attachment: sampleRecord })
+      updateAttachmentText: vi.fn().mockResolvedValue({ ok: true, attachment: sampleRecord }),
+      saveClassNote: vi.fn().mockResolvedValue({ ok: true, deleted: false, attachment: sampleRecord }),
+      deleteClassNote: vi.fn().mockResolvedValue(true)
     }
     storage = {
       statSize: vi.fn().mockResolvedValue(1024),

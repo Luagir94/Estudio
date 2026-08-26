@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { and, desc, eq, isNotNull } from 'drizzle-orm'
 import { validateGrade } from '../../../shared/domain/grading'
 import type { DeadlineRecord } from '../../../shared/ipc/deadlines'
 import type {
@@ -26,8 +26,8 @@ import { toAttendanceRecord } from '../../clases/adapters/sqliteClaseRepository'
 import { composePrerequisites, toPrerequisiteLevel } from '../../planificador/adapters/sqlitePlannerRepository'
 import type { AppDatabase } from '../../db/connection'
 import {
+  attachments,
   attendanceRecords,
-  classNotes,
   deadlines,
   finalExams,
   partialExams,
@@ -335,7 +335,23 @@ export function createSqliteSubjectRepository(db: AppDatabase): SubjectRepositor
           .where(eq(attendanceRecords.subjectId, id))
           .all()
           .map(toAttendanceRecord),
-        classNotes: db.select().from(classNotes).where(eq(classNotes.subjectId, id)).all(),
+        // Apuntes are ATTACHMENTS: the ones carrying a `classDate` are
+        // exactly the apuntes, and `title` is the one-line preview the
+        // APUNTES section renders. The body is deliberately NOT here — it
+        // lives in a file, read only when the editor opens one, so this
+        // payload stays a single query no matter how much the student writes.
+        classNotes: db
+          .select()
+          .from(attachments)
+          .where(and(eq(attachments.subjectId, id), isNotNull(attachments.classDate)))
+          .orderBy(desc(attachments.classDate))
+          .all()
+          .map((row) => ({
+            id: row.id,
+            subjectId: row.subjectId,
+            date: row.classDate ?? '',
+            preview: row.title ?? ''
+          })),
         // FULL records here, unlike the list's edge projection: the
         // CORRELATIVAS card prints the required materia's NAME and the edit
         // field removes rows by id — neither of which an edge can supply.

@@ -75,6 +75,25 @@ export const classDayResultSchema = z.object({
 
 export type ClassDayResult = z.infer<typeof classDayResultSchema>
 
+/**
+ * What `clases:saveNote` answers: the class, plus the id of the apunte it
+ * wrote.
+ *
+ * The id is the whole reason this is not a plain `ClassDayResult` — the
+ * caller's next move is to OPEN that apunte in the editor, and without the id
+ * it would have to refetch the subject and hunt for the row by date. Still no
+ * body: the apunte's text lives in a file, and echoing back what the caller
+ * just sent would invent a second source of truth for it.
+ */
+export const saveClassNoteResultSchema = z.object({
+  subjectId: z.number().int(),
+  date: z.string(),
+  /** The apunte's ATTACHMENT id — what `adjuntos:read`/`adjuntos:write` address. */
+  apunteId: z.number().int()
+})
+
+export type SaveClassNoteResult = z.infer<typeof saveClassNoteResultSchema>
+
 // --- clases:saveNote ------------------------------------------------------
 
 /**

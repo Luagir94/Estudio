@@ -10,7 +10,7 @@
 // whether THIS row currently renders as "Archivo no encontrado", which is
 // local, ephemeral UI state, not server state.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { AddAttachmentFailure, Attachment } from '../../../shared/ipc/adjuntos'
 import { AdjuntosApiError, adjuntosApi } from '../adapters/adjuntosApi'
@@ -51,6 +51,18 @@ export function AdjuntosContainer({ subjectId, onOpenMarkdown }: AdjuntosContain
     queryKey,
     queryFn: () => adjuntosApi.list(subjectId)
   })
+
+  // Class apuntes ride on this same list — they ARE attachments, same file
+  // storage, same editor, same FTS index — but ADJUNTOS is where course
+  // material is browsed, and the subject detail already gives apuntes their
+  // own section keyed by the class day. Showing them here would list every
+  // apunte twice and bury the actual material under it.
+  //
+  // The filter is HERE and not in main on purpose: the viewer reads its
+  // header row off this very query, so hiding apuntes at the IPC boundary
+  // left the one screen that must open an apunte unable to find it. Which
+  // rows a section shows is a display question.
+  const visibleAttachments = useMemo(() => (data ?? []).filter((row) => row.classDate === null), [data])
 
   function invalidate(): void {
     void queryClient.invalidateQueries({ queryKey })
@@ -130,7 +142,7 @@ export function AdjuntosContainer({ subjectId, onOpenMarkdown }: AdjuntosContain
 
   return (
     <AdjuntosSection
-      attachments={data ?? []}
+      attachments={visibleAttachments}
       isLoading={isLoading}
       isError={isError}
       missingIds={missingIds}

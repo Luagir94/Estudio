@@ -310,7 +310,7 @@ describe('withClassMarks (joins the day`s classes to what was recorded about the
     const marked = withClassMarks(
       todayClasses,
       [{ id: 1, subjectId: 1, date: '2026-08-14', status: 'presente' }],
-      [{ id: 1, subjectId: 2, date: '2026-08-14', body: 'Índices' }],
+      [{ id: 1, subjectId: 2, date: '2026-08-14', preview: 'Índices' }],
       '2026-08-14'
     )
 

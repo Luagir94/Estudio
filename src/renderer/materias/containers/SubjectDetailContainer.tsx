@@ -175,13 +175,10 @@ export function SubjectDetailContainer({
         // because the class dialog composes its occurrence out of the weekly
         // pattern — nothing dated is stored to read a time off.
         apuntesSlot={
-          <ApuntesContainer
-            subjectId={subjectId}
-            subjectName={data.name}
-            slots={data.slots}
-            notes={data.classNotes}
-            attendance={data.attendance}
-          />
+          // An apunte opens in the SAME full-screen markdown editor an .md
+          // attachment does — because that is exactly what it is. One editor,
+          // one save path, one place its text can change.
+          <ApuntesContainer subjectId={subjectId} notes={data.classNotes} onOpenApunte={setViewedAttachment} />
         }
       />
 

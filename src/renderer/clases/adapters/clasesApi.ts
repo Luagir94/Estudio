@@ -7,18 +7,15 @@
 // (`hoyApi.dashboard`), the same way final-exam and parcial records do — this
 // adapter owns WRITES only.
 import {
-  type ClassDayInput,
   classDayResultSchema,
+  saveClassNoteResultSchema,
+  type ClassDayInput,
   type ClassDayResult,
   type SaveClassNoteInput,
+  type SaveClassNoteResult,
   type SetAttendanceInput
 } from '../../../shared/ipc/clases'
-import {
-  attendanceRecordSchema,
-  type AttendanceRecord,
-  classNoteRecordSchema,
-  type ClassNoteRecord
-} from '../../../shared/ipc/materias'
+import { attendanceRecordSchema, type AttendanceRecord } from '../../../shared/ipc/materias'
 import { IpcApiError, unwrapIpcResult } from '../../shared/adapters/ipcApiError'
 
 // Preserves the envelope's typed `code` across the throw (base class doc) —
@@ -34,7 +31,13 @@ export class ClasesApiError extends IpcApiError {
 export interface ClasesApi {
   setAttendance(input: SetAttendanceInput): Promise<AttendanceRecord>
   clearAttendance(input: ClassDayInput): Promise<ClassDayResult>
-  saveNote(input: SaveClassNoteInput): Promise<ClassNoteRecord>
+  /**
+   * Echoes the CLASS, not the stored apunte. The apunte is a markdown file
+   * now, so there is no row to hand back — and echoing a body the caller just
+   * sent would invent a second source of truth for it. Callers invalidate and
+   * re-read, the same way every other write here works.
+   */
+  saveNote(input: SaveClassNoteInput): Promise<SaveClassNoteResult>
   deleteNote(input: ClassDayInput): Promise<ClassDayResult>
 }
 
@@ -46,7 +49,7 @@ export const clasesApi: ClasesApi = {
     return unwrapIpcResult(await window.api.clases.clearAttendance(input), classDayResultSchema, ClasesApiError)
   },
   async saveNote(input) {
-    return unwrapIpcResult(await window.api.clases.saveNote(input), classNoteRecordSchema, ClasesApiError)
+    return unwrapIpcResult(await window.api.clases.saveNote(input), saveClassNoteResultSchema, ClasesApiError)
   },
   async deleteNote(input) {
     return unwrapIpcResult(await window.api.clases.deleteNote(input), classDayResultSchema, ClasesApiError)

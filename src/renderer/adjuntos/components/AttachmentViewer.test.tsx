@@ -15,6 +15,7 @@ function attachment(overrides: Partial<Attachment> = {}): Attachment {
     createdAt: '2026-08-18T10:00',
     indexStatus: 'indexed',
     origin: 'user',
+    classDate: null,
     ...overrides
   }
 }

@@ -3,7 +3,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createSqliteClaseRepository } from '../../clases/adapters/sqliteClaseRepository'
 import { openAppDatabase } from '../../db/connection'
-import { deadlines, finalExams, periods, programs } from '../../db/schema'
+import { attachments, deadlines, finalExams, periods, programs } from '../../db/schema'
 import { createSqliteSubjectRepository } from './sqliteSubjectRepository'
 
 const migrationsFolder = path.join(__dirname, '../../../../drizzle/migrations')
@@ -153,14 +153,32 @@ describe('createSqliteSubjectRepository', () => {
       const clases = createSqliteClaseRepository(db)
       clases.setAttendance({ subjectId: created.id, date: '2026-08-14', status: 'presente' })
       clases.setAttendance({ subjectId: created.id, date: '2026-08-07', status: 'feriado' })
-      clases.saveNote({ subjectId: created.id, date: '2026-08-14', body: 'Round robin y starvation.' })
+      // An apunte is a markdown ATTACHMENT, so it is inserted as one — that is
+      // the shape `attachmentService.saveClassNote` leaves behind, and `title`
+      // is the one-line preview the APUNTES section renders.
+      db.insert(attachments)
+        .values({
+          subjectId: created.id,
+          fileName: 'apunte-2026-08-14.md',
+          storedPath: `${created.id}/apunte-2026-08-14.md`,
+          mimeType: null,
+          sizeBytes: 25,
+          title: 'Round robin y starvation.',
+          createdAt: '2026-08-14T10:00',
+          origin: 'class-note',
+          classDate: '2026-08-14'
+        })
+        .run()
 
       const detail = repository.detail(created.id)
 
       expect(detail?.attendance.map((mark) => mark.status).sort()).toEqual(['feriado', 'presente'])
       expect(detail?.classNotes).toEqual([
-        expect.objectContaining({ date: '2026-08-14', body: 'Round robin y starvation.' })
+        expect.objectContaining({ date: '2026-08-14', preview: 'Round robin y starvation.' })
       ])
+      // The BODY never rides on this payload: it lives in a file, read only
+      // when the editor opens it, so one subject-detail fetch stays one query.
+      expect(detail?.classNotes[0]).not.toHaveProperty('body')
     })
 
     it('returns null for a subject id that does not exist', () => {

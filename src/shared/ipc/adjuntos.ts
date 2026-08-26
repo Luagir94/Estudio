@@ -26,9 +26,16 @@ export const attachmentSchema = z.object({
   indexStatus: z.enum(['pending', 'indexed', 'not-indexable']),
   // Provenance (cli-generated-artifacts spec "Origin provenance column and
   // badge"): 'user' for a normal upload, 'ai-generated' for a document the
-  // ask-generated-artifacts save path wrote on the model's behalf. Rides on
-  // the same `adjuntos:list` payload as `indexStatus`, no new channel.
-  origin: z.enum(['user', 'ai-generated'])
+  // ask-generated-artifacts save path wrote on the model's behalf,
+  // 'class-note' for the apunte of one class. Rides on the same
+  // `adjuntos:list` payload as `indexStatus`, no new channel.
+  origin: z.enum(['user', 'ai-generated', 'class-note']),
+  // Set only on a class apunte: the local `YYYY-MM-DD` of the class it
+  // belongs to. The ADJUNTOS list never carries one — class apuntes are
+  // filtered out of it, because they have their own section on the subject
+  // detail and listing them twice would turn ADJUNTOS into noise. It travels
+  // so the VIEWER can title an apunte by its class instead of its filename.
+  classDate: z.string().nullable()
 })
 
 export type Attachment = z.infer<typeof attachmentSchema>

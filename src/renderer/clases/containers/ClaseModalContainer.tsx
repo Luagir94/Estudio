@@ -26,8 +26,6 @@ interface ClaseModalContainerProps {
   /** The subject's WEEKLY pattern. The occurrence is composed from it here, never stored. */
   slots: ClassSlotLike[]
   attendanceStatus: AttendanceStatus | null
-  /** The stored apunte, or '' when the class has none. */
-  noteBody: string
   onClose: () => void
 }
 
@@ -37,7 +35,6 @@ export function ClaseModalContainer({
   date,
   slots,
   attendanceStatus,
-  noteBody,
   onClose
 }: ClaseModalContainerProps): React.JSX.Element {
   const queryClient = useQueryClient()
@@ -53,27 +50,18 @@ export function ClaseModalContainer({
     void queryClient.invalidateQueries({ queryKey: ['hoy', 'dashboard'] })
   }
 
-  // ONE mutation for both halves, because "Guardar clase" is one action: a
-  // single pending state, a single failure to report, one close.
+  // ONE command, because the dialog now says exactly one thing: whether you
+  // were in that class. The apunte is a document with its own editor and its
+  // own save — nothing here can write one, which is what keeps a single
+  // surface responsible for a given apunte's text.
   //
-  // The mark is written first. If the apunte write then fails, the mark has
-  // landed and the dialog stays open reporting the failure — which is the
-  // honest outcome, and a harmless one: both commands are UPSERTS keyed by
-  // `(subjectId, date)`, so pressing Guardar again re-applies the same mark
-  // rather than recording a second one.
+  // Still an UPSERT/DELETE pair rather than a create/update one: an unmarked
+  // class is the ABSENCE of a row, never a fourth status.
   const saveMutation = useMutation({
-    mutationFn: async ({ status, body }: ClaseFormValues) => {
+    mutationFn: async ({ status }: ClaseFormValues) => {
       await (status === null
         ? clasesApi.clearAttendance({ subjectId, date })
         : clasesApi.setAttendance({ subjectId, date, status }))
-
-      // An emptied apunte is a DELETED apunte — there is no such stored thing
-      // as a blank one, which is what keeps "has an apunte" a question the
-      // row's presence answers.
-      const trimmed = body.trim()
-      await (trimmed === ''
-        ? clasesApi.deleteNote({ subjectId, date })
-        : clasesApi.saveNote({ subjectId, date, body: trimmed }))
     },
     onSuccess: () => {
       invalidate()
@@ -87,7 +75,6 @@ export function ClaseModalContainer({
       date={date}
       occurrence={resolveClassOccurrence(slots, date)}
       attendanceStatus={attendanceStatus}
-      noteBody={noteBody}
       error={describeIpcError(saveMutation.error)}
       pending={saveMutation.isPending}
       onSubmit={(values) => saveMutation.mutate(values)}
