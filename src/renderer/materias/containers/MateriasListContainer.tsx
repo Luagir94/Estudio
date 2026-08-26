@@ -19,6 +19,7 @@ import { materiasApi } from '../adapters/materiasApi'
 import { MateriasEmptyState } from '../components/MateriasEmptyState'
 import { MateriasList } from '../components/MateriasList'
 import { NuevaMateriaModal } from '../components/NuevaMateriaModal'
+import { useBusySlots } from './useBusySlots'
 import { SubjectStatusFilter } from '../components/SubjectStatusFilter'
 import {
   matchesStatusFilter,
@@ -64,6 +65,10 @@ export function MateriasListContainer({
     queryKey: ['materias'],
     queryFn: materiasApi.list
   })
+
+  // Creating a subject: nothing to exclude, every attended class hour
+  // counts as taken. Feeds the slot editor's overlap warning.
+  const busySlots = useBusySlots(null, today)
 
   // Feeds the período picker. Shares the ['carreras'] key with the Carreras
   // screen, so opening this form costs nothing once that screen was visited.
@@ -147,6 +152,7 @@ export function MateriasListContainer({
 
       {isCreateOpen && (
         <NuevaMateriaModal
+          busySlots={busySlots}
           programs={programs ?? []}
           defaultPeriodId={defaultPeriodId}
           onSubmit={(input) => createMutation.mutate(input)}

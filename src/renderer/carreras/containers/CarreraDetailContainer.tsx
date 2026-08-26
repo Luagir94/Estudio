@@ -10,6 +10,7 @@ import { FechasCardContainer } from '../../fechas/containers/FechasCardContainer
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import { MateriasList } from '../../materias/components/MateriasList'
 import { NuevaMateriaModal } from '../../materias/components/NuevaMateriaModal'
+import { useBusySlots } from '../../materias/containers/useBusySlots'
 import { describeIpcError } from '../../shared/lib/ipcErrorCopy'
 import { isPassed } from '../../materias/domain/subjectStatus'
 import { carrerasApi } from '../adapters/carrerasApi'
@@ -69,6 +70,10 @@ export function CarreraDetailContainer({
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isDeleteProgramOpen, setIsDeleteProgramOpen] = useState(false)
   const today = now ?? new Date()
+
+  // Creating a subject: nothing to exclude, every attended class hour
+  // counts as taken. Feeds the slot editor's overlap warning.
+  const busySlots = useBusySlots(null, today)
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['carreras', programId],
@@ -463,6 +468,7 @@ export function CarreraDetailContainer({
 
           {isSubjectModalOpen && (
             <NuevaMateriaModal
+              busySlots={busySlots}
               programs={[data]}
               defaultPeriodId={defaultPeriodId}
               onSubmit={(input) => createSubjectMutation.mutate(input)}

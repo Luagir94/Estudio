@@ -42,6 +42,7 @@ import { CerrarMateriaModal } from '../components/CerrarMateriaModal'
 import { DeleteSubjectConfirmDialog } from '../components/DeleteSubjectConfirmDialog'
 import { carrerasApi } from '../../carreras/adapters/carrerasApi'
 import { EditarMateriaModal } from '../components/EditarMateriaModal'
+import { useBusySlots } from './useBusySlots'
 import { SubjectDetail } from '../components/SubjectDetail'
 import { FinalesContainer } from '../../finales/containers/FinalesContainer'
 import { ParcialesContainer } from '../../parciales/containers/ParcialesContainer'
@@ -119,6 +120,12 @@ export function SubjectDetailContainer({
       setIsAddEntregaOpen(false)
     }
   })
+
+  // Excludes THIS subject: the edit modal already carries its own slots
+  // as editable rows, so counting the saved copy too would make every
+  // untouched row warn about itself. Declared above the early returns —
+  // hook order cannot depend on the query's state.
+  const busySlots = useBusySlots(subjectId, now)
 
   if (isLoading) {
     return <p className="text-body-lg text-muted-foreground">{t('subjectDetailContainer.loading')}</p>
@@ -204,6 +211,7 @@ export function SubjectDetailContainer({
       {isEditOpen && (
         <EditarMateriaModal
           subject={data}
+          busySlots={busySlots}
           programs={programs ?? []}
           onSubmit={(input) => updateMutation.mutate(input)}
           onClose={() => setIsEditOpen(false)}

@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import { NuevaMateriaModal } from '../../materias/components/NuevaMateriaModal'
+import { useBusySlots } from '../../materias/containers/useBusySlots'
 import { describeIpcError } from '../../shared/lib/ipcErrorCopy'
 import { carrerasApi } from '../adapters/carrerasApi'
 import { NuevoPeriodoModal } from '../components/NuevoPeriodoModal'
@@ -39,6 +40,10 @@ export function PeriodDetailContainer({
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false)
   const today = now ?? new Date()
+
+  // Creating a subject: nothing to exclude, every attended class hour
+  // counts as taken. Feeds the slot editor's overlap warning.
+  const busySlots = useBusySlots(null, today)
 
   const {
     data: program,
@@ -126,6 +131,7 @@ export function PeriodDetailContainer({
 
       {isSubjectModalOpen && (
         <NuevaMateriaModal
+          busySlots={busySlots}
           programs={[program]}
           // Getting here already answered "which período?", so the picker
           // opens on THIS one rather than re-asking.

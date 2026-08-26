@@ -19,6 +19,7 @@ import type { SubjectDetailResult } from '../../../shared/ipc/materias'
 import { updateSubjectScheduleInputSchema, type UpdateSubjectScheduleInput } from '../../../shared/ipc/materias'
 import type { ProgramWithPeriods } from '../../../shared/ipc/carreras'
 import { SlotEditor } from '../../shared/components/SlotEditor'
+import type { BusySpan } from '../../shared/domain/slotOverlap'
 import { translateValidationMessage } from '../../shared/lib/translateValidationMessage'
 import { PeriodSelect } from './PeriodSelect'
 import { cn } from '../../shared/lib/cn'
@@ -52,6 +53,8 @@ interface EditarMateriaModalProps {
    * clicked (spec: "Editing a class routes through the subject").
    */
   initialTab?: Tab
+  /** Hours other subjects already occupy, for the slot editor's overlap warning. */
+  busySlots?: BusySpan[]
   /** Programs with their periods, for the período picker. */
   programs?: ProgramWithPeriods[]
 }
@@ -64,6 +67,7 @@ export function EditarMateriaModal({
   onClose,
   onDelete,
   initialTab = 'general',
+  busySlots = [],
   programs = []
 }: EditarMateriaModalProps): React.JSX.Element {
   const { t } = useTranslation('materias')
@@ -336,7 +340,9 @@ export function EditarMateriaModal({
               <Controller
                 name="slots"
                 control={control}
-                render={({ field }) => <SlotEditor value={field.value} onChange={field.onChange} />}
+                render={({ field }) => (
+                  <SlotEditor value={field.value} onChange={field.onChange} busySlots={busySlots} />
+                )}
               />
               {errors.slots && (
                 <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.slots.message)}</p>

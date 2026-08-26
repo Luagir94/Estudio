@@ -2,8 +2,9 @@
 // materia" (slice 2b): a fully controlled schedule-slot list editor. It
 // emits `slots[]` via onChange and persists nothing itself (design §4).
 import type { ChangeEvent } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Plus, TriangleAlert, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { findSlotOverlaps, type BusySpan } from '../domain/slotOverlap'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
@@ -22,6 +23,14 @@ export interface SlotEditorValue {
 interface SlotEditorProps {
   value: SlotEditorValue[]
   onChange: (slots: SlotEditorValue[]) => void
+  /**
+   * Classes OTHER subjects already hold this cuatrimestre, so a clash is
+   * caught while the class is being loaded instead of being discovered on
+   * the weekly grid afterwards. Containers supply it (design §4: components
+   * receive props); omitting it leaves the warning covering only collisions
+   * between this subject's own rows, which is still worth having.
+   */
+  busySlots?: BusySpan[]
 }
 
 // dayOfWeek matches JS `Date.getDay()` (0=Sunday..6=Saturday) so the
@@ -45,9 +54,18 @@ function timeToMinutes(time: string): number {
   return (hours || 0) * 60 + (mins || 0)
 }
 
-export function SlotEditor({ value, onChange }: SlotEditorProps): React.JSX.Element {
+export function SlotEditor({ value, onChange, busySlots = [] }: SlotEditorProps): React.JSX.Element {
   const { t } = useTranslation('common')
   const weekdayLabels = t('weekdaysLong', { returnObjects: true }) as string[]
+  // Parallel to `value` — index i holds row i's collisions (see
+  // `findSlotOverlaps`), so a row renders its own warning without matching
+  // anything back up by identity.
+  const overlapsPerSlot = findSlotOverlaps(value, busySlots)
+
+  /** Monday-first label for a stored Sunday-based `dayOfWeek`, via the option order above. */
+  function dayLabel(dayOfWeek: number): string {
+    return weekdayLabels[DAY_OPTION_VALUES.indexOf(dayOfWeek)] ?? ''
+  }
 
   function updateSlot(index: number, patch: Partial<SlotEditorValue>): void {
     onChange(value.map((slot, i) => (i === index ? { ...slot, ...patch } : slot)))
@@ -122,6 +140,31 @@ export function SlotEditor({ value, onChange }: SlotEditorProps): React.JSX.Elem
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </Button>
+
+          {/* A WARNING, not a validation error: overlapping classes are a
+              real situation (two commissions of the same subject, a slot you
+              still have to choose between), and the grid now draws both side
+              by side. So this informs and lets the form through — turning it
+              into an error would forbid a schedule the user legitimately
+              has. `col-span-full` drops it onto its own row under the
+              controls it belongs to. */}
+          {overlapsPerSlot[index]?.map((conflict) => (
+            <div
+              key={`${conflict.subjectName ?? 'self'}-${conflict.dayOfWeek}-${conflict.startMinutes}-${conflict.endMinutes}`}
+              role="status"
+              className="col-span-full flex items-center gap-2 rounded-md border border-warn bg-warn-soft px-3 py-2"
+            >
+              <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-warn" aria-hidden="true" />
+              <span className="text-caption font-semibold text-warn">
+                {t(conflict.subjectName === null ? 'slotEditor.overlapWithOwnSlot' : 'slotEditor.overlapWithSubject', {
+                  subject: conflict.subjectName,
+                  day: dayLabel(conflict.dayOfWeek),
+                  start: minutesToTime(conflict.startMinutes),
+                  end: minutesToTime(conflict.endMinutes)
+                })}
+              </span>
+            </div>
+          ))}
         </div>
       ))}
       <Button type="button" variant="outline" size="sm" onClick={addSlot} className="self-start">

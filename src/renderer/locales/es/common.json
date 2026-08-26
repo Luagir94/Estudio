@@ -52,7 +52,9 @@
     "endTime": "HORA DE FIN",
     "location": "LUGAR",
     "removeSlot": "Quitar horario",
-    "addSlot": "Agregar horario"
+    "addSlot": "Agregar horario",
+    "overlapWithSubject": "Se superpone con {{subject}} · {{day}} {{start}} – {{end}}",
+    "overlapWithOwnSlot": "Se superpone con otro horario de esta materia · {{day}} {{start}} – {{end}}"
   },
   "colorSwatchPicker": {
     "colorOption": "Color {{color}}",

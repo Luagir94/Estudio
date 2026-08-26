@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next'
 import { createSubjectInputSchema, type CreateSubjectInput } from '../../../shared/ipc/materias'
 import type { ProgramWithPeriods } from '../../../shared/ipc/carreras'
 import { SlotEditor } from '../../shared/components/SlotEditor'
+import type { BusySpan } from '../../shared/domain/slotOverlap'
 import { translateValidationMessage } from '../../shared/lib/translateValidationMessage'
 import { PeriodSelect } from './PeriodSelect'
 import { Button } from '../../shared/components/ui/button'
@@ -34,6 +35,8 @@ interface NuevaMateriaModalProps {
    * when omitted, matching the old dismiss-only behavior.
    */
   onGoToCarreras?: () => void
+  /** Hours other subjects already occupy, for the slot editor's overlap warning. */
+  busySlots?: BusySpan[]
   /** Programs with their periods, for the período picker. */
   programs?: ProgramWithPeriods[]
   /**
@@ -49,6 +52,7 @@ export function NuevaMateriaModal({
   onSubmit,
   onClose,
   onGoToCarreras,
+  busySlots = [],
   programs = [],
   defaultPeriodId = null
 }: NuevaMateriaModalProps): React.JSX.Element {
@@ -179,7 +183,7 @@ export function NuevaMateriaModal({
             <Controller
               name="slots"
               control={control}
-              render={({ field }) => <SlotEditor value={field.value} onChange={field.onChange} />}
+              render={({ field }) => <SlotEditor value={field.value} onChange={field.onChange} busySlots={busySlots} />}
             />
             {errors.slots && (
               <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.slots.message)}</p>

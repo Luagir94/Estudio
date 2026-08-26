@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import { EditarMateriaModal } from '../../materias/components/EditarMateriaModal'
+import { useBusySlots } from '../../materias/containers/useBusySlots'
 import { computeWeeklyMinutes } from '../../materias/domain/subjectDetail'
 import { attendsClasses, collectSubjectIds } from '../../materias/domain/subjectStatus'
 import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
@@ -70,6 +71,11 @@ export function HorarioContainer({ now = new Date() }: HorarioContainerProps = {
     }
   })
 
+  // Excludes the clicked subject: the modal already carries its own
+  // slots as editable rows, so counting the saved copy too would make
+  // every untouched row warn about itself.
+  const busySlots = useBusySlots(selectedSubjectId, now)
+
   const columns = projectWeek(attendingSubjects)
   const weeklyMinutes = computeWeeklyMinutes(attendingSubjects.flatMap((subject) => subject.slots))
 
@@ -103,6 +109,7 @@ export function HorarioContainer({ now = new Date() }: HorarioContainerProps = {
       {selectedSubject && (
         <EditarMateriaModal
           subject={selectedSubject}
+          busySlots={busySlots}
           initialTab="horario"
           onSubmit={(input) => updateMutation.mutate(input)}
           onClose={() => setSelectedSubjectId(null)}
