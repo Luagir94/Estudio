@@ -54,6 +54,18 @@ interface EditarMateriaModalProps {
   initialTab?: Tab
   /** Programs with their periods, for the período picker. */
   programs?: ProgramWithPeriods[]
+  /**
+   * Injection point for the CORRELATIVAS field (approved `.pen`: after
+   * REGULARIDAD, before the divider). `CorrelativasFieldContainer` owns its own
+   * mutations and IPC — this component only reserves the slot, exactly as
+   * `SubjectDetail` does for `parcialesSlot`/`apuntesSlot`.
+   *
+   * Its writes deliberately do NOT ride on this form's submit: correlativas
+   * have their own lifecycle and their own channels, the way parciales and
+   * mesas de final do, so a change there is applied when it is made rather
+   * than collected by "Guardar cambios".
+   */
+  correlativasSlot?: React.ReactNode
 }
 
 type Tab = 'general' | 'horario'
@@ -64,7 +76,8 @@ export function EditarMateriaModal({
   onClose,
   onDelete,
   initialTab = 'general',
-  programs = []
+  programs = [],
+  correlativasSlot
 }: EditarMateriaModalProps): React.JSX.Element {
   const { t } = useTranslation('materias')
   const [activeTab, setActiveTab] = useState<Tab>(initialTab)
@@ -289,6 +302,8 @@ export function EditarMateriaModal({
                   </>
                 )}
               />
+
+              {correlativasSlot}
 
               <div className="h-px w-full bg-border" />
 

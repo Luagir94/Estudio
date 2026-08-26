@@ -67,6 +67,13 @@ import type {
 } from '../shared/ipc/fechas'
 import type { CreateFinalExamInput, DeleteFinalExamResult, UpdateFinalExamInput } from '../shared/ipc/finales'
 import type { CreatePartialExamInput, DeletePartialExamResult, UpdatePartialExamInput } from '../shared/ipc/parciales'
+import type {
+  AddPrerequisiteInput,
+  DeletePrerequisiteResult,
+  PlannerEntryInput,
+  PlannerEntryRecord,
+  UpdatePrerequisiteInput
+} from '../shared/ipc/planificador'
 import type { WeekScheduleResult } from '../shared/ipc/horario'
 import type { DashboardResult } from '../shared/ipc/hoy'
 import type { IndexStatusChangedPayload, SyncResult } from '../shared/ipc/indexado'
@@ -80,6 +87,7 @@ import type {
   PartialExamRecord,
   SetSubjectOutcomeInput,
   SubjectDetailResult,
+  SubjectPrerequisite,
   SubjectWithSlots,
   SubjectWithStatus,
   UpdateSubjectScheduleInput
@@ -155,6 +163,23 @@ const api = {
       ipcRenderer.invoke('clases:saveNote', input),
     deleteNote: (input: ClassDayInput): Promise<IpcResult<ClassDayResult>> =>
       ipcRenderer.invoke('clases:deleteNote', input)
+  },
+  // Correlativas (writes only — they ride on `materias:list`/`materias:detail`
+  // the way marks ride on `materias:detail`) plus the próximo-período draft,
+  // which has no subject payload to ride on and so gets the one read channel.
+  // There is deliberately no "confirm" command: drafting is not enrolling.
+  planificador: {
+    list: (): Promise<IpcResult<PlannerEntryRecord[]>> => ipcRenderer.invoke('planificador:list'),
+    addPrerequisite: (input: AddPrerequisiteInput): Promise<IpcResult<SubjectPrerequisite>> =>
+      ipcRenderer.invoke('planificador:addPrerequisite', input),
+    updatePrerequisite: (input: UpdatePrerequisiteInput): Promise<IpcResult<SubjectPrerequisite>> =>
+      ipcRenderer.invoke('planificador:updatePrerequisite', input),
+    removePrerequisite: (id: number): Promise<IpcResult<DeletePrerequisiteResult>> =>
+      ipcRenderer.invoke('planificador:removePrerequisite', { id }),
+    addEntry: (input: PlannerEntryInput): Promise<IpcResult<PlannerEntryRecord>> =>
+      ipcRenderer.invoke('planificador:addEntry', input),
+    removeEntry: (input: PlannerEntryInput): Promise<IpcResult<PlannerEntryInput>> =>
+      ipcRenderer.invoke('planificador:removeEntry', input)
   },
   horario: {
     week: (): Promise<IpcResult<WeekScheduleResult>> => ipcRenderer.invoke('horario:week')

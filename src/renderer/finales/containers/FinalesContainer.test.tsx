@@ -52,7 +52,8 @@ describe('FinalesContainer', () => {
       period: null,
       program: null,
       finals: [],
-      pendingDeadlines: 0
+      pendingDeadlines: 0,
+      prerequisites: []
     })
   })
 
@@ -391,7 +392,8 @@ describe('FinalesContainer — dar por reprobada con aplazo', () => {
       period: null,
       program: null,
       finals: [],
-      pendingDeadlines: 0
+      pendingDeadlines: 0,
+      prerequisites: []
     })
   })
 

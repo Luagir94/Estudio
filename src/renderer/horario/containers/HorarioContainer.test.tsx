@@ -67,13 +67,14 @@ const sampleDetail: SubjectDetailResult = {
   finals: [],
   parciales: [],
   attendance: [],
-  classNotes: []
+  classNotes: [],
+  prerequisites: []
 }
 
 // The ['materias'] facts the container filters against (outcome, period
 // dates, finals) — the horario:week payload itself carries no period/finals.
 function makeFacts(subject: SubjectWithSlots, overrides: Partial<SubjectWithStatus> = {}): SubjectWithStatus {
-  return { ...subject, period: null, program: null, finals: [], pendingDeadlines: 0, ...overrides }
+  return { ...subject, period: null, program: null, finals: [], pendingDeadlines: 0, prerequisites: [], ...overrides }
 }
 
 function renderWithClient(ui: ReactNode) {

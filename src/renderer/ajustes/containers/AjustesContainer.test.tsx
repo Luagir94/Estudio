@@ -71,6 +71,14 @@ beforeEach(() => {
       getConversation: vi.fn(),
       deleteConversation: vi.fn()
     },
+    planificador: {
+      list: vi.fn(),
+      addPrerequisite: vi.fn(),
+      updatePrerequisite: vi.fn(),
+      removePrerequisite: vi.fn(),
+      addEntry: vi.fn(),
+      removeEntry: vi.fn()
+    },
     cli: {
       probe: vi.fn().mockResolvedValue({ ok: true, data: connectedStatus }),
       // Conectar COMMITS the field, so the connect path runs through here.

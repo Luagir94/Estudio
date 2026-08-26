@@ -86,6 +86,7 @@ function subject(overrides: Partial<SubjectWithStatus> & { id: number; name: str
     program: { id: 1, name: 'Abogacía', gradingScheme: 'numerico', gradeScale: 10 },
     finals: [],
     pendingDeadlines: 0,
+    prerequisites: [],
     ...overrides
   }
 }

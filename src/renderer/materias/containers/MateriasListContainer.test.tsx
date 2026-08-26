@@ -51,6 +51,7 @@ function subject(overrides: Partial<SubjectWithStatus> & { id: number; name: str
     program: numericProgram,
     finals: [],
     pendingDeadlines: 0,
+    prerequisites: [],
     ...overrides
   }
 }

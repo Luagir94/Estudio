@@ -26,6 +26,14 @@ describe('ajustesApi', () => {
           deleteConversation: vi.fn()
         },
         cli: { probe: vi.fn(), setOverride: vi.fn(), preferences: vi.fn(), disconnect: vi.fn(), models: vi.fn() },
+        planificador: {
+          list: vi.fn(),
+          addPrerequisite: vi.fn(),
+          updatePrerequisite: vi.fn(),
+          removePrerequisite: vi.fn(),
+          addEntry: vi.fn(),
+          removeEntry: vi.fn()
+        },
         theme: { getPreference: vi.fn(), setPreference: vi.fn() },
         materias: {
           create: vi.fn(),

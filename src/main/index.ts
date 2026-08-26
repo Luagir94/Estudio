@@ -38,6 +38,8 @@ import { createSqliteFinalExamRepository } from './finales/adapters/sqliteFinalE
 import { registerFinalesHandlers } from './finales/ipc/registerFinalesHandlers'
 import { createSqlitePartialExamRepository } from './parciales/adapters/sqlitePartialExamRepository'
 import { registerParcialesHandlers } from './parciales/ipc/registerParcialesHandlers'
+import { createSqlitePlannerRepository } from './planificador/adapters/sqlitePlannerRepository'
+import { registerPlanificadorHandlers } from './planificador/ipc/registerPlanificadorHandlers'
 import { registerEntregasHandlers } from './entregas/ipc/registerEntregasHandlers'
 import { registerHoyHandlers } from './hoy/ipc/registerHoyHandlers'
 import { createSqliteChunkStore } from './indexado/adapters/sqliteChunkStore'
@@ -142,6 +144,12 @@ async function bootstrap(): Promise<void> {
   // own their lifecycle, so — like final exams — they get their own
   // repository and command set rather than riding inside `carreras:*`.
   registerFechasHandlers(createSqliteAcademicDateRepository(db))
+  // Correlativas and the próximo-período draft. Its own repository even though
+  // `subjectRepository` READS the correlativa rows into the subject payloads:
+  // that read is a join, this is the lifecycle, and the same split already
+  // separates `clases:*`'s writes from the marks `materias:detail` carries.
+  // Not shared with anything else, so it is not held in a variable.
+  registerPlanificadorHandlers(createSqlitePlannerRepository(db))
   registerAppHandlers({ subjectRepository, deadlineRepository })
 
   // Attachment rows cascade-delete with their subject (PR1, pure FK); the

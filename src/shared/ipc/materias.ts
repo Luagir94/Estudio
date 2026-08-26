@@ -355,6 +355,69 @@ export const classNoteRecordSchema = z.object({
 
 export type ClassNoteRecord = z.infer<typeof classNoteRecordSchema>
 
+// How far the required subject has to have got for a correlativa to count as
+// met. Closed set, owned HERE and nowhere else — the column is plain text
+// (see db/schema.ts).
+//
+// TWO levels, not three: `regularizada` (the cátedra granted a condición, so
+// you may keep going) and `aprobada` (the materia is finished). There is no
+// "cursada" level, because this app has no fact for it that is not one of
+// those two.
+//
+// Declared in this module rather than in `shared/ipc/planificador.ts` for
+// exactly the reason `attendanceStatusSchema` is: the subject payloads carry
+// these rows, and planificador.ts already imports this module's result
+// envelope — declaring it there would close an import cycle.
+export const prerequisiteLevelSchema = z.enum(['regularizada', 'aprobada'], { error: 'requiredLevel.invalid' })
+
+export type PrerequisiteLevel = z.infer<typeof prerequisiteLevelSchema>
+
+// The correlativa as the LIST payload carries it: just the edge.
+//
+// A projection, exactly like `finals: [{ result }]` above. The list already
+// ships every subject's name, outcome, regularity and final results, so a
+// consumer resolving "is this requirement met" looks the required subject up
+// in the SAME array — denormalizing its state into every edge would ship the
+// same facts twice and give them two chances to disagree.
+export const subjectPrerequisiteEdgeSchema = z.object({
+  requiresSubjectId: z.number().int(),
+  requiredLevel: prerequisiteLevelSchema
+})
+
+export type SubjectPrerequisiteEdge = z.infer<typeof subjectPrerequisiteEdgeSchema>
+
+// The required subject as the DETAIL payload has to carry it: its name (the
+// CORRELATIVAS card prints it) plus the facts a requirement is judged
+// against.
+//
+// Facts, never a verdict. Whether the requirement is MET is a domain rule
+// (renderer/planificador/domain/requirements.ts, which reuses
+// `resolveFinalsVerdict`), and answering it in main would put a second copy
+// of that rule outside the domain — the same reason `gradedSubjectSchema`
+// in carreras.ts ships `hasApprovedFinal` instead of `passed`.
+export const prerequisiteSubjectSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  outcome: subjectOutcomeSchema.nullable(),
+  regularity: subjectRegularitySchema.nullable(),
+  finals: z.array(z.object({ result: finalExamResultSchema }))
+})
+
+export type PrerequisiteSubject = z.infer<typeof prerequisiteSubjectSchema>
+
+// FULL records for the detail payload, unlike the list's edge projection —
+// same split `finals` already makes, and for the same reason: this screen
+// names the required subject and its rows are individually removable, so it
+// needs the id and the name the edge alone cannot supply.
+export const subjectPrerequisiteSchema = z.object({
+  id: z.number().int(),
+  subjectId: z.number().int(),
+  requiredLevel: prerequisiteLevelSchema,
+  requires: prerequisiteSubjectSchema
+})
+
+export type SubjectPrerequisite = z.infer<typeof subjectPrerequisiteSchema>
+
 // Everything `resolveSubjectStatus` needs, and nothing more. The status
 // itself is NOT computed here: it depends on "today", which is a
 // rendering-time concern (same rule as the deadline buckets — baking it into
@@ -383,7 +446,16 @@ export const subjectWithStatusSchema = subjectWithSlotsSchema.extend({
    * Unlike the status, this needs no "now" — a deadline is open or done,
    * regardless of the date — so main can safely compute it.
    */
-  pendingDeadlines: z.number().int()
+  pendingDeadlines: z.number().int(),
+  /**
+   * This subject's correlativas, as EDGES (see
+   * `subjectPrerequisiteEdgeSchema`). They ride on the list because
+   * eligibility is a question asked about EVERY subject at once — the
+   * Planificador's whole left column is that question — and the list is
+   * already the payload carrying the state facts each edge is judged
+   * against.
+   */
+  prerequisites: z.array(subjectPrerequisiteEdgeSchema)
 })
 
 export type SubjectWithStatus = z.infer<typeof subjectWithStatusSchema>
@@ -418,7 +490,12 @@ export const subjectDetailSchema = subjectWithSlotsSchema.extend({
   // summarizes all of it and the APUNTES DE CLASE section lists all of it —
   // this is not a projection that could be narrowed to "recent".
   attendance: z.array(attendanceRecordSchema),
-  classNotes: z.array(classNoteRecordSchema)
+  classNotes: z.array(classNoteRecordSchema),
+  // Correlativas join the subject READ the same way finals, parciales and
+  // marks do: `planificador:*` owns their WRITES, and the two surfaces that
+  // show them — the CORRELATIVAS card and the field inside "Editar materia"
+  // — have both already fetched the subject.
+  prerequisites: z.array(subjectPrerequisiteSchema)
 })
 
 export type SubjectDetailResult = z.infer<typeof subjectDetailSchema>

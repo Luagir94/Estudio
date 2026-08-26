@@ -18,6 +18,7 @@ import { EntregasContainer } from './entregas/containers/EntregasContainer'
 import { HorarioContainer } from './horario/containers/HorarioContainer'
 import { HoyContainer } from './hoy/containers/HoyContainer'
 import { MateriasContainer } from './materias/containers/MateriasContainer'
+import { PlanificadorContainer } from './planificador/containers/PlanificadorContainer'
 import { appApi } from './shared/adapters/appApi'
 import { ErrorBoundary } from './shared/components/ErrorBoundary'
 import { Sidebar, type SidebarDomain } from './shared/components/Sidebar'
@@ -108,7 +109,9 @@ function Shell(): React.JSX.Element {
           canToggle={sidebar.canToggle}
         />
         <main className="min-w-0 flex-1 overflow-y-auto px-6 py-6 lg:px-10 lg:py-8">
-          {activeDomain === 'horario' ? (
+          {activeDomain === 'planificador' ? (
+            <PlanificadorContainer />
+          ) : activeDomain === 'horario' ? (
             <HorarioContainer />
           ) : activeDomain === 'entregas' ? (
             <EntregasContainer />

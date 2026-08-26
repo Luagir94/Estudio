@@ -59,6 +59,13 @@ import type {
   DeletePartialExamResult,
   UpdatePartialExamInput
 } from '../../shared/ipc/parciales'
+import type {
+  AddPrerequisiteInput,
+  DeletePrerequisiteResult,
+  PlannerEntryInput,
+  PlannerEntryRecord,
+  UpdatePrerequisiteInput
+} from '../../shared/ipc/planificador'
 import type { WeekScheduleResult } from '../../shared/ipc/horario'
 import type { DashboardResult } from '../../shared/ipc/hoy'
 import type { IndexStatusChangedPayload, SyncResult } from '../../shared/ipc/indexado'
@@ -72,6 +79,7 @@ import type {
   PartialExamRecord,
   SetSubjectOutcomeInput,
   SubjectDetailResult,
+  SubjectPrerequisite,
   SubjectWithSlots,
   SubjectWithStatus,
   UpdateSubjectScheduleInput
@@ -125,6 +133,19 @@ declare global {
         saveNote: (input: SaveClassNoteInput) => Promise<IpcResult<ClassNoteRecord>>
         /** Removes the apunte. Succeeds even if the class had none. */
         deleteNote: (input: ClassDayInput) => Promise<IpcResult<ClassDayResult>>
+      }
+      planificador: {
+        /** Every draft line, across every período — filtering is the screen's job. */
+        list: () => Promise<IpcResult<PlannerEntryRecord[]>>
+        /** Records the correlativa, or corrects its level if the pair already had one. */
+        addPrerequisite: (input: AddPrerequisiteInput) => Promise<IpcResult<SubjectPrerequisite>>
+        /** Changes only the level — re-pointing an edge is a remove plus an add. */
+        updatePrerequisite: (input: UpdatePrerequisiteInput) => Promise<IpcResult<SubjectPrerequisite>>
+        removePrerequisite: (id: number) => Promise<IpcResult<DeletePrerequisiteResult>>
+        /** Puts the materia in that período's draft. Idempotent, and never gated on eligibility. */
+        addEntry: (input: PlannerEntryInput) => Promise<IpcResult<PlannerEntryRecord>>
+        /** Takes it back out. Succeeds even if it was not in the draft. */
+        removeEntry: (input: PlannerEntryInput) => Promise<IpcResult<PlannerEntryInput>>
       }
       horario: {
         week: () => Promise<IpcResult<WeekScheduleResult>>

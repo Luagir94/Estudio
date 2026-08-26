@@ -38,6 +38,11 @@
     "SET_ATTENDANCE_FAILED": "No se pudo marcar la clase. Probá de nuevo.",
     "CLEAR_ATTENDANCE_FAILED": "No se pudo borrar la marca de la clase. Probá de nuevo.",
     "SAVE_NOTE_FAILED": "No se pudo guardar el apunte de la clase. Probá de nuevo.",
-    "DELETE_NOTE_FAILED": "No se pudo eliminar el apunte de la clase. Probá de nuevo."
+    "DELETE_NOTE_FAILED": "No se pudo eliminar el apunte de la clase. Probá de nuevo.",
+    "ADD_PREREQUISITE_FAILED": "No se pudo agregar la correlativa. Probá de nuevo.",
+    "UPDATE_PREREQUISITE_FAILED": "No se pudo cambiar la correlativa. Probá de nuevo.",
+    "REMOVE_PREREQUISITE_FAILED": "No se pudo quitar la correlativa. Probá de nuevo.",
+    "ADD_ENTRY_FAILED": "No se pudo agregar la materia al borrador. Probá de nuevo.",
+    "REMOVE_ENTRY_FAILED": "No se pudo sacar la materia del borrador. Probá de nuevo."
   }
 }

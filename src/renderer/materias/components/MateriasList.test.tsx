@@ -31,7 +31,8 @@ const base: SubjectWithStatus = {
   period: activePeriod,
   program: { id: 1, name: 'Abogacía', gradingScheme: 'numerico', gradeScale: 10 },
   finals: [],
-  pendingDeadlines: 0
+  pendingDeadlines: 0,
+  prerequisites: []
 }
 
 function renderList(subjects: SubjectWithStatus[], onSelect?: (id: number) => void) {

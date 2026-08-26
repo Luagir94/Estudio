@@ -54,7 +54,8 @@ const subject: SubjectDetailResult = {
   finals: [],
   parciales: [],
   attendance: [],
-  classNotes: []
+  classNotes: [],
+  prerequisites: []
 }
 
 // Spec's THEN reads "present anywhere in the app" — check the whole

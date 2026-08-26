@@ -74,7 +74,15 @@ const sampleData: DashboardResult = {
 // The ['materias'] facts the container filters against (outcome, period
 // dates, finals) — the hoy:dashboard payload itself carries no period/finals.
 function makeFacts(overrides: Partial<SubjectWithStatus> = {}): SubjectWithStatus {
-  return { ...sampleData.subjects[0]!, period: null, program: null, finals: [], pendingDeadlines: 1, ...overrides }
+  return {
+    ...sampleData.subjects[0]!,
+    period: null,
+    program: null,
+    finals: [],
+    pendingDeadlines: 1,
+    prerequisites: [],
+    ...overrides
+  }
 }
 
 function renderWithClient(ui: ReactNode) {

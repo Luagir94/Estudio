@@ -9,3 +9,8 @@ drizzle/migrations
 # Encrypted Pencil design files (see .gitattributes: never normalise these).
 design
 *.pen
+
+# Local agent tooling state, including git worktrees checked out under
+# .claude/worktrees. Nothing here is tracked, and a sibling checkout's files
+# are not ours to format (same reason eslint already ignores .atl/).
+.claude/

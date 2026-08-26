@@ -56,6 +56,29 @@
     "openGroup": "Abrir grupo del curso",
     "groupLinkFallback": "Chat del curso"
   },
+  "correlativas": {
+    "heading": "CORRELATIVAS",
+    "requiresAprobada": "Requiere aprobada",
+    "requiresRegularizada": "Requiere regularizada",
+    "met": "Cumplida",
+    "unmet": "Falta"
+  },
+  "correlativasField": {
+    "legend": "CORRELATIVAS",
+    "levelLabel": "Nivel de {{subject}}",
+    "levelAprobada": "Aprobada",
+    "levelRegularizada": "Regularizada",
+    "remove": "Quitar {{subject}} de las correlativas",
+    "empty": "Todavía no cargaste correlativas.",
+    "add": "Agregar correlativa",
+    "pickerSubject": "Materia correlativa",
+    "pickerPlaceholder": "Elegí una materia",
+    "pickerLevel": "Nivel requerido",
+    "pickerSubmit": "Agregar",
+    "noCandidates": "No queda ninguna materia que puedas poner como correlativa de esta.",
+    "noteStrong": "Definen si podés cursarla.",
+    "noteRest": " El planificador las usa para habilitar o bloquear la materia en el borrador del próximo período."
+  },
   "materiasEmptyState": {
     "title": "Todavía no cargaste materias",
     "subtitle": "Creá tu primera materia, o configurá antes tu carrera y período para organizar el cuatrimestre",

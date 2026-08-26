@@ -42,6 +42,13 @@
   "grade": {
     "outOfRange": "La nota tiene que estar dentro de la escala de la carrera"
   },
+  "requiredLevel": {
+    "invalid": "Elegí si la correlativa tiene que estar aprobada o regularizada"
+  },
+  "prerequisite": {
+    "selfReference": "Una materia no puede ser correlativa de sí misma",
+    "cycle": "Esa correlativa arma un círculo: las materias terminarían necesitándose entre sí y ninguna se podría cursar"
+  },
   "label": {
     "required": "Poné un nombre",
     "tooLong": "El nombre no puede superar los 200 caracteres"
