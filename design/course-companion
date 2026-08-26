@@ -27954,14 +27954,33 @@
                                           "letterSpacing": -0.1
                                         },
                                         {
-                                          "type": "text",
-                                          "id": "zp7PL",
+                                          "type": "frame",
+                                          "id": "XZPHo",
                                           "name": "Draft Meta",
-                                          "fill": "$text-muted",
-                                          "content": "Lun 18:00–21:00 · Mié 18:00–21:00",
-                                          "fontFamily": "$font-ui",
-                                          "fontSize": 11,
-                                          "fontWeight": "normal"
+                                          "width": "fill_container",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "D1y4nS",
+                                              "name": "Draft Slot",
+                                              "fill": "$text-muted",
+                                              "content": "Lun 18:00–21:00 · ",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 11,
+                                              "fontWeight": "normal"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "Q6KEs",
+                                              "name": "Draft Slot — Clashing",
+                                              "fill": "$warn",
+                                              "content": "Mié 18:00–21:00",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 11,
+                                              "fontWeight": "600"
+                                            }
+                                          ]
                                         }
                                       ]
                                     },
@@ -28069,7 +28088,7 @@
                                   "width": "fill_container",
                                   "fill": "$bg",
                                   "cornerRadius": 8,
-                                  "stroke": "$urgent",
+                                  "stroke": "$border",
                                   "strokeWidth": 1,
                                   "strokeAlignment": "inner",
                                   "padding": [
@@ -28101,7 +28120,7 @@
                                           "type": "text",
                                           "id": "QbhFR",
                                           "name": "Draft Meta",
-                                          "fill": "$urgent",
+                                          "fill": "$warn",
                                           "content": "Mié 19:00–22:00",
                                           "fontFamily": "$font-ui",
                                           "fontSize": 11,
@@ -28141,9 +28160,9 @@
                               "id": "z2QlP",
                               "name": "Clash Notice",
                               "width": "fill_container",
-                              "fill": "$urgent-soft",
+                              "fill": "$warn-soft",
                               "cornerRadius": 8,
-                              "stroke": "$urgent",
+                              "stroke": "$warn",
                               "strokeWidth": 1,
                               "strokeAlignment": "inner",
                               "gap": 12,
@@ -28157,7 +28176,7 @@
                                   "height": 16,
                                   "icon": "triangle-alert",
                                   "library": "lucide",
-                                  "fill": "$urgent"
+                                  "fill": "$warn"
                                 },
                                 {
                                   "type": "frame",
@@ -28191,6 +28210,16 @@
                                       "fontWeight": "normal"
                                     }
                                   ]
+                                },
+                                {
+                                  "type": "icon",
+                                  "id": "kJT31",
+                                  "name": "Overlap Dismiss",
+                                  "width": 16,
+                                  "height": 16,
+                                  "icon": "x",
+                                  "library": "lucide",
+                                  "fill": "$text-muted"
                                 }
                               ]
                             },
