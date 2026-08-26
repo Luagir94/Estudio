@@ -27,7 +27,11 @@ const sampleSubjectWithStatus = {
   period: null,
   program: null,
   finals: [],
-  pendingDeadlines: 0
+  pendingDeadlines: 0,
+  // Correlativas ride here as EDGES: the list already carries every subject's
+  // state facts, so a consumer judges a requirement by looking the required
+  // subject up in the same array.
+  prerequisites: []
 }
 
 const sampleDetail = {
@@ -38,7 +42,8 @@ const sampleDetail = {
   finals: [],
   parciales: [],
   attendance: [],
-  classNotes: []
+  classNotes: [],
+  prerequisites: []
 }
 
 describe('materiasApi', () => {
@@ -53,6 +58,14 @@ describe('materiasApi', () => {
           updateSchedule: vi.fn(),
           delete: vi.fn(),
           setOutcome: vi.fn()
+        },
+        planificador: {
+          list: vi.fn(),
+          addPrerequisite: vi.fn(),
+          updatePrerequisite: vi.fn(),
+          removePrerequisite: vi.fn(),
+          addEntry: vi.fn(),
+          removeEntry: vi.fn()
         },
         horario: { week: vi.fn() },
         fechas: { list: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },

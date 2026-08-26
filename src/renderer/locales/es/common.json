@@ -30,6 +30,7 @@
     "mainNavigation": "Navegación principal",
     "nav": {
       "hoy": "Hoy",
+      "planificador": "Planificador",
       "materias": "Materias",
       "horario": "Horario",
       "entregas": "Entregas",

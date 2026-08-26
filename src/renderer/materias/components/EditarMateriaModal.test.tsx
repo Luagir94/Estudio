@@ -28,7 +28,8 @@ const subject: SubjectDetailResult = {
   finals: [],
   parciales: [],
   attendance: [],
-  classNotes: []
+  classNotes: [],
+  prerequisites: []
 }
 
 describe('EditarMateriaModal', () => {
@@ -190,6 +191,35 @@ describe('EditarMateriaModal', () => {
       render(<EditarMateriaModal subject={subject} onSubmit={vi.fn()} onClose={vi.fn()} />)
 
       expect(screen.getByText(/La declarás vos/)).toBeInTheDocument()
+    })
+  })
+
+  // Correlativas ride in as a SLOT because their writes are their own
+  // (the `planificador:*` channels), not this form's submit — the same
+  // injection-point convention SubjectDetail uses for parciales and apuntes.
+  describe('correlativas slot', () => {
+    it('renders the injected field after REGULARIDAD and before the divider', () => {
+      render(
+        <EditarMateriaModal
+          subject={subject}
+          onSubmit={vi.fn()}
+          onClose={vi.fn()}
+          correlativasSlot={<div data-testid="correlativas-slot" />}
+        />
+      )
+
+      const regularidad = screen.getByText('REGULARIDAD')
+      const slot = screen.getByTestId('correlativas-slot')
+      const docente = screen.getByText('DOCENTE')
+
+      expect(regularidad.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(slot.compareDocumentPosition(docente) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('renders nothing extra when no slot is injected', () => {
+      render(<EditarMateriaModal subject={subject} onSubmit={vi.fn()} onClose={vi.fn()} />)
+
+      expect(screen.queryByTestId('correlativas-slot')).not.toBeInTheDocument()
     })
   })
 

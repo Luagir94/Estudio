@@ -46,6 +46,7 @@ import { useBusySlots } from './useBusySlots'
 import { SubjectDetail } from '../components/SubjectDetail'
 import { FinalesContainer } from '../../finales/containers/FinalesContainer'
 import { ParcialesContainer } from '../../parciales/containers/ParcialesContainer'
+import { CorrelativasFieldContainer } from '../../planificador/containers/CorrelativasFieldContainer'
 
 interface SubjectDetailContainerProps {
   subjectId: number
@@ -213,6 +214,11 @@ export function SubjectDetailContainer({
           subject={data}
           busySlots={busySlots}
           programs={programs ?? []}
+          // Correlativas are written through `planificador:*`, not through this
+          // form's submit — their own lifecycle, their own channels, exactly
+          // like parciales and mesas de final. The container below owns those
+          // mutations; the modal only reserves the slot.
+          correlativasSlot={<CorrelativasFieldContainer subjectId={subjectId} prerequisites={data.prerequisites} />}
           onSubmit={(input) => updateMutation.mutate(input)}
           onClose={() => setIsEditOpen(false)}
           onDelete={() => {

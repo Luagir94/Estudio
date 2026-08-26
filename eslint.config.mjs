@@ -22,6 +22,7 @@ export default tseslint.config(
       'test-results/',
       'playwright-report/',
       '.atl/',
+      '.claude/',
       'design/',
       'drizzle/migrations/',
       '**/*.pen'

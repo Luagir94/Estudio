@@ -54,7 +54,12 @@ const COPY = {
   SET_ATTENDANCE_FAILED: i18n.t('errors:codes.SET_ATTENDANCE_FAILED'),
   CLEAR_ATTENDANCE_FAILED: i18n.t('errors:codes.CLEAR_ATTENDANCE_FAILED'),
   SAVE_NOTE_FAILED: i18n.t('errors:codes.SAVE_NOTE_FAILED'),
-  DELETE_NOTE_FAILED: i18n.t('errors:codes.DELETE_NOTE_FAILED')
+  DELETE_NOTE_FAILED: i18n.t('errors:codes.DELETE_NOTE_FAILED'),
+  ADD_PREREQUISITE_FAILED: i18n.t('errors:codes.ADD_PREREQUISITE_FAILED'),
+  UPDATE_PREREQUISITE_FAILED: i18n.t('errors:codes.UPDATE_PREREQUISITE_FAILED'),
+  REMOVE_PREREQUISITE_FAILED: i18n.t('errors:codes.REMOVE_PREREQUISITE_FAILED'),
+  ADD_ENTRY_FAILED: i18n.t('errors:codes.ADD_ENTRY_FAILED'),
+  REMOVE_ENTRY_FAILED: i18n.t('errors:codes.REMOVE_ENTRY_FAILED')
 } as const satisfies Record<string, string>
 
 export type KnownIpcErrorCode = keyof typeof COPY

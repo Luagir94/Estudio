@@ -42,6 +42,14 @@ describe('hoyApi', () => {
     globalThis.window = {
       api: {
         hoy: { dashboard: vi.fn() },
+        planificador: {
+          list: vi.fn(),
+          addPrerequisite: vi.fn(),
+          updatePrerequisite: vi.fn(),
+          removePrerequisite: vi.fn(),
+          addEntry: vi.fn(),
+          removeEntry: vi.fn()
+        },
         horario: { week: vi.fn() },
         fechas: { list: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
         carreras: {

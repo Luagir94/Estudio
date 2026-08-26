@@ -25,6 +25,11 @@ import type { DeadlineUrgency } from '../../entregas/domain/deadline'
 // leave BOTH sides of the ratio, and "no marks yet" is a state, not a 0%.
 import { summarizeAttendance } from '../../clases/domain/attendance'
 import { groupLinkLabel } from '../domain/groupLink'
+// The CORRELATIVAS card belongs to the planificador slice even though it is
+// drawn here: the "cumplida / falta" verdict is that feature's own rule, and
+// one implementation of it is what keeps this card and the Planificador's
+// habilitada/bloqueada badges from ever disagreeing about the same materia.
+import { CorrelativasCard } from '../../planificador/components/CorrelativasCard'
 import { RegularityBadge } from './RegularityBadge'
 import type { SubjectDetailResult } from '../../../shared/ipc/materias'
 import { Button } from '../../shared/components/ui/button'
@@ -513,6 +518,12 @@ export function SubjectDetail({
               )}
             </div>
           </div>
+
+          {/* After the Cátedra card and molded on it (approved `.pen`). It
+              renders nothing at all when the materia has no correlativas —
+              a heading over a blank would be one more card in a column that
+              is already six tall. */}
+          <CorrelativasCard prerequisites={subject.prerequisites} />
         </div>
       </div>
     </section>

@@ -524,7 +524,8 @@ describe('CarreraDetailContainer — editar y eliminar períodos', () => {
         period: { id: 1, name: '1er cuatrimestre', startsOn: '2026-03-09', endsOn: '2026-07-18' },
         program: { id: 1, name: 'Abogacía', gradingScheme: 'numerico', gradeScale: 10 },
         finals: [],
-        pendingDeadlines: 0
+        pendingDeadlines: 0,
+        prerequisites: []
       } satisfies SubjectWithStatus
     ])
     renderDetail()
@@ -1071,6 +1072,7 @@ describe('CarreraDetailContainer — materias de la carrera', () => {
       program: { id: 1, name: 'Abogacía', gradingScheme: 'numerico', gradeScale: 10 },
       finals: [],
       pendingDeadlines: 0,
+      prerequisites: [],
       ...overrides
     }
   }

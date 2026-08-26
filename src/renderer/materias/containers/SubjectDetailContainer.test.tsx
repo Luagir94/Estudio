@@ -182,7 +182,8 @@ const sampleDetail: SubjectDetailResult = {
   finals: [],
   parciales: [],
   attendance: [],
-  classNotes: []
+  classNotes: [],
+  prerequisites: []
 }
 
 function renderWithClient(ui: ReactNode) {
@@ -205,7 +206,10 @@ describe('SubjectDetailContainer', () => {
       outcome: 'aprobada',
       grade: 7,
       finals: [],
-      pendingDeadlines: 0
+      pendingDeadlines: 0,
+      // The LIST payload carries edges, not the detail's full records — the
+      // spread above would otherwise hand this the wrong shape.
+      prerequisites: []
     })
     vi.mocked(appApi.openExternal).mockResolvedValue(undefined)
     vi.mocked(entregasApi.create).mockResolvedValue({

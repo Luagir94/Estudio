@@ -12,12 +12,18 @@ import type {
   SetSubjectOutcomeInput,
   SubjectOutcome,
   SubjectPeriod,
+  SubjectPrerequisite,
   SubjectProgram,
   SubjectRegularity,
   SubjectWithStatus,
   UpdateSubjectScheduleInput
 } from '../../../shared/ipc/materias'
 import { toAttendanceRecord } from '../../clases/adapters/sqliteClaseRepository'
+// Correlativas are WRITTEN through `planificador:*` and READ here, on the
+// subject payloads — the same split `clases:*` already makes. Both helpers are
+// imported rather than restated so the level guard and the fact-only
+// composition can never drift from the ones the write path applies.
+import { composePrerequisites, toPrerequisiteLevel } from '../../planificador/adapters/sqlitePlannerRepository'
 import type { AppDatabase } from '../../db/connection'
 import {
   attendanceRecords,
@@ -28,6 +34,7 @@ import {
   periods,
   programs,
   scheduleSlots,
+  subjectPrerequisites,
   subjects
 } from '../../db/schema'
 
@@ -71,6 +78,7 @@ export interface SubjectWithDetail extends SubjectWithSlots {
   parciales: PartialExamRecord[]
   attendance: AttendanceRecord[]
   classNotes: ClassNoteRecord[]
+  prerequisites: SubjectPrerequisite[]
 }
 
 export interface DeleteSubjectResult {
@@ -170,6 +178,12 @@ function listWithStatus(db: AppDatabase): SubjectWithStatus[] {
 
   const allPrograms = db.select().from(programs).all()
   const openDeadlines = db.select().from(deadlines).where(eq(deadlines.done, false)).all()
+  // EDGES only here — no names, no required-subject state. This payload
+  // already carries every subject's name, outcome, regularity and final
+  // results, so a consumer resolves a requirement by looking the required
+  // subject up in the SAME array. Denormalizing those facts into each edge
+  // would ship them twice and give them two chances to disagree.
+  const allPrerequisites = db.select().from(subjectPrerequisites).all()
 
   const periodsById = new Map<number, SubjectPeriod>(
     allPeriods.map((period) => [
@@ -203,7 +217,13 @@ function listWithStatus(db: AppDatabase): SubjectWithStatus[] {
     finals: allFinals
       .filter((final) => final.subjectId === subject.id)
       .map((final) => ({ result: toFinalResult(final.result) })),
-    pendingDeadlines: openDeadlines.filter((deadline) => deadline.subjectId === subject.id).length
+    pendingDeadlines: openDeadlines.filter((deadline) => deadline.subjectId === subject.id).length,
+    prerequisites: allPrerequisites
+      .filter((prerequisite) => prerequisite.subjectId === subject.id)
+      .map((prerequisite) => ({
+        requiresSubjectId: prerequisite.requiresSubjectId,
+        requiredLevel: toPrerequisiteLevel(prerequisite.requiredLevel)
+      }))
   }))
 }
 
@@ -315,7 +335,14 @@ export function createSqliteSubjectRepository(db: AppDatabase): SubjectRepositor
           .where(eq(attendanceRecords.subjectId, id))
           .all()
           .map(toAttendanceRecord),
-        classNotes: db.select().from(classNotes).where(eq(classNotes.subjectId, id)).all()
+        classNotes: db.select().from(classNotes).where(eq(classNotes.subjectId, id)).all(),
+        // FULL records here, unlike the list's edge projection: the
+        // CORRELATIVAS card prints the required materia's NAME and the edit
+        // field removes rows by id — neither of which an edge can supply.
+        prerequisites: composePrerequisites(
+          db,
+          db.select().from(subjectPrerequisites).where(eq(subjectPrerequisites.subjectId, id)).all()
+        )
       }
     },
     updateSchedule(input) {

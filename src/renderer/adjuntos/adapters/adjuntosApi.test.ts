@@ -52,6 +52,14 @@ describe('adjuntosApi', () => {
         parciales: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
         clases: { setAttendance: vi.fn(), clearAttendance: vi.fn(), saveNote: vi.fn(), deleteNote: vi.fn() },
         entregas: { create: vi.fn(), list: vi.fn(), update: vi.fn(), setDone: vi.fn(), delete: vi.fn() },
+        planificador: {
+          list: vi.fn(),
+          addPrerequisite: vi.fn(),
+          updatePrerequisite: vi.fn(),
+          removePrerequisite: vi.fn(),
+          addEntry: vi.fn(),
+          removeEntry: vi.fn()
+        },
         theme: { getPreference: vi.fn(), setPreference: vi.fn() },
         app: { openExternal: vi.fn(), exportJson: vi.fn(), onExportRequested: vi.fn() },
         ask: {

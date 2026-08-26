@@ -56,7 +56,8 @@ const sampleDetail: SubjectWithDetail = {
   finals: [],
   parciales: [],
   attendance: [],
-  classNotes: []
+  classNotes: [],
+  prerequisites: []
 }
 
 describe('registerMateriasHandlers', () => {

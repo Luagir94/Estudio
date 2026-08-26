@@ -36,7 +36,8 @@ const baseSubject: SubjectDetailResult = {
   finals: [],
   parciales: [],
   attendance: [],
-  classNotes: []
+  classNotes: [],
+  prerequisites: []
 }
 
 describe('SubjectDetail (read-only)', () => {
@@ -654,5 +655,53 @@ describe('SubjectDetail — parciales slot', () => {
 
     expect(entregas.compareDocumentPosition(parciales) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(parciales.compareDocumentPosition(notas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
+
+// The card itself is covered in `planificador/components/CorrelativasCard.test.tsx`;
+// these two pin the WIRING — that this screen hands it the detail payload's
+// rows, and that it sits after the Cátedra card in the right column.
+describe('SubjectDetail — correlativas card', () => {
+  function renderDetail(subject: SubjectDetailResult) {
+    return render(
+      <SubjectDetail
+        subject={subject}
+        nextClass={null}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenExternalUrl={vi.fn()}
+        onBack={vi.fn()}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+      />
+    )
+  }
+
+  it('renders no card at all when the materia has no correlativas', () => {
+    renderDetail({ ...baseSubject, prerequisites: [] })
+
+    expect(screen.queryByText('CORRELATIVAS')).not.toBeInTheDocument()
+  })
+
+  it('renders the card after the Cátedra card once there is one', () => {
+    renderDetail({
+      ...baseSubject,
+      prerequisites: [
+        {
+          id: 1,
+          subjectId: 1,
+          requiredLevel: 'aprobada',
+          requires: { id: 2, name: 'Álgebra I', outcome: 'aprobada', regularity: null, finals: [] }
+        }
+      ]
+    })
+
+    const catedra = screen.getByText('Docente')
+    const correlativas = screen.getByText('CORRELATIVAS')
+
+    expect(screen.getByText('Álgebra I')).toBeInTheDocument()
+    expect(screen.getByText('Cumplida')).toBeInTheDocument()
+    expect(catedra.compareDocumentPosition(correlativas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })

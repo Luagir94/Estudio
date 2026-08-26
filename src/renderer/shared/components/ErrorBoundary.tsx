@@ -5,17 +5,20 @@
 //
 // A CLASS component on purpose: error boundaries are the one React feature
 // with no hook equivalent (`getDerivedStateFromError` only exists on
-// classes), which also means no `useTranslation` — the singleton `i18n`
-// instance is consulted directly instead, same precedent as
-// `shared/lib/ipcErrorCopy.ts`. Safe because i18n init is synchronous and
-// the app is es-only, so there is no language change to re-render for.
+// classes).
+//
+// It is no longer the only boundary in the app. The router installs its own
+// around each routed screen, so a throw inside a screen is caught THERE and
+// never reaches this one; this boundary now covers what sits above the
+// router — the providers, the router itself, and the Shell. Both render the
+// same `CrashFallback`, so which one caught it is invisible to the user.
 //
 // The caught error is deliberately NOT logged: the renderer has no logging
 // path (repo hygiene bans console.* in source, and the preload bridge
 // exposes no log channel). React's dev overlay still reports it during
 // development.
 import { Component, type ReactNode } from 'react'
-import i18n from '../../i18n'
+import { CrashFallback } from './CrashFallback'
 
 interface ErrorBoundaryProps {
   children: ReactNode
@@ -34,15 +37,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   render(): ReactNode {
     if (this.state.hasError) {
-      return (
-        <div
-          role="alert"
-          className="flex h-screen w-full flex-col items-center justify-center gap-2 bg-background px-6 text-center"
-        >
-          <h1 className="font-display text-heading font-bold text-foreground">{i18n.t('errors:boundary.title')}</h1>
-          <p className="text-body-lg text-destructive">{i18n.t('errors:boundary.body')}</p>
-        </div>
-      )
+      return <CrashFallback />
     }
 
     return this.props.children

@@ -26,6 +26,14 @@ describe('horarioApi', () => {
     // @ts-expect-error -- test-only global bridge stub, no full Electron preload context
     globalThis.window = {
       api: {
+        planificador: {
+          list: vi.fn(),
+          addPrerequisite: vi.fn(),
+          updatePrerequisite: vi.fn(),
+          removePrerequisite: vi.fn(),
+          addEntry: vi.fn(),
+          removeEntry: vi.fn()
+        },
         horario: { week: vi.fn() },
         fechas: { list: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
         hoy: { dashboard: vi.fn() },

@@ -151,6 +151,86 @@ export const subjects = sqliteTable('subjects', {
   regularity: text('regularity')
 })
 
+// One correlativa: `subject_id` may not be cursada until
+// `requires_subject_id` has reached `required_level`.
+//
+// An EDGE TABLE, not a column on `subjects`: a materia can require several
+// others, at different levels, and a comma-separated column would be a list
+// this schema cannot cascade, index or join. Both ends cascade — a deleted
+// materia takes with it both the requirements it HAD and the requirements
+// other subjects placed ON it, because a rule naming a row that no longer
+// exists is not a rule, it is a dangling reference the planner would have to
+// guess about.
+//
+// UNIQUE on `(subject_id, requires_subject_id)`: a subject requires another
+// ONE time, at ONE level. "Regularizada AND aprobada" is not two rules, it is
+// a contradiction — aprobada already implies regularizada
+// (renderer/planificador/domain/requirements.ts states that implication), so
+// the stronger of the two is the only one worth storing.
+//
+// `required_level` is the closed set 'regularizada' | 'aprobada', ZOD-OWNED
+// (shared/ipc/planificador.ts) — plain text with no CHECK constraint and no
+// enum table, the same policy every other closed set in this schema follows
+// (`subjects.outcome`, `deadlines.type`, `finalExams.result`,
+// `academicDates.kind`, `attendanceRecords.status`).
+//
+// Note what is NOT enforced here: acyclicity. SQLite cannot express "this
+// edge must not close a cycle", and a trigger that tried would be a second,
+// untestable copy of a rule the pure `wouldCreateCycle` in
+// `shared/domain/prerequisiteGraph.ts` already owns for BOTH the write path
+// (main's handler) and the picker that never offers the edge in the first
+// place.
+export const subjectPrerequisites = sqliteTable(
+  'subject_prerequisites',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    // The subject that HAS the requirement.
+    subjectId: integer('subject_id')
+      .notNull()
+      .references(() => subjects.id, { onDelete: 'cascade' }),
+    // The subject that IS the requirement.
+    requiresSubjectId: integer('requires_subject_id')
+      .notNull()
+      .references(() => subjects.id, { onDelete: 'cascade' }),
+    requiredLevel: text('required_level').notNull()
+  },
+  (table) => [uniqueIndex('subject_prerequisites_pair_unique').on(table.subjectId, table.requiresSubjectId)]
+)
+
+// One line of the próximo-período DRAFT: "I am thinking of cursando this
+// materia in that período".
+//
+// The draft is PERSISTED, and that is the whole point — a plan you lose on
+// restart is not a plan, it is a scratchpad. It is also the reason this is a
+// table and not `subjects.period_id`: putting a subject in the draft must not
+// touch the subject at all.
+//
+// There is deliberately NO "confirmar" action anywhere in this feature — no
+// command writes `subjects.period_id` from these rows, and the approved design
+// draws no such button. Turning a draft into a real enrolment is a separate
+// decision the student makes with the institution, not a checkbox in this app:
+// the planner tells you what you COULD take and what would collide, and stops
+// there. If a confirm step is ever wanted it is a new command with its own
+// design, not a behaviour to be quietly grown out of this table.
+//
+// UNIQUE on `(period_id, subject_id)`: a materia is in a período's draft or it
+// is not — there is no "twice". Both ends cascade: deleting the período
+// destroys the draft written for it (the draft is ABOUT that período and means
+// nothing without it), and deleting the materia removes it from every draft.
+export const plannerEntries = sqliteTable(
+  'planner_entries',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    periodId: integer('period_id')
+      .notNull()
+      .references(() => periods.id, { onDelete: 'cascade' }),
+    subjectId: integer('subject_id')
+      .notNull()
+      .references(() => subjects.id, { onDelete: 'cascade' })
+  },
+  (table) => [uniqueIndex('planner_entries_period_subject_unique').on(table.periodId, table.subjectId)]
+)
+
 // One parcial or recuperatorio of a cursada ("1er parcial", "Recuperatorio
 // 1"). Owned by the subject and cascade-deleted with it, same rule as
 // schedule_slots, deadlines and final_exams.

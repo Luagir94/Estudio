@@ -89,6 +89,7 @@ function makeFacts(overrides: Partial<SubjectWithStatus> = {}): SubjectWithStatu
     program: null,
     finals: [],
     pendingDeadlines: 1,
+    prerequisites: [],
     ...overrides
   }
 }
