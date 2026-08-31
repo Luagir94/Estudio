@@ -4,6 +4,7 @@ import {
   type Attachment,
   type AddAttachmentsResult,
   addAttachmentsInputSchema,
+  createMarkdownDocumentInputSchema,
   deleteAttachmentInputSchema,
   type DeleteAttachmentResult,
   ipcErr,
@@ -16,7 +17,11 @@ import {
   type ReadAttachmentTextResult,
   writeAttachmentTextInputSchema
 } from '../../../shared/ipc/adjuntos'
-import { ADJUNTOS_READ_CHANNEL, ADJUNTOS_WRITE_CHANNEL } from '../../../shared/ipc/channels'
+import {
+  ADJUNTOS_CREATE_DOCUMENT_CHANNEL,
+  ADJUNTOS_READ_CHANNEL,
+  ADJUNTOS_WRITE_CHANNEL
+} from '../../../shared/ipc/channels'
 import mainI18n from '../../i18n'
 import type { AttachmentStorage } from '../adapters/fileAttachmentStorage'
 import type { AttachmentRecord, AttachmentRepository } from '../adapters/sqliteAttachmentRepository'
@@ -30,7 +35,11 @@ interface RegisterAdjuntosHandlersDeps {
   repository: AttachmentRepository
   service: AttachmentService
   storage: AttachmentStorage
-  /** Only used to answer "does this subject exist?" for `adjuntos:add` — the full `SubjectRepository` satisfies this. */
+  /**
+   * Only used to answer "does this subject exist?" for the two channels that
+   * create an attachment (`adjuntos:add` and `adjuntos:create-document`) —
+   * the full `SubjectRepository` satisfies this.
+   */
   subjectRepository: SubjectExistenceCheck
 }
 
@@ -117,6 +126,32 @@ export function registerAdjuntosHandlers({
     } catch (error) {
       log.error('adjuntos:add failed', error)
       return ipcErr('ADD_FAILED', error instanceof Error ? error.message : 'Unknown error')
+    }
+  })
+
+  // "Nuevo documento" — the only channel that mints a markdown attachment
+  // from nothing but a name. Guarded by the same subject-existence check as
+  // `adjuntos:add`: both create a row, and a row for a subject that is not
+  // there is a file nothing will ever list or clean up.
+  ipcMain.handle(ADJUNTOS_CREATE_DOCUMENT_CHANNEL, async (_event, payload): Promise<IpcResult<Attachment>> => {
+    const parsed = parsePayload(createMarkdownDocumentInputSchema, payload)
+    if (!parsed.ok) {
+      return parsed.failure
+    }
+
+    if (!subjectRepository.detail(parsed.data.subjectId)) {
+      return ipcErr('NOT_FOUND', `No subject with id ${parsed.data.subjectId}`)
+    }
+
+    try {
+      const result = await service.createMarkdownDocument(parsed.data.subjectId, parsed.data.name)
+      if (!result.ok) {
+        return ipcErr(result.code, result.message)
+      }
+      return ipcOk(toAttachment(result.attachment))
+    } catch (error) {
+      log.error(`${ADJUNTOS_CREATE_DOCUMENT_CHANNEL} failed`, error)
+      return ipcErr('WRITE_FAILED', error instanceof Error ? error.message : 'Unknown error')
     }
   })
 

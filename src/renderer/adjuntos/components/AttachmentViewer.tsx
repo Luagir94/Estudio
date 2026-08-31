@@ -163,7 +163,17 @@ export function AttachmentViewer({
                 {extension}
               </span>
             </span>
-            <h2 className="truncate font-display text-heading font-semibold text-foreground">{attachment.fileName}</h2>
+            {/* Wraps, never clips. The design's `File Name` node is
+                `textGrowth: auto` — it was never drawn with an ellipsis — and
+                this screen is where the name runs out of places to be shown:
+                the viewer IS the detail view, so a `…` here is the point the
+                full file name stops existing in the app. Two revisions of the
+                same apunte are told apart by their tail, which is exactly what
+                a truncation eats. The header row already wraps, so a long name
+                grows it instead of pushing the meta out. */}
+            <h2 className="font-display text-heading font-semibold break-words text-foreground">
+              {attachment.fileName}
+            </h2>
           </div>
 
           <div className="flex items-center gap-2.5">

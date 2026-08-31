@@ -48,7 +48,8 @@ beforeEach(() => {
       open: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
       remove: vi.fn(),
       read: vi.fn().mockResolvedValue({ ok: true, data: { content: '# Resumen unidad 3' } }),
-      write: vi.fn().mockResolvedValue({ ok: true, data: { ...sampleAttachment, indexStatus: 'pending' } })
+      write: vi.fn().mockResolvedValue({ ok: true, data: { ...sampleAttachment, indexStatus: 'pending' } }),
+      createDocument: vi.fn()
     },
     indexado: {
       sync: vi.fn(),

@@ -1,19 +1,33 @@
-// Presentational, READ-ONLY (design §4, node `TYFvB` — verified via the
-// Pencil MCP tools; spec "Read-Model Only Detail View"): this screen carries
-// exactly three write affordances — the "Editar materia" button (`onEdit`),
-// the "Cerrar materia" button (`onCloseSubject`) and the ENTREGAS section
-// header's "Agregar entrega" button (`onAddEntrega`, amendment 8, design node
-// `l4Wr1F`) — plus the back link (`onBack`); every field here is otherwise
-// non-editable, and campusUrl/groupUrl are opened via `onOpenExternalUrl`
-// (backed by `api.app.openExternal`), never a raw `<a href>`.
+// Presentational, READ-ONLY (design nodes `TYFvB` / `m0BYl` / `Z12LY` —
+// verified via the Pencil MCP tools; spec "Read-Model Only Detail View").
 //
-// Design is a TWO-COLUMN layout: left column = horario semanal / entregas /
-// notas, right column = próxima clase / progreso / stats / cátedra. The
-// "ENTREGAS" list renders `subject.deadlines` — real data already fetched
-// by `materias:detail` (used before this pass only for the progreso count),
-// not a fabricated list; status pills are computed from the real `dueAt`/
-// `done` fields, never invented.
-import { ChevronLeft, CircleCheck, ExternalLink, MapPin, Pencil, Plus } from 'lucide-react'
+// The left column used to STACK every section — horario, entregas, parciales,
+// notas, apuntes, adjuntos — one under the other. Six sections on screen at
+// once meant six section actions on screen at once, which is what made this
+// the busiest surface in the app: seventeen controls, four of them competing
+// primaries. Demoting them was not enough, because the count never moved.
+//
+// So one section shows at a time. HORARIO SEMANAL stays pinned (it has no
+// action and it answers the screen's dominant question together with "Próxima
+// clase"); the rest became tabs — four, not five, because APUNTES and ADJUNTOS
+// were one list drawn twice (a class apunte IS an attachment; only `classDate`
+// ever told them apart). The ACTIVE tab's action is the
+// only section action drawn — at the right end of the tab row itself
+// (`SubjectDetailTabs`). Actions whose state lives in another slice's
+// container reach that row through `TabActionSlot` rather than being hoisted
+// out of the slice that owns them.
+//
+// The header keeps exactly one solid action, "Cerrar materia"
+// (`onCloseSubject`) — still the ONLY place an outcome can be recorded.
+// "Editar materia" and "Eliminar materia" moved into the `⋯` menu
+// (`SubjectActionsMenu`); deleting used to be reachable only from inside the
+// edit modal's footer.
+//
+// Everything here is otherwise non-editable, and campusUrl/groupUrl are
+// opened via `onOpenExternalUrl` (backed by `api.app.openExternal`), never a
+// raw `<a href>`.
+import { useState } from 'react'
+import { ChevronLeft, CircleCheck, ExternalLink, MapPin, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
 // Deadline status wording is owned by the entregas domain. This screen used to
@@ -31,6 +45,9 @@ import { groupLinkLabel } from '../domain/groupLink'
 // habilitada/bloqueada badges from ever disagreeing about the same materia.
 import { CorrelativasCard } from '../../planificador/components/CorrelativasCard'
 import { RegularityBadge } from './RegularityBadge'
+import { SubjectActionsMenu } from './SubjectActionsMenu'
+import { panelIdFor, SubjectDetailTabs, type SubjectDetailTabId } from './SubjectDetailTabs'
+import { TabActionSlotProvider } from '../../shared/components/tabActionSlot'
 import type { SubjectDetailResult } from '../../../shared/ipc/materias'
 import { Button } from '../../shared/components/ui/button'
 import { cn } from '../../shared/lib/cn'
@@ -47,10 +64,21 @@ interface SubjectDetailProps {
   weeklyMinutes: number
   /** Reference instant for "Próxima clase" and entrega due-date formatting. Defaults to the real clock. */
   now?: Date
+  /** Which section the left column is showing. Owned by the container, like the Materias list filter. */
+  activeTab: SubjectDetailTabId
+  onSelectTab: (tab: SubjectDetailTabId) => void
+  /**
+   * Count for the APUNTES tab — class apuntes AND uploaded files, because
+   * they are one list. It cannot be read off `subject`: the list is the
+   * adjuntos slice's own query, so the container reads that same cache.
+   */
+  apuntesCount: number
   /** Opens an external https link (Campus / Grupo rows) via main's allowlisted `shell.openExternal`. */
   onOpenExternalUrl: (url: string) => void
   onBack: () => void
   onEdit: () => void
+  /** Opens the delete confirmation — reachable from the header's `⋯`, not only from inside the edit form. */
+  onDelete: () => void
   /** Opens deadline creation, fixed to this subject (amendment 8 — the ONLY entry point for creating a deadline). */
   onAddEntrega: () => void
   /**
@@ -61,27 +89,14 @@ interface SubjectDetailProps {
    */
   onCloseSubject: () => void
   /**
-   * Injection point for the ADJUNTOS section (design: left column,
-   * immediately after NOTAS). `AdjuntosContainer` owns its own data fetching
-   * and IPC — this presentational component only reserves its slot, the same
-   * way `SubjectDetailContainer` composes other cross-domain containers
-   * (`FinalesContainer`) without this component importing them directly.
-   */
-  adjuntosSlot?: React.ReactNode
-  /**
-   * Injection point for the PARCIALES section (approved design: left column,
-   * between ENTREGAS and NOTAS). `ParcialesContainer` owns its own mutations
-   * and IPC — this presentational component only reserves its slot, exactly
-   * as it does for `adjuntosSlot`.
-   */
-  parcialesSlot?: React.ReactNode
-  /**
-   * Injection point for the APUNTES DE CLASE section (approved design: left
-   * column, between NOTAS and ADJUNTOS). `ApuntesContainer` owns the class
-   * dialog and its mutations — this presentational component only reserves
-   * the slot, exactly as it does for `adjuntosSlot`/`parcialesSlot`.
+   * Injection point for the APUNTES panel — `AdjuntosContainer`, which lists
+   * class apuntes and uploaded files together. It owns its own data fetching,
+   * IPC and header actions; this presentational component only reserves the
+   * panel and the tab-bar slot its action lands in.
    */
   apuntesSlot?: React.ReactNode
+  /** Injection point for the PARCIALES panel — same contract as `apuntesSlot`. */
+  parcialesSlot?: React.ReactNode
 }
 
 // Violet is reserved for interaction (Pencil design) — a status pill must
@@ -123,22 +138,41 @@ function formatNextClass(nextClass: Date, weekdayLabels: string[]): string {
   return `${dayLabel} ${hours}:${minutes}`
 }
 
+function TabPanel({ tab, children }: { tab: SubjectDetailTabId; children: React.ReactNode }): React.JSX.Element {
+  return (
+    <div
+      role="tabpanel"
+      id={panelIdFor(tab)}
+      aria-labelledby={`subject-detail-tab-${tab}`}
+      className="flex w-full flex-col gap-2"
+    >
+      {children}
+    </div>
+  )
+}
+
 export function SubjectDetail({
   subject,
   nextClass,
   progreso,
   weeklyMinutes,
   now = new Date(),
+  activeTab,
+  onSelectTab,
+  apuntesCount,
   onOpenExternalUrl,
   onBack,
   onEdit,
+  onDelete,
   onAddEntrega,
   onCloseSubject,
-  adjuntosSlot,
-  parcialesSlot,
-  apuntesSlot
+  apuntesSlot,
+  parcialesSlot
 }: SubjectDetailProps): React.JSX.Element {
   const { t } = useTranslation('materias')
+  // A state-backed callback ref, not a `useRef`: the portalled tab actions
+  // must re-render once the node exists, and a ref mutation does not.
+  const [actionSlotNode, setActionSlotNode] = useState<HTMLDivElement | null>(null)
   // Stored subject colours are the dark palette; inline styles cannot hear
   // the light media query, so the scheme mapping happens here.
   const scheme = usePrefersLightScheme() ? 'light' : 'dark'
@@ -155,15 +189,16 @@ export function SubjectDetail({
   const progressPercent = progreso.total === 0 ? 0 : Math.round((progreso.done / progreso.total) * 100)
   const attendance = summarizeAttendance(subject.attendance, subject.attendanceMinPercent)
 
+  const tabs = [
+    { id: 'entregas' as const, label: t('subjectDetail.tabEntregas'), count: subject.deadlines.length },
+    { id: 'parciales' as const, label: t('subjectDetail.tabParciales'), count: subject.parciales.length },
+    { id: 'apuntes' as const, label: t('subjectDetail.tabApuntes'), count: apuntesCount },
+    { id: 'notas' as const, label: t('subjectDetail.tabNotas') }
+  ]
+
   return (
     <section aria-label={t('subjectDetail.detailLabel', { name: subject.name })} className="flex flex-col gap-3">
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={onBack}
-        className="w-fit gap-2 px-0 text-secondary-foreground"
-      >
+      <Button variant="ghost" size="compact" onClick={onBack} className="w-fit gap-2 px-0 text-secondary-foreground">
         <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
         {t('subjectDetail.backToList')}
       </Button>
@@ -202,11 +237,11 @@ export function SubjectDetail({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" onClick={onEdit} className="gap-2 bg-card">
-            <Pencil className="h-3.5 w-3.5" aria-hidden />
-            {t('subjectDetail.editSubject')}
-          </Button>
-          <Button type="button" onClick={onCloseSubject} className="gap-2">
+          <SubjectActionsMenu onEdit={onEdit} onDelete={onDelete} />
+          {/* Design padding is [7,16], so `compact` plus the wider inset. It
+              used to inherit the primitive's `default` size — 40px tall, next
+              to a 29px `⋯`, on the one row where the mismatch is loudest. */}
+          <Button size="compact" onClick={onCloseSubject} className="px-4">
             <CircleCheck className="h-3.5 w-3.5" aria-hidden />
             {t('subjectDetail.closeSubject')}
           </Button>
@@ -253,100 +288,103 @@ export function SubjectDetail({
             )}
           </div>
 
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <h3 className="text-label font-semibold text-muted-foreground">{t('subjectDetail.deadlinesHeading')}</h3>
-              {/* Compact primary action (approved design: 7px/12px padding,
-                  12px/600 label, 14px icon, content-driven height). Default
-                  tailwind-merge classifies `text-body-sm` and the variant's
-                  `text-primary-foreground` into the same text-color group, so
-                  the size override alone would strip the ink — it is
-                  re-asserted via the arbitrary `color` property, which merges
-                  in its own group. */}
-              <Button
-                type="button"
-                onClick={onAddEntrega}
-                className="h-auto gap-2 px-3 py-[7px] text-body-sm font-semibold [color:var(--color-primary-foreground)]"
-              >
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                {t('subjectDetail.addDeadline')}
-              </Button>
-            </div>
-            {orderedDeadlines.length === 0 && (
-              <p className="text-body-lg text-muted-foreground">{t('subjectDetail.noDeadlines')}</p>
-            )}
-            {orderedDeadlines.map((deadline) => {
-              const dueDate = new Date(deadline.dueAt)
-              return (
-                <div
-                  key={deadline.id}
-                  data-testid="subject-detail-deadline"
-                  className="flex items-center gap-4 rounded-lg border border-border bg-card px-3 py-2"
-                >
-                  <div className="flex w-11 shrink-0 flex-col items-center gap-1 rounded-lg bg-muted py-[5px]">
-                    {/* Day numeral in the display face (type consolidation
-                        pass) — the chip's month label stays in the UI face. */}
-                    <span
-                      className={`font-display text-body-lg font-semibold ${deadline.done ? 'text-muted-foreground' : 'text-foreground'}`}
+          <SubjectDetailTabs
+            tabs={tabs}
+            activeTab={activeTab}
+            onSelect={onSelectTab}
+            label={t('subjectDetail.tabsLabel')}
+            actionSlotRef={setActionSlotNode}
+            action={
+              activeTab === 'entregas' ? (
+                // Compact action (approved design: 7px/12px padding, 12px/600
+                // label, 14px icon, content-driven height). Tonal, not solid:
+                // a section action never outranks the screen's own.
+                <Button variant="tonal" size="compact" onClick={onAddEntrega}>
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  {t('subjectDetail.addDeadline')}
+                </Button>
+              ) : undefined
+            }
+          />
+
+          <TabActionSlotProvider value={actionSlotNode}>
+            {activeTab === 'entregas' && (
+              <TabPanel tab="entregas">
+                {orderedDeadlines.length === 0 && (
+                  <p className="text-body-lg text-muted-foreground">{t('subjectDetail.noDeadlines')}</p>
+                )}
+                {orderedDeadlines.map((deadline) => {
+                  const dueDate = new Date(deadline.dueAt)
+                  return (
+                    <div
+                      key={deadline.id}
+                      data-testid="subject-detail-deadline"
+                      className="flex items-center gap-4 rounded-lg border border-border bg-card px-3 py-2"
                     >
-                      {dueDate.getDate().toString().padStart(2, '0')}
-                    </span>
-                    <span className="text-overline font-semibold text-muted-foreground">
-                      {monthLabels[dueDate.getMonth()]}
-                    </span>
-                  </div>
-                  <div className="flex flex-1 flex-col gap-[3px]">
-                    <span
-                      className={`text-body-lg font-semibold ${deadline.done ? 'text-muted-foreground' : 'text-foreground'}`}
-                    >
-                      {deadline.title}
-                    </span>
-                    <span className="flex items-center gap-2 text-body-sm text-secondary-foreground">
+                      <div className="flex w-11 shrink-0 flex-col items-center gap-1 rounded-lg bg-muted py-[5px]">
+                        {/* Day numeral in the display face (type consolidation
+                            pass) — the chip's month label stays in the UI face. */}
+                        <span
+                          className={`font-display text-body-lg font-semibold ${deadline.done ? 'text-muted-foreground' : 'text-foreground'}`}
+                        >
+                          {dueDate.getDate().toString().padStart(2, '0')}
+                        </span>
+                        <span className="text-overline font-semibold text-muted-foreground">
+                          {monthLabels[dueDate.getMonth()]}
+                        </span>
+                      </div>
+                      <div className="flex flex-1 flex-col gap-[3px]">
+                        <span
+                          className={`text-body-lg font-semibold ${deadline.done ? 'text-muted-foreground' : 'text-foreground'}`}
+                        >
+                          {deadline.title}
+                        </span>
+                        <span className="flex items-center gap-2 text-body-sm text-secondary-foreground">
+                          <span
+                            aria-hidden="true"
+                            style={{ backgroundColor: subjectColorForScheme(subject.color, scheme) }}
+                            className="h-[7px] w-[7px] rounded-full"
+                          />
+                          {subject.name}
+                        </span>
+                      </div>
                       <span
-                        aria-hidden="true"
-                        style={{ backgroundColor: subjectColorForScheme(subject.color, scheme) }}
-                        className="h-[7px] w-[7px] rounded-full"
-                      />
-                      {subject.name}
-                    </span>
-                  </div>
-                  <span
-                    className={`rounded-full px-2 py-1 text-caption font-semibold ${statusPillClassName(
-                      deadline.dueAt,
-                      deadline.done,
-                      now
-                    )}`}
-                  >
-                    {formatDeadlineStatus(deadline.dueAt, deadline.done, now)}
-                  </span>
+                        className={`rounded-full px-2 py-1 text-caption font-semibold ${statusPillClassName(
+                          deadline.dueAt,
+                          deadline.done,
+                          now
+                        )}`}
+                      >
+                        {formatDeadlineStatus(deadline.dueAt, deadline.done, now)}
+                      </span>
+                    </div>
+                  )
+                })}
+              </TabPanel>
+            )}
+
+            {activeTab === 'parciales' && <TabPanel tab="parciales">{parcialesSlot}</TabPanel>}
+            {activeTab === 'apuntes' && <TabPanel tab="apuntes">{apuntesSlot}</TabPanel>}
+
+            {activeTab === 'notas' && (
+              <TabPanel tab="notas">
+                <div className="rounded-lg border border-border bg-card p-3">
+                  {subject.notas ? (
+                    <dl>
+                      <dd
+                        data-testid="subject-detail-notas"
+                        className="text-body-sm leading-[1.55] text-secondary-foreground"
+                      >
+                        {subject.notas}
+                      </dd>
+                    </dl>
+                  ) : (
+                    <p className="text-body-sm text-muted-foreground">{t('subjectDetail.noNotes')}</p>
+                  )}
                 </div>
-              )
-            })}
-          </div>
-
-          {parcialesSlot}
-
-          <div className="flex flex-col gap-2">
-            <h3 className="text-label font-semibold text-muted-foreground">{t('subjectDetail.notesHeading')}</h3>
-            <div className="rounded-lg border border-border bg-card p-3">
-              {subject.notas ? (
-                <dl>
-                  <dd
-                    data-testid="subject-detail-notas"
-                    className="text-body-sm leading-[1.55] text-secondary-foreground"
-                  >
-                    {subject.notas}
-                  </dd>
-                </dl>
-              ) : (
-                <p className="text-body-sm text-muted-foreground">{t('subjectDetail.noNotes')}</p>
-              )}
-            </div>
-          </div>
-
-          {apuntesSlot}
-
-          {adjuntosSlot}
+              </TabPanel>
+            )}
+          </TabActionSlotProvider>
         </div>
 
         <div className="flex w-full flex-col gap-3 min-[820px]:w-[336px] min-[820px]:shrink-0">

@@ -93,4 +93,36 @@ describe('PeriodTimeline', () => {
     expect(screen.getByText('Activo')).toBeInTheDocument()
     expect(screen.getByText('Próximo')).toBeInTheDocument()
   })
+
+  // The design's `Row Label` is `textGrowth: auto` — it never clips. The
+  // `truncate` this used to carry was invented in code, and it clipped the ONE
+  // thing that tells two rows apart on a screen with no way in: the timeline
+  // is read-only, so a period whose name is cut here has no detail view, no
+  // expansion and no second rendering to recover it from.
+  //
+  // The 160px column stays: it is what starts every bar at the same x. Only
+  // the clipping goes, so a long name takes a second line instead of a `…`.
+  it('never clips a period name — the timeline has no detail view to recover it from', () => {
+    render(
+      <PeriodTimeline
+        periods={[
+          {
+            id: 9,
+            programId: 1,
+            name: '2do Cuatrimestre extendido con turno de examen 2026',
+            kind: 'cuatrimestre',
+            startsOn: '2026-08-12',
+            endsOn: '2026-12-04'
+          }
+        ]}
+        now={today}
+      />
+    )
+
+    const label = screen.getByText('2do Cuatrimestre extendido con turno de examen 2026')
+    expect(label).not.toHaveClass('truncate')
+    expect(label).toHaveClass('break-words')
+    // The column that keeps the bars aligned is not what was wrong.
+    expect(label).toHaveClass('w-40', 'shrink-0')
+  })
 })

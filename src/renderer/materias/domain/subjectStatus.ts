@@ -198,6 +198,24 @@ export function isPassed(record: PassedRecord): boolean {
 
 export type SubjectStatusFilter = 'activas' | 'standby' | 'aprobadas' | 'reprobadas' | 'sinCerrar' | 'todas'
 
+export const SUBJECT_STATUS_FILTERS: SubjectStatusFilter[] = [
+  'activas',
+  'standby',
+  'aprobadas',
+  'reprobadas',
+  'sinCerrar',
+  'todas'
+]
+
+/**
+ * Whether an unknown value names a filter. The address is an untrusted input:
+ * a stale or hand-edited `?filtro=` must fall back to the default rather than
+ * match no subject at all and read as an empty list.
+ */
+export function isSubjectStatusFilter(value: unknown): value is SubjectStatusFilter {
+  return typeof value === 'string' && (SUBJECT_STATUS_FILTERS as string[]).includes(value)
+}
+
 const FILTER_STATUS: Record<Exclude<SubjectStatusFilter, 'todas'>, SubjectStatus> = {
   activas: 'cursando',
   standby: 'standby',

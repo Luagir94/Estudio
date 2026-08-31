@@ -78,4 +78,17 @@ describe('NuevaEntregaModal (design node HE9Wn — reused for create AND edit, s
 
     expect(onClose).toHaveBeenCalledTimes(1)
   })
+
+  // The write is not instant, and nothing about the button said so: it stayed
+  // live through the whole round trip, so a second click before the modal
+  // closed recorded the same entrega twice. The four modals that already ship
+  // `pending` had it right; this one just never got it.
+  it('locks the submit while the write is in flight, so one entrega cannot be recorded twice', () => {
+    render(<NuevaEntregaModal mode="create" subjectId={1} pending onSubmit={vi.fn()} onClose={vi.fn()} />)
+
+    expect(screen.getByRole('button', { name: 'Agregar entrega' })).toBeDisabled()
+    // Cancel stays live: backing out of a request that is taking too long is
+    // exactly the action that must keep working.
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeEnabled()
+  })
 })

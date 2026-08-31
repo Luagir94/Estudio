@@ -43,7 +43,14 @@ export const buttonVariants = cva(
           'text-foreground enabled:hover:bg-accent enabled:hover:text-accent-foreground enabled:active:bg-accent/70',
         outline:
           'border border-border bg-transparent text-foreground enabled:hover:border-primary/40 ' +
-          'enabled:hover:bg-accent enabled:active:bg-accent/70'
+          'enabled:hover:bg-accent enabled:active:bg-accent/70',
+        // Brand fill at its soft step, brand ink on top. The tier BETWEEN
+        // `primary` and the neutral variants: loud enough to find, quiet
+        // enough that it never competes with the one solid action a screen is
+        // allowed. Every section action on the subject detail is one of these.
+        tonal:
+          'bg-(--color-brand-soft) text-primary-ink enabled:hover:bg-(--color-brand-soft)/80 ' +
+          'enabled:active:bg-(--color-brand-soft)/70'
       },
       size: {
         // No size overrides the base radius: every button frame in the design is
@@ -52,7 +59,15 @@ export const buttonVariants = cva(
         default: 'h-10 px-4 py-2',
         sm: 'h-9 px-3',
         lg: 'h-11 px-8',
-        icon: 'h-10 w-10'
+        icon: 'h-10 w-10',
+        // THE size of the subject detail's chrome — tabs, section actions,
+        // header actions, icon buttons, all of it. It exists because that
+        // 29px was hand-written in five files and had already drifted into
+        // three different heights in one screen (a 27px tab beside a 29px
+        // action beside a 40px `Cerrar materia`, which was this `default`
+        // size inherited by accident). One definition, one height.
+        compact: 'h-[29px] px-3',
+        compactIcon: 'h-[29px] w-[29px]'
       }
     },
     defaultVariants: {

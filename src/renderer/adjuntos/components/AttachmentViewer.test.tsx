@@ -195,4 +195,18 @@ describe('AttachmentViewer — edición', () => {
 
     expect(screen.getByText('Markdown · 1 línea')).toBeInTheDocument()
   })
+
+  // The design's `File Name` node is `textGrowth: auto` — it was never drawn
+  // clipped. The `truncate` this heading used to carry came from code, and
+  // this is the LAST screen the name appears on: the viewer IS the detail
+  // view, so an ellipsis here is where the full file name stops existing in
+  // the app. Two revisions of one apunte are told apart by their tail.
+  it('never clips the file name — the viewer is the last place it is shown', () => {
+    const longName = 'Resumen unidad 3 — planificación de procesos (revisión final).md'
+    renderViewer({ attachment: attachment({ fileName: longName }) })
+
+    const heading = screen.getByRole('heading', { name: longName })
+    expect(heading).not.toHaveClass('truncate')
+    expect(heading).toHaveClass('break-words')
+  })
 })

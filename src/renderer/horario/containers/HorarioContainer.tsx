@@ -1,16 +1,15 @@
 // Container (design §4): owns data fetching (TanStack Query, key
 // ['horario','week']) and the ephemeral "which class was clicked" state.
-// Delegates rendering to the presentational HorarioGrid. This screen still has
-// NO direct-edit affordance (spec: "Read-Only Schedule Projection") — the
-// block's corner control routes to the SAME EditarMateriaModal the materias
-// domain already owns, opened directly on its Horario tab.
+// Delegates rendering to the presentational HorarioGrid. This screen has NO
+// direct-edit affordance (spec: "Read-Only Schedule Projection"): the horario
+// itself is edited from the materia, through the EditarMateriaModal the
+// materias domain already owns.
 //
-// The block BODY opens the class dialog instead, and that is why this screen
-// mounts it at all: it is the only surface that can name a class on a day
-// other than today. Hoy mounts the same dialog with today's date, and the
-// subject detail's APUNTES section is an index of apuntes that already exist
-// — so before this, a class that happened on Monday became unwritable on
-// Tuesday. The grid knows every weekday, which is exactly what was missing.
+// A block has ONE target — its body opens the class dialog — and that is why
+// this screen mounts it at all: it is the only surface that can name a class
+// on a day other than today. Writing the apunte is NOT one of this screen's
+// jobs; that lives in Hoy's ClassRow and in the subject's APUNTES tab, so the
+// markdown editor is never mounted here.
 import { useQuery } from '@tanstack/react-query'
 import { startOfWeek } from 'date-fns'
 import { useMemo, useState } from 'react'
@@ -18,9 +17,6 @@ import { useTranslation } from 'react-i18next'
 import { ClaseModalContainer } from '../../clases/containers/ClaseModalContainer'
 import { findAttendanceStatus, toLocalIsoDate } from '../../clases/domain/classOccurrence'
 import { materiasApi } from '../../materias/adapters/materiasApi'
-import type { Attachment } from '../../../shared/ipc/adjuntos'
-import { AttachmentViewerContainer } from '../../adjuntos/containers/AttachmentViewerContainer'
-import { useApunteOpener } from '../../clases/containers/useApunteOpener'
 import { computeWeeklyMinutes } from '../../materias/domain/subjectDetail'
 import { attendsClasses, collectSubjectIds } from '../../materias/domain/subjectStatus'
 import { toMondayFirstIndex } from '../../shared/domain/dayOfWeek'
@@ -35,9 +31,6 @@ interface HorarioContainerProps {
 
 export function HorarioContainer({ now = new Date() }: HorarioContainerProps = {}): React.JSX.Element {
   const { t } = useTranslation('horario')
-  // The apunte being edited, or null. Horario SWAPS ITSELF for the editor,
-  // the same shape Hoy and the subject detail use.
-  const [viewedApunte, setViewedApunte] = useState<Attachment | null>(null)
   // The DATE is part of the open state, not just the subject: the same block
   // means a different class every week, and the dialog is about one class.
   const [openClase, setOpenClase] = useState<{ subjectId: number; date: string } | null>(null)
@@ -82,9 +75,6 @@ export function HorarioContainer({ now = new Date() }: HorarioContainerProps = {
     enabled: detailSubjectId !== null
   })
 
-  // The same opener Hoy and the APUNTES list use — it decides on its own
-  // whether the class already has an apunte, so this screen never has to.
-  const { openApunte } = useApunteOpener(setViewedApunte)
   // Gated on the open state, never on the query alone: a stale record from
   // the previously opened subject must not flash into the dialog that just
   // opened.
@@ -111,20 +101,6 @@ export function HorarioContainer({ now = new Date() }: HorarioContainerProps = {
   const rawTodayIndex = toMondayFirstIndex(now.getDay())
   const todayMondayFirstIndex = rawTodayIndex < 5 ? rawTodayIndex : null
 
-  // Horario SWAPS ITSELF for the editor rather than layering it over the
-  // grid, the same shape Hoy and the subject detail use. An apunte is a
-  // whole document and needs the whole screen.
-  if (viewedApunte !== null) {
-    return (
-      <AttachmentViewerContainer
-        attachment={viewedApunte}
-        subjectId={viewedApunte.subjectId}
-        subjectName={(data ?? []).find((subject) => subject.id === viewedApunte.subjectId)?.name ?? ''}
-        onBack={() => setViewedApunte(null)}
-      />
-    )
-  }
-
   return (
     // h-full so the grid below can claim the leftover height and reach the
     // bottom of the window instead of stopping at a fixed row height.
@@ -143,7 +119,6 @@ export function HorarioContainer({ now = new Date() }: HorarioContainerProps = {
           columns={columns}
           todayMondayFirstIndex={todayMondayFirstIndex}
           now={now}
-          onOpenApunte={(slot) => openApunte({ subjectId: slot.subjectId, date: classDateOf(slot) })}
           onOpenClase={handleOpenClase}
         />
       )}

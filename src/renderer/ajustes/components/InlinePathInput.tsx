@@ -53,6 +53,12 @@ export function InlinePathInput({ provider, overridePath, onCommit }: InlinePath
       onBlur={commit}
       onKeyDown={handleKeyDown}
       placeholder={PATH_INPUT_PLACEHOLDER}
+      // A path is neither prose nor the user's own data: autofill would offer
+      // values typed into unrelated fields, and the spellchecker underlines
+      // every segment of `C:\Users\…\claude.exe`. Both are noise on a field
+      // whose whole job is to hold one exact string.
+      autoComplete="off"
+      spellCheck={false}
       // The visible row names the CLI, but a screen reader reading controls out
       // of context would meet three identical path fields, so the accessible
       // name carries the CLI itself.

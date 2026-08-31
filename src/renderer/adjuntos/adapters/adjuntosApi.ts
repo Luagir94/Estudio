@@ -7,6 +7,7 @@ import {
   addAttachmentsResultSchema,
   type AddAttachmentsResult,
   type Attachment,
+  createMarkdownDocumentResultSchema,
   deleteAttachmentResultSchema,
   type DeleteAttachmentResult,
   listAttachmentsResultSchema,
@@ -36,6 +37,12 @@ export interface AdjuntosApi {
   read(id: number): Promise<string>
   /** Markdown editor save: returns the updated attachment row (new sizeBytes, indexStatus back to pending). */
   write(id: number, content: string): Promise<Attachment>
+  /**
+   * "Nuevo documento": creates a seeded `.md` attachment for the materia and
+   * returns its row, so the caller can open the editor on it without waiting
+   * for the list to refetch.
+   */
+  createDocument(subjectId: number, name: string): Promise<Attachment>
 }
 
 export const adjuntosApi: AdjuntosApi = {
@@ -58,6 +65,13 @@ export const adjuntosApi: AdjuntosApi = {
     return unwrapIpcResult(
       await window.api.adjuntos.write(id, content),
       writeAttachmentTextResultSchema,
+      AdjuntosApiError
+    )
+  },
+  async createDocument(subjectId, name) {
+    return unwrapIpcResult(
+      await window.api.adjuntos.createDocument({ subjectId, name }),
+      createMarkdownDocumentResultSchema,
       AdjuntosApiError
     )
   }

@@ -3,20 +3,35 @@
     "syncFailed": "No se pudo sincronizar. Probá de nuevo.",
     "addFailed": "No se pudieron agregar los archivos. Probá de nuevo.",
     "openFailed": "No se pudo abrir el archivo. Probá de nuevo, o abrilo manualmente desde su carpeta.",
-    "deleteFailed": "No se pudo eliminar el adjunto. Actualizá la lista e intentá de nuevo."
+    "deleteFailed": "No se pudo eliminar el adjunto. Actualizá la lista e intentá de nuevo.",
+    "createDocumentFailed": "No se pudo crear el documento. Probá de nuevo."
   },
   "adjuntosSection": {
-    "heading": "ADJUNTOS",
+    "heading": "APUNTES",
     "sync": "Sincronizar",
+    "add": "Agregar",
+    "newDocument": "Nuevo documento",
     "addFile": "Agregar archivo",
-    "loadError": "No se pudieron cargar los adjuntos.",
+    "loadError": "No se pudieron cargar los apuntes.",
     "retry": "Reintentar",
-    "emptyTitle": "Todavía no hay archivos",
-    "emptyHint": "Sumá apuntes, PDFs o fotos del pizarrón."
+    "emptyTitle": "Todavía no hay apuntes",
+    "emptyHint": "Sumá PDFs, fotos del pizarrón, o escribí un documento."
+  },
+  "nuevoDocumentoModal": {
+    "title": "Nuevo documento",
+    "nameField": "NOMBRE DEL DOCUMENTO",
+    "namePlaceholder": "Resumen unidad 3",
+    "fileNameHint": "Se guarda como {{fileName}}",
+    "effectNote": "Al crearlo se abre el editor de markdown. No es un apunte de clase: no queda atado a ninguna fecha.",
+    "footerHint": "Se lista en ADJUNTOS",
+    "submit": "Crear y escribir"
   },
   "attachmentRow": {
     "missing": "El archivo ya no está en el disco — puede que se haya movido o borrado fuera de la app.",
+    "classNoteMeta": "Apunte de clase",
     "open": "Abrir",
+    "openNamed": "Abrir {{name}}",
+    "deleteNamed": "Eliminar {{name}}",
     "delete": "Eliminar"
   },
   "attachmentViewer": {

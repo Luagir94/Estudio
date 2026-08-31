@@ -111,6 +111,19 @@ vi.mock('../../adjuntos/containers/AdjuntosContainer', () => ({
   )
 }))
 
+// The left column shows ONE section at a time now (approved design): reaching
+// the apuntes stub means selecting its tab first.
+function openApuntesTab(): void {
+  fireEvent.click(screen.getByRole('tab', { name: /^Apuntes/ }))
+}
+
+// "Editar materia" left the header for the `⋯` menu, where it sits beside
+// "Eliminar materia".
+function openEditFromMenu(): void {
+  fireEvent.click(screen.getByRole('button', { name: 'Más acciones' }))
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Editar materia' }))
+}
+
 vi.mock('../../adjuntos/containers/AttachmentViewerContainer', () => ({
   AttachmentViewerContainer: ({
     attachment,
@@ -236,6 +249,7 @@ describe('SubjectDetailContainer', () => {
     renderWithClient(<SubjectDetailContainer subjectId={1} onBack={vi.fn()} now={new Date('2026-03-04T09:00:00')} />)
     await screen.findByText('1 de 2')
 
+    openApuntesTab()
     expect(screen.getByText('stub-adjuntos-1')).toBeInTheDocument()
   })
 
@@ -256,7 +270,7 @@ describe('SubjectDetailContainer', () => {
     // The header's "Editar materia" button is the only edit entry point on
     // this screen (the NOTAS section's duplicate was removed by the approved
     // compaction — see SubjectDetail.test.tsx).
-    fireEvent.click(screen.getByRole('button', { name: 'Editar materia' }))
+    openEditFromMenu()
     fireEvent.click(screen.getByText('stub-edit-submit'))
 
     await waitFor(() => expect(materiasApi.updateSchedule).toHaveBeenCalledTimes(1))
@@ -272,7 +286,7 @@ describe('SubjectDetailContainer', () => {
     // not as a standalone button on the detail screen — open the modal
     // first via the header's "Editar materia" button (the screen's only
     // edit entry point).
-    fireEvent.click(screen.getByRole('button', { name: 'Editar materia' }))
+    openEditFromMenu()
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar materia' }))
     expect(screen.getByText('2 entregas')).toBeInTheDocument()
 
@@ -459,6 +473,7 @@ describe('SubjectDetailContainer', () => {
       renderWithClient(<SubjectDetailContainer subjectId={1} onBack={vi.fn()} now={new Date('2026-03-04T09:00:00')} />)
       await screen.findByText('1 de 2')
 
+      openApuntesTab()
       fireEvent.click(screen.getByText('stub-open-markdown'))
 
       expect(screen.getByText('stub-viewer-Resumen unidad 3.md-Algoritmos-1')).toBeInTheDocument()
@@ -469,6 +484,7 @@ describe('SubjectDetailContainer', () => {
       renderWithClient(<SubjectDetailContainer subjectId={1} onBack={vi.fn()} now={new Date('2026-03-04T09:00:00')} />)
       await screen.findByText('1 de 2')
 
+      openApuntesTab()
       fireEvent.click(screen.getByText('stub-open-markdown'))
       fireEvent.click(screen.getByText('stub-viewer-back'))
 

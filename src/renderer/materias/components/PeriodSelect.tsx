@@ -22,9 +22,20 @@ interface PeriodSelectProps {
   registration: Record<string, unknown>
   /** Whether "Sin período" is an allowed answer. Default true (edit forms). */
   allowNone?: boolean
+  /**
+   * The invalid-state wiring from `useFieldErrors().bind(...).control`. The
+   * `<select>` is nested inside this component, so the form cannot reach it to
+   * mark it invalid — the props have to come down.
+   */
+  control?: { 'aria-invalid'?: 'true'; 'aria-describedby'?: string }
 }
 
-export function PeriodSelect({ programs, registration, allowNone = true }: PeriodSelectProps): React.JSX.Element {
+export function PeriodSelect({
+  programs,
+  registration,
+  allowNone = true,
+  control
+}: PeriodSelectProps): React.JSX.Element {
   const { t } = useTranslation('materias')
   const hasPeriods = programs.some((program) => program.periods.length > 0)
 
@@ -32,7 +43,7 @@ export function PeriodSelect({ programs, registration, allowNone = true }: Perio
     <div className="flex flex-col gap-2">
       <Label>
         {t('periodSelect.label')}
-        <Select disabled={!hasPeriods} {...registration}>
+        <Select disabled={!hasPeriods} {...registration} {...control}>
           {allowNone && <option value="">{t('periodSelect.noPeriodOption')}</option>}
           {programs.map((program) => (
             <optgroup key={program.id} label={program.name}>

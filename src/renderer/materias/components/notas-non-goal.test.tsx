@@ -98,6 +98,10 @@ describe('notas non-goal guard (proposal risk: "Scope creep toward notes")', () 
         weeklyMinutes={0}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="notas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}

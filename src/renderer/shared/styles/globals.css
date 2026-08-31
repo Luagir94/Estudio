@@ -166,6 +166,17 @@
   --text-display-lg: 30px;
   --text-display-lg--line-height: 1.1;
   --text-display-lg--letter-spacing: -1.2px;
+  /* The hero NUMBER — the promedio general on the carrera detail. It was
+     `text-[28px] tracking-[-0.5px]` written straight into the component, with
+     a comment calling it "deliberately off the type scale". The intent was
+     right and the design agrees (node `Avg Value`, 28/-0.5): a stat this big
+     wants `display-lg`'s presence without its -1.2px tracking, which closes up
+     digits that have to stay countable. What was wrong is that a deliberate
+     step lived as a literal in one file — an exception a scale cannot see is
+     an exception it cannot keep. Named here, it is part of the system. */
+  --text-display-md: 28px;
+  --text-display-md--line-height: 1.15;
+  --text-display-md--letter-spacing: -0.5px;
   --text-heading: 20px;
   --text-heading--letter-spacing: -0.5px;
   --text-title: 16px;

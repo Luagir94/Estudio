@@ -130,6 +130,7 @@ export function EntregasContainer({ now = new Date() }: EntregasContainerProps =
             type: editingDeadline.type,
             dueAt: editingDeadline.dueAt
           }}
+          pending={updateMutation.isPending}
           onSubmit={(input) => updateMutation.mutate({ id: editingDeadline.id, ...input })}
           onClose={() => setEditingDeadline(null)}
         />

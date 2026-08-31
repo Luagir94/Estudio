@@ -3,12 +3,14 @@
 // "Agregar entrega" button), the "Alta parcial" warning banner, and the five
 // states (vacío/cargando/error/lista/archivo no encontrado handled per-row).
 // No data fetching, no IPC — that lives in AdjuntosContainer.
-import { CircleAlert, Paperclip, Plus, RefreshCw, TriangleAlert } from 'lucide-react'
+import { ChevronDown, CircleAlert, FilePlus, Paperclip, Plus, RefreshCw, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { AddAttachmentFailure, Attachment } from '../../../shared/ipc/adjuntos'
+import { TabActionSlot } from '../../shared/components/tabActionSlot'
+import { ActionMenu } from '../../shared/components/ui/action-menu'
 import { Button } from '../../shared/components/ui/button'
 import { cn } from '../../shared/lib/cn'
-import { interactive, interactiveLink } from '../../shared/lib/interactive'
+import { interactiveLink } from '../../shared/lib/interactive'
 import { formatAddFailureDetail, formatAddFailureSummary } from '../domain/attachmentDisplay'
 import { AttachmentRow } from './AttachmentRow'
 
@@ -20,7 +22,27 @@ interface AdjuntosSectionProps {
   addFailures: AddAttachmentFailure[]
   addAttemptedCount: number
   actionError: string | null
+  /**
+   * Whether anything of this materia is still waiting to be indexed.
+   *
+   * It gates the Sincronizar button's very PRESENCE (approved design,
+   * "CABECERA DE ADJUNTOS"): with nothing pending there is nothing to
+   * reintentar, and a button that provably does nothing teaches the student
+   * that the screen is lying to them. Computed from the whole attachment
+   * list, apuntes included — an apunte waiting to be indexed is as syncable
+   * as any other document, even though this section does not list it.
+   */
+  hasSyncableDocuments: boolean
+  /**
+   * True while `indexado:sync` is in flight. The button locks and its icon
+   * spins — without it the click has no answer at all, since the only other
+   * feedback is a badge that moves whenever the background job happens to
+   * finish, which can be much later or never.
+   */
+  isSyncing: boolean
   onAdd: () => void
+  /** Opens the "Nuevo documento" dialog — the create-from-a-name path into the markdown editor. */
+  onNewDocument: () => void
   onRetry: () => void
   onOpen: (attachment: Attachment) => void
   onDelete: (attachment: Attachment) => void
@@ -51,7 +73,10 @@ export function AdjuntosSection({
   addFailures,
   addAttemptedCount,
   actionError,
+  hasSyncableDocuments,
+  isSyncing,
   onAdd,
+  onNewDocument,
   onRetry,
   onOpen,
   onDelete,
@@ -59,56 +84,66 @@ export function AdjuntosSection({
 }: AdjuntosSectionProps): React.JSX.Element {
   const { t } = useTranslation('adjuntos')
   return (
-    <section className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        {/* Approved design: the heading carries the total count ("ADJUNTOS · 5")
-            — appended outside the translation so the i18n key stays intact. */}
-        <h3 className="text-label font-semibold text-muted-foreground">
-          {t('adjuntosSection.heading')}
-          {attachments.length > 0 && ` · ${attachments.length}`}
-        </h3>
-        <div className="flex items-center gap-2">
-          {/* Secondary action (design "Approved design" — cornerRadius 8,
-              padding 7px/12px, 14px icon, 12px semibold label, $surface-sunken
-              bg + $border border + $text-secondary text/icon). Hand-styled
-              rather than the shared `Button` primitive: `Button`'s base
-              classes hardcode `text-body-lg font-medium` (14px/medium), and
-              that custom theme font-size utility is not one tailwind-merge
-              can override via `className`. */}
-          <button
-            type="button"
-            onClick={onSync}
-            className={cn(
-              'inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-[7px] text-body font-semibold text-secondary-foreground',
-              interactive,
-              'hover:bg-secondary/80 active:bg-secondary/70'
-            )}
-          >
-            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-            {t('adjuntosSection.sync')}
-          </button>
-          {/* Compact primary action — same treatment (and same tailwind-merge
-              ink caveat) as SubjectDetail's "Agregar entrega" button. */}
+    // No heading of its own: inside the subject detail the ADJUNTOS tab names
+    // this section AND carries the count that used to hang off the <h3>. The
+    // name survives as the accessible label.
+    <section className="flex flex-col gap-2" aria-label={t('adjuntosSection.heading')}>
+      {/* Both actions travel to the tab bar's action slot; outside a tab bar
+          they render right here. */}
+      <TabActionSlot>
+        {hasSyncableDocuments && (
+          // Icon only (approved design): sincronizar is maintenance, not
+          // something you come to this section to do, and three labelled
+          // buttons in one row was the densest spot on the screen.
+          //
+          // In-flight treatment borrowed wholesale from Ajustes'
+          // ConnectionStatusCard re-probe chip: same RefreshCw, spun,
+          // disabled and `aria-busy`.
           <Button
-            type="button"
-            onClick={onAdd}
-            className="h-auto gap-2 px-3 py-[7px] text-body-sm font-semibold [color:var(--color-primary-foreground)]"
+            variant="secondary"
+            size="compactIcon"
+            onClick={onSync}
+            disabled={isSyncing}
+            aria-busy={isSyncing}
+            aria-label={t('adjuntosSection.sync')}
+            className="shrink-0 border border-border disabled:cursor-not-allowed"
           >
-            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            {t('adjuntosSection.addFile')}
+            <RefreshCw className={cn('h-3.5 w-3.5', isSyncing && 'animate-spin')} aria-hidden="true" />
           </Button>
-        </div>
-      </div>
+        )}
+        {/* One entry point for both creation paths (approved design). They
+            were two buttons doing the same job — putting something into
+            ADJUNTOS — and two buttons for one job is exactly what made this
+            row too busy. */}
+        <ActionMenu
+          label={t('adjuntosSection.add')}
+          trigger={
+            <>
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('adjuntosSection.add')}
+              <ChevronDown className="h-3 w-3" aria-hidden="true" />
+            </>
+          }
+          items={[
+            { id: 'file', label: t('adjuntosSection.addFile'), icon: Plus, onSelect: onAdd },
+            { id: 'document', label: t('adjuntosSection.newDocument'), icon: FilePlus, onSelect: onNewDocument }
+          ]}
+        />
+      </TabActionSlot>
 
+      {/* `role="alert"` on the BOX, not the sentence: the icon carries the
+          "this went wrong" half of the message visually, and a reader that
+          announced only the paragraph would drop it. Both banners appear
+          asynchronously, after the click that caused them is long past. */}
       {actionError !== null && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-warn bg-warn-soft px-3 py-2.5">
+        <div role="alert" className="flex items-start gap-2.5 rounded-lg border border-warn bg-warn-soft px-3 py-2.5">
           <TriangleAlert className="mt-px h-4 w-4 shrink-0 text-warn" aria-hidden />
           <p className="text-body-sm font-semibold text-warn">{actionError}</p>
         </div>
       )}
 
       {addFailures.length > 0 && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-warn bg-warn-soft px-3 py-2.5">
+        <div role="alert" className="flex items-start gap-2.5 rounded-lg border border-warn bg-warn-soft px-3 py-2.5">
           <TriangleAlert className="mt-px h-4 w-4 shrink-0 text-warn" aria-hidden />
           <div className="flex flex-col gap-1">
             <p className="text-body-sm font-semibold text-warn">
@@ -124,10 +159,10 @@ export function AdjuntosSection({
       )}
 
       {isError ? (
-        <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-4">
           <CircleAlert className="h-4 w-4 shrink-0 text-destructive" aria-hidden />
           <div className="flex flex-col items-start gap-1">
-            <p className="text-body font-semibold text-foreground">{t('adjuntosSection.loadError')}</p>
+            <p className="text-body-lg font-semibold text-foreground">{t('adjuntosSection.loadError')}</p>
             <button
               type="button"
               onClick={onRetry}

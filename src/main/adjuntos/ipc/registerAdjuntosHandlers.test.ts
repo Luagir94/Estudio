@@ -85,6 +85,7 @@ describe('registerAdjuntosHandlers', () => {
     service = {
       addAttachments: vi.fn().mockResolvedValue({ added: [sampleRecord], failures: [] }),
       addGeneratedAttachment: vi.fn().mockResolvedValue({ ok: true }),
+      createMarkdownDocument: vi.fn().mockResolvedValue({ ok: true, attachment: sampleRecord }),
       readAttachmentText: vi.fn().mockResolvedValue({ ok: true, content: '# Resumen' }),
       updateAttachmentText: vi.fn().mockResolvedValue({ ok: true, attachment: sampleRecord }),
       saveClassNote: vi.fn().mockResolvedValue({ ok: true, deleted: false, attachment: sampleRecord }),
@@ -376,6 +377,48 @@ describe('registerAdjuntosHandlers', () => {
     registerAdjuntosHandlers({ repository, service, storage, subjectRepository })
 
     const result = await invoke('adjuntos:write', { id: 1, content: '# Nuevo' })
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'WRITE_FAILED' } })
+  })
+
+  it('adjuntos:create-document rejects a blank name without calling the service', async () => {
+    const result = await invoke('adjuntos:create-document', { subjectId: 7, name: '   ' })
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'VALIDATION_ERROR' } })
+    expect(service.createMarkdownDocument).not.toHaveBeenCalled()
+  })
+
+  it('adjuntos:create-document refuses a subject that does not exist', async () => {
+    subjectRepository.detail = vi.fn().mockReturnValue(undefined)
+    registerAdjuntosHandlers({ repository, service, storage, subjectRepository })
+
+    const result = await invoke('adjuntos:create-document', { subjectId: 99, name: 'Resumen unidad 3' })
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'NOT_FOUND' } })
+    expect(service.createMarkdownDocument).not.toHaveBeenCalled()
+  })
+
+  it('adjuntos:create-document returns the created row, trimmed name, without storedPath', async () => {
+    const result = await invoke('adjuntos:create-document', { subjectId: 7, name: '  Resumen unidad 3  ' })
+
+    expect(service.createMarkdownDocument).toHaveBeenCalledWith(7, 'Resumen unidad 3')
+    expect(result).toEqual({ ok: true, data: sampleAttachment })
+  })
+
+  it("adjuntos:create-document maps the service's failure code onto the envelope", async () => {
+    service.createMarkdownDocument = vi.fn().mockResolvedValue({ ok: false, code: 'WRITE_FAILED', message: 'EBUSY' })
+    registerAdjuntosHandlers({ repository, service, storage, subjectRepository })
+
+    const result = await invoke('adjuntos:create-document', { subjectId: 7, name: 'Resumen unidad 3' })
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'WRITE_FAILED', message: 'EBUSY' } })
+  })
+
+  it('adjuntos:create-document never throws across the bridge on an unexpected rejection', async () => {
+    service.createMarkdownDocument = vi.fn().mockRejectedValue(new Error('unexpected'))
+    registerAdjuntosHandlers({ repository, service, storage, subjectRepository })
+
+    const result = await invoke('adjuntos:create-document', { subjectId: 7, name: 'Resumen unidad 3' })
 
     expect(result).toMatchObject({ ok: false, error: { code: 'WRITE_FAILED' } })
   })

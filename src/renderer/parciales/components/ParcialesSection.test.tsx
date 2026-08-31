@@ -23,10 +23,14 @@ const pendienteSinFecha: PartialExamRecord = {
 }
 
 describe('ParcialesSection', () => {
-  it('renders the section heading and its add action', () => {
+  // The visible <h3> became the PARCIALES tab in the subject detail; the name
+  // survives as the section's accessible label. The add action still renders
+  // here when the section is mounted OUTSIDE a tab bar — inside one it travels
+  // to the tab row through `TabActionSlot`.
+  it('names the section and offers its add action', () => {
     render(<ParcialesSection parciales={[]} onAdd={vi.fn()} onEdit={vi.fn()} />)
 
-    expect(screen.getByText('PARCIALES')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'PARCIALES' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Agregar parcial' })).toBeInTheDocument()
   })
 

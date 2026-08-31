@@ -15,7 +15,10 @@ import { useTranslation } from 'react-i18next'
 import { validateGrade } from '../../../shared/domain/grading'
 import type { FinalExamRecord, SubjectProgram } from '../../../shared/ipc/materias'
 import { Button } from '../../shared/components/ui/button'
+import { ActionError } from '../../shared/components/ui/action-error'
 import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogOverlay } from '../../shared/components/ui/dialog'
+import { DiscardChangesDialog } from '../../shared/components/ui/discard-changes-dialog'
+import { useDiscardGuard, useValuesDirtyCheck } from '../../shared/lib/useDiscardGuard'
 import { Input } from '../../shared/components/ui/input'
 import { Label } from '../../shared/components/ui/label'
 import { formatTakenOn } from '../domain/finalDate'
@@ -60,52 +63,64 @@ export function AprobarFinalModal({
     onSubmit(parsedGrade)
   }
 
+  // No React Hook Form here, so the snapshot is of the one piece of state the
+  // user can change. The hook takes any `() => values`, which is why it was
+  // written against a getter rather than against RHF.
+  const guard = useDiscardGuard({ isDirty: useValuesDirtyCheck(() => ({ grade })), onClose })
+
   return (
-    <DialogOverlay>
-      <DialogContent role="dialog" aria-label={t('aprobarFinalModal.dialogLabel')} onDismiss={onClose}>
-        <DialogHeader onClose={onClose}>
-          <h2 className="font-display text-title font-bold text-foreground">{t('aprobarFinalModal.title')}</h2>
-          <p className="text-body-sm text-muted-foreground">
-            {final.takenOn === null ? final.label : `${final.label} · ${formatTakenOn(final.takenOn)}`}
-          </p>
-        </DialogHeader>
+    <>
+      <DialogOverlay>
+        <DialogContent role="dialog" aria-label={t('aprobarFinalModal.dialogLabel')} onDismiss={guard.onDismiss}>
+          <DialogHeader onClose={guard.requestClose}>
+            <h2 className="font-display text-title font-bold text-foreground">{t('aprobarFinalModal.title')}</h2>
+            <p className="text-body-sm text-muted-foreground">
+              {final.takenOn === null ? final.label : `${final.label} · ${formatTakenOn(final.takenOn)}`}
+            </p>
+          </DialogHeader>
 
-        <DialogBody>
-          <Label className="w-[180px]">
-            {t('aprobarFinalModal.gradeLabel', { scale: program.gradeScale })}
-            <Input
-              type="number"
-              value={grade}
-              onChange={(event) => setGrade(event.target.value)}
-              min={0}
-              max={program.gradeScale ?? undefined}
-            />
-          </Label>
-          {gradeError && <p className="text-body-lg text-destructive">{gradeError}</p>}
+          <DialogBody>
+            <Label className="w-[180px]">
+              {t('aprobarFinalModal.gradeLabel', { scale: program.gradeScale })}
+              <Input
+                type="number"
+                inputMode="decimal"
+                value={grade}
+                onChange={(event) => setGrade(event.target.value)}
+                min={0}
+                max={program.gradeScale ?? undefined}
+              />
+            </Label>
+            {gradeError && <p className="text-body-lg text-destructive">{gradeError}</p>}
 
-          <div className="flex items-start gap-3 rounded-lg border border-primary bg-sidebar-accent px-4 py-3">
-            <Info className="mt-px h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
-            <p className="text-caption leading-relaxed text-secondary-foreground">{t('aprobarFinalModal.infoNote')}</p>
-          </div>
-        </DialogBody>
+            <div className="flex items-start gap-3 rounded-lg border border-primary bg-sidebar-accent px-4 py-3">
+              <Info className="mt-px h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
+              <p className="text-caption leading-relaxed text-secondary-foreground">
+                {t('aprobarFinalModal.infoNote')}
+              </p>
+            </div>
+          </DialogBody>
 
-        <DialogFooter>
-          {/* The failure takes the footer-note slot, same as NuevaInstanciaModal. */}
-          {error ? (
-            <p className="text-caption text-destructive">{error}</p>
-          ) : (
-            <p className="text-caption text-muted-foreground">{t('aprobarFinalModal.footerNote')}</p>
-          )}
-          <div className="flex items-center gap-3">
-            <Button type="button" variant="outline" onClick={onClose}>
-              {t('common:actions.cancel')}
-            </Button>
-            <Button type="button" onClick={submit} disabled={gradeError !== null || pending}>
-              {t('aprobarFinalModal.submit')}
-            </Button>
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </DialogOverlay>
+          <DialogFooter>
+            {/* The failure takes the footer-note slot, same as NuevaInstanciaModal. */}
+            {error ? (
+              <ActionError message={error} className="text-caption" />
+            ) : (
+              <p className="text-caption text-muted-foreground">{t('aprobarFinalModal.footerNote')}</p>
+            )}
+            <div className="flex items-center gap-3">
+              <Button type="button" variant="outline" onClick={guard.requestClose}>
+                {t('common:actions.cancel')}
+              </Button>
+              <Button type="button" onClick={submit} disabled={gradeError !== null || pending}>
+                {t('aprobarFinalModal.submit')}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </DialogOverlay>
+
+      {guard.isConfirming && <DiscardChangesDialog onKeepEditing={guard.keepEditing} onDiscard={guard.discard} />}
+    </>
   )
 }

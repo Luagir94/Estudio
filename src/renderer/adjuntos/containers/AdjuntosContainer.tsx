@@ -16,10 +16,13 @@ import type { AddAttachmentFailure, Attachment } from '../../../shared/ipc/adjun
 import { AdjuntosApiError, adjuntosApi } from '../adapters/adjuntosApi'
 import { indexadoApi } from '../adapters/indexadoApi'
 import { AdjuntosSection } from '../components/AdjuntosSection'
+import { NuevoDocumentoModal } from '../components/NuevoDocumentoModal'
 import { isMarkdownAttachment } from '../domain/markdownEditing'
 
 interface AdjuntosContainerProps {
   subjectId: number
+  /** Named in the "Nuevo documento" dialog so the student sees which materia they are writing for. */
+  subjectName: string
   /**
    * In-app route for `.md` attachments (markdown-attachment-viewer): when
    * present, opening a markdown attachment calls this INSTEAD of the IPC
@@ -29,7 +32,11 @@ interface AdjuntosContainerProps {
   onOpenMarkdown?: (attachment: Attachment) => void
 }
 
-export function AdjuntosContainer({ subjectId, onOpenMarkdown }: AdjuntosContainerProps): React.JSX.Element {
+export function AdjuntosContainer({
+  subjectId,
+  subjectName,
+  onOpenMarkdown
+}: AdjuntosContainerProps): React.JSX.Element {
   const { t } = useTranslation('adjuntos')
   const queryClient = useQueryClient()
   const queryKey = ['adjuntos', subjectId]
@@ -46,6 +53,12 @@ export function AdjuntosContainer({ subjectId, onOpenMarkdown }: AdjuntosContain
   // is the per-file partial-add result on a SUCCESSFUL `adjuntos:add` call.
   // Cleared whenever any mutation succeeds so a stale message never lingers.
   const [actionError, setActionError] = useState<string | null>(null)
+  // The create failure is its OWN state, not `actionError`: the dialog stays
+  // open on a failure and reports it in its own footer, and routing it
+  // through `actionError` too would print the same sentence a second time on
+  // the section behind the dialog.
+  const [isNewDocumentOpen, setIsNewDocumentOpen] = useState(false)
+  const [createDocumentError, setCreateDocumentError] = useState<string | null>(null)
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey,
@@ -62,7 +75,18 @@ export function AdjuntosContainer({ subjectId, onOpenMarkdown }: AdjuntosContain
   // header row off this very query, so hiding apuntes at the IPC boundary
   // left the one screen that must open an apunte unable to find it. Which
   // rows a section shows is a display question.
-  const visibleAttachments = useMemo(() => (data ?? []).filter((row) => row.classDate === null), [data])
+  // No filter any more. Class apuntes used to be hidden here and shown in a
+  // second APUNTES section built from the same query — one list split by one
+  // column, drawn twice, counted twice, with its own tab. They are one list:
+  // `AttachmentRow` tells a dated apunte from a file by that same `classDate`.
+  const visibleAttachments = useMemo(() => data ?? [], [data])
+
+  // Read from the WHOLE list, not `visibleAttachments`: `indexado:sync`
+  // enqueues every pending attachment, apuntes included, so an apunte still
+  // waiting to be indexed is something Sincronizar would genuinely do — even
+  // though this section does not list it. Asking the filtered list instead
+  // would hide the button while there was real work behind it.
+  const hasSyncableDocuments = useMemo(() => (data ?? []).some((row) => row.indexStatus === 'pending'), [data])
 
   function invalidate(): void {
     void queryClient.invalidateQueries({ queryKey })
@@ -107,6 +131,24 @@ export function AdjuntosContainer({ subjectId, onOpenMarkdown }: AdjuntosContain
     }
   })
 
+  const createDocumentMutation = useMutation({
+    mutationFn: ({ name }: { name: string }) => adjuntosApi.createDocument(subjectId, name),
+    onSuccess: (attachment) => {
+      setCreateDocumentError(null)
+      setIsNewDocumentOpen(false)
+      invalidate()
+      // "Crear y escribir": the dialog's whole promise is that the editor
+      // opens on the document it just made. Without a markdown route the host
+      // screen has nowhere to open it, so the row simply appears in the list —
+      // the document still exists, which is the part that must not depend on
+      // who mounted this container.
+      onOpenMarkdown?.(attachment)
+    },
+    onError: () => {
+      setCreateDocumentError(t('adjuntosContainer.createDocumentFailed'))
+    }
+  })
+
   const openMutation = useMutation({
     mutationFn: (attachment: Attachment) => adjuntosApi.open(attachment.id),
     onSuccess: (_result, attachment) => {
@@ -141,25 +183,50 @@ export function AdjuntosContainer({ subjectId, onOpenMarkdown }: AdjuntosContain
   })
 
   return (
-    <AdjuntosSection
-      attachments={visibleAttachments}
-      isLoading={isLoading}
-      isError={isError}
-      missingIds={missingIds}
-      addFailures={addFailures}
-      addAttemptedCount={addAttemptedCount}
-      actionError={actionError}
-      onAdd={() => addMutation.mutate()}
-      onRetry={() => void refetch()}
-      onOpen={(attachment) => {
-        if (onOpenMarkdown && isMarkdownAttachment(attachment.fileName)) {
-          onOpenMarkdown(attachment)
-          return
-        }
-        openMutation.mutate(attachment)
-      }}
-      onDelete={(attachment) => deleteMutation.mutate(attachment)}
-      onSync={() => syncMutation.mutate()}
-    />
+    <>
+      <AdjuntosSection
+        attachments={visibleAttachments}
+        isLoading={isLoading}
+        isError={isError}
+        missingIds={missingIds}
+        addFailures={addFailures}
+        addAttemptedCount={addAttemptedCount}
+        actionError={actionError}
+        hasSyncableDocuments={hasSyncableDocuments}
+        isSyncing={syncMutation.isPending}
+        onAdd={() => addMutation.mutate()}
+        onNewDocument={() => {
+          setCreateDocumentError(null)
+          setIsNewDocumentOpen(true)
+        }}
+        onRetry={() => void refetch()}
+        onOpen={(attachment) => {
+          if (onOpenMarkdown && isMarkdownAttachment(attachment.fileName)) {
+            onOpenMarkdown(attachment)
+            return
+          }
+          openMutation.mutate(attachment)
+        }}
+        onDelete={(attachment) => deleteMutation.mutate(attachment)}
+        onSync={() => syncMutation.mutate()}
+      />
+
+      {isNewDocumentOpen && (
+        <NuevoDocumentoModal
+          subjectId={subjectId}
+          subjectName={subjectName}
+          // The dialog stays open on a failure and shows it in its own footer:
+          // the name the student typed is still in the field, and closing
+          // would throw it away along with the only thing they had to retry.
+          error={createDocumentError}
+          pending={createDocumentMutation.isPending}
+          onSubmit={({ name }) => createDocumentMutation.mutate({ name })}
+          onClose={() => {
+            setCreateDocumentError(null)
+            setIsNewDocumentOpen(false)
+          }}
+        />
+      )}
+    </>
   )
 }

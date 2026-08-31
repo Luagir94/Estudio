@@ -126,6 +126,29 @@ export const writeAttachmentTextResultSchema = attachmentSchema
 
 export type WriteAttachmentTextResult = z.infer<typeof writeAttachmentTextResultSchema>
 
+// --- adjuntos:create-document ----------------------------------------------
+
+/**
+ * Cap for the name the student types into "Nuevo documento". 200 matches
+ * every other named thing in the app (materia, entrega, parcial); the stored
+ * file name is slugged and capped much shorter by `markdownDocumentFileName`,
+ * because a file name and a title are different lengths of the same idea.
+ */
+export const MAX_DOCUMENT_NAME_LENGTH = 200
+
+export const createMarkdownDocumentInputSchema = z.object({
+  subjectId: z.number().int(),
+  name: z.string().trim().min(1, 'name.required').max(MAX_DOCUMENT_NAME_LENGTH, 'name.tooLong')
+})
+
+export type CreateMarkdownDocumentInput = z.infer<typeof createMarkdownDocumentInputSchema>
+
+// The created row rides back so the caller can open the editor on it without
+// re-listing — the same reason `adjuntos:write` returns the updated row.
+export const createMarkdownDocumentResultSchema = attachmentSchema
+
+export type CreateMarkdownDocumentResult = z.infer<typeof createMarkdownDocumentResultSchema>
+
 // --- adjuntos:delete -------------------------------------------------------
 
 export const deleteAttachmentInputSchema = z.object({ id: z.number().int() })

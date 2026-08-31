@@ -43,6 +43,41 @@ describe('AskHistoryList', () => {
     expect(container.querySelectorAll('[data-selected="true"]')).toHaveLength(1)
   })
 
+  // The selected fill lives on the ROW, which is a plain `div` — so on its own
+  // it tells a screen reader nothing, and "which thread am I in?" was answered
+  // by colour alone. The button that actually switches threads is the one that
+  // has to carry the state, and `aria-pressed` is what puts it there.
+  it('marks the open conversation as pressed on the control that switches threads', () => {
+    render(
+      <AskHistoryList
+        conversations={[summary({ id: 9, title: 'Martín Fierro' }), summary({ id: 3, title: 'Peso del parcial' })]}
+        activeId={9}
+        now={now}
+        onSelect={vi.fn()}
+        onNewConversation={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('button', { pressed: true })).toHaveTextContent('Martín Fierro')
+    expect(screen.getAllByRole('button', { pressed: false })).toHaveLength(1)
+  })
+
+  it('presses no row when there is no open conversation', () => {
+    render(
+      <AskHistoryList
+        conversations={[summary({ id: 9 })]}
+        activeId={null}
+        now={now}
+        onSelect={vi.fn()}
+        onNewConversation={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByRole('button', { pressed: true })).not.toBeInTheDocument()
+  })
+
   it('renders the relative date per row', () => {
     render(
       <AskHistoryList

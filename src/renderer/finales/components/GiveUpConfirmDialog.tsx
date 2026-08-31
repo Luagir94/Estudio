@@ -29,6 +29,7 @@ import { useTranslation } from 'react-i18next'
 import { validateGrade } from '../../../shared/domain/grading'
 import type { SubjectProgram } from '../../../shared/ipc/materias'
 import { Button } from '../../shared/components/ui/button'
+import { ActionError } from '../../shared/components/ui/action-error'
 import { DialogBody, DialogContent, DialogFooter, DialogOverlay } from '../../shared/components/ui/dialog'
 import { Input } from '../../shared/components/ui/input'
 import { Label } from '../../shared/components/ui/label'
@@ -103,6 +104,7 @@ export function GiveUpConfirmDialog({
                 {t('giveUpConfirmDialog.gradeLabel', { scale: program.gradeScale })}
                 <Input
                   type="number"
+                  inputMode="decimal"
                   value={grade}
                   onChange={(event) => setGrade(event.target.value)}
                   min={0}
@@ -120,7 +122,7 @@ export function GiveUpConfirmDialog({
             </>
           )}
 
-          {error && <p className="text-body-lg text-destructive">{error}</p>}
+          <ActionError message={error} className="text-body-lg" />
         </DialogBody>
         <DialogFooter>
           {isNumeric && <p className="text-caption text-muted-foreground">{t('giveUpConfirmDialog.footerNote')}</p>}

@@ -124,6 +124,7 @@ export function PeriodDetailContainer({
           // The form validates against the CREATE schema, so `programId`
           // comes back in the payload; the update command does not take it
           // (a period never changes carrera), so it is dropped here.
+          pending={updatePeriodMutation.isPending}
           onSubmit={({ programId: _programId, ...fields }) => updatePeriodMutation.mutate({ id: period.id, ...fields })}
           onClose={() => setIsEditOpen(false)}
         />
@@ -136,6 +137,7 @@ export function PeriodDetailContainer({
           // Getting here already answered "which período?", so the picker
           // opens on THIS one rather than re-asking.
           defaultPeriodId={periodId}
+          pending={createSubjectMutation.isPending}
           onSubmit={(input) => createSubjectMutation.mutate(input)}
           onClose={() => setIsSubjectModalOpen(false)}
         />

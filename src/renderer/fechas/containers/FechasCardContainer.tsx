@@ -94,6 +94,7 @@ export function FechasCardContainer({ programId, programName, now }: FechasCardC
           programId={programId}
           programName={programName}
           error={describeIpcError(createMutation.error)}
+          pending={createMutation.isPending}
           onSubmit={(input) => createMutation.mutate(input)}
           onClose={() => setIsCreateOpen(false)}
         />
@@ -109,6 +110,7 @@ export function FechasCardContainer({ programId, programName, now }: FechasCardC
           // against the CREATE schema; the update command does not take it (a
           // date never changes carrera), so it is dropped here rather than
           // smuggled across the bridge.
+          pending={updateMutation.isPending}
           onSubmit={({ programId: _programId, ...fields }) => updateMutation.mutate({ id: editingDate.id, ...fields })}
           // The confirmation REPLACES the form rather than stacking on it, so
           // the destructive question is never asked underneath an editable

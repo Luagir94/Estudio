@@ -4,10 +4,17 @@
 // horas-semana) at RENDER time from the fetched raw records — "now" is a
 // rendering-time concern, not baked into the cached query payload.
 //
-// Design (node `TYFvB`, verified via the Pencil MCP tools) puts "Editar
-// materia" in the detail screen's own header and moves "Eliminar materia"
-// into the Editar materia modal's footer (node `hjivW`/`INZOe`) — there is
-// no standalone delete button on the detail screen itself.
+// Design (nodes `TYFvB` / `m0BYl` / `Z12LY`, verified via the Pencil MCP
+// tools) puts BOTH "Editar materia" and "Eliminar materia" in the header's
+// `⋯` menu. Editing used to be a full outline button competing with "Cerrar
+// materia", and deleting was reachable only from inside the edit modal's
+// footer — a destructive action behind a form you did not come to fill in.
+//
+// The left column is TABBED (Entregas / Parciales / Apuntes / Notas), so one
+// section — and therefore one section action — shows at a time. APUNTES is a
+// single tab holding class apuntes AND uploaded files: they are one record
+// type differing only by `classDate`, and they were being drawn as two
+// sections over the same query.
 //
 // This container is ALSO the ONLY place a subject's OUTCOME can be recorded.
 // "Cerrar materia" in the detail header opens `CerrarMateriaModal` and
@@ -28,11 +35,12 @@
 // is not stale the next time it mounts).
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useOptionalControlled } from '../../shared/lib/useOptionalControlled'
 import { useTranslation } from 'react-i18next'
 import type { Attachment } from '../../../shared/ipc/adjuntos'
+import { adjuntosApi } from '../../adjuntos/adapters/adjuntosApi'
 import { AdjuntosContainer } from '../../adjuntos/containers/AdjuntosContainer'
 import { AttachmentViewerContainer } from '../../adjuntos/containers/AttachmentViewerContainer'
-import { ApuntesContainer } from '../../clases/containers/ApuntesContainer'
 import { entregasApi } from '../../entregas/adapters/entregasApi'
 import { NuevaEntregaModal } from '../../entregas/components/NuevaEntregaModal'
 import { computeProgreso, computeWeeklyMinutes, getNextClassOccurrence } from '../domain/subjectDetail'
@@ -44,6 +52,7 @@ import { carrerasApi } from '../../carreras/adapters/carrerasApi'
 import { EditarMateriaModal } from '../components/EditarMateriaModal'
 import { useBusySlots } from './useBusySlots'
 import { SubjectDetail } from '../components/SubjectDetail'
+import type { SubjectDetailTabId } from '../components/SubjectDetailTabs'
 import { FinalesContainer } from '../../finales/containers/FinalesContainer'
 import { ParcialesContainer } from '../../parciales/containers/ParcialesContainer'
 import { CorrelativasFieldContainer } from '../../planificador/containers/CorrelativasFieldContainer'
@@ -53,12 +62,22 @@ interface SubjectDetailContainerProps {
   onBack: () => void
   /** Injection point for deterministic "próxima clase" tests. Defaults to the real clock. */
   now?: Date
+  /**
+   * The open tab, when the ADDRESS owns it (see `router.tsx`'s
+   * `subjectDetailRoute`). Passed with `onTabChange` or not at all — omitted,
+   * the container keeps the tab in its own state, which is what every test
+   * that renders it without a router relies on.
+   */
+  activeTab?: SubjectDetailTabId
+  onTabChange?: (tab: SubjectDetailTabId) => void
 }
 
 export function SubjectDetailContainer({
   subjectId,
   onBack,
-  now = new Date()
+  now = new Date(),
+  activeTab: controlledTab,
+  onTabChange
 }: SubjectDetailContainerProps): React.JSX.Element {
   const { t } = useTranslation('materias')
   const queryClient = useQueryClient()
@@ -66,6 +85,15 @@ export function SubjectDetailContainer({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [isAddEntregaOpen, setIsAddEntregaOpen] = useState(false)
   const [isCloseOpen, setIsCloseOpen] = useState(false)
+  // Which section the left column shows. Owned by the ADDRESS when the router
+  // mounts this screen (`?tab=`), and by the container otherwise — same
+  // arrangement `MateriasListContainer` has with its status filter. Before
+  // that, leaving a subject and coming back always dropped you on Entregas,
+  // however deep in Parciales you had been.
+  //
+  // Entregas is the landing tab, and the fallback for a `?tab=` the address
+  // carries but this screen does not recognise.
+  const [activeTab, setActiveTab] = useOptionalControlled<SubjectDetailTabId>(controlledTab, onTabChange, 'entregas')
   // markdown-attachment-viewer: while set, the full-screen viewer renders
   // INSTEAD of the detail screen — the exact MateriasContainer
   // selectedSubjectId pattern, one level further down.
@@ -74,6 +102,14 @@ export function SubjectDetailContainer({
   const { data, isLoading, isError } = useQuery({
     queryKey: ['materias', 'detail', subjectId],
     queryFn: () => materiasApi.detail(subjectId)
+  })
+
+  // Only for the APUNTES tab's count — the WHOLE list, class apuntes included,
+  // because they are no longer a separate section. Same key `AdjuntosContainer`
+  // uses, so TanStack dedupes it into that one request instead of a second.
+  const { data: attachments } = useQuery({
+    queryKey: ['adjuntos', subjectId],
+    queryFn: () => adjuntosApi.list(subjectId)
   })
 
   // Feeds the período picker inside the edit modal. Shares the ['carreras']
@@ -162,24 +198,24 @@ export function SubjectDetailContainer({
           void appApi.openExternal(url)
         }}
         onBack={onBack}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        apuntesCount={attachments?.length ?? 0}
         onEdit={() => setIsEditOpen(true)}
+        onDelete={() => setIsDeleteOpen(true)}
         onAddEntrega={() => setIsAddEntregaOpen(true)}
         onCloseSubject={() => setIsCloseOpen(true)}
-        adjuntosSlot={<AdjuntosContainer subjectId={subjectId} onOpenMarkdown={setViewedAttachment} />}
+        // Class apuntes and uploaded files are ONE list, so this is the whole
+        // APUNTES tab. `AdjuntosContainer` already routes a `.md` row — which
+        // every apunte is — into the same full-screen editor the old apuntes
+        // section opened, so nothing had to be re-wired for them.
+        apuntesSlot={
+          <AdjuntosContainer subjectId={subjectId} subjectName={data.name} onOpenMarkdown={setViewedAttachment} />
+        }
         // Unconditional, unlike FINALES below: parciales belong to the
         // cursada itself, so they are recordable from the day the materia
         // exists — there is no outcome to reach first.
         parcialesSlot={<ParcialesContainer subjectId={subjectId} subjectName={data.name} parciales={data.parciales} />}
-        // Also unconditional: apuntes belong to the cursada, and the section
-        // is a read surface with its own empty state. The SLOTS go with them
-        // because the class dialog composes its occurrence out of the weekly
-        // pattern — nothing dated is stored to read a time off.
-        apuntesSlot={
-          // An apunte opens in the SAME full-screen markdown editor an .md
-          // attachment does — because that is exactly what it is. One editor,
-          // one save path, one place its text can change.
-          <ApuntesContainer subjectId={subjectId} notes={data.classNotes} onOpenApunte={setViewedAttachment} />
-        }
       />
 
       {/* Only once the student said the final is pending: before that there
@@ -201,6 +237,7 @@ export function SubjectDetailContainer({
         <NuevaEntregaModal
           mode="create"
           subjectId={subjectId}
+          pending={createEntregaMutation.isPending}
           onSubmit={(input) => createEntregaMutation.mutate(input)}
           onClose={() => setIsAddEntregaOpen(false)}
         />
@@ -216,6 +253,7 @@ export function SubjectDetailContainer({
           // like parciales and mesas de final. The container below owns those
           // mutations; the modal only reserves the slot.
           correlativasSlot={<CorrelativasFieldContainer subjectId={subjectId} prerequisites={data.prerequisites} />}
+          pending={updateMutation.isPending}
           onSubmit={(input) => updateMutation.mutate(input)}
           onClose={() => setIsEditOpen(false)}
           onDelete={() => {

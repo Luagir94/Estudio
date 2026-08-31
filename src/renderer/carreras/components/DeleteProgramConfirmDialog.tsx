@@ -15,6 +15,7 @@
 // Reporting only one of the two is what would make the dialog a lie.
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/ui/button'
+import { ActionError } from '../../shared/components/ui/action-error'
 import { DialogBody, DialogContent, DialogFooter, DialogOverlay } from '../../shared/components/ui/dialog'
 
 interface DeleteProgramConfirmDialogProps {
@@ -67,7 +68,7 @@ export function DeleteProgramConfirmDialog({
               {t('deleteProgramDialog.subjectsWarning', { count: subjectCount })}
             </p>
           )}
-          {error && <p className="text-body-lg text-destructive">{error}</p>}
+          <ActionError message={error} className="text-body-lg" />
         </DialogBody>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>

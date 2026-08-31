@@ -25,6 +25,27 @@
 export const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
 
 /**
+ * The same ring, drawn by a COMPOSED field's wrapper instead of by the
+ * control itself.
+ *
+ * Three fields in the app are a frame holding an icon or a suffix beside a
+ * bare `<input>` — the parcial's `#` nota, the materia's `%` asistencia, the
+ * Ask composer. The inner control cannot own the ring there: outlining the
+ * input alone would draw a box INSIDE the box the user already reads as the
+ * field. So all three killed the outline — and none of them replaced it,
+ * which is how the keyboard lost every trace of where it was standing on the
+ * three fields the app hand-builds instead of using the `Input` primitive.
+ *
+ * `focus-within` is the fix and the whole reason this is a second constant:
+ * it fires on the wrapper when anything inside it takes focus, so the ring
+ * lands on the perceived field. Not `:focus-visible`-gated, because the
+ * wrapper is never itself focusable — the gate belongs to the control, and
+ * the control is the one thing here that is always reached by keyboard or by
+ * a click that lands in a text field, where a ring is wanted either way.
+ */
+export const focusRingWithin = 'focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring'
+
+/**
  * Base for every class below: one 150ms transition plus the focus ring.
  *
  * The animated properties are listed explicitly rather than via

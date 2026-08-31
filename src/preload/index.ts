@@ -3,6 +3,7 @@ import type {
   AddAttachmentsInput,
   AddAttachmentsResult,
   Attachment,
+  CreateMarkdownDocumentInput,
   DeleteAttachmentResult,
   ReadAttachmentTextResult
 } from '../shared/ipc/adjuntos'
@@ -52,6 +53,7 @@ import type {
 // runtime (non-`type`) import from a zod-importing shared/ipc module breaks
 // the sandboxed preload bundle ("module not found: zod").
 import {
+  ADJUNTOS_CREATE_DOCUMENT_CHANNEL,
   ADJUNTOS_READ_CHANNEL,
   ADJUNTOS_WRITE_CHANNEL,
   INDEXADO_STATUS_CHANGED_CHANNEL,
@@ -214,7 +216,9 @@ const api = {
     read: (id: number): Promise<IpcResult<ReadAttachmentTextResult>> =>
       ipcRenderer.invoke(ADJUNTOS_READ_CHANNEL, { id }),
     write: (id: number, content: string): Promise<IpcResult<Attachment>> =>
-      ipcRenderer.invoke(ADJUNTOS_WRITE_CHANNEL, { id, content })
+      ipcRenderer.invoke(ADJUNTOS_WRITE_CHANNEL, { id, content }),
+    createDocument: (input: CreateMarkdownDocumentInput): Promise<IpcResult<Attachment>> =>
+      ipcRenderer.invoke(ADJUNTOS_CREATE_DOCUMENT_CHANNEL, input)
   },
   indexado: {
     sync: (): Promise<IpcResult<SyncResult>> => ipcRenderer.invoke('indexado:sync'),

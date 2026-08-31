@@ -5,6 +5,7 @@
 // report, unlike the carrera- and materia-delete dialogs.
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/ui/button'
+import { ActionError } from '../../shared/components/ui/action-error'
 import { DialogBody, DialogContent, DialogFooter, DialogOverlay } from '../../shared/components/ui/dialog'
 
 interface DeleteFechaConfirmDialogProps {
@@ -32,7 +33,7 @@ export function DeleteFechaConfirmDialog({
       >
         <DialogBody className="gap-2">
           <p className="text-body-lg text-foreground">{t('deleteFechaDialog.confirmQuestion', { title: dateTitle })}</p>
-          {error && <p className="text-body-sm text-destructive">{error}</p>}
+          <ActionError message={error} className="text-body-sm" />
         </DialogBody>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>

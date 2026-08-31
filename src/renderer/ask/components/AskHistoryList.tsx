@@ -57,8 +57,15 @@ export function AskHistoryList({
               interactiveChip
             )}
           >
+            {/* `aria-pressed` rides HERE, not on the row. The row is a plain
+                `div` carrying the selected fill, so on its own it says
+                "which thread is open?" in colour and nothing else — and the
+                one control that answers that question is the one that
+                switches threads. `data-selected` stays on the row: it drives
+                the fill across the whole box, delete button included. */}
             <button
               type="button"
+              aria-pressed={selected}
               onClick={() => onSelect(conversation.id)}
               className="flex min-w-0 flex-1 flex-col gap-1 text-left"
             >

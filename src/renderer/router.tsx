@@ -45,8 +45,10 @@ import { PeriodDetailContainer } from './carreras/containers/PeriodDetailContain
 import { EntregasContainer } from './entregas/containers/EntregasContainer'
 import { HorarioContainer } from './horario/containers/HorarioContainer'
 import { HoyContainer } from './hoy/containers/HoyContainer'
+import { isSubjectDetailTabId, type SubjectDetailTabId } from './materias/components/SubjectDetailTabs'
 import { MateriasListContainer } from './materias/containers/MateriasListContainer'
 import { SubjectDetailContainer } from './materias/containers/SubjectDetailContainer'
+import { isSubjectStatusFilter, type SubjectStatusFilter } from './materias/domain/subjectStatus'
 import { parseRouteId } from './navigation'
 import { PlanificadorContainer } from './planificador/containers/PlanificadorContainer'
 import { Shell } from './Shell'
@@ -112,34 +114,75 @@ const ajustesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/ajus
 
 function MateriasListScreen(): React.JSX.Element {
   const navigate = useNavigate()
+  const { filtro } = materiasRoute.useSearch()
   return (
     <MateriasListContainer
+      filter={filtro}
+      // `replace`, so scanning the filter chips does not bury the screen you
+      // came from under six history entries — the back gesture should leave
+      // Materias, not walk back through how you looked at it.
+      onFilterChange={(next) => void navigate({ to: '/materias', search: { filtro: next }, replace: true })}
       onSelectSubject={(subjectId) => void navigate({ to: '/materias/$subjectId', params: { subjectId } })}
       onGoToCarreras={() => void navigate({ to: '/carreras' })}
     />
   )
 }
 
+// The search params below are VALIDATED, not merely read: the address is an
+// untrusted input (a stale hash from a previous build, a hand-edited URL), and
+// an unrecognised value must resolve to the screen's default rather than to a
+// filter that matches nothing or a tab panel that does not exist.
+//
+// The key is set to `undefined` rather than omitted, and that distinction is
+// load-bearing. Search params are INHERITED down the route tree and a child's
+// validated result is MERGED over its parents', so returning `{}` leaves the
+// raw value showing through from the root — `?filtro=inventado` arrived at the
+// container verbatim. Naming the key is what overrides it.
 const materiasRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/materias',
+  // The return TYPE keeps `filtro` optional while the returned OBJECT always
+  // carries the key: optional is what lets `navigate({ to: '/materias' })` stay
+  // a one-liner instead of every call site having to name a search it does not
+  // care about, and the always-present key is what does the overriding.
+  validateSearch: (search: Record<string, unknown>): { filtro?: SubjectStatusFilter } => ({
+    filtro: isSubjectStatusFilter(search.filtro) ? search.filtro : undefined
+  }),
   component: MateriasListScreen
 })
 
 function SubjectDetailScreen(): React.JSX.Element {
   const { subjectId } = subjectDetailRoute.useParams()
+  const { tab } = subjectDetailRoute.useSearch()
   const navigate = useNavigate()
   // Back goes UP to the list, not back through history. It is the same
   // destination this button had before the router, and a fixed one: an
   // in-screen control that lands somewhere different depending on how you
   // arrived is a control you cannot learn. History is the back GESTURE's job,
   // and that now works too.
-  return <SubjectDetailContainer subjectId={subjectId} onBack={() => void navigate({ to: '/materias' })} />
+  return (
+    <SubjectDetailContainer
+      subjectId={subjectId}
+      activeTab={tab}
+      // `replace` for the same reason the filter uses it: switching sections
+      // inside one subject is looking around, not travelling, and four tabs
+      // would otherwise put four entries between you and the list.
+      onTabChange={(next) =>
+        void navigate({ to: '/materias/$subjectId', params: { subjectId }, search: { tab: next }, replace: true })
+      }
+      onBack={() => void navigate({ to: '/materias' })}
+    />
+  )
 }
 
 const subjectDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/materias/$subjectId',
+  // Optional in the type, always present in the object — same reasoning as
+  // `materiasRoute` above.
+  validateSearch: (search: Record<string, unknown>): { tab?: SubjectDetailTabId } => ({
+    tab: isSubjectDetailTabId(search.tab) ? search.tab : undefined
+  }),
   params: {
     parse: (raw: Record<string, string>) => ({ subjectId: idParam(raw.subjectId) }),
     stringify: ({ subjectId }: { subjectId: number }) => ({ subjectId: String(subjectId) })

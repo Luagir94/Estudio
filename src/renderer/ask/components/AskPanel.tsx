@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ModelSelection } from '../../../shared/ipc/cli'
 import { cn } from '../../shared/lib/cn'
-import { interactiveGhost } from '../../shared/lib/interactive'
+import { focusRingWithin, interactiveGhost } from '../../shared/lib/interactive'
 import { AskModelPicker } from './AskModelPicker'
 import type { ModelGroup } from '../domain/modelCatalog'
 import {
@@ -177,7 +177,12 @@ export function AskPanel({
           onSubmit()
         }}
       >
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-2.5">
+        <div
+          className={cn(
+            'flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-2.5',
+            focusRingWithin
+          )}
+        >
           <textarea
             rows={1}
             value={value}

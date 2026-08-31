@@ -27,6 +27,8 @@ import type { SubjectOutcome, SubjectWithStatus } from '../../../shared/ipc/mate
 export type ClosableSubject = Pick<SubjectWithStatus, 'id' | 'name' | 'outcome' | 'grade' | 'period' | 'program'>
 import { Button } from '../../shared/components/ui/button'
 import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogOverlay } from '../../shared/components/ui/dialog'
+import { DiscardChangesDialog } from '../../shared/components/ui/discard-changes-dialog'
+import { useDiscardGuard, useValuesDirtyCheck } from '../../shared/lib/useDiscardGuard'
 import { Input } from '../../shared/components/ui/input'
 import { Label } from '../../shared/components/ui/label'
 import { cn } from '../../shared/lib/cn'
@@ -129,110 +131,120 @@ export function CerrarMateriaModal({ subject, onSubmit, onClose }: CerrarMateria
     onSubmit({ id: subject.id, outcome, grade: showsGrade ? parsedGrade : null })
   }
 
+  // No React Hook Form here — the snapshot covers both pieces of state the
+  // user can change, so picking an outcome counts as a change just like
+  // typing a nota does.
+  const guard = useDiscardGuard({ isDirty: useValuesDirtyCheck(() => ({ outcome, grade })), onClose })
+
   return (
-    <DialogOverlay>
-      <DialogContent role="dialog" aria-label={t('cerrarMateriaModal.dialogLabel')} onDismiss={onClose}>
-        <DialogHeader onClose={onClose}>
-          <h2 className="font-display text-title font-bold text-foreground">{t('cerrarMateriaModal.title')}</h2>
-          <p className="text-body-sm text-muted-foreground">
-            {subject.name} · {subject.period?.name ?? t('cerrarMateriaModal.noPeriod')}
-          </p>
-        </DialogHeader>
+    <>
+      <DialogOverlay>
+        <DialogContent role="dialog" aria-label={t('cerrarMateriaModal.dialogLabel')} onDismiss={guard.onDismiss}>
+          <DialogHeader onClose={guard.requestClose}>
+            <h2 className="font-display text-title font-bold text-foreground">{t('cerrarMateriaModal.title')}</h2>
+            <p className="text-body-sm text-muted-foreground">
+              {subject.name} · {subject.period?.name ?? t('cerrarMateriaModal.noPeriod')}
+            </p>
+          </DialogHeader>
 
-        <DialogBody>
-          <fieldset className="flex flex-col gap-2">
-            <legend className="text-label font-semibold text-secondary-foreground">
-              {t('cerrarMateriaModal.howItEndedLegend')}
-            </legend>
-            <div className="flex flex-col gap-2">
-              {optionValues.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={outcome === value}
-                  onClick={() => setOutcome(value)}
-                  className={cn(
-                    outcome === value
-                      ? 'flex flex-col gap-1 rounded-lg border border-primary bg-sidebar-accent px-4 py-3 text-left'
-                      : 'flex flex-col gap-1 rounded-lg border border-border bg-background px-4 py-3 text-left',
-                    interactiveChip
-                  )}
-                >
-                  <strong className="text-body font-semibold text-foreground">
-                    {value === 'reopen'
-                      ? t('cerrarMateriaModal.reopenOption.label')
-                      : t(`cerrarMateriaModal.outcomes.${value}.label`)}
-                  </strong>
-                  <span className="text-caption text-muted-foreground">
-                    {value === 'reopen'
-                      ? t('cerrarMateriaModal.reopenOption.hint')
-                      : t(`cerrarMateriaModal.outcomes.${value}.hint`)}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </fieldset>
+          <DialogBody>
+            <fieldset className="flex flex-col gap-2">
+              <legend className="text-label font-semibold text-secondary-foreground">
+                {t('cerrarMateriaModal.howItEndedLegend')}
+              </legend>
+              <div className="flex flex-col gap-2">
+                {optionValues.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={outcome === value}
+                    onClick={() => setOutcome(value)}
+                    className={cn(
+                      outcome === value
+                        ? 'flex flex-col gap-1 rounded-lg border border-primary bg-sidebar-accent px-4 py-3 text-left'
+                        : 'flex flex-col gap-1 rounded-lg border border-border bg-background px-4 py-3 text-left',
+                      interactiveChip
+                    )}
+                  >
+                    <strong className="text-body font-semibold text-foreground">
+                      {value === 'reopen'
+                        ? t('cerrarMateriaModal.reopenOption.label')
+                        : t(`cerrarMateriaModal.outcomes.${value}.label`)}
+                    </strong>
+                    <span className="text-caption text-muted-foreground">
+                      {value === 'reopen'
+                        ? t('cerrarMateriaModal.reopenOption.hint')
+                        : t(`cerrarMateriaModal.outcomes.${value}.hint`)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
 
-          {showsGrade && (
-            <div className="flex flex-col gap-1">
-              <Label className="w-[180px]">
-                {t('cerrarMateriaModal.gradeLabel', { scale: subject.program?.gradeScale })}
-                <Input
-                  type="number"
-                  value={grade}
-                  onChange={(event) => setGrade(event.target.value)}
-                  min={0}
-                  max={subject.program?.gradeScale ?? undefined}
-                />
-              </Label>
-              {outcome === 'reprobada' && (
-                <p className="text-caption text-muted-foreground">{t('cerrarMateriaModal.failGradeNote')}</p>
-              )}
-            </div>
-          )}
-          {gradeError && <p className="text-body-lg text-destructive">{gradeError}</p>}
+            {showsGrade && (
+              <div className="flex flex-col gap-1">
+                <Label className="w-[180px]">
+                  {t('cerrarMateriaModal.gradeLabel', { scale: subject.program?.gradeScale })}
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    value={grade}
+                    onChange={(event) => setGrade(event.target.value)}
+                    min={0}
+                    max={subject.program?.gradeScale ?? undefined}
+                  />
+                </Label>
+                {outcome === 'reprobada' && (
+                  <p className="text-caption text-muted-foreground">{t('cerrarMateriaModal.failGradeNote')}</p>
+                )}
+              </div>
+            )}
+            {gradeError && <p className="text-body-lg text-destructive">{gradeError}</p>}
 
-          {outcome === null ? (
-            <div className="flex items-start gap-3 rounded-lg border border-border bg-muted px-4 py-3">
-              <Info className="mt-px h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <p className="text-body-sm leading-relaxed text-secondary-foreground">
-                {t('cerrarMateriaModal.selectOutcomePrompt')}
-              </p>
-            </div>
-          ) : reopenWarning !== null || showsErasureWarning ? (
-            <div className="flex items-start gap-3 rounded-lg border border-warn bg-warn-soft px-4 py-3">
-              <TriangleAlert className="mt-px h-4 w-4 shrink-0 text-warn" aria-hidden="true" />
-              <p className="text-body-sm leading-relaxed text-secondary-foreground">
-                {reopenWarning ?? t('cerrarMateriaModal.finalPendienteErasesGrade', { grade: subject.grade })}
-              </p>
-            </div>
-          ) : replaceNotice !== null ? (
-            <div className="flex items-start gap-3 rounded-lg border border-primary bg-sidebar-accent px-4 py-3">
-              <Info className="mt-px h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
-              <p className="text-body-sm leading-relaxed text-secondary-foreground">{replaceNotice}</p>
-            </div>
-          ) : !isNumeric ? (
-            <div className="flex items-start gap-3 rounded-lg bg-muted px-4 py-3">
-              <Info className="mt-px h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <p className="text-body-sm leading-relaxed text-secondary-foreground">
-                {subject.program ? t('cerrarMateriaModal.binaryNoGrade') : t('cerrarMateriaModal.noProgramNoGrade')}
-              </p>
-            </div>
-          ) : null}
-        </DialogBody>
+            {outcome === null ? (
+              <div className="flex items-start gap-3 rounded-lg border border-border bg-muted px-4 py-3">
+                <Info className="mt-px h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <p className="text-body-sm leading-relaxed text-secondary-foreground">
+                  {t('cerrarMateriaModal.selectOutcomePrompt')}
+                </p>
+              </div>
+            ) : reopenWarning !== null || showsErasureWarning ? (
+              <div className="flex items-start gap-3 rounded-lg border border-warn bg-warn-soft px-4 py-3">
+                <TriangleAlert className="mt-px h-4 w-4 shrink-0 text-warn" aria-hidden="true" />
+                <p className="text-body-sm leading-relaxed text-secondary-foreground">
+                  {reopenWarning ?? t('cerrarMateriaModal.finalPendienteErasesGrade', { grade: subject.grade })}
+                </p>
+              </div>
+            ) : replaceNotice !== null ? (
+              <div className="flex items-start gap-3 rounded-lg border border-primary bg-sidebar-accent px-4 py-3">
+                <Info className="mt-px h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
+                <p className="text-body-sm leading-relaxed text-secondary-foreground">{replaceNotice}</p>
+              </div>
+            ) : !isNumeric ? (
+              <div className="flex items-start gap-3 rounded-lg bg-muted px-4 py-3">
+                <Info className="mt-px h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <p className="text-body-sm leading-relaxed text-secondary-foreground">
+                  {subject.program ? t('cerrarMateriaModal.binaryNoGrade') : t('cerrarMateriaModal.noProgramNoGrade')}
+                </p>
+              </div>
+            ) : null}
+          </DialogBody>
 
-        <DialogFooter>
-          <p className="text-caption text-muted-foreground">{t('cerrarMateriaModal.footerNote')}</p>
-          <div className="flex items-center gap-3">
-            <Button type="button" variant="outline" onClick={onClose}>
-              {t('common:actions.cancel')}
-            </Button>
-            <Button type="button" onClick={submit} disabled={outcome === null || gradeError !== null}>
-              {t('common:actions.saveChanges')}
-            </Button>
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </DialogOverlay>
+          <DialogFooter>
+            <p className="text-caption text-muted-foreground">{t('cerrarMateriaModal.footerNote')}</p>
+            <div className="flex items-center gap-3">
+              <Button type="button" variant="outline" onClick={guard.requestClose}>
+                {t('common:actions.cancel')}
+              </Button>
+              <Button type="button" onClick={submit} disabled={outcome === null || gradeError !== null}>
+                {t('common:actions.saveChanges')}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </DialogOverlay>
+
+      {guard.isConfirming && <DiscardChangesDialog onKeepEditing={guard.keepEditing} onDiscard={guard.discard} />}
+    </>
   )
 }

@@ -4,25 +4,21 @@
 // had been saved and were visible on the subject detail screen; the .pen
 // design was updated to carry the weekend columns too.
 // No data fetching, no IPC — that lives in HorarioContainer.
-// A block carries TWO targets, and both are things NO other screen can
-// reach for a class that is not today: the BODY marks asistencia (feriado
-// included — Hoy's row only offers presente/ausente), and the corner control
-// opens that class's apunte.
+// A block carries exactly ONE target: the BODY marks asistencia (feriado
+// included — Hoy's row only offers presente/ausente), which is the one thing
+// no other screen can reach for a class that is not today.
 //
-// Editing the horario itself is deliberately NOT one of them any more. It is
-// already a click away from the materia ("Editar materia"), so a shortcut
-// here was a duplicate — and it was occupying the only room left for two
-// things that had no other path at all.
-//
-// The corner control is a SIBLING of the block, never a child: a <button>
-// inside a <button> is invalid markup and the browser reparents it.
-import { NotebookPen } from 'lucide-react'
-import { Fragment } from 'react'
+// Editing the horario itself is deliberately NOT one of them. It is already a
+// click away from the materia ("Editar materia"), so a shortcut here was a
+// duplicate. Neither is the apunte: the .pen block carries a name and an hour
+// range and nothing else, and on a three-lane column a second control eats the
+// ~60px the subject name needs. An apunte is written from Hoy's ClassRow or
+// from the subject's APUNTES tab.
 import { useTranslation } from 'react-i18next'
 import { getNowOffsetFraction, hasWeekendClasses, layoutDaySlots } from '../domain/weekProjection'
 import type { WeekDayColumn, WeekProjectionSlot } from '../domain/weekProjection'
 import { cn } from '../../shared/lib/cn'
-import { interactive, interactiveGhost } from '../../shared/lib/interactive'
+import { interactive } from '../../shared/lib/interactive'
 import { subjectColorForScheme } from '../../shared/lib/subjectColorScheme'
 import { usePrefersLightScheme } from '../../shared/lib/usePrefersLightScheme'
 
@@ -98,19 +94,10 @@ interface DayColumnProps {
   /** Where the "now" line sits (0..1 of the grid range), or null — only today's column ever receives a value. */
   nowFraction: number | null
   label: string
-  onOpenApunte: (slot: WeekProjectionSlot) => void
   onOpenClase: (slot: WeekProjectionSlot) => void
 }
 
-function DayColumn({
-  slots,
-  isToday,
-  collapsed,
-  nowFraction,
-  label,
-  onOpenApunte,
-  onOpenClase
-}: DayColumnProps): React.JSX.Element {
+function DayColumn({ slots, isToday, collapsed, nowFraction, label, onOpenClase }: DayColumnProps): React.JSX.Element {
   const { t } = useTranslation('horario')
   // Stored subject colours are the dark palette; inline styles cannot hear
   // the light media query, so the scheme mapping happens here.
@@ -143,107 +130,82 @@ function DayColumn({
         </div>
       )}
       {layoutDaySlots(slots).map((slot) => {
-        // Computed once and shared: the edit control is positioned OFF the
-        // block's own box, so if the two derived their geometry separately a
-        // lane change would drift them apart.
         const lane = laneStyle(slot.lane, slot.laneCount)
-        const blockTop = percentOf(slot.startMinutes)
         return (
-          <Fragment key={slot.slotId}>
-            <button
-              type="button"
-              data-testid="horario-class-block"
-              onClick={() => onOpenClase(slot)}
-              // Three classes at the same hour leave each lane ~60px wide: the
-              // name truncates to a few characters and the time drops out
-              // entirely. This is the one place that hidden information stays
-              // recoverable without opening the subject. `title` is last in the
-              // accessible-name cascade, so the button's own text still names it.
-              title={t('grid.blockTooltip', {
-                subject: slot.subjectName,
-                start: formatTime(slot.startMinutes),
-                end: formatTime(slot.endMinutes)
-              })}
-              style={{
-                top: blockTop,
-                height: percentSpan(slot.endMinutes - slot.startMinutes),
-                minHeight: BLOCK_MIN_HEIGHT_PX,
-                borderLeftColor: subjectColorForScheme(slot.subjectColor, scheme),
-                ...lane
-              }}
-              // `bg-muted`, not `bg-card`: the day column is already `bg-card`, so
-              // a block painted the same had no surface of its own — only the 3px
-              // accent told you a class was there. The design carried the same
-              // collision (`$surface` on `$surface`) and was corrected to
-              // `$surface-sunken`, which is what `bg-muted` maps to.
-              //
-              // That base is also why this does NOT use `interactiveSurface`:
-              // its hover IS `bg-muted`, so the block would stop reacting. Hover
-              // takes the next step up the neutral ramp instead and press settles
-              // back down, which is the same story `interactiveSurface` tells one
-              // rung lower. `hairline` is the raw token there because the
-              // semantic layer stops at `muted` — its only name for #272730 is
-              // `border`, and a background called `border` would read as a lie.
-              className={cn(
-                // No `inset-x-1`: the horizontal edges come from `laneStyle`
-                // now, because where a block starts depends on how many classes
-                // share its hour.
-                'absolute flex flex-col overflow-hidden rounded-md border-l-[3px] bg-muted p-2',
-                // pr-6 reserves the corner the edit control is laid over, so the
-                // subject name truncates instead of running under the icon.
-                'pr-6 text-left leading-tight',
-                interactive,
-                'hover:bg-hairline active:bg-muted'
-              )}
-            >
-              {/* The size container for the rule on the time below, and the reason
-              it is a wrapper rather than the button itself: a container query
-              resolves against the container's CONTENT box, so querying the
-              padded button would mean encoding `p-2` into the threshold twice
-              over. This wrapper carries no padding, so its content box IS its
-              border box and the number below means exactly what it says. */}
-              <div className="flex min-h-0 flex-1 flex-col gap-1 [container-type:size]">
-                {/* shrink-0 keeps the name whole: when the block is too short for
-                both lines, the time below is what gives way, never the name. */}
-                <span className="shrink-0 truncate text-caption font-semibold text-foreground">{slot.subjectName}</span>
-                {/* ...and it gives way ENTIRELY. Letting `overflow-hidden` clip it
-                sliced the digits in half lengthwise, which reads as a broken
-                block rather than a small one. Below both lines' worth of room
-                (11px + 10px at leading-tight, plus the 4px gap = 30.25px) the
-                time is dropped and the name keeps the block to itself. */}
-                {/* ...and the same trade in the OTHER axis, now that a shared
-                hour can halve a block's width. `08:00 – 09:00` needs ~62px
-                at 10px; under that the time would truncate to a meaningless
-                `08:0…`, so the name keeps the lane to itself — which is what
-                the design's narrow overlap lanes show. */}
-                <span className="truncate text-micro text-muted-foreground [@container(max-height:30px)]:hidden [@container(max-width:64px)]:hidden">
-                  {t('grid.timeRange', { start: formatTime(slot.startMinutes), end: formatTime(slot.endMinutes) })}
-                </span>
-              </div>
-            </button>
-
-            {/* Laid over the block's top-right corner rather than nested inside
-            it. 18px because a three-lane column leaves each block ~60px
-            wide — anything larger would cover the subject name it sits
-            beside. z-10 keeps it above the block's own surface. */}
-            <button
-              type="button"
-              data-testid="horario-class-apunte"
-              aria-label={t('grid.openApunte', { subject: slot.subjectName })}
-              onClick={() => onOpenApunte(slot)}
-              style={{
-                top: `calc(${blockTop} + 3px)`,
-                left: `calc(${lane.left} + ${lane.width} - 21px)`
-              }}
-              className={cn(
-                'absolute z-10 flex h-[18px] w-[18px] items-center justify-center rounded',
-                'text-muted-foreground',
-                interactiveGhost
-              )}
-            >
-              <NotebookPen className="h-3 w-3" aria-hidden="true" />
-            </button>
-          </Fragment>
+          <button
+            key={slot.slotId}
+            type="button"
+            data-testid="horario-class-block"
+            onClick={() => onOpenClase(slot)}
+            // Three classes at the same hour leave each lane ~60px wide: the
+            // name truncates to a few characters and the time drops out
+            // entirely. This is the one place that hidden information stays
+            // recoverable without opening the subject. `title` is last in the
+            // accessible-name cascade, so the button's own text still names it.
+            title={t('grid.blockTooltip', {
+              subject: slot.subjectName,
+              start: formatTime(slot.startMinutes),
+              end: formatTime(slot.endMinutes)
+            })}
+            style={{
+              top: percentOf(slot.startMinutes),
+              height: percentSpan(slot.endMinutes - slot.startMinutes),
+              minHeight: BLOCK_MIN_HEIGHT_PX,
+              borderLeftColor: subjectColorForScheme(slot.subjectColor, scheme),
+              ...lane
+            }}
+            // `bg-muted`, not `bg-card`: the day column is already `bg-card`, so
+            // a block painted the same had no surface of its own — only the 3px
+            // accent told you a class was there. The design carried the same
+            // collision (`$surface` on `$surface`) and was corrected to
+            // `$surface-sunken`, which is what `bg-muted` maps to.
+            //
+            // That base is also why this does NOT use `interactiveSurface`:
+            // its hover IS `bg-muted`, so the block would stop reacting. Hover
+            // takes the next step up the neutral ramp instead and press settles
+            // back down, which is the same story `interactiveSurface` tells one
+            // rung lower. `hairline` is the raw token there because the
+            // semantic layer stops at `muted` — its only name for #272730 is
+            // `border`, and a background called `border` would read as a lie.
+            className={cn(
+              // No `inset-x-1`: the horizontal edges come from `laneStyle`
+              // now, because where a block starts depends on how many classes
+              // share its hour.
+              'absolute flex flex-col overflow-hidden rounded-md border-l-[3px] bg-muted p-2',
+              // Padding stays even on all four sides, the way the .pen block
+              // carries it: the `pr-6` that used to reserve the corner was
+              // room for a control that no longer exists, and keeping it would
+              // truncate the subject name against empty space.
+              'text-left leading-tight',
+              interactive,
+              'hover:bg-hairline active:bg-muted'
+            )}
+          >
+            {/* The size container for the rule on the time below, and the reason
+            it is a wrapper rather than the button itself: a container query
+            resolves against the container's CONTENT box, so querying the
+            padded button would mean encoding `p-2` into the threshold twice
+            over. This wrapper carries no padding, so its content box IS its
+            border box and the number below means exactly what it says. */}
+            <div className="flex min-h-0 flex-1 flex-col gap-1 [container-type:size]">
+              {/* shrink-0 keeps the name whole: when the block is too short for
+              both lines, the time below is what gives way, never the name. */}
+              <span className="shrink-0 truncate text-caption font-semibold text-foreground">{slot.subjectName}</span>
+              {/* ...and it gives way ENTIRELY. Letting `overflow-hidden` clip it
+              sliced the digits in half lengthwise, which reads as a broken
+              block rather than a small one. Below both lines' worth of room
+              (11px + 10px at leading-tight, plus the 4px gap = 30.25px) the
+              time is dropped and the name keeps the block to itself. */}
+              {/* ...and the same trade in the OTHER axis, now that a shared
+              hour can halve a block's width. `08:00 – 09:00` needs ~62px
+              at 10px; under that the time would truncate to a meaningless
+              `08:0…`, so the name keeps the lane to itself — which is what
+              the design's narrow overlap lanes show. */}
+              <span className="truncate text-micro text-muted-foreground [@container(max-height:30px)]:hidden [@container(max-width:64px)]:hidden">
+                {t('grid.timeRange', { start: formatTime(slot.startMinutes), end: formatTime(slot.endMinutes) })}
+              </span>
+            </div>
+          </button>
         )
       })}
     </div>
@@ -257,8 +219,6 @@ export interface HorarioGridProps {
   todayMondayFirstIndex: number | null
   /** Reference instant for the "now" line in today's column. Defaults to the real clock. */
   now?: Date
-  /** Corner control: opens that class's apunte in the markdown editor, creating it when the class has none. */
-  onOpenApunte: (slot: WeekProjectionSlot) => void
   /**
    * Block body: opens the class dialog (asistencia) for that slot. The caller
    * owns the DATE — the grid knows only a weekday, and which calendar day
@@ -271,7 +231,6 @@ export function HorarioGrid({
   columns,
   todayMondayFirstIndex,
   now = new Date(),
-  onOpenApunte,
   onOpenClase
 }: HorarioGridProps): React.JSX.Element {
   const { t } = useTranslation('horario')
@@ -331,7 +290,6 @@ export function HorarioGrid({
               // header abbreviates to SÁB/DOM — collapsing is a visual
               // treatment, not a semantic one.
               label={weekdayLabels[index]!}
-              onOpenApunte={onOpenApunte}
               onOpenClase={onOpenClase}
             />
           ))}

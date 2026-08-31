@@ -9,17 +9,45 @@ import { App } from './App'
 // stubs print their params so "Materias, on the list" is distinguishable
 // from "Materias, opened into subject 42".
 vi.mock('./materias/containers/MateriasListContainer', () => ({
-  MateriasListContainer: ({ onSelectSubject }: { onSelectSubject: (id: number) => void }) => (
-    <button type="button" onClick={() => onSelectSubject(42)}>
-      stub-materias-list
-    </button>
+  MateriasListContainer: ({
+    onSelectSubject,
+    filter,
+    onFilterChange
+  }: {
+    onSelectSubject: (id: number) => void
+    filter?: string
+    onFilterChange?: (next: string) => void
+  }) => (
+    <div>
+      <p>{`stub-materias-filter:${filter ?? 'none'}`}</p>
+      <button type="button" onClick={() => onSelectSubject(42)}>
+        stub-materias-list
+      </button>
+      <button type="button" onClick={() => onFilterChange?.('aprobadas')}>
+        stub-filter-aprobadas
+      </button>
+    </div>
   )
 }))
 
 vi.mock('./materias/containers/SubjectDetailContainer', () => ({
-  SubjectDetailContainer: ({ subjectId, onBack }: { subjectId: number; onBack: () => void }) => (
+  SubjectDetailContainer: ({
+    subjectId,
+    onBack,
+    activeTab,
+    onTabChange
+  }: {
+    subjectId: number
+    onBack: () => void
+    activeTab?: string
+    onTabChange?: (next: string) => void
+  }) => (
     <div>
       <p>{`stub-subject-detail:${subjectId}`}</p>
+      <p>{`stub-subject-tab:${activeTab ?? 'none'}`}</p>
+      <button type="button" onClick={() => onTabChange?.('parciales')}>
+        stub-tab-parciales
+      </button>
       <button type="button" onClick={onBack}>
         stub-subject-back
       </button>
@@ -264,6 +292,65 @@ describe('App', () => {
 
       expect(await screen.findByText('stub-materias-list')).toBeInTheDocument()
       expect(screen.queryByText(/stub-subject-detail/)).not.toBeInTheDocument()
+    })
+  })
+
+  // Which section you are reading and which subjects you are looking at are
+  // both STATE, and until now both were locked inside a `useState`: leaving a
+  // subject and coming back dropped you on Entregas however deep you had been,
+  // and a reload reset the filter to "activas". The address holds them now.
+  describe('screen state in the address', () => {
+    it('opens a subject on the tab the address names', async () => {
+      startAt('/materias/42?tab=parciales')
+      render(<App />)
+
+      expect(await screen.findByText('stub-subject-tab:parciales')).toBeInTheDocument()
+    })
+
+    it('writes the chosen tab into the address', async () => {
+      startAt('/materias/42')
+      render(<App />)
+
+      fireEvent.click(await screen.findByText('stub-tab-parciales'))
+
+      await waitFor(() => expect(screen.getByText('stub-subject-tab:parciales')).toBeInTheDocument())
+      expect(window.location.hash).toContain('tab=parciales')
+    })
+
+    it('mounts the list on the filter the address names', async () => {
+      startAt('/materias?filtro=aprobadas')
+      render(<App />)
+
+      expect(await screen.findByText('stub-materias-filter:aprobadas')).toBeInTheDocument()
+    })
+
+    it('writes the chosen filter into the address', async () => {
+      startAt('/materias')
+      render(<App />)
+
+      fireEvent.click(await screen.findByText('stub-filter-aprobadas'))
+
+      await waitFor(() => expect(screen.getByText('stub-materias-filter:aprobadas')).toBeInTheDocument())
+      expect(window.location.hash).toContain('filtro=aprobadas')
+    })
+
+    // The address is an untrusted input — a stale hash from an older build, or
+    // a hand-edited one. An unrecognised value must land on the screen's
+    // default, not select a panel that does not exist or a filter that matches
+    // no subject at all.
+    it('ignores a tab it does not recognise', async () => {
+      startAt('/materias/42?tab=inventada')
+      render(<App />)
+
+      expect(await screen.findByText('stub-subject-tab:none')).toBeInTheDocument()
+      expect(await screen.findByText('stub-subject-detail:42')).toBeInTheDocument()
+    })
+
+    it('ignores a filter it does not recognise', async () => {
+      startAt('/materias?filtro=inventado')
+      render(<App />)
+
+      expect(await screen.findByText(/^stub-materias-filter:/)).toHaveTextContent('stub-materias-filter:none')
     })
   })
 

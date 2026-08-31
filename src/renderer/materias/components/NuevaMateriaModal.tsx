@@ -18,6 +18,9 @@ import { translateValidationMessage } from '../../shared/lib/translateValidation
 import { PeriodSelect } from './PeriodSelect'
 import { Button } from '../../shared/components/ui/button'
 import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogOverlay } from '../../shared/components/ui/dialog'
+import { DiscardChangesDialog } from '../../shared/components/ui/discard-changes-dialog'
+import { FieldError, useFieldErrors } from '../../shared/components/ui/field-error'
+import { useDiscardGuard, useValuesDirtyCheck } from '../../shared/lib/useDiscardGuard'
 import { Input } from '../../shared/components/ui/input'
 import { Label } from '../../shared/components/ui/label'
 import { ColorSwatchPicker, SUBJECT_COLORS } from '../../shared/components/ColorSwatchPicker'
@@ -46,6 +49,8 @@ interface NuevaMateriaModalProps {
    * answer, and it stays visible in the select for the rare time it is not.
    */
   defaultPeriodId?: number | null
+  /** True while the write is in flight — the submit button locks so the record cannot be written twice. */
+  pending?: boolean
 }
 
 export function NuevaMateriaModal({
@@ -54,9 +59,11 @@ export function NuevaMateriaModal({
   onGoToCarreras,
   busySlots = [],
   programs = [],
-  defaultPeriodId = null
+  defaultPeriodId = null,
+  pending
 }: NuevaMateriaModalProps): React.JSX.Element {
   const { t } = useTranslation('materias')
+  const fields = useFieldErrors()
   // No explicit useForm<T> generic: the zod preprocess fields (docente,
   // contacto) give the resolver an input type that diverges from
   // CreateSubjectInput (the post-parse output type) — letting TypeScript
@@ -65,6 +72,7 @@ export function NuevaMateriaModal({
     register,
     handleSubmit,
     control,
+    getValues,
     formState: { errors }
   } = useForm({
     resolver: zodResolver(createSubjectInputSchema),
@@ -83,6 +91,15 @@ export function NuevaMateriaModal({
   // is no valid form to fill in. Blocking here with the reason beats
   // rendering a form whose only outcome is a validation error.
   const hasPeriods = programs.some((program) => program.periods.length > 0)
+
+  // Bound once per field, so the control's `aria-describedby` and the
+  // paragraph's `id` can never be written out of step with each other.
+  const nameField = fields.bind('name', errors.name && translateValidationMessage(t, errors.name.message))
+  const codeField = fields.bind('code', errors.code && translateValidationMessage(t, errors.code.message))
+  const colorField = fields.bind('color', errors.color && translateValidationMessage(t, errors.color.message))
+  const periodField = fields.bind('periodId', errors.periodId && translateValidationMessage(t, errors.periodId.message))
+  const slotsField = fields.bind('slots', errors.slots && translateValidationMessage(t, errors.slots.message))
+  const guard = useDiscardGuard({ isDirty: useValuesDirtyCheck(getValues), onClose })
 
   if (!hasPeriods) {
     return (
@@ -120,87 +137,103 @@ export function NuevaMateriaModal({
   }
 
   return (
-    <DialogOverlay>
-      <DialogContent role="dialog" aria-label={t('nuevaMateriaModal.dialogLabel')} onDismiss={onClose}>
-        <DialogHeader onClose={onClose}>
-          <h2 className="font-display text-title font-bold text-foreground">{t('nuevaMateriaModal.title')}</h2>
-          <p className="text-body-sm text-muted-foreground">{t('nuevaMateriaModal.subtitle')}</p>
-        </DialogHeader>
+    <>
+      <DialogOverlay>
+        <DialogContent role="dialog" aria-label={t('nuevaMateriaModal.dialogLabel')} onDismiss={guard.onDismiss}>
+          <DialogHeader onClose={guard.requestClose}>
+            <h2 className="font-display text-title font-bold text-foreground">{t('nuevaMateriaModal.title')}</h2>
+            <p className="text-body-sm text-muted-foreground">{t('nuevaMateriaModal.subtitle')}</p>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="contents">
-          <DialogBody>
-            <Label>
-              {t('common:fields.name')}
-              <Input type="text" {...register('name')} />
-            </Label>
-            {errors.name && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.name.message)}</p>
-            )}
-
-            <div className="flex gap-4">
-              <Label className="w-[170px] shrink-0">
-                {t('nuevaMateriaModal.code')}
-                <Input type="text" {...register('code')} />
+          <form onSubmit={handleSubmit(onSubmit)} className="contents">
+            <DialogBody>
+              <Label>
+                {t('common:fields.name')}
+                <Input type="text" {...register('name')} {...nameField.control} />
               </Label>
-              {/* A fieldset, not a `Label`: this control is six buttons and an
+              <FieldError {...nameField.error} />
+
+              <div className="flex gap-4">
+                <Label className="w-[170px] shrink-0">
+                  {t('nuevaMateriaModal.code')}
+                  {/* An identifier, not prose: nothing to suggest and nothing to
+                    spellcheck. Same for docente/contacto below, which name a
+                    TEACHER — autofill offering the student's own name or
+                    address there is wrong every time it fires. */}
+                  <Input
+                    type="text"
+                    autoComplete="off"
+                    spellCheck={false}
+                    {...register('code')}
+                    {...codeField.control}
+                  />
+                </Label>
+                {/* A fieldset, not a `Label`: this control is six buttons and an
                   input, and a `<label>` can only point at one of them. The
                   legend borrows Label's own classes so the row still reads as
                   one pair of fields. */}
-              <fieldset className="flex flex-1 flex-col">
-                <legend className="mb-1 block text-label font-semibold text-secondary-foreground">
-                  {t('nuevaMateriaModal.colorLegend')}
-                </legend>
-                <Controller
-                  name="color"
-                  control={control}
-                  render={({ field }) => <ColorSwatchPicker value={field.value} onChange={field.onChange} />}
-                />
-              </fieldset>
-            </div>
-            {errors.code && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.code.message)}</p>
-            )}
-            {errors.color && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.color.message)}</p>
-            )}
+                <fieldset className="flex flex-1 flex-col">
+                  <legend className="mb-1 block text-label font-semibold text-secondary-foreground">
+                    {t('nuevaMateriaModal.colorLegend')}
+                  </legend>
+                  <Controller
+                    name="color"
+                    control={control}
+                    render={({ field }) => <ColorSwatchPicker value={field.value} onChange={field.onChange} />}
+                  />
+                </fieldset>
+              </div>
+              <FieldError {...codeField.error} />
+              <FieldError {...colorField.error} />
 
-            <div className="flex gap-4">
-              <Label className="flex-1">
-                {t('nuevaMateriaModal.teacher')}
-                <Input type="text" {...register('docente')} />
-              </Label>
-              <Label className="flex-1">
-                {t('nuevaMateriaModal.contact')}
-                <Input type="text" {...register('contacto')} />
-              </Label>
-            </div>
+              <div className="flex gap-4">
+                <Label className="flex-1">
+                  {t('nuevaMateriaModal.teacher')}
+                  <Input type="text" autoComplete="off" {...register('docente')} />
+                </Label>
+                <Label className="flex-1">
+                  {t('nuevaMateriaModal.contact')}
+                  <Input type="text" autoComplete="off" {...register('contacto')} />
+                </Label>
+              </div>
 
-            <PeriodSelect programs={programs} registration={register('periodId')} allowNone={false} />
-            {errors.periodId && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.periodId.message)}</p>
-            )}
+              <PeriodSelect
+                programs={programs}
+                registration={register('periodId')}
+                allowNone={false}
+                control={periodField.control}
+              />
+              <FieldError {...periodField.error} />
 
-            <Controller
-              name="slots"
-              control={control}
-              render={({ field }) => <SlotEditor value={field.value} onChange={field.onChange} busySlots={busySlots} />}
-            />
-            {errors.slots && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.slots.message)}</p>
-            )}
-          </DialogBody>
+              <Controller
+                name="slots"
+                control={control}
+                render={({ field }) => (
+                  <SlotEditor value={field.value} onChange={field.onChange} busySlots={busySlots} />
+                )}
+              />
+              <FieldError {...slotsField.error} />
+            </DialogBody>
 
-          <DialogFooter className="justify-between">
-            <p className="text-caption text-muted-foreground">{t('nuevaMateriaModal.footerNote')}</p>
-            <div className="flex items-center gap-3">
-              <Button type="button" variant="outline" onClick={onClose}>
-                {t('common:actions.cancel')}
-              </Button>
-              <Button type="submit">{t('nuevaMateriaModal.submit')}</Button>
-            </div>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </DialogOverlay>
+            <DialogFooter className="justify-between">
+              <p className="text-caption text-muted-foreground">{t('nuevaMateriaModal.footerNote')}</p>
+              <div className="flex items-center gap-3">
+                <Button type="button" variant="outline" onClick={guard.requestClose}>
+                  {t('common:actions.cancel')}
+                </Button>
+                <Button type="submit" disabled={pending}>
+                  {t('nuevaMateriaModal.submit')}
+                </Button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </DialogOverlay>
+
+      {/* Rendered BESIDE the form, not instead of it: the typed values live in
+          the form's own state, so unmounting it here would make "Seguir
+          editando" come back to an empty form. */}
+      {guard.isConfirming && <DiscardChangesDialog onKeepEditing={guard.keepEditing} onDiscard={guard.discard} />}
+    </>
   )
 }

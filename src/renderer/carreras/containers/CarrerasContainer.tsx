@@ -61,7 +61,11 @@ export function CarrerasContainer({ onSelectProgram, now }: CarrerasContainerPro
       {data && <CarrerasList programs={data} now={now ?? new Date()} onSelect={onSelectProgram} />}
 
       {isModalOpen && (
-        <NuevaCarreraModal onSubmit={(input) => createMutation.mutate(input)} onClose={() => setIsModalOpen(false)} />
+        <NuevaCarreraModal
+          pending={createMutation.isPending}
+          onSubmit={(input) => createMutation.mutate(input)}
+          onClose={() => setIsModalOpen(false)}
+        />
       )}
     </div>
   )

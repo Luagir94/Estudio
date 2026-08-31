@@ -1,23 +1,14 @@
 // Presentational (design "Approved design — Attachment row"): mirrors the
 // existing DeadlineRow idiom — card surface, 44px type chip on the sunken
-// surface, name + meta, two 30x30 icon buttons. No data fetching, no IPC —
-// that lives in AdjuntosContainer.
-import {
-  Check,
-  ExternalLink,
-  FileText,
-  FileX,
-  Hourglass,
-  Image,
-  type LucideIcon,
-  SearchX,
-  Sparkles,
-  Trash2
-} from 'lucide-react'
+// surface, name + meta. The row itself opens the attachment and carries ONE
+// trailing control, the delete glyph. No data fetching, no IPC — that lives
+// in AdjuntosContainer.
+import { Check, FileText, FileX, Hourglass, Image, type LucideIcon, SearchX, Sparkles, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { Attachment } from '../../../shared/ipc/adjuntos'
+import { Button } from '../../shared/components/ui/button'
 import { cn } from '../../shared/lib/cn'
-import { interactiveGhost, interactiveGhostDestructive } from '../../shared/lib/interactive'
+import { interactiveGhostDestructive, interactiveSurface } from '../../shared/lib/interactive'
 import {
   formatAttachmentMeta,
   getFileExtension,
@@ -59,25 +50,61 @@ export function AttachmentRow({ attachment, isMissing, onOpen, onDelete }: Attac
   const kind = resolveAttachmentKind(attachment.fileName)
   const Icon = isMissing ? FileX : kind === 'image' ? Image : FileText
   const chipColor = isMissing ? 'text-destructive' : 'text-muted-foreground'
+  // A class apunte is an attachment like any other — `classDate` is the only
+  // thing that ever set them apart, and it used to be a whole second section.
+  // The date takes over the type chip, because "MD" answers nothing about an
+  // apunte while its class answers everything.
+  const classDate = attachment.classDate
+  const monthLabels = t('common:monthsCaps', { returnObjects: true }) as string[]
+  // Split rather than `new Date(...)`: `classDate` is a LOCAL `YYYY-MM-DD`,
+  // and Date parses that as UTC — which lands on the previous day for every
+  // student west of Greenwich, this app's entire audience.
+  const [, classMonth = '', classDay = ''] = classDate?.split('-') ?? []
+  // The apunte's own first line (`classNotePreview`, stored as `title`) is what
+  // you recognise it by; its filename is just the date, which the chip says.
+  const displayName = classDate !== null ? (attachment.title ?? attachment.fileName) : attachment.fileName
   const badge = indexBadgeFor(attachment.indexStatus)
   const BadgeIcon = INDEX_BADGE_ICON_COMPONENTS[badge.icon]
   const originBadge = originBadgeFor(attachment.origin)
   const OriginBadgeIconComponent = originBadge ? ORIGIN_BADGE_ICON_COMPONENTS[originBadge.icon] : null
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-1.5">
-      <span className="flex w-11 shrink-0 flex-col items-center justify-center gap-1 rounded-lg bg-muted py-[5px]">
-        <Icon className={cn('h-3.5 w-3.5', chipColor)} aria-hidden />
-        <span className={cn('text-[9px] font-semibold tracking-wide uppercase', chipColor)}>{extension}</span>
+    <div className="relative flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-1.5">
+      {/* The ROW is the open affordance now (approved design), which is also
+          what every other row in the app already does — MateriasList,
+          ParcialesSection and ApuntesSection rows are all buttons. This one
+          was the outlier, and its separate "abrir" icon button was the price:
+          two icon buttons per row meant ten of them over five attachments.
+          A stretched overlay rather than a wrapping <button>, because the
+          delete control lives inside the row and buttons cannot nest. */}
+      <button
+        type="button"
+        aria-label={t('attachmentRow.openNamed', { name: displayName })}
+        onClick={() => onOpen(attachment)}
+        className={cn('absolute inset-0 rounded-lg', interactiveSurface)}
+      />
+      {/* Same 44px chip either way — a dated apunte and an uploaded file are
+          peers in one list, so they cannot sit on two different grids. */}
+      <span className="pointer-events-none relative flex w-11 shrink-0 flex-col items-center justify-center gap-1 rounded-lg bg-muted py-[5px]">
+        {classDate !== null ? (
+          <span className="font-display text-body-lg leading-none font-semibold text-foreground">{classDay}</span>
+        ) : (
+          <Icon className={cn('h-3.5 w-3.5', chipColor)} aria-hidden />
+        )}
+        <span className={cn('text-[9px] font-semibold tracking-wide uppercase', chipColor)}>
+          {classDate !== null ? (monthLabels[Number(classMonth) - 1] ?? '') : extension}
+        </span>
       </span>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-body-lg font-semibold text-foreground">{attachment.fileName}</span>
+      <div className="pointer-events-none relative flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-body-lg font-semibold text-foreground">{displayName}</span>
         {isMissing ? (
           <span className="text-body-sm text-destructive">{t('attachmentRow.missing')}</span>
         ) : (
           <span className="text-body-sm text-secondary-foreground">
-            {formatAttachmentMeta(attachment.sizeBytes, attachment.createdAt)}
+            {classDate !== null
+              ? t('attachmentRow.classNoteMeta')
+              : formatAttachmentMeta(attachment.sizeBytes, attachment.createdAt)}
           </span>
         )}
       </div>
@@ -88,7 +115,7 @@ export function AttachmentRow({ attachment, isMissing, onOpen, onDelete }: Attac
       {originBadge && OriginBadgeIconComponent && (
         <span
           className={cn(
-            'inline-flex shrink-0 items-center gap-[5px] rounded-md px-2 py-1 text-caption font-semibold',
+            'pointer-events-none relative inline-flex shrink-0 items-center gap-[5px] rounded-md px-2 py-1 text-caption font-semibold',
             originBadge.classes
           )}
         >
@@ -103,7 +130,7 @@ export function AttachmentRow({ attachment, isMissing, onOpen, onDelete }: Attac
           exactly on the existing `@theme` tokens (no new tokens needed). */}
       <span
         className={cn(
-          'inline-flex shrink-0 items-center gap-[5px] rounded-md px-2 py-1 text-caption font-semibold',
+          'pointer-events-none relative inline-flex shrink-0 items-center gap-[5px] rounded-md px-2 py-1 text-caption font-semibold',
           badge.classes
         )}
       >
@@ -111,30 +138,19 @@ export function AttachmentRow({ attachment, isMissing, onOpen, onDelete }: Attac
         {badge.label}
       </span>
 
-      <div className="flex shrink-0 items-center gap-1.5">
-        <button
-          type="button"
-          aria-label={t('attachmentRow.open')}
-          onClick={() => onOpen(attachment)}
-          className={cn(
-            'flex h-[30px] w-[30px] items-center justify-center rounded-md bg-muted text-muted-foreground',
-            interactiveGhost
-          )}
-        >
-          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-        </button>
-        <button
-          type="button"
-          aria-label={t('attachmentRow.delete')}
-          onClick={() => onDelete(attachment)}
-          className={cn(
-            'flex h-[30px] w-[30px] items-center justify-center rounded-md bg-muted text-muted-foreground',
-            interactiveGhostDestructive
-          )}
-        >
-          <Trash2 className="h-3.5 w-3.5" aria-hidden />
-        </button>
-      </div>
+      {/* A bare glyph, not a filled chip (approved design): deleting is the
+          rare, destructive half of the row, and five filled chips down the
+          list read as five things asking to be pressed. The name rides in the
+          label because five identical "Eliminar" buttons name nothing. */}
+      <Button
+        variant="ghost"
+        size="compactIcon"
+        aria-label={t('attachmentRow.deleteNamed', { name: displayName })}
+        onClick={() => onDelete(attachment)}
+        className={cn('pointer-events-auto relative shrink-0 text-muted-foreground', interactiveGhostDestructive)}
+      >
+        <Trash2 className="h-3.5 w-3.5" aria-hidden />
+      </Button>
     </div>
   )
 }

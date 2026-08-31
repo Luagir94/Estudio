@@ -82,3 +82,65 @@ describe('AttachmentRow — origin badge', () => {
     expect(screen.queryByText('IA')).not.toBeInTheDocument()
   })
 })
+
+// APUNTES and ADJUNTOS used to be two sections built from this one query,
+// split by `classDate`. They are one list now, so the ROW is what tells a
+// class apunte from an uploaded file — and it does it with the only fact that
+// ever separated them.
+describe('AttachmentRow — class apunte variant', () => {
+  const apunte = {
+    fileName: '2026-08-14.md',
+    title: 'Planificación: round robin, quantum y starvation.',
+    classDate: '2026-08-14'
+  }
+
+  it('puts the class date in the type chip instead of the extension', () => {
+    renderRow(apunte)
+
+    expect(screen.getByText('14')).toBeInTheDocument()
+    expect(screen.getByText('AGO')).toBeInTheDocument()
+    expect(screen.queryByText('MD')).not.toBeInTheDocument()
+  })
+
+  // `classDate` is a LOCAL `YYYY-MM-DD`. `new Date('2026-01-01')` parses it as
+  // UTC, which lands on 31 DIC for every student west of Greenwich — which is
+  // all of them.
+  it('reads the date off the string, never through a UTC Date', () => {
+    renderRow({ ...apunte, classDate: '2026-01-01' })
+
+    expect(screen.getByText('01')).toBeInTheDocument()
+    expect(screen.getByText('ENE')).toBeInTheDocument()
+  })
+
+  // The filename of an apunte is just its date, which the chip already says.
+  it('names the row by the apunte’s own first line, not by its filename', () => {
+    renderRow(apunte)
+
+    expect(screen.getByText('Planificación: round robin, quantum y starvation.')).toBeInTheDocument()
+    expect(screen.queryByText('2026-08-14.md')).not.toBeInTheDocument()
+  })
+
+  it('says what kind of thing it is instead of a file size', () => {
+    renderRow(apunte)
+
+    expect(screen.getByText('Apunte de clase')).toBeInTheDocument()
+  })
+
+  it('names its open and delete controls by the apunte, not by the filename', () => {
+    renderRow(apunte)
+
+    expect(
+      screen.getByRole('button', { name: 'Abrir Planificación: round robin, quantum y starvation.' })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Eliminar Planificación: round robin, quantum y starvation.' })
+    ).toBeInTheDocument()
+  })
+
+  it('leaves an ordinary uploaded file on the extension chip and its size', () => {
+    renderRow({ fileName: 'Parcial 1 resuelto.pdf', sizeBytes: 2_516_582, classDate: null })
+
+    expect(screen.getByText('PDF')).toBeInTheDocument()
+    expect(screen.queryByText('Apunte de clase')).not.toBeInTheDocument()
+  })
+})

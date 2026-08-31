@@ -28,7 +28,11 @@ import {
   type CreateAcademicDateInput
 } from '../../../shared/ipc/fechas'
 import { Button } from '../../shared/components/ui/button'
+import { ActionError } from '../../shared/components/ui/action-error'
 import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogOverlay } from '../../shared/components/ui/dialog'
+import { DiscardChangesDialog } from '../../shared/components/ui/discard-changes-dialog'
+import { FieldError, useFieldErrors } from '../../shared/components/ui/field-error'
+import { useDiscardGuard, useValuesDirtyCheck } from '../../shared/lib/useDiscardGuard'
 import { Input } from '../../shared/components/ui/input'
 import { Label } from '../../shared/components/ui/label'
 import { Select } from '../../shared/components/ui/select'
@@ -55,6 +59,8 @@ interface NuevaFechaModalProps {
    * date that does not exist yet has nothing to destroy.
    */
   onDelete?: () => void
+  /** True while the write is in flight — the submit button locks so the record cannot be written twice. */
+  pending?: boolean
   onClose: () => void
 }
 
@@ -66,16 +72,19 @@ export function NuevaFechaModal({
   programName,
   academicDate,
   error,
+  pending,
   onSubmit,
   onDelete,
   onClose
 }: NuevaFechaModalProps): React.JSX.Element {
   const { t } = useTranslation('fechas')
+  const fields = useFieldErrors()
   const isEditing = academicDate !== undefined
 
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors }
   } = useForm({
     resolver: zodResolver(createAcademicDateInputSchema),
@@ -92,107 +101,112 @@ export function NuevaFechaModal({
   })
 
   const title = isEditing ? t('nuevaFechaModal.editTitle') : t('nuevaFechaModal.createTitle')
+  const kindField = fields.bind('kind', errors.kind && translateValidationMessage(t, errors.kind.message))
+  const titleField = fields.bind('title', errors.title && translateValidationMessage(t, errors.title.message))
+  const startsOnField = fields.bind(
+    'startsOn',
+    errors.startsOn && translateValidationMessage(t, errors.startsOn.message)
+  )
+  const endsOnField = fields.bind('endsOn', errors.endsOn && translateValidationMessage(t, errors.endsOn.message))
+
+  const guard = useDiscardGuard({ isDirty: useValuesDirtyCheck(getValues), onClose })
 
   return (
-    <DialogOverlay>
-      <DialogContent role="dialog" aria-label={title} onDismiss={onClose}>
-        <DialogHeader onClose={onClose}>
-          <h2 className="font-display text-title font-bold text-foreground">{title}</h2>
-          <p className="text-body-sm text-muted-foreground">
-            {isEditing
-              ? t('nuevaFechaModal.editSubtitle', { program: programName })
-              : t('nuevaFechaModal.createSubtitle', { program: programName })}
-          </p>
-        </DialogHeader>
+    <>
+      <DialogOverlay>
+        <DialogContent role="dialog" aria-label={title} onDismiss={guard.onDismiss}>
+          <DialogHeader onClose={guard.requestClose}>
+            <h2 className="font-display text-title font-bold text-foreground">{title}</h2>
+            <p className="text-body-sm text-muted-foreground">
+              {isEditing
+                ? t('nuevaFechaModal.editSubtitle', { program: programName })
+                : t('nuevaFechaModal.createSubtitle', { program: programName })}
+            </p>
+          </DialogHeader>
 
-        {/* Wrapped rather than `handleSubmit(onSubmit)`: RHF calls its handler
+          {/* Wrapped rather than `handleSubmit(onSubmit)`: RHF calls its handler
             with `(values, event)`, and forwarding the raw submit event to a
             command callback would put a DOM node in the payload. */}
-        <form onSubmit={handleSubmit((values) => onSubmit(values))} className="contents">
-          <DialogBody>
-            <div className="flex items-end gap-4">
-              <Label className="w-[210px] shrink-0">
-                {t('nuevaFechaModal.kind')}
-                <Select {...register('kind')}>
-                  {academicDateKindSchema.options.map((option) => (
-                    <option key={option} value={option}>
-                      {t(`kinds.${option}`)}
-                    </option>
-                  ))}
-                </Select>
-              </Label>
-              <p className="pb-3 text-caption leading-relaxed text-muted-foreground">
-                <strong className="font-semibold text-secondary-foreground">
-                  {t('nuevaFechaModal.kindNoteStrong')}
-                </strong>
-                {t('nuevaFechaModal.kindNoteRest')}
-              </p>
-            </div>
-            {errors.kind && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.kind.message)}</p>
-            )}
+          <form onSubmit={handleSubmit((values) => onSubmit(values))} className="contents">
+            <DialogBody>
+              <div className="flex items-end gap-4">
+                <Label className="w-[210px] shrink-0">
+                  {t('nuevaFechaModal.kind')}
+                  <Select {...register('kind')} {...kindField.control}>
+                    {academicDateKindSchema.options.map((option) => (
+                      <option key={option} value={option}>
+                        {t(`kinds.${option}`)}
+                      </option>
+                    ))}
+                  </Select>
+                </Label>
+                <p className="pb-3 text-caption leading-relaxed text-muted-foreground">
+                  <strong className="font-semibold text-secondary-foreground">
+                    {t('nuevaFechaModal.kindNoteStrong')}
+                  </strong>
+                  {t('nuevaFechaModal.kindNoteRest')}
+                </p>
+              </div>
+              <FieldError {...kindField.error} />
 
-            <Label>
-              {t('nuevaFechaModal.title')}
-              <Input type="text" {...register('title')} />
-            </Label>
-            {errors.title && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.title.message)}</p>
-            )}
-
-            <div className="flex gap-3">
-              <Label className="flex-1">
-                {t('nuevaFechaModal.from')}
-                <Input type="date" {...register('startsOn')} />
+              <Label>
+                {t('nuevaFechaModal.title')}
+                <Input type="text" {...register('title')} {...titleField.control} />
               </Label>
-              <Label className="flex-1">
-                {t('nuevaFechaModal.to')}
-                <Input type="date" {...register('endsOn', emptyToNull)} />
-              </Label>
-            </div>
-            {errors.startsOn && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.startsOn.message)}</p>
-            )}
-            {errors.endsOn && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.endsOn.message)}</p>
-            )}
+              <FieldError {...titleField.error} />
 
-            {/* In the BODY, not the footer (same place EditarCarreraModal puts
+              <div className="flex gap-3">
+                <Label className="flex-1">
+                  {t('nuevaFechaModal.from')}
+                  <Input type="date" {...register('startsOn')} {...startsOnField.control} />
+                </Label>
+                <Label className="flex-1">
+                  {t('nuevaFechaModal.to')}
+                  <Input type="date" {...register('endsOn', emptyToNull)} {...endsOnField.control} />
+                </Label>
+              </div>
+              <FieldError {...startsOnField.error} />
+              <FieldError {...endsOnField.error} />
+
+              {/* In the BODY, not the footer (same place EditarCarreraModal puts
                 it): the footer's left slot is taken by the delete while
                 editing, and a failed save must be reported in both modes. */}
-            {error && <p className="text-body-lg text-destructive">{error}</p>}
-          </DialogBody>
+              <ActionError message={error} className="text-body-lg" />
+            </DialogBody>
 
-          {/* Editing and deleting are ONE entry point (same shape as
+            {/* Editing and deleting are ONE entry point (same shape as
               EditarCarreraModal/EditarMateriaModal): the card's rows carry no
               delete of their own, so the form that edits a date is where it is
               destroyed. `justify-between` only while there is a left-hand
               action to push away from the footer's buttons. */}
-          <DialogFooter className={isEditing && onDelete ? 'justify-between' : undefined}>
-            {isEditing && onDelete ? (
-              <Button
-                type="button"
-                variant="ghost"
-                className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                onClick={onDelete}
-              >
-                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                {t('nuevaFechaModal.delete')}
-              </Button>
-            ) : (
-              <p className="text-caption text-muted-foreground">{t('nuevaFechaModal.footerNote')}</p>
-            )}
-            <div className="flex items-center gap-3">
-              <Button type="button" variant="outline" onClick={onClose}>
-                {t('common:actions.cancel')}
-              </Button>
-              <Button type="submit">
-                {isEditing ? t('common:actions.saveChanges') : t('nuevaFechaModal.submitCreate')}
-              </Button>
-            </div>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </DialogOverlay>
+            <DialogFooter className={isEditing && onDelete ? 'justify-between' : undefined}>
+              {isEditing && onDelete ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={onDelete}
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  {t('nuevaFechaModal.delete')}
+                </Button>
+              ) : (
+                <p className="text-caption text-muted-foreground">{t('nuevaFechaModal.footerNote')}</p>
+              )}
+              <div className="flex items-center gap-3">
+                <Button type="button" variant="outline" onClick={guard.requestClose}>
+                  {t('common:actions.cancel')}
+                </Button>
+                <Button type="submit" disabled={pending}>
+                  {isEditing ? t('common:actions.saveChanges') : t('nuevaFechaModal.submitCreate')}
+                </Button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </DialogOverlay>
+
+      {guard.isConfirming && <DiscardChangesDialog onKeepEditing={guard.keepEditing} onDiscard={guard.discard} />}
+    </>
   )
 }

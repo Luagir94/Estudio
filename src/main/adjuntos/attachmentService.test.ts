@@ -540,4 +540,102 @@ describe('attachmentService — markdown text (viewer/editor)', () => {
       )
     })
   })
+
+  describe('createMarkdownDocument', () => {
+    function createService(storage = createStorageMock()): AttachmentService {
+      return createAttachmentService({ repository, storage, indexer, notifyStatusChanged: vi.fn() })
+    }
+
+    it('writes the seeded heading under a UUID-prefixed slug of the typed name', async () => {
+      const writeIntoSubjectDir = vi.fn().mockResolvedValue(path.join(String(subjectId), 'uuid-resumen-unidad-3.md'))
+      const service = createService(createStorageMock({ writeIntoSubjectDir }))
+
+      await service.createMarkdownDocument(subjectId, 'Resumen unidad 3')
+
+      expect(writeIntoSubjectDir).toHaveBeenCalledWith(
+        subjectId,
+        expect.stringMatching(/^[0-9a-f-]{36}-resumen-unidad-3\.md$/),
+        '# Resumen unidad 3\n\n'
+      )
+    })
+
+    // The row is what separates this path from `addGeneratedAttachment`: a
+    // document the student typed is theirs, so it carries no IA badge and no
+    // class date.
+    it('inserts the row with user origin, the typed name as fileName, and no class date', async () => {
+      const service = createService()
+
+      await service.createMarkdownDocument(subjectId, 'Resumen unidad 3')
+
+      const rows = repository.listBySubject(subjectId)
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toMatchObject({
+        origin: 'user',
+        classDate: null,
+        title: null,
+        mimeType: null,
+        fileName: 'resumen-unidad-3.md'
+      })
+    })
+
+    it('returns the created row so the caller can open the editor without re-listing', async () => {
+      const service = createService()
+
+      const result = await service.createMarkdownDocument(subjectId, 'Resumen unidad 3')
+
+      const [row] = repository.listBySubject(subjectId)
+      expect(result).toEqual({ ok: true, attachment: row })
+    })
+
+    it('computes sizeBytes from the seeded content in bytes, not characters', async () => {
+      const service = createService()
+
+      await service.createMarkdownDocument(subjectId, 'Análisis matemático')
+
+      const [row] = repository.listBySubject(subjectId)
+      expect(row?.sizeBytes).toBe(Buffer.byteLength('# Análisis matemático\n\n', 'utf8'))
+    })
+
+    it("fires the indexer after a successful insert, with that row's attachmentId", async () => {
+      const service = createService()
+
+      await service.createMarkdownDocument(subjectId, 'Resumen unidad 3')
+
+      const [row] = repository.listBySubject(subjectId)
+      expect(indexer.enqueue).toHaveBeenCalledTimes(1)
+      expect(indexer.enqueue).toHaveBeenCalledWith({
+        attachmentId: row?.id,
+        subjectId,
+        storedPath: row?.storedPath,
+        fileName: 'resumen-unidad-3.md'
+      })
+    })
+
+    it('removes the just-written file and reports WRITE_FAILED when the insert fails (orphan-cleanup rule)', async () => {
+      const nonExistentSubjectId = subjectId + 999
+      const storedPath = path.join(String(nonExistentSubjectId), 'uuid-resumen-unidad-3.md')
+      const storage = createStorageMock({ writeIntoSubjectDir: vi.fn().mockResolvedValue(storedPath) })
+      const service = createService(storage)
+
+      const result = await service.createMarkdownDocument(nonExistentSubjectId, 'Resumen unidad 3')
+
+      expect(storage.removeFile).toHaveBeenCalledWith(storedPath)
+      expect(result).toMatchObject({ ok: false, code: 'WRITE_FAILED' })
+      expect(indexer.enqueue).not.toHaveBeenCalled()
+    })
+
+    it('reports WRITE_FAILED when the file itself cannot be written', async () => {
+      const storage = createStorageMock({ writeIntoSubjectDir: vi.fn().mockRejectedValue(new Error('EBUSY')) })
+      const service = createService(storage)
+
+      const result = await service.createMarkdownDocument(subjectId, 'Resumen unidad 3')
+
+      expect(result).toMatchObject({ ok: false, code: 'WRITE_FAILED' })
+      expect(repository.listBySubject(subjectId)).toHaveLength(0)
+      expect(logErrorMock).toHaveBeenCalledWith(
+        `attachmentService.createMarkdownDocument failed for subject ${subjectId}`,
+        expect.any(Error)
+      )
+    })
+  })
 })

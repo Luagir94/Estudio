@@ -24,6 +24,7 @@ import type { AttendanceStatus } from '../../../shared/ipc/materias'
 import { formatClassDateLong } from '../domain/classDate'
 import type { ClassSlotLike } from '../domain/classOccurrence'
 import { Button } from '../../shared/components/ui/button'
+import { ActionError } from '../../shared/components/ui/action-error'
 import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogOverlay } from '../../shared/components/ui/dialog'
 import { cn } from '../../shared/lib/cn'
 import { interactiveChip } from '../../shared/lib/interactive'
@@ -165,7 +166,7 @@ export function ClaseModal({
                 final dialogs): a note about what you CAN do is noise while the
                 form is telling you what just did not happen. */}
             {error ? (
-              <p className="text-caption text-destructive">{error}</p>
+              <ActionError message={error} className="text-caption" />
             ) : (
               <p className="text-caption text-muted-foreground">{t('claseModal.footerNote')}</p>
             )}

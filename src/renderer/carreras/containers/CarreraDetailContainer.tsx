@@ -349,10 +349,12 @@ export function CarreraDetailContainer({
                 </span>
                 <div className="flex items-end justify-between">
                   <div className="flex flex-col gap-0.5">
-                    {/* 28px is the design's hero-number size, deliberately off
-                        the type scale (display-lg is 30, heading 20), with the
-                        heading step's -0.5px tracking. */}
-                    <span className="font-display text-[28px] font-bold tracking-[-0.5px] text-foreground">
+                    {/* The design's hero-number size. It used to be written
+                        here as `text-[28px] tracking-[-0.5px]` with a note
+                        saying it was deliberately off the scale; it is now the
+                        `display-md` step, so the exception is declared once in
+                        `globals.css` instead of living in this one file. */}
+                    <span className="font-display text-display-md font-bold text-foreground">
                       {academicProgress.average.withFailed !== null
                         ? formatAverage(academicProgress.average.withFailed)
                         : '—'}
@@ -403,6 +405,7 @@ export function CarreraDetailContainer({
               programName={data.name}
               existingPeriods={data.periods}
               error={describeIpcError(createPeriodMutation.error)}
+              pending={createPeriodMutation.isPending}
               onSubmit={(input) => createPeriodMutation.mutate(input)}
               onClose={() => setIsModalOpen(false)}
             />
@@ -419,6 +422,7 @@ export function CarreraDetailContainer({
               // validates against the CREATE schema; the update command does
               // not take it (a period never changes carrera), so it is
               // dropped here rather than smuggled across the bridge.
+              pending={updatePeriodMutation.isPending}
               onSubmit={({ programId: _programId, ...fields }) =>
                 updatePeriodMutation.mutate({ id: editingPeriod.id, ...fields })
               }
@@ -440,6 +444,7 @@ export function CarreraDetailContainer({
             <EditarCarreraModal
               program={data}
               error={describeIpcError(updateProgramMutation.error)}
+              pending={updateProgramMutation.isPending}
               onSubmit={(input) => updateProgramMutation.mutate(input)}
               // The confirmation REPLACES the form rather than stacking on it,
               // so the destructive question is never asked underneath an
@@ -471,6 +476,7 @@ export function CarreraDetailContainer({
               busySlots={busySlots}
               programs={[data]}
               defaultPeriodId={defaultPeriodId}
+              pending={createSubjectMutation.isPending}
               onSubmit={(input) => createSubjectMutation.mutate(input)}
               onClose={() => setIsSubjectModalOpen(false)}
             />

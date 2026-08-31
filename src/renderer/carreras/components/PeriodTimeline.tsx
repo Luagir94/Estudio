@@ -76,11 +76,19 @@ export function PeriodTimeline({ periods, now }: PeriodTimelineProps): React.JSX
           const { left, width } = barPosition(period, scale)
           return (
             <li key={period.id} className="flex items-center gap-3">
+              {/* The 160px column is load-bearing — it is what starts every
+                  bar at the same x, so it stays. The `truncate` that used to
+                  ride with it does NOT: the design's own `Row Label` is
+                  `textGrowth: auto` and was never drawn clipped, and this
+                  timeline is read-only. A name cut here has nowhere to be
+                  read in full — no row click, no detail view, no second
+                  rendering. A long name takes a second line instead; the row
+                  is `items-center`, so the bar stays put beside it. */}
               <span
                 className={
                   status === 'finalizado'
-                    ? 'w-40 shrink-0 truncate text-body-sm font-medium text-muted-foreground'
-                    : 'w-40 shrink-0 truncate text-body-sm font-semibold text-foreground'
+                    ? 'w-40 shrink-0 break-words text-body-sm font-medium text-muted-foreground'
+                    : 'w-40 shrink-0 break-words text-body-sm font-semibold text-foreground'
                 }
               >
                 {period.name}

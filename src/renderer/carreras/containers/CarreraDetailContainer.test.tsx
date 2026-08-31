@@ -648,6 +648,15 @@ describe('CarreraDetailContainer — avance académico', () => {
     const card = await findCard()
     expect(within(card).getByText('8,50')).toBeInTheDocument()
     expect(within(card).getByText('promedio general')).toBeInTheDocument()
+
+    // The hero number's size used to be `text-[28px] tracking-[-0.5px]`
+    // written straight into the container. It is a declared step now
+    // (`display-md` in globals.css), and this pins it because the failure mode
+    // is SILENT: a mistyped token generates no utility at all, so the number
+    // would quietly fall back to its inherited size with nothing failing.
+    const hero = within(card).getByText('8,50')
+    expect(hero).toHaveClass('text-display-md')
+    expect(hero.className).not.toMatch(/text-\[|tracking-\[/)
   })
 
   // A subject passed via final carries its nota on the approved mesa, not on

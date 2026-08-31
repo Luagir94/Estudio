@@ -6,6 +6,7 @@ import type {
   AddAttachmentsInput,
   AddAttachmentsResult,
   Attachment,
+  CreateMarkdownDocumentInput,
   DeleteAttachmentResult,
   ReadAttachmentTextResult
 } from '../../shared/ipc/adjuntos'
@@ -174,6 +175,8 @@ declare global {
         read: (id: number) => Promise<IpcResult<ReadAttachmentTextResult>>
         /** Markdown editor save: rewrites the stored file and returns the updated row. */
         write: (id: number, content: string) => Promise<IpcResult<Attachment>>
+        /** "Nuevo documento": creates a seeded `.md` attachment from a typed name and returns its row. */
+        createDocument: (input: CreateMarkdownDocumentInput) => Promise<IpcResult<Attachment>>
       }
       indexado: {
         sync: () => Promise<IpcResult<SyncResult>>

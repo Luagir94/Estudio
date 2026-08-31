@@ -63,5 +63,17 @@
   },
   "dialog": {
     "close": "Cerrar"
+  },
+  "errorSummary": {
+    "title_one": "Revisá 1 campo antes de guardar",
+    "title_other": "Revisá {{count}} campos antes de guardar",
+    "goToField": "Ir a {{field}}"
+  },
+  "discardChanges": {
+    "dialogLabel": "Descartar cambios",
+    "confirmQuestion": "¿Descartar los cambios? Lo que cargaste en este formulario no se guarda.",
+    "note": "Seguir editando te devuelve al formulario tal como lo dejaste.",
+    "keepEditing": "Seguir editando",
+    "discard": "Descartar cambios"
   }
 }

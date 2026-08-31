@@ -24,6 +24,7 @@ import type { PartialExamRecord } from '../../../shared/ipc/materias'
 // subject detail already does with `entregas/domain/deadline`.
 import { formatTakenOn } from '../../finales/domain/finalDate'
 import { partialExamBadgeLabel } from '../domain/partialExamBadge'
+import { TabActionSlot } from '../../shared/components/tabActionSlot'
 import { Button } from '../../shared/components/ui/button'
 import { DotBadge, type DotBadgeTone } from '../../shared/components/ui/dot-badge'
 import { cn } from '../../shared/lib/cn'
@@ -49,22 +50,24 @@ export function ParcialesSection({ parciales, onAdd, onEdit }: ParcialesSectionP
   const { t } = useTranslation('parciales')
 
   return (
-    <section className="flex w-full flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <h3 className="text-label font-semibold text-muted-foreground">{t('parcialesSection.heading')}</h3>
-        {/* Compact primary action, identical to the ENTREGAS header's: 7/12
-            padding, 12px/600 label, 14px icon, content-driven height. The
-            arbitrary `color` property re-asserts the ink that the size
-            override would otherwise strip through tailwind-merge. */}
-        <Button
-          type="button"
-          onClick={onAdd}
-          className="h-auto gap-2 px-3 py-[7px] text-body-sm font-semibold [color:var(--color-primary-foreground)]"
-        >
+    <section className="flex w-full flex-col gap-2" aria-label={t('parcialesSection.heading')}>
+      {/* No heading of its own: inside the subject detail the PARCIALES tab
+          already names this section, and the same word twice 12px apart is
+          not hierarchy. The name survives as the section's accessible label,
+          which is what a screen reader needs either way.
+
+          The add button travels to the tab bar's action slot — one section
+          action on screen, always the active tab's. Mounted outside that tab
+          bar (its own test, any other host) the slot renders it right here. */}
+      <TabActionSlot>
+        {/* Compact action (approved design: 7/12 padding, 12px/600 label,
+            14px icon). Tonal, not solid — a section action never outranks
+            the screen's own primary. */}
+        <Button variant="tonal" size="compact" onClick={onAdd}>
           <Plus className="h-3.5 w-3.5" aria-hidden="true" />
           {t('parcialesSection.add')}
         </Button>
-      </div>
+      </TabActionSlot>
 
       {parciales.length === 0 && <p className="text-body-lg text-muted-foreground">{t('parcialesSection.empty')}</p>}
 

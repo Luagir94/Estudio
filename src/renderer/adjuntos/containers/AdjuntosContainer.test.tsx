@@ -18,6 +18,14 @@ const sampleAttachment = {
   classDate: null
 }
 
+// "Agregar archivo" and "Nuevo documento" share one "+ Agregar" entry point
+// now (approved design): they were two buttons doing the same job, which is
+// what made the ADJUNTOS header the busiest row on the subject detail.
+function openAddMenu(item: 'Agregar archivo' | 'Nuevo documento'): void {
+  fireEvent.click(screen.getByRole('button', { name: 'Agregar' }))
+  fireEvent.click(screen.getByRole('menuitem', { name: item }))
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (reason?: unknown) => void
@@ -47,7 +55,8 @@ beforeEach(() => {
       open: vi.fn(),
       remove: vi.fn(),
       read: vi.fn(),
-      write: vi.fn()
+      write: vi.fn(),
+      createDocument: vi.fn()
     },
     indexado: {
       sync: vi.fn().mockResolvedValue({ ok: true, data: { enqueued: 0 } }),
@@ -101,7 +110,7 @@ beforeEach(() => {
 
 describe('AdjuntosContainer', () => {
   it('fetches on the ["adjuntos", subjectId] query key', async () => {
-    renderWithClient(<AdjuntosContainer subjectId={42} />)
+    renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
 
     await screen.findByText('apuntes.pdf')
     expect(window.api.adjuntos.list).toHaveBeenCalledWith(42)
@@ -113,12 +122,12 @@ describe('AdjuntosContainer', () => {
 
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <AdjuntosContainer subjectId={42} />
+        <AdjuntosContainer subjectId={42} subjectName="Algoritmos" />
       </QueryClientProvider>
     )
 
     expect(screen.getAllByTestId('adjuntos-skeleton-row')).toHaveLength(3)
-    expect(screen.queryByText('Todavía no hay archivos')).not.toBeInTheDocument()
+    expect(screen.queryByText('Todavía no hay apuntes')).not.toBeInTheDocument()
 
     pending.resolve({ ok: true, data: [] })
     await waitFor(() => expect(screen.queryAllByTestId('adjuntos-skeleton-row')).toHaveLength(0))
@@ -127,18 +136,18 @@ describe('AdjuntosContainer', () => {
   it('renders the empty state when the subject has no attachments', async () => {
     window.api.adjuntos.list = vi.fn().mockResolvedValue({ ok: true, data: [] })
 
-    renderWithClient(<AdjuntosContainer subjectId={42} />)
+    renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
 
-    expect(await screen.findByText('Todavía no hay archivos')).toBeInTheDocument()
-    expect(screen.getByText('Sumá apuntes, PDFs o fotos del pizarrón.')).toBeInTheDocument()
+    expect(await screen.findByText('Todavía no hay apuntes')).toBeInTheDocument()
+    expect(screen.getByText('Sumá PDFs, fotos del pizarrón, o escribí un documento.')).toBeInTheDocument()
   })
 
   it('renders the error state and retries the query when "Reintentar" is clicked', async () => {
     window.api.adjuntos.list = vi.fn().mockRejectedValue(new Error('LIST_FAILED'))
 
-    renderWithClient(<AdjuntosContainer subjectId={42} />)
+    renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
 
-    expect(await screen.findByText('No se pudieron cargar los adjuntos.')).toBeInTheDocument()
+    expect(await screen.findByText('No se pudieron cargar los apuntes.')).toBeInTheDocument()
     expect(window.api.adjuntos.list).toHaveBeenCalledTimes(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
@@ -147,7 +156,7 @@ describe('AdjuntosContainer', () => {
   })
 
   it('renders the resolved attachment row with its formatted meta line', async () => {
-    renderWithClient(<AdjuntosContainer subjectId={42} />)
+    renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
 
     expect(await screen.findByText('apuntes.pdf')).toBeInTheDocument()
     expect(screen.getByText('2,4 MB · 12 ago')).toBeInTheDocument()
@@ -166,10 +175,10 @@ describe('AdjuntosContainer', () => {
       }
     })
 
-    const { invalidateSpy } = renderWithClient(<AdjuntosContainer subjectId={42} />)
+    const { invalidateSpy } = renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
     await screen.findByText('apuntes.pdf')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar archivo' }))
+    openAddMenu('Agregar archivo')
 
     // Real counts from the mocked response (1 succeeded + 2 failed = 3 attempted), not hardcoded copy.
     expect(await screen.findByText('2 de 3 archivos no se agregaron')).toBeInTheDocument()
@@ -185,10 +194,10 @@ describe('AdjuntosContainer', () => {
   it('opening an attachment calls adjuntosApi.open and triggers no invalidation', async () => {
     window.api.adjuntos.open = vi.fn().mockResolvedValue({ ok: true, data: undefined })
 
-    const { invalidateSpy } = renderWithClient(<AdjuntosContainer subjectId={42} />)
+    const { invalidateSpy } = renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
     await screen.findByText('apuntes.pdf')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Abrir / }))
 
     await waitFor(() => expect(window.api.adjuntos.open).toHaveBeenCalledWith(1))
     expect(invalidateSpy).not.toHaveBeenCalled()
@@ -197,10 +206,10 @@ describe('AdjuntosContainer', () => {
   it('deleting an attachment invalidates ONLY the ["adjuntos", subjectId] query', async () => {
     window.api.adjuntos.remove = vi.fn().mockResolvedValue({ ok: true, data: { id: 1, fileRemoved: true } })
 
-    const { invalidateSpy } = renderWithClient(<AdjuntosContainer subjectId={42} />)
+    const { invalidateSpy } = renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
     await screen.findByText('apuntes.pdf')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Eliminar / }))
 
     await waitFor(() => expect(window.api.adjuntos.remove).toHaveBeenCalledWith(1))
     await waitFor(() => expect(invalidateSpy).toHaveBeenCalled())
@@ -214,17 +223,17 @@ describe('AdjuntosContainer', () => {
       .fn()
       .mockResolvedValue({ ok: false, error: { code: 'ATTACHMENT_FILE_MISSING', message: 'file is gone' } })
 
-    renderWithClient(<AdjuntosContainer subjectId={42} />)
+    renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
     await screen.findByText('apuntes.pdf')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Abrir / }))
 
     expect(
       await screen.findByText('El archivo ya no está en el disco — puede que se haya movido o borrado fuera de la app.')
     ).toBeInTheDocument()
     // The row itself — file name and its Abrir/Eliminar actions — is still rendered, never auto-deleted.
     expect(screen.getByText('apuntes.pdf')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Eliminar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Eliminar / })).toBeInTheDocument()
   })
 
   it('shows a channel-level failure message when adjuntos:add rejects', async () => {
@@ -234,10 +243,10 @@ describe('AdjuntosContainer', () => {
       .fn()
       .mockResolvedValue({ ok: false, error: { code: 'NOT_FOUND', message: 'subject is gone' } })
 
-    renderWithClient(<AdjuntosContainer subjectId={42} />)
+    renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
     await screen.findByText('apuntes.pdf')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar archivo' }))
+    openAddMenu('Agregar archivo')
 
     expect(await screen.findByText('No se pudieron agregar los archivos. Probá de nuevo.')).toBeInTheDocument()
   })
@@ -249,10 +258,10 @@ describe('AdjuntosContainer', () => {
       .fn()
       .mockResolvedValue({ ok: false, error: { code: 'DELETE_FAILED', message: 'could not delete' } })
 
-    renderWithClient(<AdjuntosContainer subjectId={42} />)
+    renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
     await screen.findByText('apuntes.pdf')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Eliminar / }))
 
     expect(
       await screen.findByText('No se pudo eliminar el adjunto. Actualizá la lista e intentá de nuevo.')
@@ -268,10 +277,10 @@ describe('AdjuntosContainer', () => {
       .fn()
       .mockResolvedValue({ ok: false, error: { code: 'OPEN_FAILED', message: 'could not open' } })
 
-    renderWithClient(<AdjuntosContainer subjectId={42} />)
+    renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
     await screen.findByText('apuntes.pdf')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Abrir / }))
 
     expect(
       await screen.findByText('No se pudo abrir el archivo. Probá de nuevo, o abrilo manualmente desde su carpeta.')
@@ -289,10 +298,10 @@ describe('AdjuntosContainer', () => {
       .fn()
       .mockResolvedValue({ ok: false, error: { code: 'ATTACHMENT_FILE_MISSING', message: 'file is gone' } })
 
-    renderWithClient(<AdjuntosContainer subjectId={42} />)
+    renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
     await screen.findByText('apuntes.pdf')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Abrir / }))
 
     expect(
       await screen.findByText('El archivo ya no está en el disco — puede que se haya movido o borrado fuera de la app.')
@@ -310,15 +319,15 @@ describe('AdjuntosContainer', () => {
       .mockResolvedValueOnce({ ok: false, error: { code: 'DELETE_FAILED', message: 'could not delete' } })
       .mockResolvedValueOnce({ ok: true, data: { id: 1, fileRemoved: true } })
 
-    renderWithClient(<AdjuntosContainer subjectId={42} />)
+    renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
     await screen.findByText('apuntes.pdf')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Eliminar / }))
     expect(
       await screen.findByText('No se pudo eliminar el adjunto. Actualizá la lista e intentá de nuevo.')
     ).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Eliminar / }))
     await waitFor(() =>
       expect(
         screen.queryByText('No se pudo eliminar el adjunto. Actualizá la lista e intentá de nuevo.')
@@ -327,12 +336,35 @@ describe('AdjuntosContainer', () => {
   })
 
   it('clicking "Sincronizar" invokes indexado:sync', async () => {
-    renderWithClient(<AdjuntosContainer subjectId={42} />)
+    renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
     await screen.findByText('apuntes.pdf')
 
     fireEvent.click(screen.getByRole('button', { name: 'Sincronizar' }))
 
     await waitFor(() => expect(window.api.indexado.sync).toHaveBeenCalledTimes(1))
+  })
+
+  it('locks "Sincronizar" while the sync is in flight and releases it when it settles', async () => {
+    const gate = deferred<{ ok: true; data: { enqueued: number } }>()
+    window.api.indexado.sync = vi.fn().mockReturnValue(gate.promise)
+
+    renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
+    await screen.findByText('apuntes.pdf')
+
+    const button = screen.getByRole('button', { name: 'Sincronizar' })
+    fireEvent.click(button)
+
+    await waitFor(() => expect(button).toBeDisabled())
+    expect(button).toHaveAttribute('aria-busy', 'true')
+
+    // One sync per click: a second press while the first is still running must
+    // not enqueue the same work twice.
+    fireEvent.click(button)
+    expect(window.api.indexado.sync).toHaveBeenCalledTimes(1)
+
+    gate.resolve({ ok: true, data: { enqueued: 3 } })
+
+    await waitFor(() => expect(button).toBeEnabled())
   })
 
   it('subscribes to indexado:status-changed and invalidates ONLY the ["adjuntos", subjectId] query when the payload matches this subject', async () => {
@@ -342,7 +374,7 @@ describe('AdjuntosContainer', () => {
       return vi.fn()
     })
 
-    const { invalidateSpy } = renderWithClient(<AdjuntosContainer subjectId={42} />)
+    const { invalidateSpy } = renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
     await screen.findByText('apuntes.pdf')
 
     expect(pushStatusChanged).toBeDefined()
@@ -361,7 +393,7 @@ describe('AdjuntosContainer', () => {
       return vi.fn()
     })
 
-    const { invalidateSpy } = renderWithClient(<AdjuntosContainer subjectId={42} />)
+    const { invalidateSpy } = renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
     await screen.findByText('apuntes.pdf')
 
     pushStatusChanged?.({ subjectId: 99 })
@@ -375,7 +407,7 @@ describe('AdjuntosContainer', () => {
     const unsubscribe = vi.fn()
     window.api.indexado.onStatusChanged = vi.fn().mockReturnValue(unsubscribe)
 
-    const { unmount } = renderWithClient(<AdjuntosContainer subjectId={42} />)
+    const { unmount } = renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
     await screen.findByText('apuntes.pdf')
 
     unmount()
@@ -393,10 +425,10 @@ describe('AdjuntosContainer', () => {
       window.api.adjuntos.list = vi.fn().mockResolvedValue({ ok: true, data: [markdownAttachment] })
       const onOpenMarkdown = vi.fn()
 
-      renderWithClient(<AdjuntosContainer subjectId={42} onOpenMarkdown={onOpenMarkdown} />)
+      renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" onOpenMarkdown={onOpenMarkdown} />)
       await screen.findByText('Resumen unidad 3.md')
 
-      fireEvent.click(screen.getByRole('button', { name: 'Abrir' }))
+      fireEvent.click(screen.getByRole('button', { name: /^Abrir / }))
 
       expect(onOpenMarkdown).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }))
       expect(window.api.adjuntos.open).not.toHaveBeenCalled()
@@ -406,10 +438,10 @@ describe('AdjuntosContainer', () => {
       window.api.adjuntos.open = vi.fn().mockResolvedValue({ ok: true, data: undefined })
       const onOpenMarkdown = vi.fn()
 
-      renderWithClient(<AdjuntosContainer subjectId={42} onOpenMarkdown={onOpenMarkdown} />)
+      renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" onOpenMarkdown={onOpenMarkdown} />)
       await screen.findByText('apuntes.pdf')
 
-      fireEvent.click(screen.getByRole('button', { name: 'Abrir' }))
+      fireEvent.click(screen.getByRole('button', { name: /^Abrir / }))
 
       await waitFor(() => expect(window.api.adjuntos.open).toHaveBeenCalledWith(1))
       expect(onOpenMarkdown).not.toHaveBeenCalled()
@@ -419,12 +451,118 @@ describe('AdjuntosContainer', () => {
       window.api.adjuntos.list = vi.fn().mockResolvedValue({ ok: true, data: [markdownAttachment] })
       window.api.adjuntos.open = vi.fn().mockResolvedValue({ ok: true, data: undefined })
 
-      renderWithClient(<AdjuntosContainer subjectId={42} />)
+      renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
       await screen.findByText('Resumen unidad 3.md')
 
-      fireEvent.click(screen.getByRole('button', { name: 'Abrir' }))
+      fireEvent.click(screen.getByRole('button', { name: /^Abrir / }))
 
       await waitFor(() => expect(window.api.adjuntos.open).toHaveBeenCalledWith(2))
+    })
+  })
+
+  // "Nuevo documento" (approved design — CABECERA DE ADJUNTOS).
+  describe('nuevo documento', () => {
+    const createdDocument = {
+      ...sampleAttachment,
+      id: 9,
+      fileName: 'resumen-unidad-3.md',
+      sizeBytes: 23,
+      indexStatus: 'pending'
+    }
+
+    it('creates the document from the dialog and hands the new row straight to the editor', async () => {
+      window.api.adjuntos.createDocument = vi.fn().mockResolvedValue({ ok: true, data: createdDocument })
+      const onOpenMarkdown = vi.fn()
+
+      const { invalidateSpy } = renderWithClient(
+        <AdjuntosContainer subjectId={42} subjectName="Algoritmos" onOpenMarkdown={onOpenMarkdown} />
+      )
+      await screen.findByText('apuntes.pdf')
+
+      openAddMenu('Nuevo documento')
+      fireEvent.change(await screen.findByLabelText('NOMBRE DEL DOCUMENTO'), {
+        target: { value: 'Resumen unidad 3' }
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Crear y escribir' }))
+
+      await waitFor(() =>
+        expect(window.api.adjuntos.createDocument).toHaveBeenCalledWith({ subjectId: 42, name: 'Resumen unidad 3' })
+      )
+      await waitFor(() => expect(onOpenMarkdown).toHaveBeenCalledWith(createdDocument))
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['adjuntos', 42] })
+      expect(screen.queryByRole('dialog', { name: 'Nuevo documento' })).not.toBeInTheDocument()
+    })
+
+    // Closing would throw away the name they typed — the one thing they have
+    // to retry with.
+    it('keeps the dialog open and reports the failure in its own footer', async () => {
+      window.api.adjuntos.createDocument = vi
+        .fn()
+        .mockResolvedValue({ ok: false, error: { code: 'WRITE_FAILED', message: 'EBUSY' } })
+
+      renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
+      await screen.findByText('apuntes.pdf')
+
+      openAddMenu('Nuevo documento')
+      fireEvent.change(await screen.findByLabelText('NOMBRE DEL DOCUMENTO'), {
+        target: { value: 'Resumen unidad 3' }
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Crear y escribir' }))
+
+      expect(await screen.findByText('No se pudo crear el documento. Probá de nuevo.')).toBeInTheDocument()
+      expect(screen.getByRole('dialog', { name: 'Nuevo documento' })).toBeInTheDocument()
+    })
+  })
+
+  // The rule the approved design added: Sincronizar is only there when it has
+  // something to do.
+  describe('Sincronizar visibility', () => {
+    it('is offered while an attachment is still pending', async () => {
+      renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
+
+      expect(await screen.findByRole('button', { name: 'Sincronizar' })).toBeInTheDocument()
+    })
+
+    it('is gone once nothing of the materia is pending', async () => {
+      window.api.adjuntos.list = vi
+        .fn()
+        .mockResolvedValue({ ok: true, data: [{ ...sampleAttachment, indexStatus: 'indexed' }] })
+
+      renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
+      await screen.findByText('apuntes.pdf')
+
+      expect(screen.queryByRole('button', { name: 'Sincronizar' })).not.toBeInTheDocument()
+    })
+
+    // This used to be the awkward case: the apunte was filtered OUT of the
+    // list but still counted as work `indexado:sync` would do, so the button
+    // appeared with nothing on screen to explain it. Nothing is filtered any
+    // more — the apunte is listed, and it is listed as an apunte.
+    it('stays offered when the only pending document is a class apunte, which the list now shows', async () => {
+      window.api.adjuntos.list = vi.fn().mockResolvedValue({
+        ok: true,
+        data: [
+          { ...sampleAttachment, indexStatus: 'indexed' },
+          {
+            ...sampleAttachment,
+            id: 3,
+            fileName: 'apunte-2026-08-20.md',
+            title: 'Semáforos y exclusión mutua.',
+            origin: 'class-note',
+            classDate: '2026-08-20',
+            indexStatus: 'pending'
+          }
+        ]
+      })
+
+      renderWithClient(<AdjuntosContainer subjectId={42} subjectName="Algoritmos" />)
+      await screen.findByText('apuntes.pdf')
+
+      // Listed, and listed AS an apunte: its class date, not its extension.
+      expect(screen.getByText('Semáforos y exclusión mutua.')).toBeInTheDocument()
+      expect(screen.getByText('Apunte de clase')).toBeInTheDocument()
+      expect(screen.getByText('20')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Sincronizar' })).toBeInTheDocument()
     })
   })
 })

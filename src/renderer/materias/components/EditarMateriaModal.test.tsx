@@ -135,6 +135,47 @@ describe('EditarMateriaModal', () => {
     expect(await screen.findByText('Poné un nombre')).toBeInTheDocument()
   })
 
+  // This modal is the ONLY one with tabs, and it hides the inactive one with
+  // `hidden` — which removes it from the view AND from the accessibility tree.
+  // So an error on the pane you are not looking at used to produce nothing at
+  // all: no message, no feedback, a "Guardar cambios" that just did nothing.
+  describe('errors on a hidden tab', () => {
+    it('says what is wrong even when the bad field is on the other tab', async () => {
+      const onSubmit = vi.fn()
+      render(<EditarMateriaModal subject={subject} onSubmit={onSubmit} onClose={vi.fn()} />)
+
+      fireEvent.change(screen.getByLabelText('NOMBRE'), { target: { value: '' } })
+      fireEvent.click(screen.getByRole('tab', { name: 'Horario' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+      const summary = await screen.findByRole('alert')
+      expect(summary).toHaveTextContent('Revisá 1 campo antes de guardar')
+      expect(summary).toHaveTextContent('General · NOMBRE — Poné un nombre')
+      expect(onSubmit).not.toHaveBeenCalled()
+      // Visible from the Horario tab — it sits outside both panes.
+      expect(summary.closest('[hidden]')).toBeNull()
+    })
+
+    it('takes you to the field, tab and all', async () => {
+      render(<EditarMateriaModal subject={subject} onSubmit={vi.fn()} onClose={vi.fn()} />)
+
+      fireEvent.change(screen.getByLabelText('NOMBRE'), { target: { value: '' } })
+      fireEvent.click(screen.getByRole('tab', { name: 'Horario' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Ir a NOMBRE' }))
+
+      expect(screen.getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByLabelText('NOMBRE')).toHaveFocus()
+    })
+
+    it('shows no summary while the form is valid', () => {
+      render(<EditarMateriaModal subject={subject} onSubmit={vi.fn()} onClose={vi.fn()} />)
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+  })
+
   it('Cancelar calls onClose', () => {
     const onClose = vi.fn()
     render(<EditarMateriaModal subject={subject} onSubmit={vi.fn()} onClose={onClose} />)
@@ -231,5 +272,18 @@ describe('EditarMateriaModal', () => {
 
     expect(screen.getByRole('tab', { name: 'Horario' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByLabelText('HORA DE INICIO')).toHaveValue('10:00')
+  })
+
+  // Same hand-built shape as the parcial's nota: a bare input beside a `%`
+  // suffix, sharing one box. The inner control keeps its outline off so the
+  // pair reads as a single field; the box it reads as is what draws the ring.
+  it('shows the keyboard where it is standing on the composed asistencia field', () => {
+    render(<EditarMateriaModal subject={subject} onSubmit={vi.fn()} onClose={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Requiere mínimo' }))
+
+    const percent = screen.getByLabelText('Asistencia mínima (%)')
+    expect(percent).toHaveClass('outline-none')
+    expect(percent.parentElement).toHaveClass('focus-within:outline-2', 'focus-within:outline-ring')
   })
 })

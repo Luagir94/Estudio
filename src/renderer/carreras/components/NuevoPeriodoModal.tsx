@@ -32,7 +32,11 @@ import { derivePeriodYear, periodsOverlap } from '../domain/period'
 import { PERIOD_KINDS, isPeriodKind, periodNameOptions, type PeriodKind } from '../domain/periodKind'
 import { translateValidationMessage } from '../../shared/lib/translateValidationMessage'
 import { Button } from '../../shared/components/ui/button'
+import { ActionError } from '../../shared/components/ui/action-error'
 import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogOverlay } from '../../shared/components/ui/dialog'
+import { DiscardChangesDialog } from '../../shared/components/ui/discard-changes-dialog'
+import { FieldError, useFieldErrors } from '../../shared/components/ui/field-error'
+import { useDiscardGuard, useValuesDirtyCheck } from '../../shared/lib/useDiscardGuard'
 import { Input } from '../../shared/components/ui/input'
 import { Label } from '../../shared/components/ui/label'
 import { Select } from '../../shared/components/ui/select'
@@ -60,6 +64,8 @@ interface NuevoPeriodoModalProps {
    */
   error?: string | null
   onSubmit: (input: CreatePeriodInput) => void
+  /** True while the write is in flight — the submit button locks so the record cannot be written twice. */
+  pending?: boolean
   onClose: () => void
 }
 
@@ -74,10 +80,12 @@ export function NuevoPeriodoModal({
   period,
   existingPeriods,
   error,
+  pending,
   onSubmit,
   onClose
 }: NuevoPeriodoModalProps): React.JSX.Element {
   const { t } = useTranslation('carreras')
+  const fields = useFieldErrors()
   const isEditing = period !== undefined
   // An edited open-ended period must open with the checkbox already ticked —
   // otherwise the form would silently offer to give it an end it never had.
@@ -98,6 +106,7 @@ export function NuevoPeriodoModal({
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors }
   } = useForm({
     resolver: zodResolver(createPeriodInputSchema),
@@ -114,6 +123,17 @@ export function NuevoPeriodoModal({
   const endsOn = watch('endsOn') ?? null
   const kind = watch('kind') ?? ''
   const nameOptions = isPeriodKind(kind) ? periodNameOptions(kind) : []
+
+  // The `...ErrorField` suffix is this file's alone: `kindField` below is
+  // already the registration, and one local naming rule beats a near-collision
+  // between two things that both describe the same input.
+  const kindErrorField = fields.bind('kind', errors.kind && translateValidationMessage(t, errors.kind.message))
+  const nameErrorField = fields.bind('name', errors.name && translateValidationMessage(t, errors.name.message))
+  const startsOnErrorField = fields.bind(
+    'startsOn',
+    errors.startsOn && translateValidationMessage(t, errors.startsOn.message)
+  )
+  const endsOnErrorField = fields.bind('endsOn', errors.endsOn && translateValidationMessage(t, errors.endsOn.message))
 
   // The nombre is only meaningful under its tipo, so changing the tipo drops
   // a name the new one does not offer — leaving "2do cuatrimestre" selected
@@ -160,172 +180,178 @@ export function NuevoPeriodoModal({
 
   const title = isEditing ? t('nuevoPeriodoModal.editTitle') : t('nuevoPeriodoModal.createTitle')
 
-  return (
-    <DialogOverlay>
-      <DialogContent role="dialog" aria-label={title} onDismiss={onClose}>
-        <DialogHeader onClose={onClose}>
-          <h2 className="font-display text-title font-bold text-foreground">{title}</h2>
-          <p className="text-body-sm text-muted-foreground">
-            {isEditing
-              ? t('nuevoPeriodoModal.editSubtitle', { program: programName })
-              : t('nuevoPeriodoModal.createSubtitle', { program: programName })}
-          </p>
-        </DialogHeader>
+  const guard = useDiscardGuard({ isDirty: useValuesDirtyCheck(getValues), onClose })
 
-        <form onSubmit={handleSubmit(onSubmit)} className="contents">
-          <DialogBody>
-            {/* Tipo comes FIRST now: it decides which nombres exist, so
+  return (
+    <>
+      <DialogOverlay>
+        <DialogContent role="dialog" aria-label={title} onDismiss={guard.onDismiss}>
+          <DialogHeader onClose={guard.requestClose}>
+            <h2 className="font-display text-title font-bold text-foreground">{title}</h2>
+            <p className="text-body-sm text-muted-foreground">
+              {isEditing
+                ? t('nuevoPeriodoModal.editSubtitle', { program: programName })
+                : t('nuevoPeriodoModal.createSubtitle', { program: programName })}
+            </p>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="contents">
+            <DialogBody>
+              {/* Tipo comes FIRST now: it decides which nombres exist, so
                 asking for the name above it would be asking a question whose
                 options are not decided yet. */}
-            <div className="flex items-end gap-4">
-              <Label className="w-[210px] shrink-0">
-                {t('nuevoPeriodoModal.kind')}
-                <Select {...kindField} onChange={handleKindChange}>
+              <div className="flex items-end gap-4">
+                <Label className="w-[210px] shrink-0">
+                  {t('nuevoPeriodoModal.kind')}
+                  <Select {...kindField} onChange={handleKindChange} {...kindErrorField.control}>
+                    <option value="" disabled>
+                      {t('nuevoPeriodoModal.kindPlaceholder')}
+                    </option>
+                    {PERIOD_KINDS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Select>
+                </Label>
+                <p className="pb-3 text-caption text-muted-foreground">
+                  <strong className="font-semibold text-secondary-foreground">
+                    {t('nuevoPeriodoModal.kindNoteStrong')}
+                  </strong>
+                  {t('nuevoPeriodoModal.kindNoteRest')}
+                </p>
+              </div>
+              <FieldError {...kindErrorField.error} />
+
+              <Label>
+                {t('common:fields.name')}
+                <Select {...register('name')} disabled={nameOptions.length === 0} {...nameErrorField.control}>
                   <option value="" disabled>
-                    {t('nuevoPeriodoModal.kindPlaceholder')}
+                    {nameOptions.length === 0
+                      ? t('nuevoPeriodoModal.namePlaceholderNoKind')
+                      : t('nuevoPeriodoModal.namePlaceholder')}
                   </option>
-                  {PERIOD_KINDS.map((option) => (
+                  {nameOptions.map((option) => (
                     <option key={option} value={option}>
                       {option}
                     </option>
                   ))}
                 </Select>
               </Label>
-              <p className="pb-3 text-caption text-muted-foreground">
-                <strong className="font-semibold text-secondary-foreground">
-                  {t('nuevoPeriodoModal.kindNoteStrong')}
-                </strong>
-                {t('nuevoPeriodoModal.kindNoteRest')}
-              </p>
-            </div>
-            {errors.kind && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.kind.message)}</p>
-            )}
+              <FieldError {...nameErrorField.error} />
 
-            <Label>
-              {t('common:fields.name')}
-              <Select {...register('name')} disabled={nameOptions.length === 0}>
-                <option value="" disabled>
-                  {nameOptions.length === 0
-                    ? t('nuevoPeriodoModal.namePlaceholderNoKind')
-                    : t('nuevoPeriodoModal.namePlaceholder')}
-                </option>
-                {nameOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </Select>
-            </Label>
-            {errors.name && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.name.message)}</p>
-            )}
-
-            {/* The year is NOT in these names, and this is where the user
+              {/* The year is NOT in these names, and this is where the user
                 finds that out — otherwise "1er cuatrimestre" reads like the
                 app lost the 2026 that used to be there. */}
-            {legacyNotice && (
-              <p className="rounded-lg bg-muted px-4 py-3 text-caption leading-relaxed text-secondary-foreground">
-                {t('nuevoPeriodoModal.legacyNoticeLead')}{' '}
-                <strong className="font-semibold text-foreground">{legacyNotice.name}</strong>
-                {t('nuevoPeriodoModal.legacyNoticeRest', { kind: legacyNotice.kind })}
-              </p>
-            )}
+              {legacyNotice && (
+                <p className="rounded-lg bg-muted px-4 py-3 text-caption leading-relaxed text-secondary-foreground">
+                  {t('nuevoPeriodoModal.legacyNoticeLead')}{' '}
+                  <strong className="font-semibold text-foreground">{legacyNotice.name}</strong>
+                  {t('nuevoPeriodoModal.legacyNoticeRest', { kind: legacyNotice.kind })}
+                </p>
+              )}
 
-            <div className="flex gap-3">
-              <Label className="flex-1">
-                {t('nuevoPeriodoModal.from')}
-                <Input type="date" {...register('startsOn')} />
-              </Label>
-              <Label className="flex-1">
-                {t('nuevoPeriodoModal.to')}
-                <Input type="date" disabled={isOpenEnded} {...register('endsOn', emptyToNull)} />
-              </Label>
-            </div>
-            {errors.startsOn && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.startsOn.message)}</p>
-            )}
-            {errors.endsOn && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.endsOn.message)}</p>
-            )}
+              <div className="flex gap-3">
+                <Label className="flex-1">
+                  {t('nuevoPeriodoModal.from')}
+                  <Input type="date" {...register('startsOn')} {...startsOnErrorField.control} />
+                </Label>
+                <Label className="flex-1">
+                  {t('nuevoPeriodoModal.to')}
+                  <Input
+                    type="date"
+                    disabled={isOpenEnded}
+                    {...register('endsOn', emptyToNull)}
+                    {...endsOnErrorField.control}
+                  />
+                </Label>
+              </div>
+              <FieldError {...startsOnErrorField.error} />
+              <FieldError {...endsOnErrorField.error} />
 
-            {/* `accent-*` matches the entregas checkbox: a checked box is the
+              {/* `accent-*` matches the entregas checkbox: a checked box is the
                 design's brand accent everywhere, not the OS blue in half the app. */}
-            <label className="group flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={isOpenEnded}
-                onChange={(event) => toggleOpenEnded(event.target.checked)}
-                className={cn('h-4 w-4 rounded-sm border-border accent-(--color-brand)', interactive)}
-              />
-              <span className="text-body-sm font-semibold text-secondary-foreground transition-colors duration-150 group-hover:text-foreground">
-                {t('nuevoPeriodoModal.openEnded')}
-              </span>
-              <span className="text-caption text-muted-foreground">{t('nuevoPeriodoModal.openEndedNote')}</span>
-            </label>
+              <label className="group flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={isOpenEnded}
+                  onChange={(event) => toggleOpenEnded(event.target.checked)}
+                  className={cn('h-4 w-4 rounded-sm border-border accent-(--color-brand)', interactive)}
+                />
+                <span className="text-body-sm font-semibold text-secondary-foreground transition-colors duration-150 group-hover:text-foreground">
+                  {t('nuevoPeriodoModal.openEnded')}
+                </span>
+                <span className="text-caption text-muted-foreground">{t('nuevoPeriodoModal.openEndedNote')}</span>
+              </label>
 
-            {hasValidStart && (
-              <div className="flex items-center justify-between gap-3 rounded-lg bg-muted px-4 py-3">
-                {/* Baseline, not centre: the year and the note beside it are
+              {hasValidStart && (
+                <div className="flex items-center justify-between gap-3 rounded-lg bg-muted px-4 py-3">
+                  {/* Baseline, not centre: the year and the note beside it are
                     two type steps, and centring each box lifts the smaller one
                     off the shared baseline. The icon has no baseline of its
                     own, so it keeps centring itself. */}
-                <span className="flex items-baseline gap-2">
-                  <Sparkles className="h-3.5 w-3.5 shrink-0 self-center text-secondary-foreground" aria-hidden="true" />
-                  <strong className="text-body-sm font-semibold text-foreground">
-                    {t('nuevoPeriodoModal.derivedYear', { year: derivePeriodYear(startsOn) })}
-                  </strong>
-                  <span className="text-caption text-muted-foreground">{t('nuevoPeriodoModal.derivedYearNote')}</span>
-                </span>
-                {isOpenEnded ? (
-                  <span className="flex items-center gap-2 text-caption text-muted-foreground">
-                    <InfinityIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                    {t('period.neverEnds')}
+                  <span className="flex items-baseline gap-2">
+                    <Sparkles
+                      className="h-3.5 w-3.5 shrink-0 self-center text-secondary-foreground"
+                      aria-hidden="true"
+                    />
+                    <strong className="text-body-sm font-semibold text-foreground">
+                      {t('nuevoPeriodoModal.derivedYear', { year: derivePeriodYear(startsOn) })}
+                    </strong>
+                    <span className="text-caption text-muted-foreground">{t('nuevoPeriodoModal.derivedYearNote')}</span>
                   </span>
-                ) : (
-                  durationDays !== null && (
-                    <span className="text-caption text-muted-foreground">
-                      {t('period.duration', { days: durationDays, weeks: Math.round(durationDays / 7) })}
+                  {isOpenEnded ? (
+                    <span className="flex items-center gap-2 text-caption text-muted-foreground">
+                      <InfinityIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                      {t('period.neverEnds')}
                     </span>
-                  )
-                )}
-              </div>
-            )}
-
-            {overlapping.length > 0 && (
-              <div className="flex items-start gap-3 rounded-lg border border-primary bg-sidebar-accent px-4 py-3">
-                <Layers className="mt-px h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
-                <div className="flex flex-col gap-1">
-                  <strong className="text-body-sm font-semibold text-foreground">
-                    {t('nuevoPeriodoModal.overlapTitle', {
-                      names: overlapping.map((candidate) => candidate.name).join(', ')
-                    })}
-                  </strong>
-                  <p className="text-caption leading-relaxed text-secondary-foreground">
-                    {t('nuevoPeriodoModal.overlapBody')}
-                  </p>
+                  ) : (
+                    durationDays !== null && (
+                      <span className="text-caption text-muted-foreground">
+                        {t('period.duration', { days: durationDays, weeks: Math.round(durationDays / 7) })}
+                      </span>
+                    )
+                  )}
                 </div>
-              </div>
-            )}
-          </DialogBody>
+              )}
 
-          <DialogFooter>
-            {error ? (
-              <p className="text-caption text-destructive">{error}</p>
-            ) : (
-              <p className="text-caption text-muted-foreground">{t('nuevoPeriodoModal.footerNote')}</p>
-            )}
-            <div className="flex items-center gap-3">
-              <Button type="button" variant="outline" onClick={onClose}>
-                {t('common:actions.cancel')}
-              </Button>
-              <Button type="submit">
-                {isEditing ? t('common:actions.saveChanges') : t('nuevoPeriodoModal.submitCreate')}
-              </Button>
-            </div>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </DialogOverlay>
+              {overlapping.length > 0 && (
+                <div className="flex items-start gap-3 rounded-lg border border-primary bg-sidebar-accent px-4 py-3">
+                  <Layers className="mt-px h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
+                  <div className="flex flex-col gap-1">
+                    <strong className="text-body-sm font-semibold text-foreground">
+                      {t('nuevoPeriodoModal.overlapTitle', {
+                        names: overlapping.map((candidate) => candidate.name).join(', ')
+                      })}
+                    </strong>
+                    <p className="text-caption leading-relaxed text-secondary-foreground">
+                      {t('nuevoPeriodoModal.overlapBody')}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </DialogBody>
+
+            <DialogFooter>
+              {error ? (
+                <ActionError message={error} className="text-caption" />
+              ) : (
+                <p className="text-caption text-muted-foreground">{t('nuevoPeriodoModal.footerNote')}</p>
+              )}
+              <div className="flex items-center gap-3">
+                <Button type="button" variant="outline" onClick={guard.requestClose}>
+                  {t('common:actions.cancel')}
+                </Button>
+                <Button type="submit" disabled={pending}>
+                  {isEditing ? t('common:actions.saveChanges') : t('nuevoPeriodoModal.submitCreate')}
+                </Button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </DialogOverlay>
+
+      {guard.isConfirming && <DiscardChangesDialog onKeepEditing={guard.keepEditing} onDiscard={guard.discard} />}
+    </>
   )
 }

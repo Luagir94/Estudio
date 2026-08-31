@@ -6,6 +6,7 @@ import { MAX_MARKDOWN_TEXT_BYTES } from '../../shared/ipc/adjuntos'
 import type { AttachmentStorage } from './adapters/fileAttachmentStorage'
 import type { AttachmentRecord, AttachmentRepository } from './adapters/sqliteAttachmentRepository'
 import { classNoteFileName, classNotePreview } from './domain/classNoteDocument'
+import { markdownDocumentFileName, markdownDocumentSeed } from '../../shared/domain/markdownDocument'
 import { sanitizeFileName } from './domain/attachmentPaths'
 import { MAX_ATTACHMENT_BYTES } from './domain/limits'
 
@@ -46,6 +47,14 @@ export type UpdateAttachmentTextErrorCode = 'ATTACHMENT_NOT_FOUND' | 'NOT_MARKDO
 export type SaveClassNoteErrorCode = 'FILE_TOO_LARGE' | 'WRITE_FAILED'
 
 /**
+ * One code, and that is the whole point: creating a document from a typed
+ * name has no size to exceed and no row to miss — the only thing that can go
+ * wrong is the write (or the insert behind it) failing.
+ */
+export type CreateMarkdownDocumentServiceResult =
+  { ok: true; attachment: AttachmentRecord } | { ok: false; code: 'WRITE_FAILED'; message: string }
+
+/**
  * `deleted` is the answer to "was the apunte emptied?" — an apunte with no
  * text is not a blank document, it is NO document, so the save path removes
  * it. Callers report the class as having no apunte rather than as having an
@@ -70,6 +79,20 @@ export interface AttachmentService {
    * indexer enqueue as `addAttachments` above — no parallel write mechanism.
    */
   addGeneratedAttachment(subjectId: number, fileName: string, content: string): Promise<AddGeneratedAttachmentResult>
+  /**
+   * Creates an empty markdown document for the materia from a name the
+   * student typed ("Nuevo documento" in the ADJUNTOS header).
+   *
+   * Separate from `saveClassNote` because it is the OTHER kind of markdown
+   * this app writes: an apunte is keyed by its class and named by its date,
+   * while this one has no anchor but the name — so it is an ordinary
+   * `origin: 'user'` attachment with a null `classDate`, and it shows up in
+   * ADJUNTOS rather than in the APUNTES section.
+   *
+   * The document is seeded (never blank) so the editor that opens on it right
+   * after has something to open onto — see `markdownDocumentSeed`.
+   */
+  createMarkdownDocument(subjectId: number, name: string): Promise<CreateMarkdownDocumentServiceResult>
   /**
    * The in-app viewer's read path (markdown-attachment-viewer): only `.md`
    * attachments, capped at 1 MiB, returned as a UTF-8 STRING — the renderer
@@ -147,6 +170,60 @@ export function createAttachmentService({
   indexer,
   notifyStatusChanged
 }: CreateAttachmentServiceDeps): AttachmentService {
+  /**
+   * The one write path for a document born as a STRING rather than copied
+   * from a picked file — shared by the generated-artifact save and by "Nuevo
+   * documento". The sequence (write, insert, clean up the orphan on a failed
+   * insert, fire-and-forget the indexer) is identical for both; only the
+   * origin, the log line, and what the caller does with the row differ.
+   */
+  async function writeDocument(
+    subjectId: number,
+    fileName: string,
+    content: string,
+    origin: 'user' | 'ai-generated',
+    logContext: string
+  ): Promise<{ ok: true; attachment: AttachmentRecord } | { ok: false; message: string }> {
+    const sizeBytes = Buffer.byteLength(content, 'utf8')
+    // Sanitized here even when the caller already produced a safe name —
+    // idempotent by construction, and no call site may be trusted to be the
+    // only sanitizer.
+    const storedFileName = `${randomUUID()}-${sanitizeFileName(fileName)}`
+    const storedPath = await storage.writeIntoSubjectDir(subjectId, storedFileName, content)
+
+    try {
+      const record = repository.insert({
+        subjectId,
+        fileName,
+        storedPath,
+        mimeType: null,
+        sizeBytes,
+        title: null,
+        createdAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+        // Neither of these documents belongs to one class — that is what
+        // `saveClassNote` writes, and a null classDate is what keeps this row
+        // in ADJUNTOS instead of the APUNTES section.
+        classDate: null,
+        origin
+      })
+      // Fire-and-forget (design "Background execution"): never awaited, so a
+      // slow or failing indexing job can never delay or fail this response.
+      indexer.enqueue({
+        attachmentId: record.id,
+        subjectId,
+        storedPath: record.storedPath,
+        fileName: record.fileName
+      })
+      return { ok: true, attachment: record }
+    } catch (insertError) {
+      // The write already landed on disk — a failed insert must not leave it
+      // behind (spec "Failed insert cleans up the written file").
+      log.error(logContext, insertError)
+      await storage.removeFile(storedPath).catch(() => {})
+      return { ok: false, message: insertError instanceof Error ? insertError.message : 'Unknown error' }
+    }
+  }
+
   return {
     async addAttachments(subjectId, sourcePaths) {
       const added: AttachmentRecord[] = []
@@ -226,47 +303,45 @@ export function createAttachmentService({
     },
 
     async addGeneratedAttachment(subjectId, fileName, content) {
-      const sizeBytes = Buffer.byteLength(content, 'utf8')
-      // Re-sanitized here even though `artifactGate.ts` already sanitized the
-      // header's fileName once — idempotent by construction, and this call
-      // site must never trust an upstream caller's sanitization alone.
-      const storedFileName = `${randomUUID()}-${sanitizeFileName(fileName)}`
-      const storedPath = await storage.writeIntoSubjectDir(subjectId, storedFileName, content)
+      // The generated write path is the ONLY call site that ever passes
+      // 'ai-generated' (cli-generated-artifacts spec "Generated artifact is
+      // marked and badged").
+      const result = await writeDocument(
+        subjectId,
+        fileName,
+        content,
+        'ai-generated',
+        `attachmentService.addGeneratedAttachment failed for ${fileName}`
+      )
+      // The port this satisfies (`AskGeneratedArtifactPort.saveGenerated`)
+      // asks only whether the save happened — the row itself is of no use to
+      // a caller that never renders it.
+      return result.ok ? { ok: true } : { ok: false, message: result.message }
+    },
 
+    async createMarkdownDocument(subjectId, name) {
+      const logContext = `attachmentService.createMarkdownDocument failed for subject ${subjectId}`
+
+      let result: Awaited<ReturnType<typeof writeDocument>>
       try {
-        const record = repository.insert({
+        result = await writeDocument(
           subjectId,
-          fileName,
-          storedPath,
-          mimeType: null,
-          sizeBytes,
-          title: null,
-          createdAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
-          // A generated artifact belongs to the MATERIA, not to one class.
-          classDate: null,
-          // The generated write path is the ONLY call site that ever writes
-          // 'ai-generated' (cli-generated-artifacts spec "Generated artifact
-          // is marked and badged").
-          origin: 'ai-generated'
-        })
-        // Fire-and-forget, same convention as `addAttachments` above: never
-        // awaited, so a slow or failing indexing job never delays this
-        // response.
-        indexer.enqueue({
-          attachmentId: record.id,
-          subjectId,
-          storedPath: record.storedPath,
-          fileName: record.fileName
-        })
-        return { ok: true }
-      } catch (insertError) {
-        // Orphan-cleanup rule copied from `addAttachments` (spec "Failed
-        // insert cleans up the written file"): the write already landed on
-        // disk, so a failed insert must not leave it behind.
-        log.error(`attachmentService.addGeneratedAttachment failed for ${fileName}`, insertError)
-        await storage.removeFile(storedPath).catch(() => {})
-        return { ok: false, message: insertError instanceof Error ? insertError.message : 'Unknown error' }
+          markdownDocumentFileName(name),
+          markdownDocumentSeed(name),
+          'user',
+          logContext
+        )
+      } catch (error) {
+        // A failed WRITE (as opposed to a failed insert) throws out of the
+        // helper — nothing landed on disk, so there is no orphan to clean.
+        log.error(logContext, error)
+        return { ok: false, code: 'WRITE_FAILED', message: error instanceof Error ? error.message : 'Unknown error' }
       }
+
+      if (!result.ok) {
+        return { ok: false, code: 'WRITE_FAILED', message: result.message }
+      }
+      return { ok: true, attachment: result.attachment }
     },
 
     async readAttachmentText(id) {

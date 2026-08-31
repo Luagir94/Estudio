@@ -21,7 +21,11 @@ import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { Calculator, Lock, Trash2 } from 'lucide-react'
 import { Button } from '../../shared/components/ui/button'
+import { ActionError } from '../../shared/components/ui/action-error'
 import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogOverlay } from '../../shared/components/ui/dialog'
+import { DiscardChangesDialog } from '../../shared/components/ui/discard-changes-dialog'
+import { FieldError, useFieldErrors } from '../../shared/components/ui/field-error'
+import { useDiscardGuard, useValuesDirtyCheck } from '../../shared/lib/useDiscardGuard'
 import { Input } from '../../shared/components/ui/input'
 import { Label } from '../../shared/components/ui/label'
 import { Select } from '../../shared/components/ui/select'
@@ -42,6 +46,8 @@ interface EditarCarreraModalProps {
   error?: string | null
   onSubmit: (input: UpdateProgramInput) => void
   onDelete: () => void
+  /** True while the write is in flight — the submit button locks so the record cannot be written twice. */
+  pending?: boolean
   onClose: () => void
 }
 
@@ -51,11 +57,13 @@ const SCALES = [10, 20, 100]
 export function EditarCarreraModal({
   program,
   error,
+  pending,
   onSubmit,
   onDelete,
   onClose
 }: EditarCarreraModalProps): React.JSX.Element {
   const { t } = useTranslation('carreras')
+  const fields = useFieldErrors()
   // The lock is computed from the roll-up main already ships, so the form
   // never has to ask a second question to find out what it may offer.
   const locked = hasRecordedEvaluations(program.gradedSubjects)
@@ -68,6 +76,7 @@ export function EditarCarreraModal({
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors }
   } = useForm({
     resolver: zodResolver(updateProgramInputSchema),
@@ -83,6 +92,11 @@ export function EditarCarreraModal({
 
   const gradingScheme = watch('gradingScheme')
   const color = watch('color')
+  const nameField = fields.bind('name', errors.name && translateValidationMessage(t, errors.name.message))
+  const scaleField = fields.bind(
+    'gradeScale',
+    errors.gradeScale && translateValidationMessage(t, errors.gradeScale.message)
+  )
 
   // Scheme and scale move together: a pass/fail program must carry NO scale
   // (the schema rejects one), so switching clears it instead of leaving a
@@ -92,147 +106,149 @@ export function EditarCarreraModal({
     setValue('gradeScale', scheme === 'binario' ? null : 10)
   }
 
+  const guard = useDiscardGuard({ isDirty: useValuesDirtyCheck(getValues), onClose })
+
   return (
-    <DialogOverlay>
-      <DialogContent role="dialog" aria-label={t('editarCarreraModal.title')} onDismiss={onClose}>
-        <DialogHeader onClose={onClose}>
-          <h2 className="font-display text-title font-bold text-foreground">{t('editarCarreraModal.title')}</h2>
-          <p className="text-body-sm text-muted-foreground">{t('editarCarreraModal.subtitle')}</p>
-        </DialogHeader>
+    <>
+      <DialogOverlay>
+        <DialogContent role="dialog" aria-label={t('editarCarreraModal.title')} onDismiss={guard.onDismiss}>
+          <DialogHeader onClose={guard.requestClose}>
+            <h2 className="font-display text-title font-bold text-foreground">{t('editarCarreraModal.title')}</h2>
+            <p className="text-body-sm text-muted-foreground">{t('editarCarreraModal.subtitle')}</p>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="contents">
-          <DialogBody>
-            <Label>
-              {t('common:fields.name')}
-              <Input type="text" {...register('name')} />
-            </Label>
-            {errors.name && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.name.message)}</p>
-            )}
+          <form onSubmit={handleSubmit(onSubmit)} className="contents">
+            <DialogBody>
+              <Label>
+                {t('common:fields.name')}
+                <Input type="text" {...register('name')} {...nameField.control} />
+              </Label>
+              <FieldError {...nameField.error} />
 
-            <Label>
-              {t('carreraForm.institution')}
-              <Input type="text" {...register('institution')} />
-            </Label>
+              <Label>
+                {t('carreraForm.institution')}
+                <Input type="text" {...register('institution')} />
+              </Label>
 
-            <fieldset className="flex flex-col gap-2">
-              <legend className="text-label font-semibold text-secondary-foreground">
-                {t('carreraForm.colorLegend')}
-              </legend>
-              <ColorSwatchPicker value={color} onChange={(next) => setValue('color', next)} />
-            </fieldset>
+              <fieldset className="flex flex-col gap-2">
+                <legend className="text-label font-semibold text-secondary-foreground">
+                  {t('carreraForm.colorLegend')}
+                </legend>
+                <ColorSwatchPicker value={color} onChange={(next) => setValue('color', next)} />
+              </fieldset>
 
-            <span aria-hidden="true" className="h-px w-full bg-border" />
+              <span aria-hidden="true" className="h-px w-full bg-border" />
 
-            {locked ? (
-              <div className="flex items-start gap-3 rounded-lg border border-border bg-sidebar px-4 py-3">
-                <Lock className="mt-px h-4 w-4 shrink-0 text-secondary-foreground" aria-hidden="true" />
-                <div className="flex flex-col gap-1">
-                  <strong className="text-body-sm font-semibold text-foreground">
-                    {t('editarCarreraModal.lockedTitle')}
-                  </strong>
-                  <p className="text-caption leading-relaxed text-secondary-foreground">
-                    {t('editarCarreraModal.lockedBody', {
-                      scheme:
-                        program.gradingScheme === 'numerico'
-                          ? t('editarCarreraModal.lockedSchemeNumeric', { scale: program.gradeScale })
-                          : t('editarCarreraModal.lockedSchemeBinary')
-                    })}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <>
-                <fieldset className="flex flex-col gap-2">
-                  <legend className="text-label font-semibold text-secondary-foreground">
-                    {t('carreraForm.schemeLegend')}
-                  </legend>
-                  <div className="flex w-fit items-center gap-1 rounded-lg border border-border bg-background p-1">
-                    {(
-                      [
-                        ['numerico', t('gradingScheme.numerico')],
-                        ['binario', t('gradingScheme.binario')]
-                      ] as const
-                    ).map(([scheme, label]) => (
-                      <button
-                        key={scheme}
-                        type="button"
-                        aria-pressed={gradingScheme === scheme}
-                        onClick={() => selectScheme(scheme)}
-                        className={cn(
-                          gradingScheme === scheme
-                            ? 'rounded-md bg-primary px-4 py-2 text-body-sm font-semibold text-primary-foreground'
-                            : 'rounded-md px-4 py-2 text-body-sm font-semibold text-secondary-foreground',
-                          interactiveChip
-                        )}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-
-                {gradingScheme === 'numerico' && (
-                  <div className="flex items-end gap-4">
-                    <Label className="w-[170px] shrink-0">
-                      {t('carreraForm.scale')}
-                      <Select {...register('gradeScale', { valueAsNumber: true })}>
-                        {SCALES.map((scale) => (
-                          <option key={scale} value={scale}>
-                            {t('carreraForm.scaleOption', { max: scale })}
-                          </option>
-                        ))}
-                      </Select>
-                    </Label>
-                    <p className="pb-3 text-caption text-muted-foreground">{t('editarCarreraModal.scaleNote')}</p>
-                  </div>
-                )}
-                {errors.gradeScale && (
-                  <p className="text-body-lg text-destructive">
-                    {translateValidationMessage(t, errors.gradeScale.message)}
-                  </p>
-                )}
-
-                <div className="flex items-start gap-3 rounded-lg border border-primary bg-sidebar-accent px-4 py-3">
-                  <Calculator className="mt-px h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
+              {locked ? (
+                <div className="flex items-start gap-3 rounded-lg border border-border bg-sidebar px-4 py-3">
+                  <Lock className="mt-px h-4 w-4 shrink-0 text-secondary-foreground" aria-hidden="true" />
                   <div className="flex flex-col gap-1">
                     <strong className="text-body-sm font-semibold text-foreground">
-                      {gradingScheme === 'numerico'
-                        ? t('carreraForm.numericHasAverage')
-                        : t('carreraForm.binaryNoGrades')}
+                      {t('editarCarreraModal.lockedTitle')}
                     </strong>
                     <p className="text-caption leading-relaxed text-secondary-foreground">
-                      {gradingScheme === 'numerico'
-                        ? t('carreraForm.numericExplainer')
-                        : t('carreraForm.binaryExplainer')}
+                      {t('editarCarreraModal.lockedBody', {
+                        scheme:
+                          program.gradingScheme === 'numerico'
+                            ? t('editarCarreraModal.lockedSchemeNumeric', { scale: program.gradeScale })
+                            : t('editarCarreraModal.lockedSchemeBinary')
+                      })}
                     </p>
                   </div>
                 </div>
-              </>
-            )}
+              ) : (
+                <>
+                  <fieldset className="flex flex-col gap-2">
+                    <legend className="text-label font-semibold text-secondary-foreground">
+                      {t('carreraForm.schemeLegend')}
+                    </legend>
+                    <div className="flex w-fit items-center gap-1 rounded-lg border border-border bg-background p-1">
+                      {(
+                        [
+                          ['numerico', t('gradingScheme.numerico')],
+                          ['binario', t('gradingScheme.binario')]
+                        ] as const
+                      ).map(([scheme, label]) => (
+                        <button
+                          key={scheme}
+                          type="button"
+                          aria-pressed={gradingScheme === scheme}
+                          onClick={() => selectScheme(scheme)}
+                          className={cn(
+                            gradingScheme === scheme
+                              ? 'rounded-md bg-primary px-4 py-2 text-body-sm font-semibold text-primary-foreground'
+                              : 'rounded-md px-4 py-2 text-body-sm font-semibold text-secondary-foreground',
+                            interactiveChip
+                          )}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
 
-            {error && <p className="text-body-lg text-destructive">{error}</p>}
-          </DialogBody>
+                  {gradingScheme === 'numerico' && (
+                    <div className="flex items-end gap-4">
+                      <Label className="w-[170px] shrink-0">
+                        {t('carreraForm.scale')}
+                        <Select {...register('gradeScale', { valueAsNumber: true })} {...scaleField.control}>
+                          {SCALES.map((scale) => (
+                            <option key={scale} value={scale}>
+                              {t('carreraForm.scaleOption', { max: scale })}
+                            </option>
+                          ))}
+                        </Select>
+                      </Label>
+                      <p className="pb-3 text-caption text-muted-foreground">{t('editarCarreraModal.scaleNote')}</p>
+                    </div>
+                  )}
+                  <FieldError {...scaleField.error} />
 
-          <DialogFooter className="justify-between">
-            <Button
-              type="button"
-              variant="ghost"
-              className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={onDelete}
-            >
-              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-              {t('editarCarreraModal.delete')}
-            </Button>
-            <div className="flex items-center gap-3">
-              <Button type="button" variant="outline" onClick={onClose}>
-                {t('common:actions.cancel')}
+                  <div className="flex items-start gap-3 rounded-lg border border-primary bg-sidebar-accent px-4 py-3">
+                    <Calculator className="mt-px h-4 w-4 shrink-0 text-primary-ink" aria-hidden="true" />
+                    <div className="flex flex-col gap-1">
+                      <strong className="text-body-sm font-semibold text-foreground">
+                        {gradingScheme === 'numerico'
+                          ? t('carreraForm.numericHasAverage')
+                          : t('carreraForm.binaryNoGrades')}
+                      </strong>
+                      <p className="text-caption leading-relaxed text-secondary-foreground">
+                        {gradingScheme === 'numerico'
+                          ? t('carreraForm.numericExplainer')
+                          : t('carreraForm.binaryExplainer')}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <ActionError message={error} className="text-body-lg" />
+            </DialogBody>
+
+            <DialogFooter className="justify-between">
+              <Button
+                type="button"
+                variant="ghost"
+                className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={onDelete}
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('editarCarreraModal.delete')}
               </Button>
-              <Button type="submit">{t('common:actions.saveChanges')}</Button>
-            </div>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </DialogOverlay>
+              <div className="flex items-center gap-3">
+                <Button type="button" variant="outline" onClick={guard.requestClose}>
+                  {t('common:actions.cancel')}
+                </Button>
+                <Button type="submit" disabled={pending}>
+                  {t('common:actions.saveChanges')}
+                </Button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </DialogOverlay>
+
+      {guard.isConfirming && <DiscardChangesDialog onKeepEditing={guard.keepEditing} onDiscard={guard.discard} />}
+    </>
   )
 }

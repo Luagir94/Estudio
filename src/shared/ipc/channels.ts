@@ -24,3 +24,7 @@ export const INDEXADO_STATUS_CHANGED_CHANNEL = 'indexado:status-changed'
 // sandboxed preload bundle.
 export const ADJUNTOS_READ_CHANNEL = 'adjuntos:read'
 export const ADJUNTOS_WRITE_CHANNEL = 'adjuntos:write'
+
+// "Nuevo documento" — creates an empty `.md` attachment from a typed name.
+// Same zod-free-module requirement as the two channels above.
+export const ADJUNTOS_CREATE_DOCUMENT_CHANNEL = 'adjuntos:create-document'

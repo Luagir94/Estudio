@@ -84,7 +84,9 @@ test('a pending attachment gets a real Sincronizar pass, its badge updates, and 
     await window.getByRole('button', { name: 'Materias' }).click()
     await window.getByRole('button', { name: /Álgebra/ }).click()
 
-    await expect(window.getByText('ADJUNTOS')).toBeVisible({ timeout: 20_000 })
+    // The subject detail shows ONE section at a time now, so the list is
+    // reached through its tab (named APUNTES now) rather than by scrolling.
+    await window.getByRole('tab', { name: /^Apuntes/ }).click({ timeout: 20_000 })
     await expect(window.getByText(fileName)).toBeVisible()
 
     // Badge state 1/2: seeded as `pending`, migrated exactly the way a
@@ -209,7 +211,9 @@ test('an ai-generated attachment is indexed, badged, and BM25-retrievable exactl
     await window.getByRole('button', { name: 'Materias' }).click()
     await window.getByRole('button', { name: /Álgebra/ }).click()
 
-    await expect(window.getByText('ADJUNTOS')).toBeVisible({ timeout: 20_000 })
+    // The subject detail shows ONE section at a time now, so the list is
+    // reached through its tab (named APUNTES now) rather than by scrolling.
+    await window.getByRole('tab', { name: /^Apuntes/ }).click({ timeout: 20_000 })
     await expect(window.getByText(fileName)).toBeVisible()
 
     // Origin ripple, proven live: the IA badge (Unit 9's `originBadgeFor`)

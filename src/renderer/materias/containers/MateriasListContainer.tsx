@@ -12,6 +12,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useOptionalControlled } from '../../shared/lib/useOptionalControlled'
 import { useTranslation } from 'react-i18next'
 import { carrerasApi } from '../../carreras/adapters/carrerasApi'
 import { pickDefaultPeriodId } from '../../carreras/domain/period'
@@ -40,6 +41,13 @@ interface MateriasListContainerProps {
   onGoToCarreras?: () => void
   /** Injected only by tests — status depends on the clock at render time. */
   now?: Date
+  /**
+   * The active status filter, when the ADDRESS owns it (see `router.tsx`'s
+   * `materiasRoute`). Passed with `onFilterChange` or not at all — omitted,
+   * the container keeps the filter in its own state.
+   */
+  filter?: FilterValue
+  onFilterChange?: (filter: FilterValue) => void
 }
 
 const ALL_FILTERS: FilterValue[] = ['activas', 'standby', 'aprobadas', 'reprobadas', 'sinCerrar', 'todas']
@@ -53,12 +61,16 @@ function statusOf(subject: SubjectWithStatus, now: Date): SubjectStatus {
 export function MateriasListContainer({
   onSelectSubject,
   onGoToCarreras,
-  now
+  now,
+  filter: controlledFilter,
+  onFilterChange
 }: MateriasListContainerProps = {}): React.JSX.Element {
   const { t } = useTranslation('materias')
   const queryClient = useQueryClient()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [filter, setFilter] = useState<FilterValue>('activas')
+  // Activas is the landing filter, and the fallback for a `?filtro=` the
+  // address carries but this screen does not recognise.
+  const [filter, setFilter] = useOptionalControlled<FilterValue>(controlledFilter, onFilterChange, 'activas')
   const today = now ?? new Date()
 
   const { data, isLoading, isError } = useQuery({
@@ -155,6 +167,7 @@ export function MateriasListContainer({
           busySlots={busySlots}
           programs={programs ?? []}
           defaultPeriodId={defaultPeriodId}
+          pending={createMutation.isPending}
           onSubmit={(input) => createMutation.mutate(input)}
           onClose={() => setIsCreateOpen(false)}
           onGoToCarreras={() => {

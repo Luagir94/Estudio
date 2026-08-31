@@ -25,7 +25,8 @@ describe('adjuntosApi', () => {
           open: vi.fn(),
           remove: vi.fn(),
           read: vi.fn(),
-          write: vi.fn()
+          write: vi.fn(),
+          createDocument: vi.fn()
         },
         indexado: { sync: vi.fn(), onStatusChanged: vi.fn().mockReturnValue(vi.fn()) },
         materias: {
@@ -205,6 +206,29 @@ describe('adjuntosApi', () => {
         .mockResolvedValue({ ok: false, error: { code: 'DELETE_FAILED', message: 'nope' } })
 
       await expect(adjuntosApi.delete(1)).rejects.toThrow('nope')
+    })
+  })
+
+  describe('createDocument', () => {
+    it('sends the subject and the typed name, and parses the created row', async () => {
+      const created = { ...sampleAttachment, id: 42, fileName: 'resumen-unidad-3.md', sizeBytes: 23 }
+      window.api.adjuntos.createDocument = vi.fn().mockResolvedValue({ ok: true, data: created })
+
+      const result = await adjuntosApi.createDocument(10, 'Resumen unidad 3')
+
+      expect(result).toEqual(created)
+      expect(window.api.adjuntos.createDocument).toHaveBeenCalledWith({ subjectId: 10, name: 'Resumen unidad 3' })
+    })
+
+    it('throws an AdjuntosApiError carrying the envelope code', async () => {
+      window.api.adjuntos.createDocument = vi
+        .fn()
+        .mockResolvedValue({ ok: false, error: { code: 'WRITE_FAILED', message: 'EBUSY' } })
+
+      const error: unknown = await adjuntosApi.createDocument(10, 'Resumen').catch((caught: unknown) => caught)
+
+      expect(error).toBeInstanceOf(AdjuntosApiError)
+      expect((error as AdjuntosApiError).code).toBe('WRITE_FAILED')
     })
   })
 })

@@ -172,4 +172,18 @@ describe('NuevoParcialModal', () => {
     expect(screen.getByText('No pudimos guardar el parcial.')).toBeInTheDocument()
     expect(screen.queryByText('Podés cargar parciales y recuperatorios')).not.toBeInTheDocument()
   })
+
+  // The nota field is hand-built (a `#` glyph beside a bare input) rather than
+  // the `Input` primitive, and hand-building it is how it lost its focus ring:
+  // the inner control dropped its outline so the glyph and the field would read
+  // as one box, and nothing drew the ring back. The wrapper owns it now.
+  it('shows the keyboard where it is standing on the composed nota field', () => {
+    render(
+      <NuevoParcialModal mode="create" subjectId={7} subjectName="Análisis" onSubmit={vi.fn()} onClose={vi.fn()} />
+    )
+
+    const nota = screen.getByLabelText(/NOTA/)
+    expect(nota).toHaveClass('outline-none')
+    expect(nota.parentElement).toHaveClass('focus-within:outline-2', 'focus-within:outline-ring')
+  })
 })

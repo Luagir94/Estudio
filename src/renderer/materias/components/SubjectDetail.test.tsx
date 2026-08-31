@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { SubjectDetailResult } from '../../../shared/ipc/materias'
 import { SubjectDetail } from './SubjectDetail'
+import type { SubjectDetailTabId } from './SubjectDetailTabs'
 
 const baseSubject: SubjectDetailResult = {
   id: 1,
@@ -62,6 +63,10 @@ describe('SubjectDetail (read-only)', () => {
         now={new Date('2026-04-04T09:00:00')}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
@@ -87,6 +92,10 @@ describe('SubjectDetail (read-only)', () => {
         now={new Date('2026-04-02T09:00:00')}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
@@ -117,6 +126,10 @@ describe('SubjectDetail (read-only)', () => {
         now={new Date('2026-04-04T09:00:00')}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
@@ -143,6 +156,10 @@ describe('SubjectDetail (read-only)', () => {
         weeklyMinutes={120}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={onAddEntrega}
         onCloseSubject={vi.fn()}
@@ -162,6 +179,10 @@ describe('SubjectDetail (read-only)', () => {
         weeklyMinutes={120}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
@@ -183,6 +204,10 @@ describe('SubjectDetail (read-only)', () => {
         weeklyMinutes={120}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
@@ -204,6 +229,10 @@ describe('SubjectDetail (read-only)', () => {
         weeklyMinutes={0}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
@@ -222,6 +251,10 @@ describe('SubjectDetail (read-only)', () => {
         weeklyMinutes={120}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="notas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
@@ -243,6 +276,10 @@ describe('SubjectDetail (read-only)', () => {
         weeklyMinutes={120}
         onOpenExternalUrl={onOpenExternalUrl}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
@@ -267,6 +304,10 @@ describe('SubjectDetail (read-only)', () => {
         weeklyMinutes={120}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
@@ -285,6 +326,10 @@ describe('SubjectDetail (read-only)', () => {
         weeklyMinutes={120}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
@@ -305,6 +350,10 @@ describe('SubjectDetail (read-only)', () => {
         weeklyMinutes={120}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
@@ -314,7 +363,10 @@ describe('SubjectDetail (read-only)', () => {
     expect(document.querySelectorAll('input, textarea, select')).toHaveLength(0)
   })
 
-  it('"Materias" back link calls onBack, and "Editar materia" calls onEdit (design: header owns both)', () => {
+  // "Editar materia" left the header for the `⋯` menu: editing is occasional
+  // and it was drawing as much weight as "Cerrar materia", the one action the
+  // header exists for.
+  it('"Materias" back link calls onBack, and "Editar materia" — now inside the ⋯ menu — calls onEdit', () => {
     const onBack = vi.fn()
     const onEdit = vi.fn()
     render(
@@ -325,6 +377,10 @@ describe('SubjectDetail (read-only)', () => {
         weeklyMinutes={120}
         onOpenExternalUrl={vi.fn()}
         onBack={onBack}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={onEdit}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
@@ -334,14 +390,16 @@ describe('SubjectDetail (read-only)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Materias' }))
     expect(onBack).toHaveBeenCalledTimes(1)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Editar materia' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Más acciones' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Editar materia' }))
     expect(onEdit).toHaveBeenCalledTimes(1)
   })
 
-  // The NOTAS section used to carry its own "Editar materia" ghost button;
-  // the approved compaction removed it, so the header button is the ONLY
-  // whole-subject edit entry point on this screen.
-  it('the header holds the only "Editar materia" button — the NOTAS section has none', () => {
+  // Deleting used to be reachable ONLY from the edit modal's footer — you had
+  // to open a form you did not come to fill in. It is a peer of "Editar
+  // materia" in the header menu now, second and destructive-toned.
+  it('the ⋯ menu is the one place a subject can be edited or deleted', () => {
+    const onDelete = vi.fn()
     render(
       <SubjectDetail
         subject={baseSubject}
@@ -350,13 +408,24 @@ describe('SubjectDetail (read-only)', () => {
         weeklyMinutes={120}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={onDelete}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
       />
     )
 
-    expect(screen.getAllByRole('button', { name: 'Editar materia' })).toHaveLength(1)
+    // Closed, neither action is on screen — that is the whole point.
+    expect(screen.queryByRole('button', { name: 'Editar materia' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Más acciones' }))
+    expect(screen.getAllByRole('menuitem', { name: 'Editar materia' })).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Eliminar materia' }))
+    expect(onDelete).toHaveBeenCalledTimes(1)
   })
 
   // The detail screen is the ONLY place a subject can be closed: the Materias
@@ -373,6 +442,10 @@ describe('SubjectDetail (read-only)', () => {
         weeklyMinutes={120}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={onCloseSubject}
@@ -405,6 +478,10 @@ describe('SubjectDetail (read-only)', () => {
           weeklyMinutes={120}
           onOpenExternalUrl={onOpenExternalUrl}
           onBack={vi.fn()}
+          onDelete={vi.fn()}
+          activeTab="entregas"
+          onSelectTab={vi.fn()}
+          apuntesCount={0}
           onEdit={vi.fn()}
           onAddEntrega={vi.fn()}
           onCloseSubject={vi.fn()}
@@ -479,6 +556,10 @@ describe('SubjectDetail — regularidad badge', () => {
         weeklyMinutes={120}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
@@ -516,6 +597,10 @@ describe('SubjectDetail — asistencia card', () => {
         weeklyMinutes={120}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
@@ -603,9 +688,14 @@ describe('SubjectDetail — asistencia card', () => {
 
 // The APUNTES DE CLASE section owns the class dialog and its mutations, so it
 // arrives as a slot the same way ADJUNTOS does.
-describe('SubjectDetail — apuntes slot', () => {
-  it('renders the injected section between NOTAS and ADJUNTOS', () => {
-    render(
+// The sections used to be STACKED, and these tests pinned their vertical
+// order. They are tabs now, so the guarantee worth pinning changed with them:
+// a section is on screen when — and only when — its tab is the active one.
+// That is the whole reason the screen stopped drawing five section actions at
+// once.
+describe('SubjectDetail — section tabs', () => {
+  function renderWithSlots(activeTab: SubjectDetailTabId) {
+    return render(
       <SubjectDetail
         subject={baseSubject}
         nextClass={null}
@@ -613,48 +703,60 @@ describe('SubjectDetail — apuntes slot', () => {
         weeklyMinutes={120}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
-        onEdit={vi.fn()}
-        onAddEntrega={vi.fn()}
-        onCloseSubject={vi.fn()}
-        apuntesSlot={<div data-testid="apuntes-slot" />}
-        adjuntosSlot={<div data-testid="adjuntos-slot" />}
-      />
-    )
-
-    const notas = screen.getByText('NOTAS')
-    const apuntes = screen.getByTestId('apuntes-slot')
-    const adjuntos = screen.getByTestId('adjuntos-slot')
-
-    expect(notas.compareDocumentPosition(apuntes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(apuntes.compareDocumentPosition(adjuntos) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  })
-})
-
-// The PARCIALES section owns its own mutations, so it arrives as a slot the
-// same way ADJUNTOS does — this screen only reserves its position.
-describe('SubjectDetail — parciales slot', () => {
-  it('renders the injected section between ENTREGAS and NOTAS', () => {
-    render(
-      <SubjectDetail
-        subject={baseSubject}
-        nextClass={null}
-        progreso={{ done: 1, total: 4 }}
-        weeklyMinutes={120}
-        onOpenExternalUrl={vi.fn()}
-        onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab={activeTab}
+        onSelectTab={vi.fn()}
+        apuntesCount={7}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}
         parcialesSlot={<div data-testid="parciales-slot" />}
+        apuntesSlot={<div data-testid="apuntes-slot" />}
       />
     )
+  }
 
-    const entregas = screen.getByText('ENTREGAS')
-    const parciales = screen.getByTestId('parciales-slot')
-    const notas = screen.getByText('NOTAS')
+  it('renders only the active tab’s slot', () => {
+    const { unmount } = renderWithSlots('parciales')
+    expect(screen.getByTestId('parciales-slot')).toBeInTheDocument()
+    expect(screen.queryByTestId('apuntes-slot')).not.toBeInTheDocument()
+    unmount()
 
-    expect(entregas.compareDocumentPosition(parciales) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(parciales.compareDocumentPosition(notas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    renderWithSlots('apuntes')
+    expect(screen.getByTestId('apuntes-slot')).toBeInTheDocument()
+    expect(screen.queryByTestId('parciales-slot')).not.toBeInTheDocument()
+  })
+
+  // "Agregar entrega" was one of four solid-violet buttons stacked down the
+  // column. It belongs to the ENTREGAS section, so it shows with it and with
+  // nothing else.
+  it('draws the entregas action only while the entregas tab is active', () => {
+    const { unmount } = renderWithSlots('entregas')
+    expect(screen.getByRole('button', { name: 'Agregar entrega' })).toBeInTheDocument()
+    unmount()
+
+    renderWithSlots('apuntes')
+    expect(screen.queryByRole('button', { name: 'Agregar entrega' })).not.toBeInTheDocument()
+  })
+
+  // APUNTES is ONE tab carrying class apuntes AND uploaded files: they are the
+  // same record, told apart only by `classDate`. Two tabs over one list, each
+  // counting half of it, is what the second tab actually was.
+  it('offers four tabs, with APUNTES counting the whole merged list', () => {
+    renderWithSlots('entregas')
+
+    expect(screen.getAllByRole('tab')).toHaveLength(4)
+    expect(screen.getByRole('tab', { name: 'Entregas · 4' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Apuntes · 7' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /Adjuntos/ })).not.toBeInTheDocument()
+  })
+
+  it('ties the visible panel to the tab that controls it', () => {
+    renderWithSlots('apuntes')
+
+    const panel = screen.getByRole('tabpanel')
+    expect(panel).toHaveAttribute('id', 'subject-detail-panel-apuntes')
+    expect(panel).toHaveAttribute('aria-labelledby', 'subject-detail-tab-apuntes')
   })
 })
 
@@ -671,6 +773,10 @@ describe('SubjectDetail — correlativas card', () => {
         weeklyMinutes={120}
         onOpenExternalUrl={vi.fn()}
         onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
         onEdit={vi.fn()}
         onAddEntrega={vi.fn()}
         onCloseSubject={vi.fn()}

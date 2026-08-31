@@ -5,8 +5,6 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SubjectDetailResult, SubjectWithSlots, SubjectWithStatus } from '../../../shared/ipc/materias'
 import { materiasApi } from '../../materias/adapters/materiasApi'
-import { adjuntosApi } from '../../adjuntos/adapters/adjuntosApi'
-import { clasesApi } from '../../clases/adapters/clasesApi'
 import { horarioApi } from '../adapters/horarioApi'
 import { HorarioContainer } from './HorarioContainer'
 
@@ -26,20 +24,6 @@ vi.mock('../../clases/containers/ClaseModalContainer', () => ({
       </button>
     </div>
   )
-}))
-
-vi.mock('../../adjuntos/containers/AttachmentViewerContainer', () => ({
-  AttachmentViewerContainer: ({ attachment }: { attachment: { fileName: string } }) => (
-    <div data-testid="apunte-editor">{attachment.fileName}</div>
-  )
-}))
-
-vi.mock('../../clases/adapters/clasesApi', () => ({
-  clasesApi: { saveNote: vi.fn() }
-}))
-
-vi.mock('../../adjuntos/adapters/adjuntosApi', () => ({
-  adjuntosApi: { list: vi.fn() }
 }))
 
 const sampleSubjects: SubjectWithSlots[] = [
@@ -93,8 +77,6 @@ describe('HorarioContainer', () => {
     vi.mocked(materiasApi.list).mockResolvedValue(sampleSubjects.map((subject) => makeFacts(subject)))
     vi.mocked(materiasApi.detail).mockResolvedValue(sampleDetail)
     vi.mocked(materiasApi.updateSchedule).mockResolvedValue(sampleSubjects[0]!)
-    vi.mocked(adjuntosApi.list).mockResolvedValue([])
-    vi.mocked(clasesApi.saveNote).mockResolvedValue({ subjectId: 1, date: '2026-03-02', apunteId: 5 })
   })
 
   it('fetches on the ["horario","week"] query key and renders the grid with the projected class', async () => {
@@ -189,19 +171,16 @@ describe('HorarioContainer', () => {
   })
 
   /*
-   * Two dialogs over one grid, each with its own trigger — opening one while
-   * the other's state lingered would mount both over the same subject.
+   * The grid is a read-only projection with ONE target per block: the class
+   * dialog. It carries no apunte control any more, so this screen never mounts
+   * the markdown editor — an apunte is reached from Hoy or from the subject's
+   * APUNTES tab.
    */
-  /*
-   * The corner control opens the class's APUNTE — a markdown document — while
-   * the block body marks asistencia. Two targets, two different jobs, and the
-   * corner one is what its notebook icon has always promised.
-   */
-  it('opens the apunte from the block corner control', async () => {
+  it('offers no apunte control on the grid', async () => {
     renderWithClient(<HorarioContainer now={new Date('2026-03-04T09:00:00')} />)
 
-    fireEvent.click(await screen.findByTestId('horario-class-apunte'))
+    await screen.findByTestId('horario-class-block')
 
-    await waitFor(() => expect(clasesApi.saveNote).toHaveBeenCalled())
+    expect(screen.queryByTestId('horario-class-apunte')).not.toBeInTheDocument()
   })
 })

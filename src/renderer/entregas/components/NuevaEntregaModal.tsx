@@ -31,6 +31,9 @@ import { createDeadlineInputSchema, type CreateDeadlineInput } from '../../../sh
 import { translateValidationMessage } from '../../shared/lib/translateValidationMessage'
 import { Button } from '../../shared/components/ui/button'
 import { DialogBody, DialogContent, DialogFooter, DialogHeader, DialogOverlay } from '../../shared/components/ui/dialog'
+import { DiscardChangesDialog } from '../../shared/components/ui/discard-changes-dialog'
+import { FieldError, useFieldErrors } from '../../shared/components/ui/field-error'
+import { useDiscardGuard, useValuesDirtyCheck } from '../../shared/lib/useDiscardGuard'
 import { Input } from '../../shared/components/ui/input'
 import { Label } from '../../shared/components/ui/label'
 import { Select } from '../../shared/components/ui/select'
@@ -48,6 +51,8 @@ interface NuevaEntregaModalProps {
   subjectId: number
   defaultValues?: DeadlineFormValues
   onSubmit: (input: CreateDeadlineInput) => void
+  /** True while the write is in flight — the submit button locks so the record cannot be written twice. */
+  pending?: boolean
   onClose: () => void
 }
 
@@ -56,13 +61,16 @@ export function NuevaEntregaModal({
   subjectId,
   defaultValues,
   onSubmit,
+  pending,
   onClose
 }: NuevaEntregaModalProps): React.JSX.Element {
   const { t } = useTranslation('entregas')
+  const fields = useFieldErrors()
   const deadlineTypes = t('nuevaEntregaModal.types', { returnObjects: true }) as string[]
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors }
   } = useForm({
     resolver: zodResolver(deadlineFormSchema),
@@ -72,57 +80,62 @@ export function NuevaEntregaModal({
   const title = mode === 'create' ? t('nuevaEntregaModal.createTitle') : t('nuevaEntregaModal.editTitle')
   const subtitle = mode === 'create' ? t('nuevaEntregaModal.createSubtitle') : t('nuevaEntregaModal.editSubtitle')
   const submitLabel = mode === 'create' ? t('nuevaEntregaModal.createSubmit') : t('common:actions.saveChanges')
+  const titleField = fields.bind('title', errors.title && translateValidationMessage(t, errors.title.message))
+  const typeField = fields.bind('type', errors.type && translateValidationMessage(t, errors.type.message))
+  const dueAtField = fields.bind('dueAt', errors.dueAt && translateValidationMessage(t, errors.dueAt.message))
+
+  const guard = useDiscardGuard({ isDirty: useValuesDirtyCheck(getValues), onClose })
 
   return (
-    <DialogOverlay>
-      <DialogContent role="dialog" aria-label={title} onDismiss={onClose}>
-        <DialogHeader onClose={onClose}>
-          <h2 className="font-display text-title font-bold text-foreground">{title}</h2>
-          <p className="text-body-sm text-muted-foreground">{subtitle}</p>
-        </DialogHeader>
+    <>
+      <DialogOverlay>
+        <DialogContent role="dialog" aria-label={title} onDismiss={guard.onDismiss}>
+          <DialogHeader onClose={guard.requestClose}>
+            <h2 className="font-display text-title font-bold text-foreground">{title}</h2>
+            <p className="text-body-sm text-muted-foreground">{subtitle}</p>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit((values) => onSubmit({ ...values, subjectId }))} className="contents">
-          <DialogBody>
-            <Label>
-              {t('nuevaEntregaModal.titleField')}
-              <Input type="text" {...register('title')} />
-            </Label>
-            {errors.title && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.title.message)}</p>
-            )}
-
-            <div className="flex gap-3">
-              <Label className="flex-1">
-                {t('nuevaEntregaModal.type')}
-                <Select {...register('type')}>
-                  {deadlineTypes.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </Select>
+          <form onSubmit={handleSubmit((values) => onSubmit({ ...values, subjectId }))} className="contents">
+            <DialogBody>
+              <Label>
+                {t('nuevaEntregaModal.titleField')}
+                <Input type="text" {...register('title')} {...titleField.control} />
               </Label>
-              <Label className="flex-1">
-                {t('nuevaEntregaModal.dueAt')}
-                <Input type="datetime-local" {...register('dueAt')} />
-              </Label>
-            </div>
-            {errors.type && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.type.message)}</p>
-            )}
-            {errors.dueAt && (
-              <p className="text-body-lg text-destructive">{translateValidationMessage(t, errors.dueAt.message)}</p>
-            )}
-          </DialogBody>
+              <FieldError {...titleField.error} />
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              {t('common:actions.cancel')}
-            </Button>
-            <Button type="submit">{submitLabel}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </DialogOverlay>
+              <div className="flex gap-3">
+                <Label className="flex-1">
+                  {t('nuevaEntregaModal.type')}
+                  <Select {...register('type')} {...typeField.control}>
+                    {deadlineTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </Select>
+                </Label>
+                <Label className="flex-1">
+                  {t('nuevaEntregaModal.dueAt')}
+                  <Input type="datetime-local" {...register('dueAt')} {...dueAtField.control} />
+                </Label>
+              </div>
+              <FieldError {...typeField.error} />
+              <FieldError {...dueAtField.error} />
+            </DialogBody>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={guard.requestClose}>
+                {t('common:actions.cancel')}
+              </Button>
+              <Button type="submit" disabled={pending}>
+                {submitLabel}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </DialogOverlay>
+
+      {guard.isConfirming && <DiscardChangesDialog onKeepEditing={guard.keepEditing} onDiscard={guard.discard} />}
+    </>
   )
 }
