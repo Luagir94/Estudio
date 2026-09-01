@@ -61,6 +61,10 @@ export interface SubjectRecord {
   notas: string | null
   attendanceMinPercent: number | null
   periodId: number | null
+  /** The carrera, independent of any período. `null` before it was assigned. */
+  programId: number | null
+  /** Place in the plan de estudios. `null` = not ordered yet. */
+  nivel: number | null
   outcome: SubjectOutcome | null
   grade: number | null
   regularity: SubjectRegularity | null
@@ -246,6 +250,21 @@ export function createSqliteSubjectRepository(db: AppDatabase): SubjectRepositor
           }
         }
 
+        // The carrera is DERIVED, never asked for: `periodId` is required on
+        // creation and `periods.program_id` is NOT NULL, so the período the
+        // student just chose already names exactly one carrera. Reading it here
+        // — inside the same transaction — is what stops the form from asking
+        // them to repeat a fact the database already holds.
+        //
+        // Stored rather than re-derived on every read, because `period_id` is
+        // nullable: deleting a período must not take the materia's carrera with
+        // it, which is the whole reason this column exists.
+        const owningProgramId =
+          input.periodId === undefined || input.periodId === null
+            ? null
+            : (tx.select({ programId: periods.programId }).from(periods).where(eq(periods.id, input.periodId)).get()
+                ?.programId ?? null)
+
         const insertedSubject = tx
           .insert(subjects)
           .values({
@@ -254,7 +273,9 @@ export function createSqliteSubjectRepository(db: AppDatabase): SubjectRepositor
             color: input.color,
             docente: input.docente ?? null,
             contacto: input.contacto ?? null,
-            periodId: input.periodId ?? null
+            periodId: input.periodId ?? null,
+            programId: owningProgramId,
+            nivel: input.nivel ?? null
           })
           .returning()
           .get()
@@ -386,6 +407,7 @@ export function createSqliteSubjectRepository(db: AppDatabase): SubjectRepositor
             notas: input.notas ?? null,
             attendanceMinPercent: input.attendanceMinPercent ?? null,
             periodId: input.periodId ?? null,
+            nivel: input.nivel ?? null,
             // Written ONLY when the key is present — note `!== undefined`,
             // not the `?? null` every other optional field here uses.
             //

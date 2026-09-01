@@ -42,6 +42,8 @@ const sampleSubject: SubjectWithSlots = {
   notas: null,
   attendanceMinPercent: null,
   periodId: null,
+  programId: null,
+  nivel: null,
   outcome: null,
   grade: null,
   regularity: null,

@@ -123,6 +123,34 @@ export const subjects = sqliteTable('subjects', {
   // deleting a period must not destroy the subjects that lived in it — they
   // fall back to unassigned (`set null`) rather than cascading away.
   periodId: integer('period_id').references(() => periods.id, { onDelete: 'set null' }),
+  // The carrera this subject belongs to, INDEPENDENT of any período.
+  //
+  // Until now the only path to the carrera was through `period_id`, and that
+  // path has a hole: `period_id` is nullable, so a materia the student has not
+  // cursado yet belongs to no carrera at all. The plan de estudios is a fact
+  // about the CARRERA — identical for every student, forever — while a período
+  // is one student's timeline. A map of the plan cannot be drawn from the
+  // second without turning it into a picture of one person's history.
+  //
+  // Nullable for the same reason `period_id` is: rows written before this
+  // column existed have none, and deleting a carrera must not destroy the work
+  // recorded under it.
+  programId: integer('program_id').references(() => programs.id, { onDelete: 'set null' }),
+  // Where the materia sits in the plan de estudios: 1, 2, 3…
+  //
+  // ASSIGNED, NEVER DERIVED — and there are two tempting derivations, both
+  // wrong. Not from `period_id`, which is time rather than the plan. And not
+  // from depth in the correlativa graph: a materia can sit late in the plan and
+  // require nothing at all (a práctica profesional, a seminario), and
+  // topological depth would march it to the very first column as if it were an
+  // introductory subject.
+  //
+  // NULL is a real state, not a missing default: "todavía no la ordené". The
+  // map gives those a tray of their own rather than inventing a position.
+  //
+  // The UI never prints the word "nivel": columns are bare numbers and the tray
+  // reads "sin ordenar". This is the column's name, not a label.
+  nivel: integer('nivel'),
   // The student's own decision: 'aprobada' | 'reprobada' | 'finalPendiente'.
   // NULL means "not decided yet", which is exactly what makes a subject read
   // as `sinCerrar` once its period ends instead of quietly disappearing

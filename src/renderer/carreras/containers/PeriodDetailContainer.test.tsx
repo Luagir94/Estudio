@@ -69,6 +69,8 @@ function subject(overrides: Partial<SubjectWithStatus> & { id: number; name: str
   return {
     code: 'XX-000',
     color: '#4c8dff',
+    programId: null,
+    nivel: null,
     docente: null,
     contacto: null,
     comision: null,
@@ -96,6 +98,8 @@ const otroPeriodo = subject({
   id: 2,
   name: 'Derecho Constitucional',
   periodId: 1,
+  programId: null,
+  nivel: null,
   period: { id: 1, name: '1er cuatrimestre', startsOn: '2026-03-09', endsOn: '2026-07-18' }
 })
 

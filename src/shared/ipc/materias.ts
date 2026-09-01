@@ -61,6 +61,29 @@ const optionalPeriodId = z.preprocess((value) => {
   return value
 }, z.number().int().positive().nullable().optional())
 
+/**
+ * Where the materia sits in the plan de estudios — the field behind the map's
+ * columns.
+ *
+ * Same preprocess shape as `optionalPeriodId`, and for the same reason: the
+ * form field is an `<input>`, so an untouched one arrives as `''` and a filled
+ * one as a string. Empty means "todavía no la ordené", which is a real state
+ * and not a validation failure.
+ *
+ * `.positive()` because the columns are counted from 1 — a nivel 0 would render
+ * as a column before the first one and mean nothing.
+ */
+const optionalNivel = z.preprocess((value) => {
+  if (value === '' || value === null) {
+    return null
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isNaN(parsed) ? value : parsed
+  }
+  return value
+}, z.number().int().positive().nullable().optional())
+
 // REQUIRED on creation, unlike everywhere else this field appears.
 //
 // A subject with no period is a half-subject: it belongs to no carrera, its
@@ -84,6 +107,10 @@ export const createSubjectInputSchema = z.object({
   docente: optionalTextField,
   contacto: optionalTextField,
   periodId: requiredPeriodId,
+  // The carrera is NOT asked for: `periodId` is required here and every período
+  // belongs to exactly one program, so the repository derives it. Asking would
+  // be asking the student to repeat a fact they just gave.
+  nivel: optionalNivel,
   slots: z.array(scheduleSlotInputSchema).min(1, 'slots.required')
 })
 
@@ -170,6 +197,7 @@ export const updateSubjectScheduleInputSchema = z.object({
   // writes this column ONLY when the key is present.
   regularity: subjectRegularitySchema.nullable().optional(),
   periodId: optionalPeriodId,
+  nivel: optionalNivel,
   slots: z.array(scheduleSlotInputSchema).min(1, 'slots.required')
 })
 
@@ -216,6 +244,30 @@ export const subjectRecordSchema = z.object({
   attendanceMinPercent: z.number().nullable(),
   /** `null` for subjects that predate periods, or whose period was deleted. */
   periodId: z.number().int().nullable(),
+  /**
+   * The carrera this subject belongs to, INDEPENDENT of `periodId`.
+   *
+   * The plan de estudios is a fact about the carrera; a período is the
+   * student's own timeline. Reaching the carrera through the período cannot
+   * describe a materia nobody has cursado yet, which is exactly the materia a
+   * plan map most needs to show.
+   *
+   * `null` for subjects written before this column existed, or whose carrera
+   * was deleted.
+   */
+  programId: z.number().int().nullable(),
+  /**
+   * Where the materia sits in the plan de estudios: 1, 2, 3…
+   *
+   * Assigned, never derived — not from `periodId` (that is time) and not from
+   * the correlativa graph (a materia can sit late in the plan and require
+   * nothing at all). `null` means "todavía no la ordené"; the map gives those
+   * their own tray rather than guessing a position.
+   *
+   * The word "nivel" never reaches the UI: columns render as bare numbers and
+   * the tray reads "sin ordenar".
+   */
+  nivel: z.number().int().nullable(),
   /** What the student decided. `null` = not decided yet. */
   outcome: subjectOutcomeSchema.nullable(),
   /** Only meaningful under a `numerico` program. */

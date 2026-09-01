@@ -238,3 +238,102 @@ describe('migration 0010 — page columns and pdf re-index reset', () => {
     }
   })
 })
+
+// Migration 0017 gives a subject a DIRECT `program_id`, because reaching the
+// carrera through `period_id` cannot describe a materia the student has not
+// cursado yet (that column is nullable, so such a materia belonged to no
+// carrera at all).
+//
+// The delete behavior is the load-bearing part, and it is easy to get wrong:
+// `foreign_keys` is ON for every production connection (connection.ts, and a
+// test pins it), so a plain `REFERENCES programs(id)` with no ON DELETE action
+// makes SQLite REFUSE to delete a carrera that has subjects. "Eliminar
+// carrera" already works today and must keep working — a materia outlives its
+// carrera exactly the way it already outlives its período.
+describe('migration 0017 — deleting a carrera keeps its materias', () => {
+  const fullMigrationsFolder = path.join(__dirname, '../../../drizzle/migrations')
+
+  it('nulls subjects.program_id instead of blocking the delete', () => {
+    const { db, raw } = openAppDatabase(':memory:')
+    try {
+      migrate(db, { migrationsFolder: fullMigrationsFolder })
+
+      raw.prepare("INSERT INTO programs (name, color, grading_scheme) VALUES ('Abogacía', '#7c3aed', 'numerico')").run()
+      raw
+        .prepare(
+          "INSERT INTO subjects (name, code, color, program_id, nivel) VALUES ('Derecho Civil I', 'DER-201', '#7c3aed', 1, 2)"
+        )
+        .run()
+
+      raw.prepare('DELETE FROM programs WHERE id = 1').run()
+
+      const rows = raw.prepare('SELECT name, program_id AS programId, nivel FROM subjects').all() as {
+        name: string
+        programId: number | null
+        nivel: number | null
+      }[]
+      // The materia survives, orphaned rather than destroyed, and keeps the
+      // place the student gave it in the plan.
+      expect(rows).toEqual([{ name: 'Derecho Civil I', programId: null, nivel: 2 }])
+    } finally {
+      raw.close()
+    }
+  })
+})
+
+// Migration 0018 backfills `subjects.program_id` for every row written before
+// 0017 added the column. Proven against a REAL pre-0018 database: 0000..0017
+// are applied from a journal-truncated copy of the real folder, rows are
+// seeded, and then the real folder applies ONLY the pending 0018 — the exact
+// upgrade an existing installation goes through.
+describe('migration 0018 — backfilling the carrera of existing materias', () => {
+  const fullMigrationsFolder = path.join(__dirname, '../../../drizzle/migrations')
+
+  function createPre0018MigrationsFolder(tmpDir: string): string {
+    const truncatedFolder = path.join(tmpDir, 'migrations')
+    fs.cpSync(fullMigrationsFolder, truncatedFolder, { recursive: true })
+    const journalPath = path.join(truncatedFolder, 'meta', '_journal.json')
+    const journal = JSON.parse(fs.readFileSync(journalPath, 'utf8')) as { entries: MigrationJournalEntry[] }
+    journal.entries = journal.entries.filter((entry) => entry.idx < 18)
+    fs.writeFileSync(journalPath, JSON.stringify(journal))
+    return truncatedFolder
+  }
+
+  it('fills program_id from the período, and leaves a materia without one alone', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'migration-0018-'))
+    const { db, raw } = openAppDatabase(':memory:')
+    try {
+      migrate(db, { migrationsFolder: createPre0018MigrationsFolder(tmpDir) })
+
+      raw.prepare("INSERT INTO programs (name, color, grading_scheme) VALUES ('Abogacía', '#7c3aed', 'numerico')").run()
+      raw
+        .prepare(
+          "INSERT INTO periods (program_id, name, kind, starts_on) VALUES (1, '1er cuatrimestre', 'cuatrimestre', '2026-03-09')"
+        )
+        .run()
+      const insertSubject = raw.prepare(
+        'INSERT INTO subjects (name, code, color, period_id, nivel) VALUES (?, ?, ?, ?, ?)'
+      )
+      insertSubject.run('Derecho Civil I', 'DER-201', '#7c3aed', 1, 2)
+      // Never cursada, so no período — and therefore nothing to infer.
+      insertSubject.run('Seminario de Ética', 'ETI-201', '#7c3aed', null, null)
+
+      migrate(db, { migrationsFolder: fullMigrationsFolder })
+
+      const rows = raw.prepare('SELECT name, program_id AS programId, nivel FROM subjects ORDER BY id ASC').all() as {
+        name: string
+        programId: number | null
+        nivel: number | null
+      }[]
+      expect(rows).toEqual([
+        { name: 'Derecho Civil I', programId: 1, nivel: 2 },
+        // Left alone: guessing a carrera for it would be worse than the
+        // "sin ordenar" state the plan map already gives it.
+        { name: 'Seminario de Ética', programId: null, nivel: null }
+      ])
+    } finally {
+      raw.close()
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+    }
+  })
+})

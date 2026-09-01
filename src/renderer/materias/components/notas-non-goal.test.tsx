@@ -35,6 +35,8 @@ const subject: SubjectDetailResult = {
   name: 'Algoritmos',
   code: 'ALG-101',
   color: '#7c3aed',
+  programId: null,
+  nivel: null,
   docente: 'Dra. Pérez',
   contacto: null,
   comision: null,

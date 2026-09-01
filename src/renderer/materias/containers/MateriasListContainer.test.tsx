@@ -43,6 +43,8 @@ function subject(overrides: Partial<SubjectWithStatus> & { id: number; name: str
     notas: null,
     attendanceMinPercent: null,
     periodId: 2,
+    programId: null,
+    nivel: null,
     outcome: null,
     grade: null,
     regularity: null,
@@ -62,6 +64,8 @@ const aprobada = subject({
   id: 3,
   name: 'Historia del Derecho',
   periodId: 1,
+  programId: null,
+  nivel: null,
   period: finishedPeriod,
   outcome: 'aprobada',
   grade: 8
@@ -70,6 +74,8 @@ const standby = subject({
   id: 4,
   name: 'Teoría del Estado',
   periodId: 1,
+  programId: null,
+  nivel: null,
   period: finishedPeriod,
   outcome: 'finalPendiente',
   finals: [{ result: 'reprobado' }]

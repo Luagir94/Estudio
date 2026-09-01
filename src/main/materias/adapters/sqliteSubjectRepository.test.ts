@@ -576,3 +576,72 @@ describe('createSqliteSubjectRepository — pending deadline counts', () => {
     expect(repository.list().find((subject) => subject.id === subjectId)?.pendingDeadlines).toBe(0)
   })
 })
+
+// The plan de estudios columns 0017 added. The carrera is DERIVED from the
+// período — the form never asks for it — while the order is the student's own
+// and is only ever what they typed.
+describe('createSqliteSubjectRepository — carrera and plan order', () => {
+  let db: ReturnType<typeof createTestDb>['db']
+  let repository: ReturnType<typeof createSqliteSubjectRepository>
+  let periodId: number
+
+  beforeEach(() => {
+    db = createTestDb().db
+    repository = createSqliteSubjectRepository(db)
+    periodId = seedPeriod(db)
+  })
+
+  function create(overrides: Partial<Parameters<typeof repository.create>[0]> = {}) {
+    return repository.create({
+      name: 'Derecho Civil I',
+      code: 'DER-201',
+      color: '#7c3aed',
+      periodId,
+      slots: [{ dayOfWeek: 1, startMinutes: 600, endMinutes: 720, location: null }],
+      ...overrides
+    })
+  }
+
+  it('derives the carrera from the período the student chose', () => {
+    const owningProgramId = db.select().from(periods).get()?.programId
+
+    const created = create()
+
+    expect(created.programId).toBe(owningProgramId)
+  })
+
+  it('stores the order exactly as given, and null when it was left blank', () => {
+    expect(create({ nivel: 3 }).nivel).toBe(3)
+    expect(create({ code: 'DER-202' }).nivel).toBeNull()
+  })
+
+  // The carrera outlives the período — that is the entire reason the column
+  // exists. Deleting the carrera cascades its períodos away and nulls
+  // `period_id`, and `program_id` follows only because the carrera itself is
+  // gone; a materia whose PERÍODO alone disappears keeps its carrera.
+  it('keeps the carrera when the período is deleted out from under the materia', () => {
+    const created = create()
+
+    db.delete(periods).run()
+
+    const after = repository.detail(created.id)
+    expect(after?.periodId).toBeNull()
+    expect(after?.programId).toBe(created.programId)
+  })
+
+  it('saves a new order through updateSchedule', () => {
+    const created = create({ nivel: 1 })
+
+    repository.updateSchedule({
+      id: created.id,
+      name: created.name,
+      code: created.code,
+      color: created.color,
+      periodId,
+      nivel: 4,
+      slots: [{ dayOfWeek: 2, startMinutes: 600, endMinutes: 720, location: null }]
+    })
+
+    expect(repository.detail(created.id)?.nivel).toBe(4)
+  })
+})

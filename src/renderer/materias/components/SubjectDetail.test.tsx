@@ -19,6 +19,8 @@ const baseSubject: SubjectDetailResult = {
   notas: 'Trae **calculadora**',
   attendanceMinPercent: 75,
   periodId: null,
+  programId: null,
+  nivel: null,
   outcome: null,
   grade: null,
   regularity: null,

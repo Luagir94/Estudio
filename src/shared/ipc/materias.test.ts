@@ -136,6 +136,8 @@ describe('subjectRecordSchema — ficha de cátedra fields', () => {
     notas: null,
     attendanceMinPercent: null,
     periodId: null,
+    programId: null,
+    nivel: null,
     outcome: null,
     grade: null,
     regularity: null
@@ -181,6 +183,8 @@ describe('subjectRecordSchema — regularity', () => {
     notas: null,
     attendanceMinPercent: null,
     periodId: null,
+    programId: null,
+    nivel: null,
     outcome: null,
     grade: null
   }

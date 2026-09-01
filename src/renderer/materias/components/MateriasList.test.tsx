@@ -24,6 +24,8 @@ const base: SubjectWithStatus = {
   notas: null,
   attendanceMinPercent: 75,
   periodId: 2,
+  programId: null,
+  nivel: null,
   outcome: null,
   grade: null,
   regularity: null,
