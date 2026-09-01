@@ -27,9 +27,16 @@ import { EditarCarreraModal } from '../components/EditarCarreraModal'
 import { NuevoPeriodoModal } from '../components/NuevoPeriodoModal'
 import { PeriodTimeline } from '../components/PeriodTimeline'
 import { PeriodsTable } from '../components/PeriodsTable'
+import { PlanDraftRail } from '../components/PlanDraftRail'
+import { PlanSubjectInspector } from '../components/PlanSubjectInspector'
+import { CorrelativasFieldContainer } from '../../planificador/containers/CorrelativasFieldContainer'
+import { PlanMapCanvas, type PlanMapBox } from '../components/PlanMapCanvas'
+import { layOutPlanMap } from '../domain/planMap'
+import { planificadorApi } from '../../planificador/adapters/planificadorApi'
+import { listCandidates } from '../../planificador/domain/requirements'
 import { Button } from '../../shared/components/ui/button'
 import { cn } from '../../shared/lib/cn'
-import { interactiveGhost } from '../../shared/lib/interactive'
+import { interactive, interactiveGhost } from '../../shared/lib/interactive'
 import { subjectColorForScheme } from '../../shared/lib/subjectColorScheme'
 import { usePrefersLightScheme } from '../../shared/lib/usePrefersLightScheme'
 
@@ -188,13 +195,108 @@ export function CarreraDetailContainer({
     }
   }, [data])
 
-  // A subject reaches this carrera THROUGH its period, so one that lost its
-  // period (`program: null`) belongs to no carrera and is not listed here —
-  // the Materias screen is where it stays visible and fixable.
+  // A subject belongs to this carrera by its OWN `programId` — a fact about the
+  // plan de estudios, true whether or not it has ever been cursada.
+  //
+  // The period-derived `program` stays as a fallback, and must: `programId` is
+  // nullable, so every row written before that column existed still reaches its
+  // carrera the old way. Reading the period ALONE was the bug this replaced —
+  // `periodId` is nullable too, so a materia nobody has cursado yet belonged to
+  // no carrera at all and silently vanished from this screen.
   const ownSubjects = useMemo(
-    () => (subjects ?? []).filter((subject) => subject.program?.id === programId),
+    () => (subjects ?? []).filter((subject) => (subject.programId ?? subject.program?.id) === programId),
     [subjects, programId]
   )
+
+  // Which half of the carrera you are looking at. The plan de estudios and the
+  // períodos are two axes over the same materias — the plan belongs to the
+  // carrera and never changes, the períodos are your own timeline — so they are
+  // two tabs rather than one crowded page.
+  const [activeTab, setActiveTab] = useState<'periods' | 'plan'>('periods')
+
+  // Which materia the rail is inspecting. On the map a click SELECTS rather
+  // than navigates: you are planning, not browsing, and leaving the canvas to
+  // add one correlativa loses the whole picture you came here to read.
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null)
+
+  const { data: draftEntries } = useQuery({ queryKey: ['planificador'], queryFn: planificadorApi.list })
+
+  function invalidateDraft(): void {
+    void queryClient.invalidateQueries({ queryKey: ['planificador'] })
+  }
+
+  const addToDraftMutation = useMutation({ mutationFn: planificadorApi.addEntry, onSuccess: invalidateDraft })
+  const removeFromDraftMutation = useMutation({ mutationFn: planificadorApi.removeEntry, onSuccess: invalidateDraft })
+
+  // Every box's state resolved through the SAME rules the rest of the app
+  // answers with, never re-derived here. `listCandidates` excludes exactly the
+  // approved and the already-drafted, which is what makes the `aprobada`
+  // fallback below a deduction rather than a guess.
+  // Resolved from `ownSubjects`, never from a second fetch: a selection that
+  // outlived its materia (deleted, or moved to another carrera) simply stops
+  // resolving and the rail falls back to the borrador.
+  const selectedSubject = ownSubjects.find((subject) => subject.id === selectedSubjectId)
+
+  // The correlativas editor needs the DETAIL payload, not the list one: the
+  // list carries `{requiresSubjectId, requiredLevel}` while the picker renders
+  // each requirement's name and estado. Same key the Materias screen uses, so
+  // the two share one cache instead of racing two.
+  const { data: selectedDetail } = useQuery({
+    queryKey: ['materias', 'detail', selectedSubjectId],
+    queryFn: () => materiasApi.detail(selectedSubjectId as number),
+    enabled: selectedSubject !== undefined
+  })
+
+  // One line for all three plan writes. Whichever failed most recently is the
+  // one worth naming; they cannot fail usefully at the same time.
+  const planError = describeIpcError(addToDraftMutation.error) ?? describeIpcError(removeFromDraftMutation.error)
+
+  const planMap = useMemo(() => {
+    const drafted = new Set((draftEntries ?? []).map((entry) => entry.subjectId))
+    const candidates = new Map(
+      listCandidates(ownSubjects, drafted).map((candidate) => [candidate.subject.id, candidate])
+    )
+
+    const boxes: PlanMapBox[] = ownSubjects.map((subject) => {
+      const base = { id: subject.id, name: subject.name }
+      if (drafted.has(subject.id)) {
+        return { ...base, meta: `${subject.code} · ${t('planMap.enBorrador')}`, state: 'enBorrador' }
+      }
+      const candidate = candidates.get(subject.id)
+      if (candidate === undefined) {
+        return { ...base, meta: `${subject.code} · ${t('planMap.aprobada')}`, state: 'aprobada' }
+      }
+      const unmet = candidate.unmet[0]
+      if (unmet === undefined) {
+        return { ...base, meta: subject.code, state: 'habilitada' }
+      }
+      // The reason comes from the planificador's catalog rather than a second
+      // copy here: it is the same sentence the borrador already prints.
+      return {
+        ...base,
+        meta:
+          unmet.subjectName === null
+            ? t('planificador:candidates.missingUnknownSubject')
+            : t('planificador:candidates.missing', {
+                subject: unmet.subjectName,
+                level: t(`planificador:levels.${unmet.requiredLevel}`)
+              }),
+        state: 'bloqueada'
+      }
+    })
+
+    const edges = ownSubjects.flatMap((subject) =>
+      subject.prerequisites.map((prerequisite) => ({
+        subjectId: subject.id,
+        requiresSubjectId: prerequisite.requiresSubjectId
+      }))
+    )
+    // `SubjectWithStatus` satisfies `DraftSubject` structurally (id/name/color/
+    // slots), so this narrows rather than adapts — no second shape to keep in
+    // step with the readings the rail rides on.
+    const drafts = ownSubjects.filter((subject) => drafted.has(subject.id))
+    return { layout: layOutPlanMap(ownSubjects, edges), boxes, edges, drafts }
+  }, [ownSubjects, draftEntries, t])
 
   // Per-period subject counts for the table's MATERIAS column, one pass over
   // the SAME cached list the section below renders — the alternative was
@@ -279,125 +381,217 @@ export function CarreraDetailContainer({
             </div>
           </div>
 
-          <PeriodTimeline periods={data.periods} now={today} />
+          {/* Two axes over the same materias, so two tabs (design node
+              `JZB54`). Pills rather than an underline: this app already spells
+              a segmented choice that way in the Materias status filter. */}
+          <div role="tablist" aria-label={t('planMap.tabsLabel')} className="flex items-center gap-2">
+            {(
+              [
+                ['periods', 'planMap.tabPeriods'],
+                ['plan', 'planMap.tabPlan']
+              ] as const
+            ).map(([tab, label]) => (
+              <button
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab}
+                onClick={() => setActiveTab(tab)}
+                className={cn(
+                  'rounded-lg border px-3 py-2 text-body-sm font-semibold',
+                  interactive,
+                  activeTab === tab
+                    ? 'border-primary bg-brand-soft text-primary-ink'
+                    : 'border-border bg-muted text-secondary-foreground'
+                )}
+              >
+                {t(label)}
+              </button>
+            ))}
+          </div>
+
+          {/* Every write the plan tab makes used to fail in SILENCE: three
+              mutations with an `onSuccess` and no `onError`, so a rejected IPC
+              call left the screen exactly as it was and the button looked
+              inert. A failed write has to say so. */}
+          {activeTab === 'plan' && planError !== undefined && (
+            <p role="alert" data-testid="plan-map-error" className="text-body-sm font-semibold text-destructive">
+              {planError}
+            </p>
+          )}
+
+          {activeTab === 'plan' && (
+            <div className="flex flex-col gap-6 min-[820px]:flex-row">
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
+                <PlanMapCanvas
+                  layout={planMap.layout}
+                  boxes={planMap.boxes}
+                  edges={planMap.edges}
+                  // Which período the borrador is being built for is the same
+                  // question the "nueva materia" form already answers, so it gets
+                  // the same answer rather than a second rule that could disagree.
+                  //
+                  // With no plannable período there is nothing to add TO, and the
+                  // `+` disappears from every box instead of failing on click.
+                  onAdd={
+                    defaultPeriodId === null
+                      ? undefined
+                      : (subjectId) => addToDraftMutation.mutate({ periodId: defaultPeriodId, subjectId })
+                  }
+                  onRemove={
+                    defaultPeriodId === null
+                      ? undefined
+                      : (subjectId) => removeFromDraftMutation.mutate({ periodId: defaultPeriodId, subjectId })
+                  }
+                  selectedId={selectedSubjectId}
+                  onSelect={setSelectedSubjectId}
+                />
+              </div>
+              {/* One rail, two jobs. The borrador is what the map adds up to;
+                  the inspector is one materia within it. They cannot both hold
+                  the rail, and while you are editing correlativas the borrador
+                  is not what you are looking at. */}
+              {selectedSubject === undefined ? (
+                <PlanDraftRail draft={planMap.drafts} />
+              ) : (
+                <PlanSubjectInspector
+                  subjectName={selectedSubject.name}
+                  correlativasSlot={
+                    <CorrelativasFieldContainer
+                      subjectId={selectedSubject.id}
+                      prerequisites={selectedDetail?.prerequisites ?? []}
+                      variant="compact"
+                    />
+                  }
+                  onOpenSubject={onOpenSubject && (() => onOpenSubject(selectedSubject.id))}
+                />
+              )}
+            </div>
+          )}
+
+          {activeTab === 'periods' && <PeriodTimeline periods={data.periods} now={today} />}
 
           {/* Two-column body, same layout language as SubjectDetail: the rail
               is a SIDE panel only while there is a side to put it on — below
-              820px it becomes the bottom of the page, stacked, full width. */}
-          <div className="flex flex-col gap-6 min-[820px]:flex-row">
-            <div className="flex min-w-0 flex-1 flex-col gap-3">
-              <PeriodsTable
-                periods={data.periods}
-                now={today}
-                subjectCounts={subjectCounts}
-                onSelect={onSelectPeriod && ((period) => onSelectPeriod(period.id))}
-                onEdit={setEditingPeriod}
-                onDelete={setDeletingPeriod}
-              />
-
-              <div className="flex flex-col gap-2">
-                {/* Count appended outside the translation, same pattern as
-                    the PERÍODOS and ADJUNTOS headings. */}
-                <h2 className="text-label font-semibold text-muted-foreground">
-                  {t('carreraDetailContainer.ownSubjectsHeading')}
-                  {ownSubjects.length > 0 && ` · ${ownSubjects.length}`}
-                </h2>
-                <MateriasList
-                  subjects={ownSubjects}
+              820px it becomes the bottom of the page, stacked, full width.
+              Rendered, not hidden, when the other tab is up: a `hidden` class
+              would leave every row of it in the accessibility tree. */}
+          {activeTab === 'periods' && (
+            <div className="flex flex-col gap-6 min-[820px]:flex-row">
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
+                <PeriodsTable
+                  periods={data.periods}
                   now={today}
-                  onSelect={onOpenSubject}
-                  emptyMessage={t('carreraDetailContainer.noSubjects')}
-                  compact
+                  subjectCounts={subjectCounts}
+                  onSelect={onSelectPeriod && ((period) => onSelectPeriod(period.id))}
+                  onEdit={setEditingPeriod}
+                  onDelete={setDeletingPeriod}
                 />
-              </div>
-            </div>
 
-            <div className="flex w-full flex-col gap-3 min-[820px]:w-[336px] min-[820px]:shrink-0">
-              <div className="flex flex-col gap-2 rounded-xl border border-primary bg-(--color-brand-soft) p-4">
-                <span className="text-overline font-semibold text-primary-ink">
-                  {t('carreraDetailContainer.currentPeriodHeading')}
-                </span>
-                {currentPeriod ? (
-                  <>
-                    <span className="font-display text-heading font-bold text-foreground">
-                      {currentPeriod.name} {derivePeriodYear(currentPeriod.startsOn)}
-                    </span>
-                    <span className="text-body-sm text-secondary-foreground">
-                      {formatPeriodRange(currentPeriod.startsOn, currentPeriod.endsOn)}
-                      {companionPeriods.length > 0 &&
-                        ` · ${t('carreraDetailContainer.alongside', {
-                          names: companionPeriods.map((period) => period.name).join(', ')
-                        })}`}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-body-lg font-medium text-secondary-foreground">
-                    {t('carreraDetailContainer.noCurrentPeriod')}
+                <div className="flex flex-col gap-2">
+                  {/* Count appended outside the translation, same pattern as
+                    the PERÍODOS and ADJUNTOS headings. */}
+                  <h2 className="text-label font-semibold text-muted-foreground">
+                    {t('carreraDetailContainer.ownSubjectsHeading')}
+                    {ownSubjects.length > 0 && ` · ${ownSubjects.length}`}
+                  </h2>
+                  <MateriasList
+                    subjects={ownSubjects}
+                    now={today}
+                    onSelect={onOpenSubject}
+                    emptyMessage={t('carreraDetailContainer.noSubjects')}
+                    compact
+                  />
+                </div>
+              </div>
+
+              <div className="flex w-full flex-col gap-3 min-[820px]:w-[336px] min-[820px]:shrink-0">
+                <div className="flex flex-col gap-2 rounded-xl border border-primary bg-(--color-brand-soft) p-4">
+                  <span className="text-overline font-semibold text-primary-ink">
+                    {t('carreraDetailContainer.currentPeriodHeading')}
                   </span>
-                )}
-              </div>
+                  {currentPeriod ? (
+                    <>
+                      <span className="font-display text-heading font-bold text-foreground">
+                        {currentPeriod.name} {derivePeriodYear(currentPeriod.startsOn)}
+                      </span>
+                      <span className="text-body-sm text-secondary-foreground">
+                        {formatPeriodRange(currentPeriod.startsOn, currentPeriod.endsOn)}
+                        {companionPeriods.length > 0 &&
+                          ` · ${t('carreraDetailContainer.alongside', {
+                            names: companionPeriods.map((period) => period.name).join(', ')
+                          })}`}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-body-lg font-medium text-secondary-foreground">
+                      {t('carreraDetailContainer.noCurrentPeriod')}
+                    </span>
+                  )}
+                </div>
 
-              {/* "AVANCE ACADÉMICO" (design node `ghb9r`): the promedio con
+                {/* "AVANCE ACADÉMICO" (design node `ghb9r`): the promedio con
                   aplazos as the hero number — the honest average, see
                   domain/program.ts — over an approved-share progress bar,
                   keeping the period rows of the old numbers card. The plain
                   Materias row is gone: the count already reads in the header
                   subtitle and in the pill's own total. */}
-              <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-card p-4">
-                <span className="text-overline font-semibold text-muted-foreground">
-                  {t('carreraDetailContainer.academicProgressHeading')}
-                </span>
-                <div className="flex items-end justify-between">
-                  <div className="flex flex-col gap-0.5">
-                    {/* The design's hero-number size. It used to be written
+                <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-card p-4">
+                  <span className="text-overline font-semibold text-muted-foreground">
+                    {t('carreraDetailContainer.academicProgressHeading')}
+                  </span>
+                  <div className="flex items-end justify-between">
+                    <div className="flex flex-col gap-0.5">
+                      {/* The design's hero-number size. It used to be written
                         here as `text-[28px] tracking-[-0.5px]` with a note
                         saying it was deliberately off the scale; it is now the
                         `display-md` step, so the exception is declared once in
                         `globals.css` instead of living in this one file. */}
-                    <span className="font-display text-display-md font-bold text-foreground">
-                      {academicProgress.average.withFailed !== null
-                        ? formatAverage(academicProgress.average.withFailed)
-                        : '—'}
-                    </span>
-                    <span className="text-body-sm text-secondary-foreground">
-                      {t('carreraDetailContainer.averageLabel')}
+                      <span className="font-display text-display-md font-bold text-foreground">
+                        {academicProgress.average.withFailed !== null
+                          ? formatAverage(academicProgress.average.withFailed)
+                          : '—'}
+                      </span>
+                      <span className="text-body-sm text-secondary-foreground">
+                        {t('carreraDetailContainer.averageLabel')}
+                      </span>
+                    </div>
+                    {/* 11px is off the scale too — the design's pill step. */}
+                    <span className="rounded-full bg-ok-soft px-2.5 py-1 text-[11px] font-semibold text-ok">
+                      {t('carreraDetailContainer.approvedOfTotal', {
+                        count: academicProgress.approved,
+                        total: academicProgress.total
+                      })}
                     </span>
                   </div>
-                  {/* 11px is off the scale too — the design's pill step. */}
-                  <span className="rounded-full bg-ok-soft px-2.5 py-1 text-[11px] font-semibold text-ok">
-                    {t('carreraDetailContainer.approvedOfTotal', {
-                      count: academicProgress.approved,
-                      total: academicProgress.total
-                    })}
-                  </span>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-ok" style={{ width: `${academicProgress.percent}%` }} />
+                  </div>
+                  <span aria-hidden="true" className="h-px w-full bg-border" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-body-sm text-secondary-foreground">
+                      {t('carreraDetailContainer.statPeriods')}
+                    </span>
+                    <span className="text-body-sm font-semibold text-foreground">{data.periods.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-body-sm text-secondary-foreground">
+                      {t('carreraDetailContainer.statActive')}
+                    </span>
+                    <span className="text-body-sm font-semibold text-foreground">{currentPeriods.length}</span>
+                  </div>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-ok" style={{ width: `${academicProgress.percent}%` }} />
-                </div>
-                <span aria-hidden="true" className="h-px w-full bg-border" />
-                <div className="flex items-center justify-between">
-                  <span className="text-body-sm text-secondary-foreground">
-                    {t('carreraDetailContainer.statPeriods')}
-                  </span>
-                  <span className="text-body-sm font-semibold text-foreground">{data.periods.length}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-body-sm text-secondary-foreground">
-                    {t('carreraDetailContainer.statActive')}
-                  </span>
-                  <span className="text-body-sm font-semibold text-foreground">{currentPeriods.length}</span>
-                </div>
-              </div>
 
-              {/* "FECHAS ADMINISTRATIVAS" (approved design): inscripciones,
+                {/* "FECHAS ADMINISTRATIVAS" (approved design): inscripciones,
                   vencimientos y trámites belong to the CARRERA, not to any one
                   materia, so this is the screen that owns them. Composed as a
                   container rather than folded into this one — it brings its own
                   query, three mutations and two dialogs, the same reason
                   SubjectDetailContainer composes AdjuntosContainer. */}
-              <FechasCardContainer programId={data.id} programName={data.name} now={today} />
+                <FechasCardContainer programId={data.id} programName={data.name} now={today} />
+              </div>
             </div>
-          </div>
+          )}
 
           {isModalOpen && (
             <NuevoPeriodoModal

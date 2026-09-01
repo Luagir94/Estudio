@@ -35,9 +35,14 @@ const { fechasApiMock } = vi.hoisted(() => ({
   fechasApiMock: { list: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() }
 }))
 
+const { planificadorApiMock } = vi.hoisted(() => ({
+  planificadorApiMock: { list: vi.fn(), addEntry: vi.fn(), removeEntry: vi.fn() }
+}))
+
 vi.mock('../adapters/carrerasApi', () => ({ carrerasApi: carrerasApiMock }))
 vi.mock('../../materias/adapters/materiasApi', () => ({ materiasApi: materiasApiMock }))
 vi.mock('../../fechas/adapters/fechasApi', () => ({ fechasApi: fechasApiMock }))
+vi.mock('../../planificador/adapters/planificadorApi', () => ({ planificadorApi: planificadorApiMock }))
 
 const today = new Date(2026, 7, 15)
 
@@ -80,6 +85,9 @@ async function openModal() {
 describe('CarreraDetailContainer', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // The screen reads the borrador to mark materias already planned; every
+    // describe needs it answered or its queries hang.
+    planificadorApiMock.list.mockResolvedValue([])
     carrerasApiMock.detail.mockResolvedValue(abogacia)
     materiasApiMock.list.mockResolvedValue([])
     fechasApiMock.list.mockResolvedValue([])
@@ -287,6 +295,9 @@ describe('CarreraDetailContainer', () => {
 describe('CarreraDetailContainer — editar y eliminar períodos', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // The screen reads the borrador to mark materias already planned; every
+    // describe needs it answered or its queries hang.
+    planificadorApiMock.list.mockResolvedValue([])
     carrerasApiMock.detail.mockResolvedValue(abogacia)
     materiasApiMock.list.mockResolvedValue([])
     fechasApiMock.list.mockResolvedValue([])
@@ -517,6 +528,8 @@ describe('CarreraDetailContainer — editar y eliminar períodos', () => {
         notas: null,
         attendanceMinPercent: null,
         periodId: 1,
+        programId: null,
+        nivel: null,
         outcome: null,
         grade: null,
         regularity: null,
@@ -543,6 +556,9 @@ describe('CarreraDetailContainer — editar y eliminar períodos', () => {
 describe('CarreraDetailContainer — right rail cards', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // The screen reads the borrador to mark materias already planned; every
+    // describe needs it answered or its queries hang.
+    planificadorApiMock.list.mockResolvedValue([])
     carrerasApiMock.detail.mockResolvedValue(abogacia)
     materiasApiMock.list.mockResolvedValue([])
     fechasApiMock.list.mockResolvedValue([])
@@ -610,7 +626,11 @@ describe('CarreraDetailContainer — right rail cards', () => {
     renderDetail()
     await screen.findByRole('heading', { name: 'Abogacía' })
 
-    const periodsRow = screen.getByText('Períodos').parentElement!
+    // "Períodos" now names the tab as well as this stat, so the query has to
+    // say which of the two it means.
+    const periodsRow = screen
+      .getAllByText('Períodos')
+      .find((element) => element.closest('[role="tab"]') === null)!.parentElement!
     expect(within(periodsRow).getByText('2')).toBeInTheDocument()
     const activeRow = screen.getByText('En curso').parentElement!
     expect(within(activeRow).getByText('1')).toBeInTheDocument()
@@ -625,6 +645,9 @@ describe('CarreraDetailContainer — right rail cards', () => {
 describe('CarreraDetailContainer — avance académico', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // The screen reads the borrador to mark materias already planned; every
+    // describe needs it answered or its queries hang.
+    planificadorApiMock.list.mockResolvedValue([])
     carrerasApiMock.detail.mockResolvedValue(abogacia)
     materiasApiMock.list.mockResolvedValue([])
     fechasApiMock.list.mockResolvedValue([])
@@ -756,6 +779,9 @@ describe('CarreraDetailContainer — avance académico', () => {
 describe('CarreraDetailContainer — eliminar carrera', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // The screen reads the borrador to mark materias already planned; every
+    // describe needs it answered or its queries hang.
+    planificadorApiMock.list.mockResolvedValue([])
     carrerasApiMock.detail.mockResolvedValue(abogacia)
     materiasApiMock.list.mockResolvedValue([])
     fechasApiMock.list.mockResolvedValue([])
@@ -862,6 +888,9 @@ describe('CarreraDetailContainer — editar carrera', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    // The screen reads the borrador to mark materias already planned; every
+    // describe needs it answered or its queries hang.
+    planificadorApiMock.list.mockResolvedValue([])
     carrerasApiMock.detail.mockResolvedValue(abogacia)
     materiasApiMock.list.mockResolvedValue([])
     fechasApiMock.list.mockResolvedValue([])
@@ -987,6 +1016,9 @@ describe('CarreraDetailContainer — editar carrera', () => {
 describe('CarreraDetailContainer — nueva materia', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // The screen reads the borrador to mark materias already planned; every
+    // describe needs it answered or its queries hang.
+    planificadorApiMock.list.mockResolvedValue([])
     carrerasApiMock.detail.mockResolvedValue(abogacia)
     materiasApiMock.list.mockResolvedValue([])
     fechasApiMock.list.mockResolvedValue([])
@@ -1073,6 +1105,8 @@ describe('CarreraDetailContainer — materias de la carrera', () => {
       notas: null,
       attendanceMinPercent: null,
       periodId: 2,
+      programId: null,
+      nivel: null,
       outcome: null,
       grade: null,
       regularity: null,
@@ -1096,6 +1130,9 @@ describe('CarreraDetailContainer — materias de la carrera', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    // The screen reads the borrador to mark materias already planned; every
+    // describe needs it answered or its queries hang.
+    planificadorApiMock.list.mockResolvedValue([])
     carrerasApiMock.detail.mockResolvedValue(abogacia)
     materiasApiMock.list.mockResolvedValue([propia, ajena, huerfana])
   })
@@ -1175,6 +1212,9 @@ describe('CarreraDetailContainer — materias de la carrera', () => {
 describe('CarreraDetailContainer — fechas administrativas', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // The screen reads the borrador to mark materias already planned; every
+    // describe needs it answered or its queries hang.
+    planificadorApiMock.list.mockResolvedValue([])
     carrerasApiMock.detail.mockResolvedValue(abogacia)
     materiasApiMock.list.mockResolvedValue([])
     fechasApiMock.list.mockResolvedValue([
@@ -1205,5 +1245,219 @@ describe('CarreraDetailContainer — fechas administrativas', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Agregar fecha' }))
 
     expect(screen.getByRole('dialog', { name: 'Nueva fecha administrativa' })).toBeInTheDocument()
+  })
+})
+
+// The plan de estudios and the períodos are two axes over the same materias —
+// the plan belongs to the carrera and never moves, the períodos are the
+// student's own timeline. They share a screen through a tab, which is also
+// what dissolves the old "no discrimina por carrera" problem: standing inside
+// a carrera leaves nothing to filter.
+describe('CarreraDetailContainer — plan de estudios tab', () => {
+  function subject(overrides: Partial<SubjectWithStatus> & { id: number; name: string }): SubjectWithStatus {
+    return {
+      code: `DER-${overrides.id}`,
+      color: '#4c8dff',
+      programId: 1,
+      nivel: null,
+      docente: null,
+      contacto: null,
+      comision: null,
+      aula: null,
+      campusUrl: null,
+      groupUrl: null,
+      notas: null,
+      attendanceMinPercent: null,
+      periodId: 1,
+      outcome: null,
+      grade: null,
+      regularity: null,
+      slots: [],
+      period: null,
+      program: { id: 1, name: 'Abogacía', gradingScheme: 'numerico', gradeScale: 10 },
+      finals: [],
+      pendingDeadlines: 0,
+      prerequisites: [],
+      ...overrides
+    }
+  }
+
+  const introduccion = subject({ id: 1, name: 'Introducción al Derecho', nivel: 1 })
+  const civil = subject({
+    id: 2,
+    name: 'Derecho Civil I',
+    nivel: 2,
+    prerequisites: [{ requiresSubjectId: 1, requiredLevel: 'aprobada' }]
+  })
+  // No nivel: it belongs to the carrera but nobody has placed it in the plan.
+  const seminario = subject({ id: 3, name: 'Seminario de Ética' })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    // The screen reads the borrador to mark materias already planned; every
+    // describe needs it answered or its queries hang.
+    planificadorApiMock.list.mockResolvedValue([])
+    carrerasApiMock.detail.mockResolvedValue(abogacia)
+    materiasApiMock.list.mockResolvedValue([introduccion, civil, seminario])
+    fechasApiMock.list.mockResolvedValue([])
+    planificadorApiMock.addEntry.mockResolvedValue({ periodId: 2, subjectId: 1 })
+  })
+
+  it('opens on the períodos tab', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+
+    expect(screen.getByRole('tab', { name: 'Períodos' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Plan de estudios' })).toHaveAttribute('aria-selected', 'false')
+  })
+
+  it('swaps the períodos body for the map when the plan tab is chosen', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Plan de estudios' }))
+
+    // The períodos body is REMOVED, not hidden: a `hidden` class would leave
+    // every one of its rows in the accessibility tree.
+    expect(screen.queryByText('MATERIAS DE ESTA CARRERA')).not.toBeInTheDocument()
+    expect(screen.getByTestId('plan-map-columns')).toBeInTheDocument()
+  })
+
+  // The rail has two jobs and one space. Selecting a materia hands it to the
+  // inspector; nothing selected leaves it to the borrador.
+  it('swaps the borrador rail for the inspector when a materia is selected', async () => {
+    materiasApiMock.detail.mockResolvedValue({ ...introduccion, prerequisites: [] })
+
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+    await userEvent.click(screen.getByRole('tab', { name: 'Plan de estudios' }))
+
+    expect(screen.getByTestId('plan-draft-rail')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Seleccionar Introducción al Derecho' }))
+
+    const inspector = await screen.findByTestId('plan-subject-inspector')
+    expect(within(inspector).getByText('Introducción al Derecho')).toBeInTheDocument()
+    expect(screen.queryByTestId('plan-draft-rail')).not.toBeInTheDocument()
+  })
+
+  // The correlativas picker renders each requirement's NAME and estado, which
+  // the list payload does not carry — so the inspector fetches the detail.
+  it('fetches the selected materia detail to feed the correlativas picker', async () => {
+    materiasApiMock.detail.mockResolvedValue({ ...introduccion, prerequisites: [] })
+
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+    await userEvent.click(screen.getByRole('tab', { name: 'Plan de estudios' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Seleccionar Introducción al Derecho' }))
+
+    await waitFor(() => {
+      expect(materiasApiMock.detail).toHaveBeenCalledWith(1)
+    })
+  })
+
+  it('says so when a plan write fails', async () => {
+    planificadorApiMock.addEntry.mockRejectedValue(Object.assign(new Error('boom'), { code: 'UPDATE_FAILED' }))
+
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+    await userEvent.click(screen.getByRole('tab', { name: 'Plan de estudios' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar Introducción al Derecho al borrador' }))
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+  })
+
+  it('stays quiet while nothing has failed', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+    await userEvent.click(screen.getByRole('tab', { name: 'Plan de estudios' }))
+
+    expect(screen.queryByTestId('plan-map-error')).not.toBeInTheDocument()
+  })
+
+  it('says on the box what a blocked materia is missing', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+    await userEvent.click(screen.getByRole('tab', { name: 'Plan de estudios' }))
+
+    // Civil I requires Introducción, which is not aprobada — the reason is the
+    // same sentence the borrador prints, read from the planificador catalog.
+    expect(screen.getByText('Falta Introducción al Derecho aprobada')).toBeInTheDocument()
+  })
+
+  // The `+` is the availability signal: only a habilitada carries one, so in a
+  // map of many boxes the ones you can act on are readable without decoding a
+  // single colour.
+  it('offers the + on the habilitada and on nothing else', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+    await userEvent.click(screen.getByRole('tab', { name: 'Plan de estudios' }))
+
+    const adds = screen.getAllByTestId('plan-map-add')
+    // Introducción and Seminario are habilitadas; Civil I is blocked by its
+    // correlativa, so it gets no `+`.
+    expect(adds.map((add) => add.getAttribute('aria-label'))).toEqual([
+      'Agregar Introducción al Derecho al borrador',
+      'Agregar Seminario de Ética al borrador'
+    ])
+  })
+
+  // Which período the borrador is built for is the same question the "nueva
+  // materia" form already answers, so it must give the same answer — the Anual
+  // is the period still running on the injected today.
+  it('adds to the borrador under the período the carrera would preselect', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+    await userEvent.click(screen.getByRole('tab', { name: 'Plan de estudios' }))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar Introducción al Derecho al borrador' }))
+
+    // First argument only: TanStack Query hands the mutationFn its own context
+    // as a second one, the same reason the período tests above read `calls[0][0]`.
+    await waitFor(() => {
+      expect(planificadorApiMock.addEntry.mock.calls[0]?.[0]).toEqual({ periodId: 2, subjectId: 1 })
+    })
+  })
+
+  it('offers no + when the carrera has no período to plan into', async () => {
+    carrerasApiMock.detail.mockResolvedValue({ ...abogacia, periods: [] })
+
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+    await userEvent.click(screen.getByRole('tab', { name: 'Plan de estudios' }))
+
+    // Nothing to add TO, so the affordance goes away rather than failing on
+    // click.
+    expect(screen.queryByTestId('plan-map-add')).not.toBeInTheDocument()
+  })
+
+  it('sums up the borrador beside the map', async () => {
+    planificadorApiMock.list.mockResolvedValue([{ periodId: 2, subjectId: 1 }])
+
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+    await userEvent.click(screen.getByRole('tab', { name: 'Plan de estudios' }))
+
+    const rail = screen.getByTestId('plan-draft-rail')
+    expect(within(rail).getByText('CARGA SEMANAL')).toBeInTheDocument()
+  })
+
+  // Same rule as the `+`, read from the other side: the drafted materia is the
+  // only one offering a way back out.
+  it('takes a materia out of the borrador from its own box', async () => {
+    planificadorApiMock.list.mockResolvedValue([{ periodId: 2, subjectId: 1 }])
+    planificadorApiMock.removeEntry.mockResolvedValue(undefined)
+
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+    await userEvent.click(screen.getByRole('tab', { name: 'Plan de estudios' }))
+
+    const removes = screen.getAllByTestId('plan-map-remove')
+    expect(removes).toHaveLength(1)
+    await userEvent.click(screen.getByRole('button', { name: 'Quitar Introducción al Derecho del borrador' }))
+
+    await waitFor(() => {
+      expect(planificadorApiMock.removeEntry.mock.calls[0]?.[0]).toEqual({ periodId: 2, subjectId: 1 })
+    })
   })
 })

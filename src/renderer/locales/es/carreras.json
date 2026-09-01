@@ -159,5 +159,20 @@
     "subjectsWarning_one": "Su materia no se elimina: queda sin período hasta que la asignes a otra carrera.",
     "subjectsWarning_other": "Sus {{count}} materias no se eliminan: quedan sin período hasta que las asignes a otra carrera.",
     "confirm": "Eliminar carrera"
+  },
+  "planMap": {
+    "tabPeriods": "Períodos",
+    "tabPlan": "Plan de estudios",
+    "empty": "Esta carrera todavía no tiene materias para mapear.",
+    "aprobada": "Aprobada",
+    "enBorrador": "En tu borrador",
+    "openSubject": "Abrir {{subject}}",
+    "tabsLabel": "Vista de la carrera",
+    "addToDraft": "Agregar {{subject}} al borrador",
+    "removeFromDraft": "Quitar {{subject}} del borrador",
+    "selectSubject": "Seleccionar {{subject}}",
+    "openSubjectLink": "Abrir materia",
+    "inspectorHint": "La línea aparece en el mapa apenas la agregás. Tocá el lienzo para volver al borrador.",
+    "draftHeading": "TU BORRADOR"
   }
 }
