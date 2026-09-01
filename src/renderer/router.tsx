@@ -46,10 +46,18 @@ import { EntregasContainer } from './entregas/containers/EntregasContainer'
 import { HorarioContainer } from './horario/containers/HorarioContainer'
 import { HoyContainer } from './hoy/containers/HoyContainer'
 import { DEFAULT_CARRERA_TAB, isCarreraTab, type CarreraTab } from './carreras/domain/carreraTab'
-import { isSubjectDetailTabId, type SubjectDetailTabId } from './materias/components/SubjectDetailTabs'
+import {
+  DEFAULT_SUBJECT_DETAIL_TAB,
+  isSubjectDetailTabId,
+  type SubjectDetailTabId
+} from './materias/components/SubjectDetailTabs'
 import { MateriasListContainer } from './materias/containers/MateriasListContainer'
 import { SubjectDetailContainer } from './materias/containers/SubjectDetailContainer'
-import { isSubjectStatusFilter, type SubjectStatusFilter } from './materias/domain/subjectStatus'
+import {
+  DEFAULT_SUBJECT_STATUS_FILTER,
+  isSubjectStatusFilter,
+  type SubjectStatusFilter
+} from './materias/domain/subjectStatus'
 import { parseRouteId } from './navigation'
 import { Shell } from './Shell'
 
@@ -111,7 +119,12 @@ function MateriasListScreen(): React.JSX.Element {
   const { filtro } = materiasRoute.useSearch()
   return (
     <MateriasListContainer
-      filter={filtro}
+      // Defaulted HERE, not left `undefined` for the container — same rule
+      // `CarreraDetailScreen` states at length below. The sidebar links to a
+      // bare `/materias`, so the first chip click is always made from an
+      // address with no `?filtro=` on it, and handing the container a callback
+      // without a value is what kept that click out of the URL.
+      filter={filtro ?? DEFAULT_SUBJECT_STATUS_FILTER}
       // `replace`, so scanning the filter chips does not bury the screen you
       // came from under six history entries — the back gesture should leave
       // Materias, not walk back through how you looked at it.
@@ -157,7 +170,7 @@ function SubjectDetailScreen(): React.JSX.Element {
   return (
     <SubjectDetailContainer
       subjectId={subjectId}
-      activeTab={tab}
+      activeTab={tab ?? DEFAULT_SUBJECT_DETAIL_TAB}
       // `replace` for the same reason the filter uses it: switching sections
       // inside one subject is looking around, not travelling, and four tabs
       // would otherwise put four entries between you and the list.

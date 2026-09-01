@@ -25,6 +25,14 @@ export type SubjectDetailTabId = 'entregas' | 'parciales' | 'apuntes' | 'notas'
 export const SUBJECT_DETAIL_TAB_IDS: SubjectDetailTabId[] = ['entregas', 'parciales', 'apuntes', 'notas']
 
 /**
+ * The tab the subject detail lands on. Exported because the container's
+ * fallback and `router.tsx`'s resolution of an absent `?tab=` have to be the
+ * same value — written out twice they could drift, and the address would name
+ * one panel while the screen drew another.
+ */
+export const DEFAULT_SUBJECT_DETAIL_TAB: SubjectDetailTabId = 'entregas'
+
+/**
  * Whether an unknown value names a tab. The address bar is an untrusted
  * input — a stale or hand-edited `?tab=` must fall back to the default rather
  * than select a panel that does not exist.

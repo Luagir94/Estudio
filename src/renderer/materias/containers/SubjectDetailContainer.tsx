@@ -52,7 +52,7 @@ import { carrerasApi } from '../../carreras/adapters/carrerasApi'
 import { EditarMateriaModal } from '../components/EditarMateriaModal'
 import { useBusySlots } from './useBusySlots'
 import { SubjectDetail } from '../components/SubjectDetail'
-import type { SubjectDetailTabId } from '../components/SubjectDetailTabs'
+import { DEFAULT_SUBJECT_DETAIL_TAB, type SubjectDetailTabId } from '../components/SubjectDetailTabs'
 import { FinalesContainer } from '../../finales/containers/FinalesContainer'
 import { ParcialesContainer } from '../../parciales/containers/ParcialesContainer'
 import { CorrelativasFieldContainer } from '../../planificador/containers/CorrelativasFieldContainer'
@@ -67,6 +67,12 @@ interface SubjectDetailContainerProps {
    * `subjectDetailRoute`). Passed with `onTabChange` or not at all — omitted,
    * the container keeps the tab in its own state, which is what every test
    * that renders it without a router relies on.
+   *
+   * BOTH halves, never one: `useOptionalControlled` reads either alone as a
+   * wiring mistake and keeps the state here. A caller that hands over
+   * `onTabChange` therefore has to resolve an absent `?tab=` to
+   * `DEFAULT_SUBJECT_DETAIL_TAB` itself rather than passing `undefined`
+   * through.
    */
   activeTab?: SubjectDetailTabId
   onTabChange?: (tab: SubjectDetailTabId) => void
@@ -93,7 +99,11 @@ export function SubjectDetailContainer({
   //
   // Entregas is the landing tab, and the fallback for a `?tab=` the address
   // carries but this screen does not recognise.
-  const [activeTab, setActiveTab] = useOptionalControlled<SubjectDetailTabId>(controlledTab, onTabChange, 'entregas')
+  const [activeTab, setActiveTab] = useOptionalControlled<SubjectDetailTabId>(
+    controlledTab,
+    onTabChange,
+    DEFAULT_SUBJECT_DETAIL_TAB
+  )
   // markdown-attachment-viewer: while set, the full-screen viewer renders
   // INSTEAD of the detail screen — the exact MateriasContainer
   // selectedSubjectId pattern, one level further down.

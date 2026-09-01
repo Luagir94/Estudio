@@ -315,6 +315,24 @@ describe('App', () => {
       expect(await screen.findByText('stub-subject-tab:parciales')).toBeInTheDocument()
     })
 
+    // Same contract the carrera tab states below: an absent search param is
+    // resolved to the screen's default HERE, because handing the container a
+    // callback without a value leaves it holding the state and the first click
+    // never reaches the address.
+    it('hands each screen its default when the address carries no tab or filter', async () => {
+      startAt('/materias/42')
+      render(<App />)
+
+      expect(await screen.findByText('stub-subject-tab:entregas')).toBeInTheDocument()
+    })
+
+    it('hands the list its default filter when the address carries none', async () => {
+      startAt('/materias')
+      render(<App />)
+
+      expect(await screen.findByText('stub-materias-filter:activas')).toBeInTheDocument()
+    })
+
     it('writes the chosen tab into the address', async () => {
       startAt('/materias/42')
       render(<App />)
@@ -350,7 +368,7 @@ describe('App', () => {
       startAt('/materias/42?tab=inventada')
       render(<App />)
 
-      expect(await screen.findByText('stub-subject-tab:none')).toBeInTheDocument()
+      expect(await screen.findByText('stub-subject-tab:entregas')).toBeInTheDocument()
       expect(await screen.findByText('stub-subject-detail:42')).toBeInTheDocument()
     })
 
@@ -358,7 +376,7 @@ describe('App', () => {
       startAt('/materias?filtro=inventado')
       render(<App />)
 
-      expect(await screen.findByText(/^stub-materias-filter:/)).toHaveTextContent('stub-materias-filter:none')
+      expect(await screen.findByText(/^stub-materias-filter:/)).toHaveTextContent('stub-materias-filter:activas')
     })
   })
 

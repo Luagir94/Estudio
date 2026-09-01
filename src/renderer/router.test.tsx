@@ -144,4 +144,17 @@ describe('router, against the real screens', () => {
 
     await waitFor(() => expect(window.location.hash).toContain('tab=plan'))
   })
+
+  // The same defect, one screen older: the Materias list is always entered
+  // from the sidebar, which links to a bare `/materias`, so the first chip
+  // click is likewise always made with no `?filtro=` to start from.
+  it('writes the chosen filter into the address on the first click, starting with no ?filtro=', async () => {
+    startAt('/materias')
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Materias' })
+
+    await userEvent.click(await screen.findByRole('button', { name: /^Aprobadas/ }))
+
+    await waitFor(() => expect(window.location.hash).toContain('filtro=aprobadas'))
+  })
 })

@@ -208,6 +208,16 @@ export const SUBJECT_STATUS_FILTERS: SubjectStatusFilter[] = [
 ]
 
 /**
+ * The filter the list lands on: the materias you are actually cursando.
+ *
+ * Exported because the container's fallback and `router.tsx`'s resolution of
+ * an absent `?filtro=` have to be the same value — written out twice they
+ * could drift, and the address would name one filter while the list drew
+ * another.
+ */
+export const DEFAULT_SUBJECT_STATUS_FILTER: SubjectStatusFilter = 'activas'
+
+/**
  * Whether an unknown value names a filter. The address is an untrusted input:
  * a stale or hand-edited `?filtro=` must fall back to the default rather than
  * match no subject at all and read as an empty list.

@@ -11,6 +11,16 @@
 // one: a `value` with no `onChange` is a control that cannot move, and an
 // `onChange` with no `value` is a caller that is told about changes it does
 // not hold. Either alone is a wiring mistake, so either alone falls back.
+//
+// Which puts one obligation on the ROUTE side: `useSearch()` yields
+// `undefined` for a search param the address does not carry, and that is the
+// common case — nothing links to a screen with its `?tab=` already on it. A
+// route component that hands over an `onChange` therefore has to resolve that
+// absence into the screen's default BEFORE passing it down, or the first
+// interaction moves state that lives here and never reaches the address. Each
+// default is exported once (`DEFAULT_CARRERA_TAB`, `DEFAULT_SUBJECT_DETAIL_TAB`,
+// `DEFAULT_SUBJECT_STATUS_FILTER`) so the route and the container cannot
+// disagree about what it is.
 import { useState } from 'react'
 
 export function useOptionalControlled<T>(

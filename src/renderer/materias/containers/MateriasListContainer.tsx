@@ -23,6 +23,7 @@ import { NuevaMateriaModal } from '../components/NuevaMateriaModal'
 import { useBusySlots } from './useBusySlots'
 import { SubjectStatusFilter } from '../components/SubjectStatusFilter'
 import {
+  DEFAULT_SUBJECT_STATUS_FILTER,
   matchesStatusFilter,
   resolveSubjectStatus,
   type SubjectStatus,
@@ -45,6 +46,12 @@ interface MateriasListContainerProps {
    * The active status filter, when the ADDRESS owns it (see `router.tsx`'s
    * `materiasRoute`). Passed with `onFilterChange` or not at all — omitted,
    * the container keeps the filter in its own state.
+   *
+   * BOTH halves, never one: `useOptionalControlled` reads either alone as a
+   * wiring mistake and keeps the state here. A caller that hands over
+   * `onFilterChange` therefore has to resolve an absent `?filtro=` to
+   * `DEFAULT_SUBJECT_STATUS_FILTER` itself rather than passing `undefined`
+   * through.
    */
   filter?: FilterValue
   onFilterChange?: (filter: FilterValue) => void
@@ -70,7 +77,11 @@ export function MateriasListContainer({
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   // Activas is the landing filter, and the fallback for a `?filtro=` the
   // address carries but this screen does not recognise.
-  const [filter, setFilter] = useOptionalControlled<FilterValue>(controlledFilter, onFilterChange, 'activas')
+  const [filter, setFilter] = useOptionalControlled<FilterValue>(
+    controlledFilter,
+    onFilterChange,
+    DEFAULT_SUBJECT_STATUS_FILTER
+  )
   const today = now ?? new Date()
 
   const { data, isLoading, isError } = useQuery({
