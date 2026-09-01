@@ -19,7 +19,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ProgramWithPeriods } from '../shared/ipc/carreras'
-import type { SubjectWithStatus } from '../shared/ipc/materias'
+import type { SubjectDetailResult, SubjectWithStatus } from '../shared/ipc/materias'
 import { App } from './App'
 
 const { carrerasApiMock } = vi.hoisted(() => ({
@@ -114,6 +114,39 @@ const aprobada: SubjectWithStatus = {
   prerequisites: []
 }
 
+// `materiasApi.detail` payload for `aprobada` — needed for the subject-detail
+// tab regression below, which has to mount the REAL subject detail screen
+// rather than the list.
+const historiaDetail: SubjectDetailResult = {
+  id: 3,
+  name: 'Historia del Derecho',
+  code: 'XX-000',
+  color: '#4c8dff',
+  docente: null,
+  contacto: null,
+  comision: null,
+  aula: null,
+  campusUrl: null,
+  groupUrl: null,
+  notas: null,
+  attendanceMinPercent: null,
+  periodId: 1,
+  programId: 1,
+  nivel: null,
+  outcome: 'aprobada',
+  grade: 8,
+  regularity: null,
+  slots: [],
+  deadlines: [],
+  period: { id: 1, name: '1er cuatrimestre', startsOn: '2026-03-09', endsOn: '2026-07-18' },
+  program: { id: 1, name: 'Abogacía', gradingScheme: 'numerico', gradeScale: 10 },
+  finals: [],
+  parciales: [],
+  attendance: [],
+  classNotes: [],
+  prerequisites: []
+}
+
 /** Puts the window on a hash location, the way a reload or a deep link would. */
 function startAt(hashPath: string): void {
   window.history.replaceState(null, '', `/#${hashPath}`)
@@ -156,5 +189,20 @@ describe('router, against the real screens', () => {
     await userEvent.click(await screen.findByRole('button', { name: /^Aprobadas/ }))
 
     await waitFor(() => expect(window.location.hash).toContain('filtro=aprobadas'))
+  })
+
+  // The third `useOptionalControlled`-defect call site, proven the same way
+  // as the two above: nothing links to a subject with a `?tab=` already on
+  // it — the Materias list and every carrera/período row open one bare — so
+  // the first tab click is always made from an address with none.
+  it('writes the subject-detail tab into the address on the first click, starting with no ?tab=', async () => {
+    materiasApiMock.detail.mockResolvedValue(historiaDetail)
+    startAt('/materias/3')
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Historia del Derecho' })
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Parciales' }))
+
+    await waitFor(() => expect(window.location.hash).toContain('tab=parciales'))
   })
 })
