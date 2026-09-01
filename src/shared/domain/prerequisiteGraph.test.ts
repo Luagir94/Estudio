@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { collectRequiredBy, type PrerequisiteEdge, wouldCreateCycle } from './prerequisiteGraph'
+import { collectRequirementsOf, collectRequiredBy, type PrerequisiteEdge, wouldCreateCycle } from './prerequisiteGraph'
 
 function edge(subjectId: number, requiresSubjectId: number): PrerequisiteEdge {
   return { subjectId, requiresSubjectId }
@@ -102,5 +102,55 @@ describe('collectRequiredBy', () => {
     for (const candidate of collectRequiredBy(edges, 1)) {
       expect(wouldCreateCycle(edges, { subjectId: 1, requiresSubjectId: candidate })).toBe(true)
     }
+  })
+})
+
+// Offering a correlativa that is ALREADY implied is offering noise: if 3
+// requires 2 and 2 requires 1, then 3 requires 1 by construction. Adding that
+// edge changes nothing and makes the map draw a line that says what the chain
+// already said.
+describe('collectRequirementsOf', () => {
+  it('collects the subject itself when it requires nothing', () => {
+    expect(collectRequirementsOf([], 1)).toEqual(new Set([1]))
+  })
+
+  it('collects a direct requirement', () => {
+    expect(collectRequirementsOf([{ subjectId: 2, requiresSubjectId: 1 }], 2)).toEqual(new Set([2, 1]))
+  })
+
+  // The whole point: 1 reaches 3 only through 2, and must still be excluded.
+  it('collects a requirement reached through a chain', () => {
+    const edges = [
+      { subjectId: 3, requiresSubjectId: 2 },
+      { subjectId: 2, requiresSubjectId: 1 }
+    ]
+
+    expect(collectRequirementsOf(edges, 3)).toEqual(new Set([3, 2, 1]))
+  })
+
+  it('collects a requirement reachable by two paths exactly once', () => {
+    const edges = [
+      { subjectId: 4, requiresSubjectId: 2 },
+      { subjectId: 4, requiresSubjectId: 3 },
+      { subjectId: 2, requiresSubjectId: 1 },
+      { subjectId: 3, requiresSubjectId: 1 }
+    ]
+
+    expect(collectRequirementsOf(edges, 4)).toEqual(new Set([4, 2, 3, 1]))
+  })
+
+  it('does not collect what merely depends on the subject', () => {
+    expect(collectRequirementsOf([{ subjectId: 2, requiresSubjectId: 1 }], 1)).toEqual(new Set([1]))
+  })
+
+  // Same defensive posture as `collectRequiredBy`: a database written before
+  // `wouldCreateCycle` existed can still hold a loop.
+  it('terminates on an edge set that is already cyclic', () => {
+    const edges = [
+      { subjectId: 1, requiresSubjectId: 2 },
+      { subjectId: 2, requiresSubjectId: 1 }
+    ]
+
+    expect(collectRequirementsOf(edges, 1)).toEqual(new Set([1, 2]))
   })
 })

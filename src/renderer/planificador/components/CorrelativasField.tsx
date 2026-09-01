@@ -1,5 +1,5 @@
-// Presentational (approved `.pen`): the CORRELATIVAS field inside the "Editar
-// materia" modal, after REGULARIDAD and before the divider.
+// Presentational (approved `.pen`): the CORRELATIVAS field, in the "Editar
+// materia" modal (`hjivW`) and in the plan map's inspector (`tuJ02`).
 //
 // A FIELDSET, never the shared `<Label>` primitive. A `<button>` is a labelable
 // element, so a wrapping `<label>` would steal the first button's accessible
@@ -12,7 +12,7 @@
 // mesas de final do, so each row change is applied when it is made — see
 // `CorrelativasFieldContainer`, which owns the mutations.
 import { Plus, X } from 'lucide-react'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { PrerequisiteLevel, SubjectPrerequisite } from '../../../shared/ipc/materias'
 import { Button } from '../../shared/components/ui/button'
@@ -32,6 +32,15 @@ interface CorrelativasFieldProps {
   onAdd: (input: { requiresSubjectId: number; requiredLevel: PrerequisiteLevel }) => void
   onChangeLevel: (input: { id: number; requiredLevel: PrerequisiteLevel }) => void
   onRemove: (id: number) => void
+  /**
+   * `compact` is the plan map's 260px inspector, where the two approved designs
+   * genuinely diverge: at that width the materia's name loses the line it
+   * shares with the select, so the row breaks in two and the box around it goes
+   * away — leaving the select as the only bordered thing, because it is the
+   * only thing you click. `default` is the modal's 512px field, which has the
+   * room and keeps its single line.
+   */
+  variant?: 'default' | 'compact'
 }
 
 const LEVELS: PrerequisiteLevel[] = ['aprobada', 'regularizada']
@@ -41,12 +50,14 @@ export function CorrelativasField({
   candidates,
   onAdd,
   onChangeLevel,
-  onRemove
+  onRemove,
+  variant = 'default'
 }: CorrelativasFieldProps): React.JSX.Element {
   const { t } = useTranslation('materias')
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [pickedSubjectId, setPickedSubjectId] = useState('')
   const [pickedLevel, setPickedLevel] = useState<PrerequisiteLevel>('aprobada')
+  const isCompact = variant === 'compact'
 
   function levelLabel(level: PrerequisiteLevel): string {
     return level === 'aprobada' ? t('correlativasField.levelAprobada') : t('correlativasField.levelRegularizada')
@@ -66,50 +77,78 @@ export function CorrelativasField({
 
   return (
     <fieldset>
-      <legend className="mb-1 block text-label font-semibold text-secondary-foreground">
+      <legend
+        className={cn(
+          'block font-semibold',
+          isCompact ? 'text-overline text-muted-foreground' : 'mb-1 text-label text-secondary-foreground'
+        )}
+      >
         {t('correlativasField.legend')}
       </legend>
 
-      <div className="mt-2 flex flex-col gap-2">
+      <div className={cn('flex flex-col', isCompact ? 'mt-2.5 gap-2.5' : 'mt-2 gap-2')}>
         {prerequisites.length === 0 && (
           <p className="text-body-sm text-muted-foreground">{t('correlativasField.empty')}</p>
         )}
 
-        {prerequisites.map((prerequisite) => (
-          <div
-            key={prerequisite.id}
-            data-testid="correlativa-field-row"
-            className="flex items-center gap-3 rounded-lg bg-background px-3 py-2"
-          >
-            <span className="min-w-0 flex-1 truncate text-body-sm font-semibold text-foreground">
-              {prerequisite.requires.name}
-            </span>
-            <Select
-              aria-label={t('correlativasField.levelLabel', { subject: prerequisite.requires.name })}
-              value={prerequisite.requiredLevel}
-              onChange={(event) =>
-                onChangeLevel({ id: prerequisite.id, requiredLevel: event.target.value as PrerequisiteLevel })
+        {prerequisites.map((prerequisite, index) => (
+          <Fragment key={prerequisite.id}>
+            {isCompact && index > 0 && <div className="h-px w-full bg-border" aria-hidden />}
+            <div
+              data-testid="correlativa-field-row"
+              className={
+                isCompact ? 'flex flex-col gap-1.5' : 'flex items-center gap-3 rounded-lg bg-background px-3 py-2'
               }
-              className="h-8 w-auto text-body"
             >
-              {LEVELS.map((level) => (
-                <option key={level} value={level}>
-                  {levelLabel(level)}
-                </option>
-              ))}
-            </Select>
-            <button
-              type="button"
-              onClick={() => onRemove(prerequisite.id)}
-              aria-label={t('correlativasField.remove', { subject: prerequisite.requires.name })}
-              className={cn(
-                'flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-secondary-foreground',
-                interactiveGhost
-              )}
-            >
-              <X className="h-3.5 w-3.5" aria-hidden />
-            </button>
-          </div>
+              <span
+                className={cn(
+                  'text-body-sm font-semibold text-foreground',
+                  // Compact gets the full width and is allowed to wrap: the
+                  // name is WHY the row broke in two, so truncating it here
+                  // would throw away exactly what the break bought.
+                  // `leading-[1.15]` is the `.pen`'s own value and the theme has
+                  // no line-height token for `text-body-sm`; without it the row
+                  // runs 4px taller than the approved design.
+                  isCompact ? 'w-full leading-[1.15]' : 'min-w-0 flex-1 truncate'
+                )}
+              >
+                {prerequisite.requires.name}
+              </span>
+              {/* `contents` so the default row stays the flat line it always
+                  was — both controls remain direct children of that flex row. */}
+              <div className={isCompact ? 'flex items-center justify-between' : 'contents'}>
+                <Select
+                  aria-label={t('correlativasField.levelLabel', { subject: prerequisite.requires.name })}
+                  value={prerequisite.requiredLevel}
+                  onChange={(event) =>
+                    onChangeLevel({ id: prerequisite.id, requiredLevel: event.target.value as PrerequisiteLevel })
+                  }
+                  className={cn('w-auto text-body', isCompact ? 'h-6 rounded-md px-2 py-0 font-semibold' : 'h-8')}
+                >
+                  {LEVELS.map((level) => (
+                    <option key={level} value={level}>
+                      {levelLabel(level)}
+                    </option>
+                  ))}
+                </Select>
+                <button
+                  type="button"
+                  onClick={() => onRemove(prerequisite.id)}
+                  aria-label={t('correlativasField.remove', { subject: prerequisite.requires.name })}
+                  className={cn(
+                    'flex shrink-0 items-center justify-center rounded-md text-secondary-foreground',
+                    // No standing fill in compact: removing a correlativa is a
+                    // secondary destructive action sharing a 228px line with
+                    // the control you actually came for.
+                    isCompact ? 'h-[26px] w-[26px]' : 'h-7 w-7 bg-muted',
+                    interactiveGhost
+                  )}
+                >
+                  <X className={isCompact ? 'h-3 w-3' : 'h-3.5 w-3.5'} aria-hidden />
+                </button>
+              </div>
+            </div>
+          </Fragment>
         ))}
 
         {candidates.length === 0 ? (
@@ -153,23 +192,37 @@ export function CorrelativasField({
             type="button"
             onClick={() => setIsPickerOpen(true)}
             className={cn(
-              'flex items-center justify-center gap-2 py-1 text-body-sm font-semibold text-primary-ink',
+              'flex items-center py-1 text-body-sm font-semibold text-primary-ink',
+              isCompact ? 'justify-start gap-1' : 'justify-center gap-2',
               interactive,
               'hover:underline hover:underline-offset-2'
             )}
           >
             {t('correlativasField.add')}
-            <Plus className="h-3.5 w-3.5" aria-hidden />
+            <Plus className={isCompact ? 'h-3 w-3' : 'h-3.5 w-3.5'} aria-hidden />
           </button>
         )}
       </div>
 
-      {/* Two voices, the same shape the REGULARIDAD hint above uses: what they
-          ARE in the strong half, what they DO in the rest. */}
-      <p className="pt-2 pb-3 text-caption text-muted-foreground">
-        <strong className="font-semibold text-secondary-foreground">{t('correlativasField.noteStrong')}</strong>
-        {t('correlativasField.noteRest')}
-      </p>
+      {isCompact ? (
+        // ONE voice, behind a divider. In the inspector this note closes a
+        // 260px panel, and a bolded half would pull the eye back off the
+        // controls it sits under — the divider is what ends the actionable part.
+        <>
+          <div className="mt-3.5 h-px w-full bg-border" aria-hidden />
+          <p className="mt-3.5 text-body-sm text-muted-foreground">
+            {t('correlativasField.noteStrong')}
+            {t('correlativasField.noteRest')}
+          </p>
+        </>
+      ) : (
+        /* Two voices, the same shape the REGULARIDAD hint above uses: what they
+           ARE in the strong half, what they DO in the rest. */
+        <p className="pt-2 pb-3 text-caption text-muted-foreground">
+          <strong className="font-semibold text-secondary-foreground">{t('correlativasField.noteStrong')}</strong>
+          {t('correlativasField.noteRest')}
+        </p>
+      )}
     </fieldset>
   )
 }

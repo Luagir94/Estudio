@@ -68,3 +68,39 @@ export function collectRequiredBy(edges: readonly PrerequisiteEdge[], subjectId:
 export function wouldCreateCycle(edges: readonly PrerequisiteEdge[], candidate: PrerequisiteEdge): boolean {
   return collectRequiredBy(edges, candidate.subjectId).has(candidate.requiresSubjectId)
 }
+
+/**
+ * Every subject `subjectId` requires — directly or through any chain — PLUS
+ * `subjectId` itself.
+ *
+ * This is the set a new correlativa is REDUNDANT with. If 3 requires 2 and 2
+ * requires 1, then 3 already requires 1: the chain says it. Storing that edge
+ * too changes no verdict `satisfiesLevel` reaches, and it makes the plan map
+ * draw a line whose only content is what the two other lines already said.
+ *
+ * The mirror of `collectRequiredBy`, walked the other way (dependent →
+ * prerequisite), with the same explicit stack and visited set — so it
+ * terminates on a stored graph that is ALREADY cyclic, the way a database
+ * written before `wouldCreateCycle` existed can be.
+ *
+ * NOT a validation rule: a redundant correlativa is noise, not a contradiction,
+ * and the write path keeps accepting one. This narrows what the picker OFFERS.
+ */
+export function collectRequirementsOf(edges: readonly PrerequisiteEdge[], subjectId: number): Set<number> {
+  const collected = new Set<number>([subjectId])
+  const pending = [subjectId]
+
+  while (pending.length > 0) {
+    // Non-null: `pending.length > 0` was just checked, and nothing else pops.
+    const current = pending.pop() as number
+    for (const edge of edges) {
+      if (edge.subjectId !== current || collected.has(edge.requiresSubjectId)) {
+        continue
+      }
+      collected.add(edge.requiresSubjectId)
+      pending.push(edge.requiresSubjectId)
+    }
+  }
+
+  return collected
+}

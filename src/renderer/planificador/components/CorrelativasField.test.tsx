@@ -15,7 +15,7 @@ function prerequisite(overrides: Partial<SubjectPrerequisite> & { id: number }):
 
 function renderField(overrides: Partial<Parameters<typeof CorrelativasField>[0]> = {}) {
   const handlers = { onAdd: vi.fn(), onChangeLevel: vi.fn(), onRemove: vi.fn() }
-  render(
+  const utils = render(
     <CorrelativasField
       prerequisites={[]}
       candidates={[{ id: 2, name: 'Análisis Matemático I' }]}
@@ -23,7 +23,7 @@ function renderField(overrides: Partial<Parameters<typeof CorrelativasField>[0]>
       {...overrides}
     />
   )
-  return handlers
+  return { ...handlers, ...utils }
 }
 
 describe('CorrelativasField', () => {
@@ -156,5 +156,15 @@ describe('CorrelativasField', () => {
 
     expect(screen.getByText('Definen si podés cursarla.')).toBeInTheDocument()
     expect(screen.getByText(/El planificador las usa para habilitar o bloquear la materia/)).toBeInTheDocument()
+  })
+
+  // The plan inspector's `.pen` demotes this note to ONE muted voice. At 260px
+  // it sits under a divider, below the controls, and a bolded half would pull
+  // the eye straight back off them — which is what the divider is there to end.
+  it('speaks in a single voice when compact', () => {
+    const { container } = renderField({ variant: 'compact' })
+
+    expect(container.querySelector('strong')).toBeNull()
+    expect(screen.getByText(/Definen si podés cursarla\./)).toBeInTheDocument()
   })
 })

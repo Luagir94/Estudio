@@ -28,6 +28,8 @@ function subject(overrides: Partial<SubjectWithStatus> & { id: number; name: str
     notas: null,
     attendanceMinPercent: null,
     periodId: null,
+    programId: null,
+    nivel: null,
     outcome: null,
     grade: null,
     regularity: null,
@@ -200,5 +202,104 @@ describe('CorrelativasFieldContainer', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Quitar Álgebra I de las correlativas' }))
 
     await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['materias'] }))
+  })
+})
+
+// If 3 requires 2 and 2 requires 1, then 3 already requires 1 — the chain says
+// so. Offering that edge offers noise: it changes no verdict and makes the plan
+// map draw a line whose content the two lines beside it already carry.
+describe('CorrelativasFieldContainer — correlativas already implied by a chain', () => {
+  it('never offers a materia the chain already requires', async () => {
+    vi.mocked(materiasApi.list).mockResolvedValue([
+      subject({
+        id: 3,
+        name: 'Estructuras de Datos',
+        prerequisites: [{ requiresSubjectId: 2, requiredLevel: 'aprobada' }]
+      }),
+      subject({
+        id: 2,
+        name: 'Algoritmos I',
+        prerequisites: [{ requiresSubjectId: 1, requiredLevel: 'aprobada' }]
+      }),
+      subject({ id: 1, name: 'Álgebra I' }),
+      // Unrelated, and at the SAME depth as Algoritmos I — so the shallower
+      // rule leaves it alone and only the chain rule is under test here.
+      subject({ id: 5, name: 'Física I' }),
+      subject({
+        id: 6,
+        name: 'Física II',
+        prerequisites: [{ requiresSubjectId: 5, requiredLevel: 'aprobada' }]
+      })
+    ])
+    renderContainer([
+      prerequisite({
+        id: 7,
+        requires: { id: 2, name: 'Algoritmos I', outcome: null, regularity: null, finals: [] }
+      })
+    ])
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Agregar correlativa' }))
+    const picker = screen.getByRole('combobox', { name: 'Materia correlativa' })
+
+    // Álgebra I reaches Estructuras only THROUGH Algoritmos I, and is excluded
+    // for exactly that reason.
+    expect(within(picker).queryByText('Álgebra I')).not.toBeInTheDocument()
+    // Algoritmos I is already a direct correlativa.
+    expect(within(picker).queryByText('Algoritmos I')).not.toBeInTheDocument()
+    // Física II is unrelated and equally deep, so it stays on offer.
+    expect(within(picker).getByText('Física II')).toBeInTheDocument()
+  })
+})
+
+// A materia's place on the map comes from its DEEPEST correlativa, so a
+// shallower one moves nothing and only adds an edge that has to jump over
+// whatever sits between it and the target.
+describe('CorrelativasFieldContainer — correlativas shallower than the deepest', () => {
+  it('stops offering column 1 once the materia already requires column 2', async () => {
+    vi.mocked(materiasApi.list).mockResolvedValue([
+      // Column 1: nothing requires anything.
+      subject({ id: 1, name: 'Álgebra I' }),
+      subject({ id: 5, name: 'Física I' }),
+      // Column 2: requires Física I.
+      subject({
+        id: 2,
+        name: 'Algoritmos I',
+        prerequisites: [{ requiresSubjectId: 5, requiredLevel: 'aprobada' }]
+      }),
+      // The materia being edited, already requiring the column-2 one.
+      subject({
+        id: 3,
+        name: 'Estructuras de Datos',
+        prerequisites: [{ requiresSubjectId: 2, requiredLevel: 'aprobada' }]
+      })
+    ])
+    renderContainer([
+      prerequisite({ id: 7, requires: { id: 2, name: 'Algoritmos I', outcome: null, regularity: null, finals: [] } })
+    ])
+
+    // Every remaining materia sits in column 1, so nothing is left to offer and
+    // the picker is not rendered at all — the screen says so instead.
+    expect(await screen.findByText(/No queda ninguna materia/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Agregar correlativa' })).not.toBeInTheDocument()
+  })
+
+  // With nothing required yet there is no floor, so the whole plan is fair game.
+  it('offers every column while the materia requires nothing', async () => {
+    vi.mocked(materiasApi.list).mockResolvedValue([
+      subject({ id: 3, name: 'Estructuras de Datos' }),
+      subject({ id: 1, name: 'Álgebra I' }),
+      subject({
+        id: 2,
+        name: 'Algoritmos I',
+        prerequisites: [{ requiresSubjectId: 1, requiredLevel: 'aprobada' }]
+      })
+    ])
+    renderContainer()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Agregar correlativa' }))
+    const picker = screen.getByRole('combobox', { name: 'Materia correlativa' })
+
+    expect(within(picker).getByText('Álgebra I')).toBeInTheDocument()
+    expect(within(picker).getByText('Algoritmos I')).toBeInTheDocument()
   })
 })

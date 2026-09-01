@@ -14,7 +14,12 @@
 // path would then refuse.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { collectRequiredBy, type PrerequisiteEdge } from '../../../shared/domain/prerequisiteGraph'
+import {
+  collectRequiredBy,
+  collectRequirementsOf,
+  type PrerequisiteEdge
+} from '../../../shared/domain/prerequisiteGraph'
+import { resolvePlanOrder } from '../../../shared/domain/planOrder'
 import type { SubjectPrerequisite } from '../../../shared/ipc/materias'
 import { materiasApi } from '../../materias/adapters/materiasApi'
 import { planificadorApi } from '../adapters/planificadorApi'
@@ -24,11 +29,14 @@ interface CorrelativasFieldContainerProps {
   subjectId: number
   /** The rows as `materias:detail` already delivered them — no second fetch for what the modal has. */
   prerequisites: SubjectPrerequisite[]
+  /** Forwarded verbatim: which of the two approved field designs to draw. */
+  variant?: 'default' | 'compact'
 }
 
 export function CorrelativasFieldContainer({
   subjectId,
-  prerequisites
+  prerequisites,
+  variant
 }: CorrelativasFieldContainerProps): React.JSX.Element {
   const queryClient = useQueryClient()
 
@@ -40,18 +48,56 @@ export function CorrelativasFieldContainer({
 
   const candidates = useMemo(() => {
     const all = subjects ?? []
-    const edges: PrerequisiteEdge[] = all.flatMap((subject) =>
-      subject.prerequisites.map((prerequisite) => ({
-        subjectId: subject.id,
-        requiresSubjectId: prerequisite.requiresSubjectId
+    const edges: PrerequisiteEdge[] = [
+      ...all.flatMap((subject) =>
+        subject.prerequisites.map((prerequisite) => ({
+          subjectId: subject.id,
+          requiresSubjectId: prerequisite.requiresSubjectId
+        }))
+      ),
+      // This materia's OWN correlativas come from the `materias:detail` payload
+      // the modal already holds, which lands before the ['materias'] list
+      // refetch does. Reading them only from the list would let the picker
+      // offer, for one render, a materia that was just added.
+      ...prerequisites.map((prerequisite) => ({
+        subjectId,
+        requiresSubjectId: prerequisite.requires.id
       }))
-    )
+    ]
     // Everything that already depends on this materia, plus the materia
     // itself — precisely the set a new correlativa may not come from.
     const wouldClose = collectRequiredBy(edges, subjectId)
-    const alreadyRequired = new Set(prerequisites.map((prerequisite) => prerequisite.requires.id))
+    // Everything this materia ALREADY requires, directly or through a chain.
+    // If 3 requires 2 and 2 requires 1, then 3 requires 1 by construction:
+    // offering that edge offers noise. It would change no verdict and would
+    // make the plan map draw a line whose only content is what the two lines
+    // beside it already said.
+    //
+    // This subsumes the direct correlativas, which is why they no longer need
+    // a set of their own.
+    const alreadyImplied = collectRequirementsOf(edges, subjectId)
+
+    // A materia's place on the map comes from its DEEPEST correlativa, so a
+    // shallower one moves nothing — it only adds an edge that has to jump over
+    // whatever sits between. Once this materia requires something in column 2,
+    // column 1 stops being on offer.
+    //
+    // Only forward: an edge added in the other order is already stored, and
+    // this narrows what can be ADDED rather than deleting what the student
+    // already decided.
+    const order = resolvePlanOrder(all, edges)
+    const deepestRequired = prerequisites.reduce(
+      (deepest, prerequisite) => Math.max(deepest, order.get(prerequisite.requires.id) ?? 0),
+      0
+    )
+
     return all
-      .filter((subject) => !wouldClose.has(subject.id) && !alreadyRequired.has(subject.id))
+      .filter(
+        (subject) =>
+          !wouldClose.has(subject.id) &&
+          !alreadyImplied.has(subject.id) &&
+          (order.get(subject.id) ?? 0) >= deepestRequired
+      )
       .map((subject) => ({ id: subject.id, name: subject.name }))
   }, [subjects, subjectId, prerequisites])
 
@@ -71,6 +117,7 @@ export function CorrelativasFieldContainer({
     <CorrelativasField
       prerequisites={prerequisites}
       candidates={candidates}
+      variant={variant}
       onAdd={(input) => addMutation.mutate({ subjectId, ...input })}
       onChangeLevel={(input) => updateMutation.mutate(input)}
       onRemove={(id) => removeMutation.mutate(id)}
