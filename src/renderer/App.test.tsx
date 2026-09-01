@@ -68,15 +68,20 @@ vi.mock('./carreras/containers/CarreraDetailContainer', () => ({
     programId,
     onSelectPeriod,
     onOpenSubject,
-    onBack
+    onBack,
+    activeTab,
+    onTabChange
   }: {
     programId: number
     onSelectPeriod: (id: number) => void
     onOpenSubject: (id: number) => void
     onBack: () => void
+    activeTab?: string
+    onTabChange?: (next: string) => void
   }) => (
     <div>
       <p>{`stub-carrera-detail:${programId}`}</p>
+      <p>{`stub-carrera-tab:${activeTab ?? 'none'}`}</p>
       <button type="button" onClick={() => onSelectPeriod(9)}>
         stub-select-period
       </button>
@@ -85,6 +90,12 @@ vi.mock('./carreras/containers/CarreraDetailContainer', () => ({
       </button>
       <button type="button" onClick={onBack}>
         stub-carrera-back
+      </button>
+      <button type="button" onClick={() => onTabChange?.('plan')}>
+        stub-carrera-tab-plan
+      </button>
+      <button type="button" onClick={() => onTabChange?.('periods')}>
+        stub-carrera-tab-periods
       </button>
     </div>
   )
@@ -348,6 +359,58 @@ describe('App', () => {
       render(<App />)
 
       expect(await screen.findByText(/^stub-materias-filter:/)).toHaveTextContent('stub-materias-filter:none')
+    })
+  })
+
+  // The carrera detail's períodos/plan tab used to live in the container's own
+  // `useState`, exactly what `subjectId`'s tab used to be before it moved into
+  // the address above. Same move, same reason: leaving the screen and coming
+  // back dropped you on Períodos however deep in Plan de estudios you had
+  // been, and a reload could not remember it either.
+  describe('carrera tab in the address', () => {
+    it('opens a carrera on the tab the address names', async () => {
+      startAt('/carreras/3?tab=plan')
+      render(<App />)
+
+      expect(await screen.findByText('stub-carrera-tab:plan')).toBeInTheDocument()
+    })
+
+    it('writes the chosen tab into the address without pushing a new entry', async () => {
+      startAt('/carreras/3')
+      render(<App />)
+      await screen.findByText('stub-carrera-tab:none')
+
+      const lengthBefore = window.history.length
+      fireEvent.click(screen.getByText('stub-carrera-tab-plan'))
+      await waitFor(() => expect(screen.getByText('stub-carrera-tab:plan')).toBeInTheDocument())
+
+      expect(window.location.hash).toContain('tab=plan')
+      expect(window.history.length).toBe(lengthBefore)
+    })
+
+    it('leaves history.length unchanged across repeated tab flips', async () => {
+      startAt('/carreras/3')
+      render(<App />)
+      await screen.findByText('stub-carrera-tab:none')
+
+      const lengthBefore = window.history.length
+      fireEvent.click(screen.getByText('stub-carrera-tab-plan'))
+      await waitFor(() => expect(screen.getByText('stub-carrera-tab:plan')).toBeInTheDocument())
+      fireEvent.click(screen.getByText('stub-carrera-tab-periods'))
+      await waitFor(() => expect(screen.getByText('stub-carrera-tab:periods')).toBeInTheDocument())
+
+      expect(window.history.length).toBe(lengthBefore)
+    })
+
+    // The address is an untrusted input — a stale hash from an older build, or
+    // a hand-edited one. An unrecognised value must land on the screen's
+    // default rather than select a panel that does not exist.
+    it('ignores a tab it does not recognise', async () => {
+      startAt('/carreras/3?tab=inventado')
+      render(<App />)
+
+      expect(await screen.findByText('stub-carrera-tab:none')).toBeInTheDocument()
+      expect(await screen.findByText('stub-carrera-detail:3')).toBeInTheDocument()
     })
   })
 

@@ -12,8 +12,10 @@ import { MateriasList } from '../../materias/components/MateriasList'
 import { NuevaMateriaModal } from '../../materias/components/NuevaMateriaModal'
 import { useBusySlots } from '../../materias/containers/useBusySlots'
 import { describeIpcError } from '../../shared/lib/ipcErrorCopy'
+import { useOptionalControlled } from '../../shared/lib/useOptionalControlled'
 import { isPassed } from '../../materias/domain/subjectStatus'
 import { carrerasApi } from '../adapters/carrerasApi'
+import type { CarreraTab } from '../domain/carreraTab'
 import { derivePeriodYear, formatPeriodRange, listCurrentPeriods, pickDefaultPeriodId } from '../domain/period'
 import {
   approvedProgressPercent,
@@ -56,6 +58,14 @@ interface CarreraDetailContainerProps {
   onOpenSubject?: (id: number) => void
   /** Injected only by tests — see CarrerasContainer's `now`. */
   now?: Date
+  /**
+   * The open tab, when the ADDRESS owns it (see `router.tsx`'s
+   * `carreraDetailRoute`). Passed with `onTabChange` or not at all — omitted,
+   * the container keeps the tab in its own state, which is what every test
+   * that renders it without a router relies on.
+   */
+  activeTab?: CarreraTab
+  onTabChange?: (tab: CarreraTab) => void
 }
 
 export function CarreraDetailContainer({
@@ -63,7 +73,9 @@ export function CarreraDetailContainer({
   onBack,
   onSelectPeriod,
   onOpenSubject,
-  now
+  now,
+  activeTab: controlledTab,
+  onTabChange
 }: CarreraDetailContainerProps): React.JSX.Element {
   const { t } = useTranslation('carreras')
   // Stored carrera colours come from the same subject catalogue; inline
@@ -212,7 +224,12 @@ export function CarreraDetailContainer({
   // períodos are two axes over the same materias — the plan belongs to the
   // carrera and never changes, the períodos are your own timeline — so they are
   // two tabs rather than one crowded page.
-  const [activeTab, setActiveTab] = useState<'periods' | 'plan'>('periods')
+  //
+  // Owned by the ADDRESS when the router mounts this screen (`?tab=`), and by
+  // the container otherwise — same arrangement `SubjectDetailContainer` has
+  // with its own tab. Períodos is the landing tab, and the fallback for a
+  // `?tab=` the address carries but this screen does not recognise.
+  const [activeTab, setActiveTab] = useOptionalControlled<CarreraTab>(controlledTab, onTabChange, 'periods')
 
   // Which materia the rail is inspecting. On the map a click SELECTS rather
   // than navigates: you are planning, not browsing, and leaving the canvas to

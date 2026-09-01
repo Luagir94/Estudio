@@ -45,6 +45,7 @@ import { PeriodDetailContainer } from './carreras/containers/PeriodDetailContain
 import { EntregasContainer } from './entregas/containers/EntregasContainer'
 import { HorarioContainer } from './horario/containers/HorarioContainer'
 import { HoyContainer } from './hoy/containers/HoyContainer'
+import { isCarreraTab, type CarreraTab } from './carreras/domain/carreraTab'
 import { isSubjectDetailTabId, type SubjectDetailTabId } from './materias/components/SubjectDetailTabs'
 import { MateriasListContainer } from './materias/containers/MateriasListContainer'
 import { SubjectDetailContainer } from './materias/containers/SubjectDetailContainer'
@@ -207,10 +208,19 @@ const carrerasRoute = createRoute({
 
 function CarreraDetailScreen(): React.JSX.Element {
   const { programId } = carreraDetailRoute.useParams()
+  const { tab } = carreraDetailRoute.useSearch()
   const navigate = useNavigate()
   return (
     <CarreraDetailContainer
       programId={programId}
+      activeTab={tab}
+      // `replace`, same reason the subject tab uses it: switching between
+      // períodos and plan de estudios is looking around, not travelling, and
+      // going back should leave the carrera, not walk back through which half
+      // of it you were reading.
+      onTabChange={(next) =>
+        void navigate({ to: '/carreras/$programId', params: { programId }, search: { tab: next }, replace: true })
+      }
       onBack={() => void navigate({ to: '/carreras' })}
       onSelectPeriod={(periodId) =>
         void navigate({ to: '/carreras/$programId/periodos/$periodId', params: { programId, periodId } })
@@ -223,6 +233,11 @@ function CarreraDetailScreen(): React.JSX.Element {
 const carreraDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/carreras/$programId',
+  // Optional in the type, always present in the object — same reasoning as
+  // `materiasRoute` and `subjectDetailRoute` above.
+  validateSearch: (search: Record<string, unknown>): { tab?: CarreraTab } => ({
+    tab: isCarreraTab(search.tab) ? search.tab : undefined
+  }),
   params: {
     parse: (raw: Record<string, string>) => ({ programId: idParam(raw.programId) }),
     stringify: ({ programId }: { programId: number }) => ({ programId: String(programId) })

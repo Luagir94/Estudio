@@ -1461,3 +1461,57 @@ describe('CarreraDetailContainer — plan de estudios tab', () => {
     })
   })
 })
+
+// The tab used to live in this container's own `useState`. It moves to the
+// ADDRESS the same way `SubjectDetailContainer`'s `activeTab` did: passed
+// with `onTabChange` or not at all, and uncontrolled keeps working exactly as
+// before — every test above renders with neither prop.
+describe('CarreraDetailContainer — controlled tab', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    planificadorApiMock.list.mockResolvedValue([])
+    carrerasApiMock.detail.mockResolvedValue(abogacia)
+    materiasApiMock.list.mockResolvedValue([])
+    fechasApiMock.list.mockResolvedValue([])
+  })
+
+  function renderControlled(activeTab: 'periods' | 'plan', onTabChange = vi.fn()) {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <CarreraDetailContainer
+          programId={1}
+          onBack={vi.fn()}
+          now={today}
+          activeTab={activeTab}
+          onTabChange={onTabChange}
+        />
+      </QueryClientProvider>
+    )
+  }
+
+  it('renders the panel named by the controlled tab', async () => {
+    renderControlled('plan')
+
+    await screen.findByRole('heading', { name: 'Abogacía' })
+
+    expect(screen.getByRole('tab', { name: 'Plan de estudios' })).toHaveAttribute('aria-selected', 'true')
+    // The períodos body is gone and the plan body is up — no subjects to map,
+    // so the plan's own empty state prints instead of the periods table.
+    expect(screen.queryByText('MATERIAS DE ESTA CARRERA')).not.toBeInTheDocument()
+    expect(screen.getByText('Esta carrera todavía no tiene materias para mapear.')).toBeInTheDocument()
+  })
+
+  it('reports a click on another tab instead of switching itself', async () => {
+    const onTabChange = vi.fn()
+    renderControlled('periods', onTabChange)
+    await screen.findByRole('heading', { name: 'Abogacía' })
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Plan de estudios' }))
+
+    expect(onTabChange).toHaveBeenCalledWith('plan')
+    // Controlled: the panel does not flip on its own until the prop does.
+    expect(screen.getByRole('tab', { name: 'Plan de estudios' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByText('MATERIAS DE ESTA CARRERA')).toBeInTheDocument()
+  })
+})
