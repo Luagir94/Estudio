@@ -10,6 +10,7 @@ import { createAttachmentService } from './adjuntos/attachmentService'
 import { registerAdjuntosHandlers } from './adjuntos/ipc/registerAdjuntosHandlers'
 import { buildFileMenuTemplate } from './app/exportMenu'
 import { createFatalStartupErrorReporter } from './app/fatalStartupError'
+import { createLastRouteService, type LastRouteService } from './app/lastRouteService'
 import { registerAppHandlers } from './app/registerAppHandlers'
 import { createRepositoryAppDataReader } from './ask/adapters/repositoryAppDataReader'
 import { createSqliteAskHistoryRepository } from './ask/adapters/sqliteAskHistoryRepository'
@@ -72,14 +73,36 @@ function getAttachmentsRootDir(): string {
   return path.join(app.getPath('userData'), 'attachments')
 }
 
-async function createWindow(): Promise<void> {
+/**
+ * Creates a window and, when a route was persisted from a prior session,
+ * seeds it as the document's initial hash BEFORE the renderer boots. This is
+ * the critical constraint for PR3 (design D9): `@tanstack/history`'s
+ * `createBrowserHistory` stamps `__TSR_index: 0` onto whatever entry the
+ * document loaded with, so a route present at load time — never a post-boot
+ * `navigate()` — is what keeps `useCanGoBack()` false at launch. A
+ * post-boot `navigate()` would push a SECOND history entry, and the user's
+ * first Back would land on a screen they never actually visited.
+ *
+ * `did-navigate-in-page` is attached HERE rather than in `window.ts` so the
+ * security baseline (`will-navigate`, CSP, `setWindowOpenHandler`) stays
+ * untouched by this feature — verified (task 3.1 spike): Electron fires this
+ * event for the router's `pushState`/`replaceState`-based SPA navigation,
+ * not only for anchors/`hashchange`.
+ */
+async function createWindow(lastRouteService: LastRouteService): Promise<void> {
+  const hash = lastRouteService.launchHash()
   const window = createMainWindow()
   window.once('ready-to-show', () => window.show())
 
+  window.webContents.on('did-navigate-in-page', (_event, url) => {
+    lastRouteService.remember(url)
+  })
+
   if (process.env.ELECTRON_RENDERER_URL) {
-    await window.loadURL(process.env.ELECTRON_RENDERER_URL)
+    const devUrl = process.env.ELECTRON_RENDERER_URL
+    await window.loadURL(hash ? `${devUrl}#${hash}` : devUrl)
   } else {
-    await window.loadFile(path.join(__dirname, '../renderer/index.html'))
+    await window.loadFile(path.join(__dirname, '../renderer/index.html'), hash ? { hash } : undefined)
   }
 }
 
@@ -273,6 +296,14 @@ async function bootstrap(): Promise<void> {
   themeService.applyStoredPreference()
   registerThemeHandlers({ themeService })
 
+  // Last visited route (launch-route-restore). Same `appSettingsRepository`
+  // instance and the same "startup service, applied before the window opens"
+  // shape as `themeService` above — but this one is read INTO `createWindow`
+  // rather than applied against a global Electron switch, because the route
+  // must be seeded as the document hash before the router ever constructs
+  // (see `createWindow`'s doc comment).
+  const lastRouteService = createLastRouteService({ settings: appSettingsRepository })
+
   const cliProbeService = createCliProbeService({ settings: appSettingsRepository })
   registerCliHandlers({
     probeService: cliProbeService,
@@ -388,7 +419,16 @@ async function bootstrap(): Promise<void> {
     )
   )
 
-  await createWindow()
+  await createWindow(lastRouteService)
+
+  // Moved inside `bootstrap()` (from the top-level `app.whenReady()` callback)
+  // so it can close over `lastRouteService` — a dock/taskbar reactivation
+  // must restore the same persisted route a fresh launch would.
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      void createWindow(lastRouteService)
+    }
+  })
 }
 
 // Registered before whenReady so a failure at ANY point of startup — the
@@ -406,12 +446,6 @@ process.on('uncaughtException', reportFatalStartupError)
 
 app.whenReady().then(() => {
   bootstrap().catch(reportFatalStartupError)
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      void createWindow()
-    }
-  })
 })
 
 app.on('window-all-closed', () => {
