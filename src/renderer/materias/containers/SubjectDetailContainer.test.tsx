@@ -265,6 +265,17 @@ describe('SubjectDetailContainer', () => {
     expect(onBack).toHaveBeenCalledTimes(1)
   })
 
+  // The container only FORWARDS the origin — resolving where Back actually
+  // navigates stays in `router.tsx`; this is a plain prop-drilling test.
+  it("forwards the origin prop to SubjectDetail's back label", async () => {
+    renderWithClient(
+      <SubjectDetailContainer subjectId={1} onBack={vi.fn()} now={new Date('2026-03-04T09:00:00')} origin="periodo" />
+    )
+    await screen.findByText('1 de 2')
+
+    expect(screen.getByRole('button', { name: 'Volver al período' })).toBeInTheDocument()
+  })
+
   it('opens the Editar materia modal and submitting calls materiasApi.updateSchedule', async () => {
     renderWithClient(<SubjectDetailContainer subjectId={1} onBack={vi.fn()} now={new Date('2026-03-04T09:00:00')} />)
     await screen.findByText('1 de 2')

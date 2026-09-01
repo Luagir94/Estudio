@@ -44,6 +44,7 @@ import { groupLinkLabel } from '../domain/groupLink'
 // one implementation of it is what keeps this card and the Planificador's
 // habilitada/bloqueada badges from ever disagreeing about the same materia.
 import { CorrelativasCard } from '../../planificador/components/CorrelativasCard'
+import type { SubjectOrigin } from '../domain/subjectOrigin'
 import { RegularityBadge } from './RegularityBadge'
 import { SubjectActionsMenu } from './SubjectActionsMenu'
 import { panelIdFor, SubjectDetailTabs, type SubjectDetailTabId } from './SubjectDetailTabs'
@@ -67,6 +68,13 @@ interface SubjectDetailProps {
   /** Which section the left column is showing. Owned by the container, like the Materias list filter. */
   activeTab: SubjectDetailTabId
   onSelectTab: (tab: SubjectDetailTabId) => void
+  /**
+   * Which screen this subject was opened FROM — drives the Back label ONLY,
+   * never where Back actually navigates (that is `onBack`'s job, resolved
+   * through real history in `router.tsx`). Absent or unrecognised reads
+   * "Materias", the label this button always had before origins existed.
+   */
+  origin?: SubjectOrigin
   /**
    * Count for the APUNTES tab — class apuntes AND uploaded files, because
    * they are one list. It cannot be read off `subject`: the list is the
@@ -159,6 +167,7 @@ export function SubjectDetail({
   now = new Date(),
   activeTab,
   onSelectTab,
+  origin,
   apuntesCount,
   onOpenExternalUrl,
   onBack,
@@ -200,7 +209,7 @@ export function SubjectDetail({
     <section aria-label={t('subjectDetail.detailLabel', { name: subject.name })} className="flex flex-col gap-3">
       <Button variant="ghost" size="compact" onClick={onBack} className="w-fit gap-2 px-0 text-secondary-foreground">
         <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
-        {t('subjectDetail.backToList')}
+        {t(`subjectDetail.backTo.${origin ?? 'materias'}`)}
       </Button>
 
       <header className="flex flex-wrap items-end justify-between gap-4">

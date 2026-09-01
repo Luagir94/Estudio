@@ -35,16 +35,19 @@ vi.mock('./materias/containers/SubjectDetailContainer', () => ({
     subjectId,
     onBack,
     activeTab,
-    onTabChange
+    onTabChange,
+    origin
   }: {
     subjectId: number
     onBack: () => void
     activeTab?: string
     onTabChange?: (next: string) => void
+    origin?: string
   }) => (
     <div>
       <p>{`stub-subject-detail:${subjectId}`}</p>
       <p>{`stub-subject-tab:${activeTab ?? 'none'}`}</p>
+      <p>{`stub-subject-origin:${origin ?? 'none'}`}</p>
       <button type="button" onClick={() => onTabChange?.('parciales')}>
         stub-tab-parciales
       </button>
@@ -507,7 +510,9 @@ describe('App', () => {
       fireEvent.click(screen.getByText('stub-open-subject'))
 
       expect(await screen.findByText('stub-subject-detail:7')).toBeInTheDocument()
-      expect(window.location.hash).toBe('#/materias/7')
+      // `?from=periods`: the address now carries which tab asked for it, so
+      // Back can return to the same one (see the tests below).
+      expect(window.location.hash).toBe('#/materias/7?from=periods')
     })
 
     it('opens a subject asked for from a período detail', async () => {
@@ -535,6 +540,125 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Materias' }))
 
       expect(await screen.findByText('stub-materias-list')).toBeInTheDocument()
+    })
+
+    // Back now walks real history to the origin URL instead of a hardcoded
+    // `/materias`, and a `?from=` stamped on the way in drives ONLY the label
+    // (spec: "Back returns to the actual origin" / "Back label reflects the
+    // stamped origin, never the resolved target").
+    it('back from Materias keeps the filtro it left with', async () => {
+      startAt('/materias?filtro=aprobadas')
+      render(<App />)
+      await screen.findByText('stub-materias-filter:aprobadas')
+
+      fireEvent.click(screen.getByText('stub-materias-list'))
+      await screen.findByText('stub-subject-detail:42')
+      expect(screen.getByText('stub-subject-origin:none')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByText('stub-subject-back'))
+
+      expect(await screen.findByText('stub-materias-filter:aprobadas')).toBeInTheDocument()
+    })
+
+    it('back from a carrera opened on the Períodos tab lands back on that same tab', async () => {
+      startAt('/carreras/3?tab=periods')
+      render(<App />)
+      await screen.findByText('stub-carrera-tab:periods')
+
+      fireEvent.click(screen.getByText('stub-open-subject'))
+      await screen.findByText('stub-subject-detail:7')
+      expect(screen.getByText('stub-subject-origin:periods')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByText('stub-subject-back'))
+
+      expect(await screen.findByText('stub-carrera-tab:periods')).toBeInTheDocument()
+      expect(window.location.hash).toBe('#/carreras/3?tab=periods')
+    })
+
+    // The two carrera tabs are separate call sites — a subject opened from
+    // Plan must not land the label (or the history entry) on Períodos.
+    it('back from a carrera opened on the Plan de estudios tab lands back on Plan, not Períodos', async () => {
+      startAt('/carreras/3?tab=plan')
+      render(<App />)
+      await screen.findByText('stub-carrera-tab:plan')
+
+      fireEvent.click(screen.getByText('stub-open-subject'))
+      await screen.findByText('stub-subject-detail:7')
+      expect(screen.getByText('stub-subject-origin:plan')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByText('stub-subject-back'))
+
+      expect(await screen.findByText('stub-carrera-tab:plan')).toBeInTheDocument()
+      expect(window.location.hash).toBe('#/carreras/3?tab=plan')
+    })
+
+    it('back from a subject opened via a período lands back on that período', async () => {
+      startAt('/carreras/3/periodos/9')
+      render(<App />)
+      await screen.findByText('stub-period-detail:3/9')
+
+      fireEvent.click(screen.getByText('stub-open-subject-from-period'))
+      await screen.findByText('stub-subject-detail:7')
+      expect(screen.getByText('stub-subject-origin:periodo')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByText('stub-subject-back'))
+
+      expect(await screen.findByText('stub-period-detail:3/9')).toBeInTheDocument()
+    })
+
+    // spec: "Back does not trap the user in a cycle" — carrera A opens
+    // subject B, Back returns to A with the tab it had, and A's own Back
+    // (fixed to the carreras list, unchanged by this PR) never re-enters B.
+    it('a carrera → subject → back round trip returns to the carrera with its tab, and a further back never re-enters the subject', async () => {
+      startAt('/carreras/3?tab=plan')
+      render(<App />)
+      await screen.findByText('stub-carrera-tab:plan')
+
+      fireEvent.click(screen.getByText('stub-open-subject'))
+      await screen.findByText('stub-subject-detail:7')
+
+      fireEvent.click(screen.getByText('stub-subject-back'))
+      expect(await screen.findByText('stub-carrera-tab:plan')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByText('stub-carrera-back'))
+      expect(await screen.findByText('stub-carreras-list')).toBeInTheDocument()
+      expect(screen.queryByText('stub-subject-detail:7')).not.toBeInTheDocument()
+    })
+
+    // The load-bearing decoupling: `from` selects COPY only. A deep link with
+    // no prior history entry still falls back to `/materias` even though the
+    // origin prop (and therefore the label) claims `periods`.
+    it('a deep-linked subject with a stale from and no history falls back to /materias, independent of the label', async () => {
+      startAt('/materias/42?from=periods')
+      render(<App />)
+      await screen.findByText('stub-subject-detail:42')
+      expect(screen.getByText('stub-subject-origin:periods')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByText('stub-subject-back'))
+
+      expect(await screen.findByText('stub-materias-list')).toBeInTheDocument()
+      expect(window.location.hash).toBe('#/materias')
+    })
+
+    // The gotcha: a `replace: true` tab navigation silently drops search
+    // params it does not name. `from` must be carried forward explicitly, or
+    // the label reverts to "Materias" after one tab click.
+    it('a subject tab flip carries `from` forward and adds no history entry', async () => {
+      startAt('/carreras/3?tab=periods')
+      render(<App />)
+      await screen.findByText('stub-carrera-tab:periods')
+
+      fireEvent.click(screen.getByText('stub-open-subject'))
+      await screen.findByText('stub-subject-detail:7')
+      expect(screen.getByText('stub-subject-origin:periods')).toBeInTheDocument()
+
+      const lengthBefore = window.history.length
+      fireEvent.click(screen.getByText('stub-tab-parciales'))
+
+      await waitFor(() => expect(screen.getByText('stub-subject-tab:parciales')).toBeInTheDocument())
+      expect(screen.getByText('stub-subject-origin:periods')).toBeInTheDocument()
+      expect(window.location.hash).toContain('from=periods')
+      expect(window.history.length).toBe(lengthBefore)
     })
   })
 

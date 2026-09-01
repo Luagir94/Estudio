@@ -15,7 +15,12 @@
   },
   "subjectDetail": {
     "detailLabel": "Detalle de {{name}}",
-    "backToList": "Materias",
+    "backTo": {
+      "materias": "Materias",
+      "periods": "Volver a Períodos",
+      "plan": "Volver a Plan de estudios",
+      "periodo": "Volver al período"
+    },
     "attendanceRequired": "{{percent}}% de asistencia requerida",
     "attendanceFree": "Asistencia libre",
     "regularity": {

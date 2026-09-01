@@ -44,6 +44,7 @@ import { AttachmentViewerContainer } from '../../adjuntos/containers/AttachmentV
 import { entregasApi } from '../../entregas/adapters/entregasApi'
 import { NuevaEntregaModal } from '../../entregas/components/NuevaEntregaModal'
 import { computeProgreso, computeWeeklyMinutes, getNextClassOccurrence } from '../domain/subjectDetail'
+import type { SubjectOrigin } from '../domain/subjectOrigin'
 import { appApi } from '../../shared/adapters/appApi'
 import { materiasApi } from '../adapters/materiasApi'
 import { CerrarMateriaModal } from '../components/CerrarMateriaModal'
@@ -76,6 +77,12 @@ interface SubjectDetailContainerProps {
    */
   activeTab?: SubjectDetailTabId
   onTabChange?: (tab: SubjectDetailTabId) => void
+  /**
+   * Which screen this subject was opened from (see `router.tsx`'s `?from=`).
+   * Forwarded to `SubjectDetail` for its Back label ONLY — this container
+   * never reads it for navigation, `onBack` already resolves the real target.
+   */
+  origin?: SubjectOrigin
 }
 
 export function SubjectDetailContainer({
@@ -83,7 +90,8 @@ export function SubjectDetailContainer({
   onBack,
   now = new Date(),
   activeTab: controlledTab,
-  onTabChange
+  onTabChange,
+  origin
 }: SubjectDetailContainerProps): React.JSX.Element {
   const { t } = useTranslation('materias')
   const queryClient = useQueryClient()
@@ -210,6 +218,7 @@ export function SubjectDetailContainer({
         onBack={onBack}
         activeTab={activeTab}
         onSelectTab={setActiveTab}
+        origin={origin}
         apuntesCount={attachments?.length ?? 0}
         onEdit={() => setIsEditOpen(true)}
         onDelete={() => setIsDeleteOpen(true)}

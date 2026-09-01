@@ -33,7 +33,9 @@ import {
   createRoute,
   createRouter,
   redirect,
+  useCanGoBack,
   useNavigate,
+  useRouter,
   type RouterHistory
 } from '@tanstack/react-router'
 import { useEffect } from 'react'
@@ -53,6 +55,7 @@ import {
 } from './materias/components/SubjectDetailTabs'
 import { MateriasListContainer } from './materias/containers/MateriasListContainer'
 import { SubjectDetailContainer } from './materias/containers/SubjectDetailContainer'
+import { isSubjectOrigin, type SubjectOrigin } from './materias/domain/subjectOrigin'
 import {
   DEFAULT_SUBJECT_STATUS_FILTER,
   isSubjectStatusFilter,
@@ -60,6 +63,28 @@ import {
 } from './materias/domain/subjectStatus'
 import { parseRouteId } from './navigation'
 import { Shell } from './Shell'
+
+/**
+ * Back for a screen that may have been reached from more than one place.
+ * Walks real browser history to whichever URL preceded this one when there
+ * is an entry to walk to, and only then falls back to a fixed destination —
+ * a deep link or a relaunch has no prior entry, and `history.back()` there
+ * would be a no-op or leave the window on nothing.
+ *
+ * The one call site for `useCanGoBack()`, which the library still marks
+ * experimental: if that surface changes, this is the only place that has to.
+ */
+function useHistoryBack(fallback: () => void): () => void {
+  const router = useRouter()
+  const canGoBack = useCanGoBack()
+  return () => {
+    if (canGoBack) {
+      router.history.back()
+    } else {
+      fallback()
+    }
+  }
+}
 
 /**
  * Turns a raw `$id` segment into the number a container expects, or `NaN` for
@@ -160,24 +185,36 @@ const materiasRoute = createRoute({
 
 function SubjectDetailScreen(): React.JSX.Element {
   const { subjectId } = subjectDetailRoute.useParams()
-  const { tab } = subjectDetailRoute.useSearch()
+  const { tab, from } = subjectDetailRoute.useSearch()
   const navigate = useNavigate()
-  // Back goes UP to the list, not back through history. It is the same
-  // destination this button had before the router, and a fixed one: an
-  // in-screen control that lands somewhere different depending on how you
-  // arrived is a control you cannot learn. History is the back GESTURE's job,
-  // and that now works too.
+  // Back returns where you came from, and the label says where: `from` picks
+  // the COPY (`origin` below), `useHistoryBack` resolves the real target
+  // through history, and the two never influence each other — a stale `from`
+  // must not steer navigation, and history has no concept of a label. A
+  // fixed "up" was only learnable while this screen had one origin; now it
+  // has four. Empty history (relaunch, a deep link) still falls back to the
+  // list, same as before.
+  const onBack = useHistoryBack(() => void navigate({ to: '/materias' }))
   return (
     <SubjectDetailContainer
       subjectId={subjectId}
       activeTab={tab ?? DEFAULT_SUBJECT_DETAIL_TAB}
+      origin={from}
       // `replace` for the same reason the filter uses it: switching sections
       // inside one subject is looking around, not travelling, and four tabs
-      // would otherwise put four entries between you and the list.
+      // would otherwise put four entries between you and the list. `from`
+      // MUST be carried forward explicitly — `replace` drops every search key
+      // this call does not name, and the label would revert to "Materias"
+      // after one tab click otherwise.
       onTabChange={(next) =>
-        void navigate({ to: '/materias/$subjectId', params: { subjectId }, search: { tab: next }, replace: true })
+        void navigate({
+          to: '/materias/$subjectId',
+          params: { subjectId },
+          search: { tab: next, from },
+          replace: true
+        })
       }
-      onBack={() => void navigate({ to: '/materias' })}
+      onBack={onBack}
     />
   )
 }
@@ -186,9 +223,12 @@ const subjectDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/materias/$subjectId',
   // Optional in the type, always present in the object — same reasoning as
-  // `materiasRoute` above.
-  validateSearch: (search: Record<string, unknown>): { tab?: SubjectDetailTabId } => ({
-    tab: isSubjectDetailTabId(search.tab) ? search.tab : undefined
+  // `materiasRoute` above. `from` drives the Back LABEL only (see
+  // `SubjectDetailScreen`) — it never reaches navigation, so a stale or
+  // hand-edited value cannot steer where Back actually goes.
+  validateSearch: (search: Record<string, unknown>): { tab?: SubjectDetailTabId; from?: SubjectOrigin } => ({
+    tab: isSubjectDetailTabId(search.tab) ? search.tab : undefined,
+    from: isSubjectOrigin(search.from) ? search.from : undefined
   }),
   params: {
     parse: (raw: Record<string, string>) => ({ subjectId: idParam(raw.subjectId) }),
@@ -250,7 +290,16 @@ function CarreraDetailScreen(): React.JSX.Element {
       onSelectPeriod={(periodId) =>
         void navigate({ to: '/carreras/$programId/periodos/$periodId', params: { programId, periodId } })
       }
-      onOpenSubject={(subjectId) => void navigate({ to: '/materias/$subjectId', params: { subjectId } })}
+      // One closure serves both tabs: the périodos and plan de estudios rows
+      // that can open a subject already funnel through this same prop, so the
+      // active tab (not a second origin concept) is what tells the two apart.
+      onOpenSubject={(subjectId) =>
+        void navigate({
+          to: '/materias/$subjectId',
+          params: { subjectId },
+          search: { from: tab === 'plan' ? 'plan' : 'periods' }
+        })
+      }
     />
   )
 }
@@ -286,7 +335,9 @@ function PeriodDetailScreen(): React.JSX.Element {
       // the período screen was always reached THROUGH a carrera, and the
       // address now carries which one instead of a second state variable.
       onBack={() => void navigate({ to: '/carreras/$programId', params: { programId } })}
-      onOpenSubject={(subjectId) => void navigate({ to: '/materias/$subjectId', params: { subjectId } })}
+      onOpenSubject={(subjectId) =>
+        void navigate({ to: '/materias/$subjectId', params: { subjectId }, search: { from: 'periodo' } })
+      }
     />
   )
 }

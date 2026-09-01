@@ -762,6 +762,56 @@ describe('SubjectDetail — section tabs', () => {
   })
 })
 
+// The Back label reads the ORIGIN, not the destination `history.back()`
+// resolves to — those two are independent by design (spec: "Back label
+// reflects the stamped origin, never the resolved target").
+describe('SubjectDetail — back label per origin', () => {
+  function renderWithOrigin(origin?: 'periods' | 'plan' | 'periodo') {
+    return render(
+      <SubjectDetail
+        subject={baseSubject}
+        nextClass={null}
+        progreso={{ done: 1, total: 4 }}
+        weeklyMinutes={120}
+        onOpenExternalUrl={vi.fn()}
+        onBack={vi.fn()}
+        onDelete={vi.fn()}
+        activeTab="entregas"
+        onSelectTab={vi.fn()}
+        apuntesCount={0}
+        onEdit={vi.fn()}
+        onAddEntrega={vi.fn()}
+        onCloseSubject={vi.fn()}
+        origin={origin}
+      />
+    )
+  }
+
+  it('reads "Materias" when no origin is given', () => {
+    renderWithOrigin(undefined)
+
+    expect(screen.getByRole('button', { name: 'Materias' })).toBeInTheDocument()
+  })
+
+  it('reads "Volver a Períodos" for a periods origin', () => {
+    renderWithOrigin('periods')
+
+    expect(screen.getByRole('button', { name: 'Volver a Períodos' })).toBeInTheDocument()
+  })
+
+  it('reads "Volver a Plan de estudios" for a plan origin', () => {
+    renderWithOrigin('plan')
+
+    expect(screen.getByRole('button', { name: 'Volver a Plan de estudios' })).toBeInTheDocument()
+  })
+
+  it('reads "Volver al período" for a periodo origin', () => {
+    renderWithOrigin('periodo')
+
+    expect(screen.getByRole('button', { name: 'Volver al período' })).toBeInTheDocument()
+  })
+})
+
 // The card itself is covered in `planificador/components/CorrelativasCard.test.tsx`;
 // these two pin the WIRING — that this screen hands it the detail payload's
 // rows, and that it sits after the Cátedra card in the right column.
