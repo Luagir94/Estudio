@@ -15,7 +15,7 @@
 // Only the adapters are mocked here: the containers, the route components and
 // the history are all real, so these tests fail if any link in that chain
 // stops writing the address.
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ProgramWithPeriods } from '../shared/ipc/carreras'
@@ -204,5 +204,67 @@ describe('router, against the real screens', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Parciales' }))
 
     await waitFor(() => expect(window.location.hash).toContain('tab=parciales'))
+  })
+
+  // spec "Post-delete redirect never lands on the deleted subject". Every
+  // other test of this scenario stops at one half: `SubjectDetailContainer`'s
+  // own test proves `onSuccess` calls a MOCKED `onBack`, and `App.test.tsx`'s
+  // origin tests prove the router's real `onBack` navigates correctly when
+  // fired from a STUB button. Neither exercises the two wired together — the
+  // real delete mutation calling the real, origin-aware `onBack` at runtime.
+  // This mounts the real carrera screen, the real subject detail screen and
+  // the real delete dialog, and drives the confirm click through all three.
+  describe('a real subject deletion, wired to the real router', () => {
+    function stubDeadEnd(subjectId: number): void {
+      vi.mocked(materiasApiMock.detail).mockResolvedValue({ ...historiaDetail, id: subjectId })
+      vi.mocked(materiasApiMock.delete).mockResolvedValue({ deletedSlots: 0, deletedDeadlines: 0 })
+    }
+
+    async function deleteTheOpenSubject(): Promise<void> {
+      await userEvent.click(screen.getByRole('button', { name: 'Más acciones' }))
+      await userEvent.click(screen.getByRole('menuitem', { name: 'Eliminar materia' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Eliminar Historia del Derecho' })
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Eliminar materia' }))
+    }
+
+    it("redirects to the carrera tab the subject was opened from, and the subject leaves that tab's list", async () => {
+      // A mutable backing array, not a fixed mockResolvedValue: the delete
+      // mutation invalidates ['materias'], and the carrera screen this test
+      // lands back on refetches that SAME query — a static mock could never
+      // fail this assertion even if the real invalidation wiring broke.
+      let subjects = [aprobada]
+      materiasApiMock.list.mockImplementation(() => Promise.resolve(subjects))
+      stubDeadEnd(3)
+      vi.mocked(materiasApiMock.delete).mockImplementation(async () => {
+        subjects = []
+        return { deletedSlots: 0, deletedDeadlines: 0 }
+      })
+
+      startAt('/carreras/1?tab=periods')
+      render(<App />)
+      await screen.findByRole('heading', { name: 'Abogacía' })
+      await userEvent.click(screen.getByRole('button', { name: /Historia del Derecho/ }))
+      await screen.findByRole('heading', { name: 'Historia del Derecho' })
+
+      await deleteTheOpenSubject()
+
+      await waitFor(() => expect(window.location.hash).toBe('#/carreras/1?tab=periods'))
+      await screen.findByRole('heading', { name: 'Abogacía' })
+      await waitFor(() =>
+        expect(screen.queryByRole('button', { name: /Historia del Derecho/ })).not.toBeInTheDocument()
+      )
+    })
+
+    it('falls back to /materias when the deleted subject was reached with no history to return to', async () => {
+      stubDeadEnd(3)
+
+      startAt('/materias/3')
+      render(<App />)
+      await screen.findByRole('heading', { name: 'Historia del Derecho' })
+
+      await deleteTheOpenSubject()
+
+      await waitFor(() => expect(window.location.hash).toBe('#/materias'))
+    })
   })
 })
