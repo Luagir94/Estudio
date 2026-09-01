@@ -16,17 +16,17 @@ import { _electron as electron, expect, test } from '@playwright/test'
 // `ask-history-persistence.spec.ts`.
 //
 // The persisted route is plain `/materias`, not `/materias?filtro=aprobadas`
-// as the design's own testing table sketches: driving the "Aprobadas" chip
-// against the REAL app (not a mocked container) surfaces a pre-existing PR1
-// defect — `MateriasListContainer`'s `useOptionalControlled(controlledFilter,
-// onFilterChange, 'activas')` treats an initial `undefined` `filter` prop as
-// UNCONTROLLED regardless of whether `onFilterChange` is also given, so the
-// first click only updates local state and the address never gains
-// `?filtro=`. `CarreraDetailContainer.tsx` shares the exact same call shape
-// and is presumably affected the same way. This is called out as a risk in
-// the apply-progress rather than silently worked around: it is a real,
-// pre-existing bug outside PR3's assigned scope (main-only), not something
-// this PR introduced or is responsible for fixing.
+// as the design's own testing table sketches — but no longer because the chip
+// could not write the address. That defect (a route handing the container an
+// `onFilterChange` beside an `undefined` `filter`, which `useOptionalControlled`
+// reads as uncontrolled) is fixed at the bottom of this stack, and
+// `src/renderer/router.test.tsx` drives the real chip against the real
+// container to prove it. What is left is a fixture problem this spec has no
+// reason to solve: the filter chips only render once the database holds a
+// materia, and a fresh `--user-data-dir` starts empty, so a filtered route
+// would need seeded rows to reach the chips at all. A bare `/materias` proves
+// exactly what this spec is for — that the route survives a quit and comes
+// back at history index 0.
 
 test('a route visited before quitting is restored at history index 0 on relaunch, with no spurious back target', async () => {
   const projectRoot = path.join(__dirname, '..')
