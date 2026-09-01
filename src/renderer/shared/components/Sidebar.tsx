@@ -9,8 +9,6 @@
 // inert nav item, and wires the "Exportar datos" footer row to the real
 // `app:exportJson` flow (see `onExport`).
 //
-// Seventh item, second in the list: Planificador (correlativas-y-planificador).
-//
 // COLLAPSED STATE (design: component `Sidebar Rail` + grupo "Responsive").
 // Collapsing is a real markup change, not a width animation: the labels stop
 // being rendered text and become tooltips, so the rail keeps every nav item
@@ -21,7 +19,6 @@
 import {
   BookOpen,
   Calendar,
-  CalendarRange,
   CircleCheck,
   Download,
   GraduationCap,
@@ -36,7 +33,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/cn'
 import { interactive, interactiveGhost } from '../lib/interactive'
 
-export type SidebarDomain = 'hoy' | 'planificador' | 'materias' | 'horario' | 'entregas' | 'carreras' | 'ajustes'
+export type SidebarDomain = 'hoy' | 'materias' | 'horario' | 'entregas' | 'carreras' | 'ajustes'
 
 interface SidebarProps {
   active: SidebarDomain
@@ -85,13 +82,12 @@ interface NavItem {
 // Labels come from `common:sidebar.nav.<domain>` at render time.
 const NAV_ITEMS: NavItem[] = [
   { domain: 'hoy', icon: Sun, available: true },
-  // SECOND, right after Hoy (approved `.pen`): the .pen sidebar has always
-  // carried an unimplemented slot in this position named "Organizador", and
-  // the approved design RENAMES it rather than adding an eighth item — which
-  // is why the nav grows from six to seven here and not to eight. Hoy is what
-  // you owe today; the Planificador is what you are taking next, and nothing
-  // else in the nav answers a question about the future.
-  { domain: 'planificador', icon: CalendarRange, available: true },
+  // The Planificador used to sit SECOND, right here. It is gone from the nav
+  // because it stopped being a place: planning is now the "Plan de estudios"
+  // tab of a carrera, which is the only scope where the question makes sense.
+  // A materia's correlativas belong to ONE plan de estudios, so a top-level
+  // planner had to ask "which carrera?" before it could answer anything —
+  // standing inside a carrera answers that by construction.
   { domain: 'materias', icon: BookOpen, available: true },
   { domain: 'horario', icon: Calendar, available: true },
   { domain: 'entregas', icon: CircleCheck, available: true },

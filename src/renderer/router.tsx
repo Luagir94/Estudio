@@ -50,7 +50,6 @@ import { MateriasListContainer } from './materias/containers/MateriasListContain
 import { SubjectDetailContainer } from './materias/containers/SubjectDetailContainer'
 import { isSubjectStatusFilter, type SubjectStatusFilter } from './materias/domain/subjectStatus'
 import { parseRouteId } from './navigation'
-import { PlanificadorContainer } from './planificador/containers/PlanificadorContainer'
 import { Shell } from './Shell'
 
 /**
@@ -97,12 +96,6 @@ const indexRoute = createRoute({
 })
 
 const hoyRoute = createRoute({ getParentRoute: () => rootRoute, path: '/hoy', component: HoyContainer })
-
-const planificadorRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/planificador',
-  component: PlanificadorContainer
-})
 
 const horarioRoute = createRoute({ getParentRoute: () => rootRoute, path: '/horario', component: HorarioContainer })
 
@@ -294,7 +287,6 @@ const periodDetailRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   hoyRoute,
-  planificadorRoute,
   materiasRoute,
   subjectDetailRoute,
   horarioRoute,

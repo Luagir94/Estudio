@@ -24,7 +24,6 @@ describe('domainFromPathname', () => {
 
   it.each([
     ['/hoy', 'hoy'],
-    ['/planificador', 'planificador'],
     ['/materias', 'materias'],
     ['/horario', 'horario'],
     ['/entregas', 'entregas'],
@@ -59,7 +58,6 @@ describe('ROUTE_BY_DOMAIN', () => {
   it('gives every sidebar domain a destination path', () => {
     expect(ROUTE_BY_DOMAIN).toEqual({
       hoy: '/hoy',
-      planificador: '/planificador',
       materias: '/materias',
       horario: '/horario',
       entregas: '/entregas',

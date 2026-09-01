@@ -122,10 +122,6 @@ vi.mock('./entregas/containers/EntregasContainer', () => ({
   EntregasContainer: () => <div>stub-entregas-screen</div>
 }))
 
-vi.mock('./planificador/containers/PlanificadorContainer', () => ({
-  PlanificadorContainer: () => <div>stub-planificador-screen</div>
-}))
-
 // Mutable on purpose: the crash-fallback test flips it to make the default
 // screen throw during render. Safe with vi.mock hoisting because the stub
 // only READS it at render time, long after this module finished evaluating.
@@ -209,7 +205,8 @@ describe('App', () => {
   describe('sidebar navigation', () => {
     it.each([
       ['Hoy', 'stub-hoy-screen', '#/hoy'],
-      ['Planificador', 'stub-planificador-screen', '#/planificador'],
+      // No Planificador row: planning is a tab of a carrera now, not a
+      // destination of its own.
       ['Materias', 'stub-materias-list', '#/materias'],
       ['Horario', 'stub-horario-screen', '#/horario'],
       ['Entregas', 'stub-entregas-screen', '#/entregas'],

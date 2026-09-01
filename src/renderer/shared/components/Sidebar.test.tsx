@@ -184,28 +184,26 @@ describe('Sidebar', () => {
     expect(onNavigate).toHaveBeenCalledWith('entregas')
   })
 
-  // The approved design puts Planificador SECOND, immediately after Hoy —
-  // it renames the .pen's long-unimplemented "Organizador" slot rather than
-  // appending an eighth item.
-  it('places Planificador second, right after Hoy', () => {
+  // The Planificador used to sit second, right after Hoy. It is gone from the
+  // nav because it stopped being a place: planning moved into the "Plan de
+  // estudios" tab of a carrera, the only scope where correlativas mean
+  // anything. Materias now follows Hoy.
+  it('offers no Planificador item at all', () => {
+    render(
+      <Sidebar active="hoy" onNavigate={vi.fn()} onExport={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />
+    )
+
+    expect(screen.queryByRole('button', { name: 'Planificador' })).not.toBeInTheDocument()
+  })
+
+  it('places Materias second, right after Hoy', () => {
     render(
       <Sidebar active="hoy" onNavigate={vi.fn()} onExport={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />
     )
 
     const labels = screen.getAllByRole('button').map((button) => button.textContent)
 
-    expect(labels.slice(1, 3)).toEqual(['Hoy', 'Planificador'])
-  })
-
-  it('clicking Planificador calls onNavigate with "planificador"', () => {
-    const onNavigate = vi.fn()
-    render(
-      <Sidebar active="hoy" onNavigate={onNavigate} onExport={vi.fn()} collapsed={false} onToggleCollapsed={vi.fn()} />
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'Planificador' }))
-
-    expect(onNavigate).toHaveBeenCalledWith('planificador')
+    expect(labels.slice(1, 3)).toEqual(['Hoy', 'Materias'])
   })
 
   // PR7: Ajustes is the sixth and last nav item (design node `wx0uR`'s
@@ -293,16 +291,7 @@ describe('Sidebar', () => {
     it('keeps every nav item reachable by its accessible name', () => {
       renderCollapsed()
 
-      for (const label of [
-        'Hoy',
-        'Planificador',
-        'Materias',
-        'Horario',
-        'Entregas',
-        'Carreras',
-        'Ajustes',
-        'Exportar datos'
-      ]) {
+      for (const label of ['Hoy', 'Materias', 'Horario', 'Entregas', 'Carreras', 'Ajustes', 'Exportar datos']) {
         expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
       }
     })

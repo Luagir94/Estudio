@@ -1,36 +1,7 @@
 {
-  "container": {
-    "title": "Planificador",
-    "subtitle": "{{period}} · {{drafted}} · {{hours}} h por semana",
-    "draftedCount_one": "{{count}} en el borrador",
-    "draftedCount_other": "{{count}} en el borrador",
-    "loading": "Cargando el planificador…",
-    "loadError": "No se pudo cargar el planificador.",
-    "noPeriodsTitle": "Todavía no hay ningún período por delante",
-    "noPeriodsBody": "El planificador arma el borrador de un período que todavía no terminó. Creá uno desde Carreras y volvé."
-  },
-  "periodSwitcher": {
-    "label": "Período que estás planificando",
-    "option": "{{period}} · {{program}}"
-  },
   "candidates": {
-    "heading": "DISPONIBLES PARA CURSAR",
-    "meta": "{{code}} · {{hours}} h por semana · {{days}}",
-    "metaNoSchedule": "{{code}} · sin horario cargado",
     "missing": "Falta {{subject}} {{level}}",
-    "missingUnknownSubject": "Falta una correlativa que ya no existe",
-    "habilitada": "Habilitada",
-    "bloqueada": "Bloqueada",
-    "add": "Agregar {{subject}} al borrador",
-    "blocked": "{{subject}} está bloqueada",
-    "empty": "No hay materias para agregar. Las aprobadas y las que ya están en el borrador no aparecen acá."
-  },
-  "draft": {
-    "heading": "TU BORRADOR",
-    "slot": "{{day}} {{start}}–{{end}}",
-    "noSchedule": "Sin horario cargado",
-    "remove": "Sacar {{subject}} del borrador",
-    "empty": "Tu borrador está vacío. Agregá materias desde la lista de la izquierda."
+    "missingUnknownSubject": "Falta una correlativa que ya no existe"
   },
   "clash": {
     "title": "{{first}} se superpone con {{second}}",

@@ -22,7 +22,6 @@ import type { SidebarDomain } from './shared/components/Sidebar'
  */
 export const ROUTE_BY_DOMAIN = {
   hoy: '/hoy',
-  planificador: '/planificador',
   materias: '/materias',
   horario: '/horario',
   entregas: '/entregas',
