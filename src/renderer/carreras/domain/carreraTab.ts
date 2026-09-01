@@ -9,6 +9,18 @@ export type CarreraTab = 'periods' | 'plan'
 export const CARRERA_TABS: CarreraTab[] = ['periods', 'plan']
 
 /**
+ * The tab the screen lands on: períodos, your own timeline, rather than the
+ * plan the carrera hands you.
+ *
+ * Exported because TWO modules have to agree on it — the container, which
+ * falls back to it when nothing owns the tab, and `router.tsx`, which resolves
+ * an absent `?tab=` into it before the container ever sees the props. Written
+ * out twice they could drift, and the address would land on one tab while the
+ * screen drew the other.
+ */
+export const DEFAULT_CARRERA_TAB: CarreraTab = 'periods'
+
+/**
  * Whether an unknown value names a carrera tab. The address bar is an
  * untrusted input — a stale or hand-edited `?tab=` must fall back to the
  * default rather than select a panel that does not exist.

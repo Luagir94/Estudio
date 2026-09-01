@@ -15,7 +15,7 @@ import { describeIpcError } from '../../shared/lib/ipcErrorCopy'
 import { useOptionalControlled } from '../../shared/lib/useOptionalControlled'
 import { isPassed } from '../../materias/domain/subjectStatus'
 import { carrerasApi } from '../adapters/carrerasApi'
-import type { CarreraTab } from '../domain/carreraTab'
+import { DEFAULT_CARRERA_TAB, type CarreraTab } from '../domain/carreraTab'
 import { derivePeriodYear, formatPeriodRange, listCurrentPeriods, pickDefaultPeriodId } from '../domain/period'
 import {
   approvedProgressPercent,
@@ -63,6 +63,11 @@ interface CarreraDetailContainerProps {
    * `carreraDetailRoute`). Passed with `onTabChange` or not at all — omitted,
    * the container keeps the tab in its own state, which is what every test
    * that renders it without a router relies on.
+   *
+   * BOTH halves, never one: `useOptionalControlled` reads either alone as a
+   * wiring mistake and keeps the state here. A caller that hands over
+   * `onTabChange` therefore has to resolve an absent `?tab=` to
+   * `DEFAULT_CARRERA_TAB` itself rather than passing `undefined` through.
    */
   activeTab?: CarreraTab
   onTabChange?: (tab: CarreraTab) => void
@@ -229,7 +234,7 @@ export function CarreraDetailContainer({
   // the container otherwise — same arrangement `SubjectDetailContainer` has
   // with its own tab. Períodos is the landing tab, and the fallback for a
   // `?tab=` the address carries but this screen does not recognise.
-  const [activeTab, setActiveTab] = useOptionalControlled<CarreraTab>(controlledTab, onTabChange, 'periods')
+  const [activeTab, setActiveTab] = useOptionalControlled<CarreraTab>(controlledTab, onTabChange, DEFAULT_CARRERA_TAB)
 
   // Which materia the rail is inspecting. On the map a click SELECTS rather
   // than navigates: you are planning, not browsing, and leaving the canvas to

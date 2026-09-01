@@ -375,10 +375,23 @@ describe('App', () => {
       expect(await screen.findByText('stub-carrera-tab:plan')).toBeInTheDocument()
     })
 
+    // An absent `?tab=` is resolved by the ROUTE, not left as `undefined` for
+    // the container to interpret. Handed both an `activeTab` and an
+    // `onTabChange`, the container gives the tab up to the address; handed
+    // only the callback it keeps the tab to itself, and the first click never
+    // reaches the URL. `router.test.tsx` proves that end of it against the
+    // real screen — this is the route's own half of the contract.
+    it('hands the carrera its default tab when the address carries none', async () => {
+      startAt('/carreras/3')
+      render(<App />)
+
+      expect(await screen.findByText('stub-carrera-tab:periods')).toBeInTheDocument()
+    })
+
     it('writes the chosen tab into the address without pushing a new entry', async () => {
       startAt('/carreras/3')
       render(<App />)
-      await screen.findByText('stub-carrera-tab:none')
+      await screen.findByText('stub-carrera-tab:periods')
 
       const lengthBefore = window.history.length
       fireEvent.click(screen.getByText('stub-carrera-tab-plan'))
@@ -391,7 +404,7 @@ describe('App', () => {
     it('leaves history.length unchanged across repeated tab flips', async () => {
       startAt('/carreras/3')
       render(<App />)
-      await screen.findByText('stub-carrera-tab:none')
+      await screen.findByText('stub-carrera-tab:periods')
 
       const lengthBefore = window.history.length
       fireEvent.click(screen.getByText('stub-carrera-tab-plan'))
@@ -409,7 +422,7 @@ describe('App', () => {
       startAt('/carreras/3?tab=inventado')
       render(<App />)
 
-      expect(await screen.findByText('stub-carrera-tab:none')).toBeInTheDocument()
+      expect(await screen.findByText('stub-carrera-tab:periods')).toBeInTheDocument()
       expect(await screen.findByText('stub-carrera-detail:3')).toBeInTheDocument()
     })
   })

@@ -45,7 +45,7 @@ import { PeriodDetailContainer } from './carreras/containers/PeriodDetailContain
 import { EntregasContainer } from './entregas/containers/EntregasContainer'
 import { HorarioContainer } from './horario/containers/HorarioContainer'
 import { HoyContainer } from './hoy/containers/HoyContainer'
-import { isCarreraTab, type CarreraTab } from './carreras/domain/carreraTab'
+import { DEFAULT_CARRERA_TAB, isCarreraTab, type CarreraTab } from './carreras/domain/carreraTab'
 import { isSubjectDetailTabId, type SubjectDetailTabId } from './materias/components/SubjectDetailTabs'
 import { MateriasListContainer } from './materias/containers/MateriasListContainer'
 import { SubjectDetailContainer } from './materias/containers/SubjectDetailContainer'
@@ -210,10 +210,22 @@ function CarreraDetailScreen(): React.JSX.Element {
   const { programId } = carreraDetailRoute.useParams()
   const { tab } = carreraDetailRoute.useSearch()
   const navigate = useNavigate()
+  // The absent `?tab=` becomes the DEFAULT here, not `undefined` further down.
+  // Resolving it is this adapter's job — `validateSearch` says an unowned or
+  // unrecognised `?tab=` means "the screen's default", and translating that
+  // into the prop the container takes is the whole of what a route component
+  // does. Passing `undefined` alongside `onTabChange` is the wiring mistake
+  // `useOptionalControlled` guards against: it would keep the tab in the
+  // container's own state, so the FIRST click — always made from an address
+  // with no `?tab=` on it, since nothing links here with one — moved the
+  // screen and left the address behind. Everything downstream (a reload, the
+  // Back that returns to the tab you left) reads the address, so a tab that
+  // never reaches it may as well not be in the URL at all.
+  const activeTab = tab ?? DEFAULT_CARRERA_TAB
   return (
     <CarreraDetailContainer
       programId={programId}
-      activeTab={tab}
+      activeTab={activeTab}
       // `replace`, same reason the subject tab uses it: switching between
       // períodos and plan de estudios is looking around, not travelling, and
       // going back should leave the carrera, not walk back through which half
