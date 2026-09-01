@@ -123,7 +123,12 @@
     "teacher": "DOCENTE",
     "contact": "CONTACTO",
     "footerNote": "Podés editar todo después",
-    "submit": "Crear materia"
+    "submit": "Crear materia",
+    "planOrder": "ORDEN EN EL PLAN",
+    "planOrderHintStrong": "Lo asignás vos, porque esta materia no depende de ninguna.",
+    "planOrderHintRest": "En cuanto le agregues una correlativa, el orden pasa a salir de ella.",
+    "planOrderDerivedStrong": "Sale de sus correlativas — no se edita.",
+    "planOrderDerivedRest": "Una materia va siempre después de la que necesita. Solo las que no tienen ninguna correlativa se ordenan a mano."
   },
   "editarMateriaModal": {
     "dialogLabel": "Editar materia",
@@ -150,7 +155,12 @@
     "campusUrl": "CAMPUS VIRTUAL (URL)",
     "groupUrl": "GRUPO (WHATSAPP / DISCORD)",
     "notes": "NOTAS",
-    "deleteSubject": "Eliminar materia"
+    "deleteSubject": "Eliminar materia",
+    "planOrder": "ORDEN EN EL PLAN",
+    "planOrderHintStrong": "Lo asignás vos, porque esta materia no depende de ninguna.",
+    "planOrderHintRest": "En cuanto le agregues una correlativa, el orden pasa a salir de ella.",
+    "planOrderDerivedStrong": "Sale de sus correlativas — no se edita.",
+    "planOrderDerivedRest": "Una materia va siempre después de la que necesita. Solo las que no tienen ninguna correlativa se ordenan a mano."
   },
   "cerrarMateriaModal": {
     "dialogLabel": "Cerrar materia",

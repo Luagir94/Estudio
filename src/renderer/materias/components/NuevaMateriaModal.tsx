@@ -83,6 +83,11 @@ export function NuevaMateriaModal({
       docente: '',
       contacto: '',
       periodId: defaultPeriodId,
+      // Declared even though it starts empty. Without a default the field
+      // registers as `undefined` and react-hook-form reads the very first
+      // render as DIRTY, which makes an untouched form ask "¿descartar
+      // cambios?" on cancel.
+      nivel: '',
       slots: []
     }
   })
@@ -204,6 +209,22 @@ export function NuevaMateriaModal({
                 control={periodField.control}
               />
               <FieldError {...periodField.error} />
+
+              {/* The carrera is NOT a field: `periodId` above already names
+                  one, and every período belongs to exactly one program. Asking
+                  again would be asking the student to repeat themselves.
+                  ORDEN, though, is theirs alone — no column in this database
+                  holds it, which is why the hint says so out loud. */}
+              <Label className="max-w-[170px]">
+                {t('nuevaMateriaModal.planOrder')}
+                <Input type="number" min={1} step={1} inputMode="numeric" {...register('nivel')} />
+              </Label>
+              <p className="text-body-sm text-muted-foreground">
+                <span className="font-semibold text-secondary-foreground">
+                  {t('nuevaMateriaModal.planOrderHintStrong')}
+                </span>{' '}
+                {t('nuevaMateriaModal.planOrderHintRest')}
+              </p>
 
               <Controller
                 name="slots"

@@ -122,6 +122,11 @@ export function EditarMateriaModal({
       attendanceMinPercent: subject.attendanceMinPercent,
       regularity: subject.regularity,
       periodId: subject.periodId,
+      // Seeded, not left blank. The update command writes `nivel` with the
+      // `?? null` every other form field uses, so an unseeded field would send
+      // an empty string on every save and silently un-order a materia the
+      // student had already placed.
+      nivel: subject.nivel,
       slots: subject.slots.map((slot) => ({
         dayOfWeek: slot.dayOfWeek,
         startMinutes: slot.startMinutes,
@@ -130,6 +135,12 @@ export function EditarMateriaModal({
       }))
     }
   })
+
+  // A materia with correlativas takes its place FROM them — one column past the
+  // deepest one — so the field REPORTS rather than accepts. Editing it could
+  // only produce a contradiction the map would have to ignore, which is exactly
+  // the bug this rule removed: a materia sitting before its own correlativa.
+  const orderIsDerived = subject.prerequisites.length > 0
 
   const nameField = fields.bind('name', errors.name && translateValidationMessage(t, errors.name.message))
   const codeField = fields.bind('code', errors.code && translateValidationMessage(t, errors.code.message))
@@ -435,6 +446,36 @@ export function EditarMateriaModal({
                 </Label>
 
                 <PeriodSelect programs={programs} registration={register('periodId')} />
+
+                {/* The carrera is NOT a field: `periodId` above already names
+                    one, and every período belongs to exactly one program. Asking
+                    again would be asking the student to repeat themselves.
+                    ORDEN, though, is theirs alone — no column in this database
+                    holds it, which is why the hint says so out loud. */}
+                <Label className="max-w-[170px]">
+                  {t('editarMateriaModal.planOrder')}
+                  <Input
+                    type="number"
+                    min={1}
+                    step={1}
+                    inputMode="numeric"
+                    readOnly={orderIsDerived}
+                    aria-readonly={orderIsDerived}
+                    {...register('nivel')}
+                  />
+                </Label>
+                <p className="text-body-sm text-muted-foreground">
+                  <span className="font-semibold text-secondary-foreground">
+                    {t(
+                      orderIsDerived
+                        ? 'editarMateriaModal.planOrderDerivedStrong'
+                        : 'editarMateriaModal.planOrderHintStrong'
+                    )}
+                  </span>{' '}
+                  {t(
+                    orderIsDerived ? 'editarMateriaModal.planOrderDerivedRest' : 'editarMateriaModal.planOrderHintRest'
+                  )}
+                </p>
               </div>
 
               <div hidden={activeTab !== 'horario'}>

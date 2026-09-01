@@ -18,6 +18,8 @@ const subject: SubjectDetailResult = {
   notas: null,
   attendanceMinPercent: null,
   periodId: null,
+  programId: null,
+  nivel: null,
   outcome: null,
   grade: null,
   regularity: null,
@@ -285,5 +287,80 @@ describe('EditarMateriaModal', () => {
     const percent = screen.getByLabelText('Asistencia mínima (%)')
     expect(percent).toHaveClass('outline-none')
     expect(percent.parentElement).toHaveClass('focus-within:outline-2', 'focus-within:outline-ring')
+  })
+})
+
+// The field behind the plan map's columns. The carrera deliberately has NO
+// field: the período already names one, and every período belongs to exactly
+// one program.
+describe('orden en el plan', () => {
+  it('pre-fills the order the materia already has', () => {
+    render(<EditarMateriaModal subject={{ ...subject, nivel: 3 }} onSubmit={vi.fn()} onClose={vi.fn()} />)
+
+    expect(screen.getByLabelText('ORDEN EN EL PLAN')).toHaveValue(3)
+  })
+
+  it('says the order is the student’s when nothing requires it', () => {
+    render(<EditarMateriaModal subject={{ ...subject, prerequisites: [] }} onSubmit={vi.fn()} onClose={vi.fn()} />)
+
+    expect(screen.getByText(/Lo asignás vos/)).toBeInTheDocument()
+    expect(screen.getByLabelText('ORDEN EN EL PLAN')).not.toHaveAttribute('readonly')
+  })
+
+  // The rule that makes "a materia before its own correlativa" impossible
+  // instead of merely invalid: once something is required, the order comes from
+  // it and the field reports rather than accepts.
+  it('reports instead of accepting once the materia has a correlativa', () => {
+    const withPrerequisite = {
+      ...subject,
+      prerequisites: [
+        {
+          id: 1,
+          subjectId: subject.id,
+          requiredLevel: 'aprobada' as const,
+          requires: { id: 9, name: 'Álgebra', outcome: null, regularity: null, finals: [] }
+        }
+      ]
+    }
+
+    render(<EditarMateriaModal subject={withPrerequisite} onSubmit={vi.fn()} onClose={vi.fn()} />)
+
+    expect(screen.getByLabelText('ORDEN EN EL PLAN')).toHaveAttribute('readonly')
+    expect(screen.getByText(/Sale de sus correlativas/)).toBeInTheDocument()
+  })
+
+  it('never asks for the carrera — the período already answers that', () => {
+    render(<EditarMateriaModal subject={subject} onSubmit={vi.fn()} onClose={vi.fn()} />)
+
+    expect(screen.queryByLabelText(/CARRERA/i)).not.toBeInTheDocument()
+  })
+
+  it('submits a newly typed order', async () => {
+    const onSubmit = vi.fn()
+    render(<EditarMateriaModal subject={subject} onSubmit={onSubmit} onClose={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('ORDEN EN EL PLAN'), { target: { value: '4' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    await waitFor(() => {
+      // First argument only: react-hook-form hands `onSubmit` the submit event
+      // as a second one.
+      expect(onSubmit.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ nivel: 4 }))
+    })
+  })
+
+  // The regression this field is most likely to cause: an unseeded input sends
+  // '' on every save, which would silently un-order a materia the student had
+  // already placed while they were editing something else entirely.
+  it('keeps the existing order when an unrelated field is edited', async () => {
+    const onSubmit = vi.fn()
+    render(<EditarMateriaModal subject={{ ...subject, nivel: 2 }} onSubmit={onSubmit} onClose={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('COMISIÓN'), { target: { value: 'K9999' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    await waitFor(() => {
+      expect(onSubmit.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ nivel: 2 }))
+    })
   })
 })
