@@ -1428,14 +1428,21 @@ describe('CarreraDetailContainer — plan de estudios tab', () => {
     expect(screen.queryByTestId('plan-map-error')).not.toBeInTheDocument()
   })
 
-  it('says on the box what a blocked materia is missing', async () => {
+  it('describes a blocked materia with what it is missing', async () => {
     renderDetail()
     await screen.findByRole('heading', { name: 'Abogacía' })
     await userEvent.click(screen.getByRole('tab', { name: 'Plan de estudios' }))
 
     // Civil I requires Introducción, which is not aprobada — the reason is the
     // same sentence the borrador prints, read from the planificador catalog.
-    expect(screen.getByText('Falta Introducción al Derecho aprobada')).toBeInTheDocument()
+    // It rides in the box's tooltip, not on the box: the box shows its code.
+    const reason = screen.getByRole('tooltip')
+    expect(reason).toHaveTextContent('Falta Introducción al Derecho aprobada')
+    expect(screen.getByRole('button', { name: 'Seleccionar Derecho Civil I' })).toHaveAttribute(
+      'aria-describedby',
+      reason.id
+    )
+    expect(screen.getByText('DER-2')).toBeInTheDocument()
   })
 
   // The `+` is the availability signal: only a habilitada carries one, so in a

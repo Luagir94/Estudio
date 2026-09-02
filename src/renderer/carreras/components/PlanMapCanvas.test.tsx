@@ -17,7 +17,13 @@ const EDGES = [{ subjectId: 3, requiresSubjectId: 1 }]
 const BOXES: PlanMapBox[] = [
   { id: 1, name: 'Introducción al Derecho', meta: 'DER-101 · Aprobada', state: 'aprobada' },
   { id: 2, name: 'Derecho Romano', meta: 'DER-102 · 4 h · Mar', state: 'habilitada' },
-  { id: 3, name: 'Derecho Civil II', meta: 'Falta Introducción al Derecho aprobada', state: 'bloqueada' },
+  {
+    id: 3,
+    name: 'Derecho Civil II',
+    meta: 'DER-301',
+    reason: 'Falta Introducción al Derecho aprobada',
+    state: 'bloqueada'
+  },
   { id: 4, name: 'Seminario de Ética', meta: 'ETI-201', state: 'habilitada' }
 ]
 
@@ -45,12 +51,31 @@ describe('PlanMapCanvas', () => {
     expect(container.textContent).not.toMatch(/nivel/i)
   })
 
-  // A blocked box says what is missing right where the student reads it. The
-  // badge/lock/red-line triple of the old planificador is deliberately gone.
-  it('shows the missing requirement on a blocked materia', () => {
-    renderCanvas()
+  // The reason used to sit on the box. At 138×58 a name and a full sentence
+  // fought over four lines, so the box now carries its CODE like every other
+  // one and the sentence is a tooltip.
+  //
+  // Reachable by pointer AND by keyboard: a hover-only reason does not exist
+  // for anyone navigating with a keyboard or a screen reader, which would make
+  // "saving space" cost some people the information entirely.
+  it('gives a blocked materia its code on the box and the reason as a tooltip', () => {
+    renderCanvas({ onSelect: vi.fn() })
 
-    expect(screen.getByText('Falta Introducción al Derecho aprobada')).toBeInTheDocument()
+    expect(screen.getByText('DER-301')).toBeInTheDocument()
+
+    const reason = screen.getByRole('tooltip')
+    expect(reason).toHaveTextContent('Falta Introducción al Derecho aprobada')
+    expect(screen.getByRole('button', { name: 'Seleccionar Derecho Civil II' })).toHaveAttribute(
+      'aria-describedby',
+      reason.id
+    )
+  })
+
+  it('gives a materia with nothing missing no tooltip to describe it', () => {
+    renderCanvas({ onSelect: vi.fn() })
+
+    expect(screen.getAllByRole('tooltip')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Seleccionar Derecho Romano' })).not.toHaveAttribute('aria-describedby')
   })
 
   it('draws one connector per correlativa between placed materias', () => {
@@ -247,6 +272,87 @@ describe('PlanMapCanvas — column headings are the order, not the index', () =>
 // column used to run straight at the target's row, driving it through whatever
 // box sat between. Three boxes in a line with a rule through them read as a
 // chain — you could not tell what connected to what.
+// Every line leaving a column used to elbow at the SAME x, so the vertical
+// stretches of unrelated correlativas stacked into one continuous bar and you
+// could not tell which prerequisite fed which materia. The elbow is now a lane
+// picked by the row the line leaves from.
+// The box height is FIXED at 58px, so a name long enough to wrap three times
+// did not stretch the card — it pushed the meta line out of it, and the code
+// the student reads to identify the materia simply vanished.
+describe('PlanMapCanvas — a long name cannot break its box', () => {
+  it('caps the name at two lines so it can never take the meta line room', () => {
+    const boxes: PlanMapBox[] = [
+      { id: 1, name: 'Ingeniería y Calidad de Software Aplicada', meta: '042', state: 'habilitada' }
+    ]
+
+    render(<PlanMapCanvas layout={layOutPlanMap([{ id: 1, nivel: 1 }], [])} boxes={boxes} edges={[]} />)
+
+    // jsdom lays nothing out, so the cap is only checkable as the rule that
+    // produces it. What the test really pins is that the meta SURVIVES a name
+    // long enough to have swallowed it before.
+    expect(screen.getByText('Ingeniería y Calidad de Software Aplicada').className).toContain('line-clamp-2')
+    expect(screen.getByText('042')).toBeInTheDocument()
+  })
+})
+
+describe('PlanMapCanvas — each correlativa turns in its own lane', () => {
+  const subjects = [
+    { id: 1, nivel: 1 },
+    { id: 2, nivel: 1 },
+    { id: 3, nivel: 1 },
+    { id: 4, nivel: 2 }
+  ]
+  // Three materias feeding ONE, which is what forces the verticals: the sweep
+  // can align 4 with at most one of its prerequisites, so the other two have to
+  // travel. Two edges leaving two different rows is exactly the case that used
+  // to collapse into a single bar.
+  const edges = [
+    { subjectId: 4, requiresSubjectId: 1 },
+    { subjectId: 4, requiresSubjectId: 2 },
+    { subjectId: 4, requiresSubjectId: 3 }
+  ]
+  const boxes: PlanMapBox[] = subjects.map((subject) => ({
+    id: subject.id,
+    name: `Materia ${subject.id}`,
+    meta: 'COD',
+    state: 'habilitada'
+  }))
+
+  function verticals(container: HTMLElement) {
+    return [...container.querySelectorAll('[data-testid="plan-map-connector"]')]
+      .map((segment) => {
+        const style = (segment as HTMLElement).style
+        return {
+          edge: segment.getAttribute('data-edge'),
+          left: Number.parseFloat(style.left),
+          top: Number.parseFloat(style.top),
+          width: Number.parseFloat(style.width),
+          height: Number.parseFloat(style.height)
+        }
+      })
+      .filter((segment) => segment.height > segment.width)
+  }
+
+  it('gives two correlativas leaving different rows two different lanes', () => {
+    const { container } = render(<PlanMapCanvas layout={layOutPlanMap(subjects, edges)} boxes={boxes} edges={edges} />)
+
+    const drops = verticals(container)
+    expect(drops).toHaveLength(2)
+    expect(drops[0]?.left).not.toBe(drops[1]?.left)
+  })
+
+  // The lane must stay inside the empty band between the two columns: a lane
+  // wide enough to reach the next column would put a rule through a box.
+  it('keeps every lane inside the gap between the columns', () => {
+    const { container } = render(<PlanMapCanvas layout={layOutPlanMap(subjects, edges)} boxes={boxes} edges={edges} />)
+
+    for (const drop of verticals(container)) {
+      expect(drop.left).toBeGreaterThan(138)
+      expect(drop.left + drop.width).toBeLessThanOrEqual(170)
+    }
+  })
+})
+
 describe('PlanMapCanvas — what a connector says about its correlativa', () => {
   const subjects = [
     { id: 1, nivel: 1 },

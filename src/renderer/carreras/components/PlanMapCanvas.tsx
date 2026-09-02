@@ -22,14 +22,25 @@ import type { PlanMapEdge, PlanMapLayout } from '../domain/planMap'
 
 /**
  * Geometry, straight from the approved `.pen`: box `B557g9` is 138×58 at
- * x-step 170 and y-step 84, and connector `Y3s57` is 2px tall with its elbow
- * 16px past the box's right edge.
+ * x-step 170 and y-step 84, and connector `Y3s57` is 2px tall.
  */
 const BOX_WIDTH = 138
 const BOX_HEIGHT = 58
 const COLUMN_STEP = 170
 const ROW_STEP = 84
-const ELBOW_OFFSET = 16
+/**
+ * Where a line turns, measured from the right edge of the box it leaves.
+ *
+ * NOT one shared offset. Every line out of a column used to elbow at the same
+ * x, so the vertical stretches of unrelated correlativas stacked onto one
+ * column of pixels and read as a single bar running the height of the map —
+ * you could see that something connected, never what. The lane is picked by
+ * the ROW the line leaves from, which separates unrelated lines while keeping
+ * the ones from the same materia together on one trunk, because those really
+ * do share an origin.
+ */
+const ELBOW_LANE_START = 7
+const ELBOW_LANE_STEP = 6
 /** Room above the first row for the column headings (`AyW4K` sits at y: 2). */
 const HEADER_HEIGHT = 26
 const CONNECTOR_THICKNESS = 2
@@ -41,6 +52,12 @@ export interface PlanMapBox {
   name: string
   /** Second line: the code, plus whatever the state makes worth saying. */
   meta: string
+  /**
+   * What is missing, for a materia that cannot be cursada yet. Off the box on
+   * purpose — see `renderReason` — and omitted whenever nothing is missing, so
+   * a box that is merely available carries no description to read.
+   */
+  reason?: string
   state: PlanMapBoxState
 }
 
@@ -60,13 +77,18 @@ interface PlanMapCanvasProps {
 
 // `bloqueada` dims rather than reddens: not being able to cursar something yet
 // is the normal state of most of a plan, and spending `urgent` on it would
-// leave nothing louder for something that actually went wrong. Its reason line
-// is where the colour goes.
+// leave nothing louder for something that actually went wrong. The tooltip's
+// dot is the only place that colour is spent.
 const STATE_STYLES: Record<PlanMapBoxState, string> = {
   aprobada: 'border-(--color-ok) bg-(--color-ok-soft)',
   enBorrador: 'border-primary bg-brand-soft',
   habilitada: 'border-primary bg-card',
-  bloqueada: 'border-border bg-card opacity-55'
+  // It comes back to full strength while its tooltip is open, which is the
+  // state the `.pen` captures. Reading the reason and squinting at the box it
+  // belongs to at 55% are the same moment, and only one of them should be dim.
+  // `hover:`/`focus-within:`, not `group-*`: this class lands ON the element
+  // that CARRIES `group`, and those variants only ever match descendants.
+  bloqueada: 'border-border bg-card opacity-55 hover:opacity-100 focus-within:opacity-100'
 }
 
 // Selection cannot reuse a state colour — `brand-soft` already means "en
@@ -96,11 +118,19 @@ const CONNECTOR_STYLES: Record<PlanMapConnectorState, string> = {
   pendiente: 'bg-border'
 }
 
+// `bloqueada` reads muted, not destructive: this line is the materia's CODE
+// now, the same as on any other box, and a code printed in the app's alarm
+// colour would announce a problem the code itself is not.
 const META_STYLES: Record<PlanMapBoxState, string> = {
   aprobada: 'text-(--color-ok)',
   enBorrador: 'text-primary-ink',
   habilitada: 'text-muted-foreground',
-  bloqueada: 'text-destructive'
+  bloqueada: 'text-muted-foreground'
+}
+
+/** Ties a box's button to its tooltip through `aria-describedby`. */
+function reasonId(subjectId: number): string {
+  return `plan-map-reason-${subjectId}`
 }
 
 function columnX(column: number): number {
@@ -114,6 +144,15 @@ function rowY(row: number): number {
 /** The empty band between two rows of boxes, and between two columns. */
 const ROW_GAP = ROW_STEP - BOX_HEIGHT
 const COLUMN_GAP = COLUMN_STEP - BOX_WIDTH
+
+/**
+ * How many lanes fit in that band, derived rather than typed: a lane wide
+ * enough to reach the next column would put a rule through a box, so the count
+ * has to follow the geometry if the geometry ever moves. Rows beyond the last
+ * lane wrap around, which is harmless — two rows that far apart have no
+ * vertical stretch in common to collide over.
+ */
+const ELBOW_LANES = Math.max(1, Math.floor((COLUMN_GAP - ELBOW_LANE_START - CONNECTOR_THICKNESS) / ELBOW_LANE_STEP) + 1)
 
 /**
  * One correlativa as orthogonal segments: out of the prerequisite's right edge,
@@ -136,7 +175,7 @@ function connectorSegments(
   rowCount: number
 ): { left: number; top: number; width: number; height: number }[] {
   const startX = columnX(from.column) + BOX_WIDTH
-  const elbowX = startX + ELBOW_OFFSET
+  const elbowX = startX + ELBOW_LANE_START + (from.row % ELBOW_LANES) * ELBOW_LANE_STEP
   const endX = columnX(to.column)
   const startY = rowY(from.row) + BOX_HEIGHT / 2
   const endY = rowY(to.row) + BOX_HEIGHT / 2
@@ -208,12 +247,60 @@ export function PlanMapCanvas({
   // turns the affordance into the availability signal: in a map of eighteen
   // boxes, the ones carrying a `+` are exactly the ones you can cursar now, with
   // no colour to decode.
-  function renderBox(box: PlanMapBox, style: React.CSSProperties): React.JSX.Element {
+  /**
+   * The missing correlativa, as a tooltip hanging off the box.
+   *
+   * It used to be the box's second line. At 138×58 that meant a name and a
+   * full sentence competing for four lines of type, and the name — the thing
+   * you are actually scanning for — lost. The box carries its code like every
+   * other one now.
+   *
+   * NOT hover-only. The sentence is a real `role="tooltip"` wired to the box's
+   * button with `aria-describedby`, and it opens on focus as well, because a
+   * reason that only exists under a mouse pointer does not exist at all for
+   * someone on a keyboard or a screen reader — "saving space" must not cost
+   * them the information.
+   *
+   * On the last row it flips ABOVE the box: the canvas scrolls inside its own
+   * frame, so a tooltip hanging below the bottom row would open into clipped
+   * space.
+   */
+  function renderReason(box: PlanMapBox, row: number): React.JSX.Element | null {
+    if (box.reason === undefined) {
+      return null
+    }
+    const flipped = row === rowCount - 1
+    return (
+      <span
+        role="tooltip"
+        id={reasonId(box.id)}
+        data-testid="plan-map-reason"
+        className={cn(
+          'pointer-events-none absolute left-0 z-10 flex w-max max-w-[194px] items-center gap-2',
+          'rounded-lg border border-border bg-popover px-2.5 py-1.5',
+          'text-[11px] font-semibold text-popover-foreground shadow-[0_4px_16px_#00000073]',
+          'opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100',
+          flipped ? 'bottom-full -mb-[2px]' : 'top-full -mt-[2px]'
+        )}
+      >
+        <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-destructive" aria-hidden="true" />
+        {box.reason}
+      </span>
+    )
+  }
+
+  function renderBox(box: PlanMapBox, style: React.CSSProperties, row: number): React.JSX.Element {
     const content = (
       <>
+        {/* CAPPED AT TWO LINES. The box height is fixed at 58px, so a third
+            line does not make the card taller — it pushes the meta out of it,
+            and the code the student identifies the materia by disappears. The
+            cap is what makes the box survive ANY name, which widening it never
+            could: whatever width is chosen, some carrera has a longer name.
+            The full name is still on the button's `aria-label` and in the rail. */}
         <span
           className={cn(
-            'text-body-sm font-semibold leading-tight',
+            'line-clamp-2 text-body-sm font-semibold leading-tight',
             box.id === selectedId ? 'text-primary-ink' : 'text-foreground'
           )}
         >
@@ -229,26 +316,36 @@ export function PlanMapCanvas({
         data-testid="plan-map-box"
         style={style}
         className={cn(
-          'flex items-center gap-1.5 overflow-hidden rounded-lg border p-2',
+          // `group` so the reason opens on hover or focus anywhere in the box.
+          // NOT `overflow-hidden` any more: that clipped the tooltip to the
+          // box it hangs off, which is the one place it must not stay.
+          // `p-1.5`, not `p-2`: 6px per side is the `.pen`'s padding and it is
+          // what buys the two-line name its room. 58px minus 12 leaves 46 for
+          // 30 (two lines) + 3 (gap) + 11.25 (meta) = 44.25.
+          'group flex items-center gap-1.5 rounded-lg border p-1.5',
           STATE_STYLES[box.state],
           box.id === selectedId && SELECTED_RING
         )}
       >
+        {/* `overflow-hidden` lives HERE, not on the shell: the long name still
+            has to be clipped to its box, but the tooltip hangs outside it. */}
         {onSelect === undefined ? (
-          <div className="flex min-w-0 flex-1 flex-col gap-[3px]">{content}</div>
+          <div className="flex min-w-0 flex-1 flex-col gap-[3px] overflow-hidden">{content}</div>
         ) : (
           <button
             type="button"
             onClick={() => onSelect(box.id)}
             aria-pressed={box.id === selectedId}
+            aria-describedby={box.reason === undefined ? undefined : reasonId(box.id)}
             // "Seleccionar", not "Abrir": on the map a click INSPECTS the
             // materia in the rail. Opening it is a link inside that panel.
             aria-label={t('planMap.selectSubject', { subject: box.name })}
-            className={cn('flex min-w-0 flex-1 flex-col gap-[3px] text-left', interactive)}
+            className={cn('flex min-w-0 flex-1 flex-col gap-[3px] overflow-hidden text-left', interactive)}
           >
             {content}
           </button>
         )}
+        {renderReason(box, row)}
         {onAdd !== undefined && box.state === 'habilitada' && (
           <button
             type="button"
@@ -336,13 +433,17 @@ export function PlanMapCanvas({
           if (box === undefined) {
             return null
           }
-          return renderBox(box, {
-            position: 'absolute',
-            left: columnX(node.column),
-            top: rowY(node.row),
-            width: BOX_WIDTH,
-            height: BOX_HEIGHT
-          })
+          return renderBox(
+            box,
+            {
+              position: 'absolute',
+              left: columnX(node.column),
+              top: rowY(node.row),
+              width: BOX_WIDTH,
+              height: BOX_HEIGHT
+            },
+            node.row
+          )
         })}
       </div>
     </div>

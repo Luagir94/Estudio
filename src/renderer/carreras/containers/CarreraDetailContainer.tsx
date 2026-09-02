@@ -295,9 +295,14 @@ export function CarreraDetailContainer({
       }
       // The reason comes from the planificador's catalog rather than a second
       // copy here: it is the same sentence the borrador already prints.
+      //
+      // It rides in `reason`, NOT in `meta`: a blocked materia shows its code
+      // like every other box and the sentence becomes the box's tooltip. The
+      // two lines were fighting over a 138×58 box, and the name was losing.
       return {
         ...base,
-        meta:
+        meta: subject.code,
+        reason:
           unmet.subjectName === null
             ? t('planificador:candidates.missingUnknownSubject')
             : t('planificador:candidates.missing', {
