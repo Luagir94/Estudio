@@ -156,6 +156,57 @@ describe('carrerasApi', () => {
   })
 })
 
+describe('carrerasApi.detail — upcomingTimelineMarkers', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('window', { api: { carreras } })
+  })
+
+  it('parses a detail response with no upcomingTimelineMarkers field', async () => {
+    carreras.detail.mockResolvedValue({ ok: true, data: sampleProgram })
+
+    await expect(carrerasApi.detail(1)).resolves.toMatchObject({ id: 1 })
+  })
+
+  it('parses a detail response carrying a valid marker array, with no subjectColor key', async () => {
+    const marker = {
+      kind: 'parcial' as const,
+      id: 7,
+      subjectId: 2,
+      periodId: 3,
+      subjectName: 'Derecho Romano',
+      label: '1er parcial',
+      date: '2026-09-10'
+    }
+    carreras.detail.mockResolvedValue({
+      ok: true,
+      data: { ...sampleProgram, upcomingTimelineMarkers: [marker] }
+    })
+
+    const detail = await carrerasApi.detail(1)
+
+    expect(detail.upcomingTimelineMarkers).toEqual([marker])
+  })
+
+  it('rejects a marker with an invalid kind', async () => {
+    const invalidMarker = {
+      kind: 'coloquio',
+      id: 7,
+      subjectId: 2,
+      periodId: 3,
+      subjectName: 'Derecho Romano',
+      label: '1er parcial',
+      date: '2026-09-10'
+    }
+    carreras.detail.mockResolvedValue({
+      ok: true,
+      data: { ...sampleProgram, upcomingTimelineMarkers: [invalidMarker] }
+    })
+
+    await expect(carrerasApi.detail(1)).rejects.toThrow()
+  })
+})
+
 describe('carrerasApi.update', () => {
   const input = {
     id: 1,

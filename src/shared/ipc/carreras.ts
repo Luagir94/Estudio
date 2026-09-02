@@ -207,10 +207,42 @@ export const gradedSubjectSchema = z.object({
 
 export type GradedSubjectRecord = z.infer<typeof gradedSubjectSchema>
 
+// The kinds of upcoming event a timeline marker may represent — a closed
+// catalogue, mirrored on the main side (sqliteProgramRepository.ts) rather
+// than imported, same reason as periodKindSchema above: main must not reach
+// into a renderer slice, and this module must not reach into main's schema.
+export const timelineMarkerKindSchema = z.enum(['parcial', 'final', 'entrega'])
+
+export type TimelineMarkerKind = z.infer<typeof timelineMarkerKindSchema>
+
+// One pending, dated parcial, final or entrega, normalized to a single shape
+// so the renderer's timeline can place all three kinds without a per-kind
+// branch. `date` is `YYYY-MM-DD` by repository contract, typed `z.string()`
+// on this READ shape like `periodRecordSchema.startsOn` above — read shapes
+// stay lenient. There is deliberately NO `subjectColor` field: the approved
+// pen delta colours markers by KIND, never by subject.
+export const timelineMarkerRecordSchema = z.object({
+  kind: timelineMarkerKindSchema,
+  id: z.number().int(),
+  subjectId: z.number().int(),
+  periodId: z.number().int(),
+  subjectName: z.string(),
+  label: z.string(),
+  date: z.string()
+})
+
+export type TimelineMarkerRecord = z.infer<typeof timelineMarkerRecordSchema>
+
 export const programWithPeriodsSchema = programRecordSchema.extend({
   periods: z.array(periodRecordSchema),
   subjectCount: z.number().int(),
-  gradedSubjects: z.array(gradedSubjectSchema)
+  gradedSubjects: z.array(gradedSubjectSchema),
+  // OPTIONAL, never `.default([])`: Zod 4's `.default` keeps the inferred
+  // OUTPUT type required, which would break every existing
+  // `ProgramWithPeriods`-shaped fixture on typecheck. Consumers read
+  // `?? []`. Rides `carreras:list` too (see `listProgramsResultSchema`
+  // below) — unrendered there, exactly as `gradedSubjects` is.
+  upcomingTimelineMarkers: z.array(timelineMarkerRecordSchema).optional()
 })
 
 export type ProgramWithPeriods = z.infer<typeof programWithPeriodsSchema>
