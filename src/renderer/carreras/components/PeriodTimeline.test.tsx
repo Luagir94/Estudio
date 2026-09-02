@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
-import type { PeriodRecord } from '../../../shared/ipc/carreras'
+import { describe, expect, it, vi } from 'vitest'
+import type { PeriodRecord, TimelineMarkerRecord } from '../../../shared/ipc/carreras'
+import { clampedMarkerPosition, timelineScale } from '../domain/timeline'
 import { PeriodTimeline } from './PeriodTimeline'
 
 const today = new Date(2026, 7, 15)
@@ -41,6 +42,28 @@ function widthOf(name: string): number {
 
 function leftOf(name: string): number {
   return Number.parseFloat(barOf(name).style.left)
+}
+
+function trackOf(name: string): HTMLElement {
+  const label = screen.getByText(name)
+  const row = label.closest('li')
+  if (!row) throw new Error(`no row for ${name}`)
+  const track = row.querySelector('[data-testid="timeline-track"]')
+  if (!(track instanceof HTMLElement)) throw new Error(`no track for ${name}`)
+  return track
+}
+
+function marker(overrides: Partial<TimelineMarkerRecord> = {}): TimelineMarkerRecord {
+  return {
+    kind: 'parcial',
+    id: 1,
+    subjectId: 10,
+    periodId: 3,
+    subjectName: 'ITICS',
+    label: 'Parcial 1',
+    date: '2026-09-10',
+    ...overrides
+  }
 }
 
 describe('PeriodTimeline', () => {
@@ -124,5 +147,82 @@ describe('PeriodTimeline', () => {
     expect(label).toHaveClass('break-words')
     // The column that keeps the bars aligned is not what was wrong.
     expect(label).toHaveClass('w-40', 'shrink-0')
+  })
+})
+
+// Marker wiring (design D7-D11, pen-delta #543): the domain (timelineMarkers.ts)
+// already proves filtering/positioning/clustering in isolation — these tests
+// prove THIS component actually calls it and dispatches on the result.
+describe('PeriodTimeline — upcoming markers', () => {
+  it("renders a marker as an absolute child of its owning period row's track, never the bar, at the domain-computed clamped percent", () => {
+    const upcoming = marker({ periodId: 3, date: '2026-09-10' })
+    render(<PeriodTimeline periods={periods} now={today} markers={[upcoming]} onOpenSubject={vi.fn()} />)
+
+    const chip = screen.getByTestId('timeline-marker')
+    expect(trackOf('2do Cuatrimestre 2026').contains(chip)).toBe(true)
+    expect(barOf('2do Cuatrimestre 2026').contains(chip)).toBe(false)
+
+    const scale = timelineScale(periods, today)!
+    expect(Number.parseFloat(chip.style.left)).toBeCloseTo(clampedMarkerPosition(upcoming.date, scale), 5)
+  })
+
+  it('does not render a marker dated before now', () => {
+    render(
+      <PeriodTimeline
+        periods={periods}
+        now={today}
+        markers={[marker({ date: '2026-01-01' })]}
+        onOpenSubject={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByTestId('timeline-marker')).not.toBeInTheDocument()
+  })
+
+  it('grows only the row with a marker to 34px, keeping every other row at 26px exactly as today', () => {
+    render(
+      <PeriodTimeline
+        periods={periods}
+        now={today}
+        markers={[marker({ periodId: 3, date: '2026-09-10' })]}
+        onOpenSubject={vi.fn()}
+      />
+    )
+
+    expect(trackOf('2do Cuatrimestre 2026')).toHaveClass('h-[34px]')
+    expect(trackOf('1er Cuatrimestre 2026')).toHaveClass('h-[26px]')
+    expect(trackOf('Anual 2026')).toHaveClass('h-[26px]')
+    expect(barOf('2do Cuatrimestre 2026')).toHaveClass('top-0', 'h-[26px]')
+  })
+
+  it('keeps every track at 26px when there are no markers at all — the eventless regression case', () => {
+    render(<PeriodTimeline periods={periods} now={today} />)
+
+    for (const period of periods) {
+      expect(trackOf(period.name)).toHaveClass('h-[26px]')
+      expect(trackOf(period.name)).not.toHaveClass('h-[34px]')
+    }
+  })
+
+  it('clusters two markers within the threshold into one cluster chip instead of two single markers', () => {
+    render(
+      <PeriodTimeline
+        periods={periods}
+        now={today}
+        markers={[marker({ id: 1, date: '2026-09-10' }), marker({ id: 2, kind: 'final', date: '2026-09-11' })]}
+        onOpenSubject={vi.fn()}
+      />
+    )
+
+    expect(screen.getByTestId('timeline-marker-cluster')).toBeInTheDocument()
+    expect(screen.queryByTestId('timeline-marker')).not.toBeInTheDocument()
+  })
+
+  it('shows the event-kind legend after a divider, reusing the existing markerKind copy', () => {
+    render(<PeriodTimeline periods={periods} now={today} />)
+
+    expect(screen.getByText('Parcial')).toBeInTheDocument()
+    expect(screen.getByText('Final')).toBeInTheDocument()
+    expect(screen.getByText('Entrega')).toBeInTheDocument()
   })
 })

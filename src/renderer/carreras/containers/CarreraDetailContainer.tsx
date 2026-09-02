@@ -491,7 +491,14 @@ export function CarreraDetailContainer({
             </div>
           )}
 
-          {activeTab === 'periods' && <PeriodTimeline periods={data.periods} now={today} />}
+          {activeTab === 'periods' && (
+            <PeriodTimeline
+              periods={data.periods}
+              now={today}
+              markers={data.upcomingTimelineMarkers ?? []}
+              onOpenSubject={onOpenSubject}
+            />
+          )}
 
           {/* Two-column body, same layout language as SubjectDetail: the rail
               is a SIDE panel only while there is a side to put it on — below

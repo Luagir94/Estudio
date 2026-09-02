@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ProgramWithPeriods } from '../../../shared/ipc/carreras'
+import type { ProgramWithPeriods, TimelineMarkerRecord } from '../../../shared/ipc/carreras'
 import type { SubjectWithStatus } from '../../../shared/ipc/materias'
 import { CarreraDetailContainer } from './CarreraDetailContainer'
 
@@ -1204,6 +1204,59 @@ describe('CarreraDetailContainer — materias de la carrera', () => {
     await userEvent.click(screen.getByRole('button', { name: /Derecho Constitucional/ }))
 
     expect(onOpenSubject).toHaveBeenCalledWith(1)
+  })
+})
+
+// Wiring for the upcoming timeline markers (design D7-D11, pen-delta #543):
+// `PeriodTimeline` itself already proves the rendering rules — these tests
+// only prove the container hands the wire field and its existing
+// `onOpenSubject` through, the same way it already does for the subject list.
+describe('CarreraDetailContainer — upcoming timeline markers', () => {
+  const upcomingMarker: TimelineMarkerRecord = {
+    kind: 'parcial',
+    id: 1,
+    subjectId: 7,
+    periodId: 2,
+    subjectName: 'Derecho Constitucional',
+    label: 'Parcial 1',
+    date: '2026-09-01'
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    planificadorApiMock.list.mockResolvedValue([])
+    materiasApiMock.list.mockResolvedValue([])
+    fechasApiMock.list.mockResolvedValue([])
+  })
+
+  it('passes data.upcomingTimelineMarkers through to the period timeline', async () => {
+    carrerasApiMock.detail.mockResolvedValue({ ...abogacia, upcomingTimelineMarkers: [upcomingMarker] })
+    renderDetail()
+
+    expect(await screen.findByTestId('timeline-marker')).toBeInTheDocument()
+  })
+
+  it("reaches the container's onOpenSubject when a marker chip is clicked", async () => {
+    carrerasApiMock.detail.mockResolvedValue({ ...abogacia, upcomingTimelineMarkers: [upcomingMarker] })
+    const onOpenSubject = vi.fn()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <CarreraDetailContainer programId={1} onBack={vi.fn()} onOpenSubject={onOpenSubject} now={today} />
+      </QueryClientProvider>
+    )
+
+    await userEvent.click(await screen.findByTestId('timeline-marker'))
+
+    expect(onOpenSubject).toHaveBeenCalledWith(7)
+  })
+
+  it('renders no marker chip when the field is absent from the payload', async () => {
+    carrerasApiMock.detail.mockResolvedValue(abogacia)
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+
+    expect(screen.queryByTestId('timeline-marker')).not.toBeInTheDocument()
   })
 })
 
