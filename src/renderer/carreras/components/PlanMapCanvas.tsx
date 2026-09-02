@@ -77,6 +77,25 @@ const SELECTED_RING = 'border-2 border-primary-ink'
 /** Button `tBKFb` from the `.pen`: 22×22, radius 6, icon 14, centred. */
 const ACTION_BUTTON = 'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-md text-primary-ink'
 
+/**
+ * What one line says about the correlativa it draws — and it says ONE thing:
+ * whether that requirement is met.
+ *
+ * There is deliberately NO third state for "this line touches the borrador".
+ * Drafting a materia meets no requirement, so painting its lines announces
+ * progress the student has not made — and the borrador is already legible on
+ * the boxes themselves. Colour on a line is spent on the one fact that earns
+ * it, which is what keeps a map of eighteen boxes readable at a glance.
+ */
+type PlanMapConnectorState = 'cumplida' | 'pendiente'
+
+// `--color-ok` is the same green the aprobada box already wears, so the line
+// agrees with the box it leaves instead of introducing a third colour.
+const CONNECTOR_STYLES: Record<PlanMapConnectorState, string> = {
+  cumplida: 'bg-(--color-ok)',
+  pendiente: 'bg-border'
+}
+
 const META_STYLES: Record<PlanMapBoxState, string> = {
   aprobada: 'text-(--color-ok)',
   enBorrador: 'text-primary-ink',
@@ -290,16 +309,24 @@ export function PlanMapCanvas({
           if (from === undefined || to === undefined || from.column >= to.column) {
             return []
           }
-          const drafted =
-            boxById.get(edge.subjectId)?.state === 'enBorrador' ||
-            boxById.get(edge.requiresSubjectId)?.state === 'enBorrador'
+          // Read off the PREREQUISITE's state, never the dependent's: the line
+          // reports whether the requirement is satisfied, and only the subject
+          // that IS the requirement can settle that.
+          const state: PlanMapConnectorState =
+            boxById.get(edge.requiresSubjectId)?.state === 'aprobada' ? 'cumplida' : 'pendiente'
+          const edgeKey = `${edge.requiresSubjectId}-${edge.subjectId}`
           return connectorSegments(from, to, rowCount).map((segment, index) => (
             <span
-              key={`${edge.requiresSubjectId}-${edge.subjectId}-${index}`}
+              key={`${edgeKey}-${index}`}
               data-testid="plan-map-connector"
+              // Which correlativa this segment belongs to, and its verdict. A
+              // line is drawn in pieces, so without these the DOM cannot say
+              // which line any of them is part of.
+              data-edge={edgeKey}
+              data-state={state}
               aria-hidden="true"
               style={segment}
-              className={cn('absolute', drafted ? 'bg-primary' : 'bg-border')}
+              className={cn('absolute', CONNECTOR_STYLES[state])}
             />
           ))
         })}

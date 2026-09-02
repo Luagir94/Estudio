@@ -247,6 +247,72 @@ describe('PlanMapCanvas — column headings are the order, not the index', () =>
 // column used to run straight at the target's row, driving it through whatever
 // box sat between. Three boxes in a line with a rule through them read as a
 // chain — you could not tell what connected to what.
+describe('PlanMapCanvas — what a connector says about its correlativa', () => {
+  const subjects = [
+    { id: 1, nivel: 1 },
+    { id: 2, nivel: 1 },
+    { id: 3, nivel: 2 },
+    { id: 4, nivel: 2 }
+  ]
+  const edges = [
+    { subjectId: 3, requiresSubjectId: 1 },
+    { subjectId: 3, requiresSubjectId: 2 },
+    { subjectId: 4, requiresSubjectId: 2 }
+  ]
+  const boxes: PlanMapBox[] = [
+    { id: 1, name: 'Paradigmas', meta: 'PAR · Aprobada', state: 'aprobada' },
+    { id: 2, name: 'Sintaxis', meta: 'SIN', state: 'habilitada' },
+    { id: 3, name: 'Gestión de Datos', meta: 'GDD · En tu borrador', state: 'enBorrador' },
+    { id: 4, name: 'Diseño de Sistemas', meta: 'DDS', state: 'habilitada' }
+  ]
+
+  function connectorsByState(container: HTMLElement, state: string): Element[] {
+    return [...container.querySelectorAll(`[data-testid="plan-map-connector"][data-state="${state}"]`)]
+  }
+
+  function renderColoured() {
+    return render(<PlanMapCanvas layout={layOutPlanMap(subjects, edges)} boxes={boxes} edges={edges} />)
+  }
+
+  it('lights the correlativa whose prerequisite is already aprobada', () => {
+    const { container } = renderColoured()
+
+    const met = connectorsByState(container, 'cumplida')
+    expect(met.length).toBeGreaterThan(0)
+    expect(met.every((segment) => segment.className.includes('bg-(--color-ok)'))).toBe(true)
+  })
+
+  it('leaves a correlativa nobody has met yet on the border colour', () => {
+    const { container } = renderColoured()
+
+    const pending = connectorsByState(container, 'pendiente')
+    expect(pending.length).toBeGreaterThan(0)
+    expect(pending.every((segment) => segment.className.includes('bg-border'))).toBe(true)
+  })
+
+  // The borrador is NOT a reason to paint a line. Edge 2 → 3 ends in a drafted
+  // materia and edge 1 → 3 starts in an aprobada one, and only the second is
+  // lit: what the colour reports is whether the requirement is MET, and putting
+  // a subject in the borrador does not meet anything.
+  it('never paints a line for a correlativa the borrador merely touches', () => {
+    const { container } = renderColoured()
+
+    const states = [...container.querySelectorAll('[data-testid="plan-map-connector"]')].map((segment) =>
+      segment.getAttribute('data-state')
+    )
+    expect(new Set(states)).toEqual(new Set(['cumplida', 'pendiente']))
+
+    // 1 → 3 is the only edge leaving an aprobada, so every lit segment belongs
+    // to it — and 2 → 3, which ends in the same drafted box, stays dim.
+    const litEdges = new Set(
+      [...container.querySelectorAll('[data-testid="plan-map-connector"][data-state="cumplida"]')].map((segment) =>
+        segment.getAttribute('data-edge')
+      )
+    )
+    expect([...litEdges]).toEqual(['1-3'])
+  })
+})
+
 describe('PlanMapCanvas — an edge that skips a column', () => {
   // Geometry from the approved `.pen`, mirrored by the component's constants.
   const BOX_WIDTH = 138
@@ -276,6 +342,9 @@ describe('PlanMapCanvas — an edge that skips a column', () => {
     b: { left: number; top: number; width: number; height: number }
   ) => a.left < b.left + b.width && a.left + a.width > b.left && a.top < b.top + b.height && a.top + a.height > b.top
 
+  // The line IS the verdict on the correlativa it draws. A prerequisite that is
+  // already aprobada makes it met, and a met requirement that reads the same
+  // grey as an unmet one tells the student nothing.
   it('never draws a connector across a box', () => {
     // 1 requires nothing, 2 requires 1, 3 requires 2 AND 1 — that last edge
     // spans two columns and must get out of the way of the middle box.
