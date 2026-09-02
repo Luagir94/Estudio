@@ -2,7 +2,7 @@ import path from 'node:path'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { openAppDatabase } from '../../db/connection'
-import { finalExams, periods, subjects } from '../../db/schema'
+import { deadlines, finalExams, partialExams, periods, subjects } from '../../db/schema'
 import { createSqliteProgramRepository } from './sqliteProgramRepository'
 
 const migrationsFolder = path.join(__dirname, '../../../../drizzle/migrations')
@@ -424,6 +424,276 @@ describe('createSqliteProgramRepository', () => {
 
   it('remove returns null for an unknown program', () => {
     expect(createSqliteProgramRepository(db).remove(999)).toBeNull()
+  })
+})
+
+// The projection that feeds the carrera detail's timeline (design §
+// "Owned Vocabulary" / spec "carrera-timeline-markers-projection"). SQL
+// filters ONLY on pending status and a non-null date — "today" is a
+// rendering-time concern (spec "The projection is not filtered by 'today'"),
+// never a projection-time one, so a past-dated pending row must still
+// appear.
+describe('createSqliteProgramRepository — upcomingTimelineMarkers (parciales)', () => {
+  let db: ReturnType<typeof createTestDb>
+
+  beforeEach(() => {
+    db = createTestDb()
+  })
+
+  function seedSubject(programId: number) {
+    const repository = createSqliteProgramRepository(db)
+    const period = repository.createPeriod({
+      programId,
+      name: '1er 2026',
+      kind: 'cuatrimestre',
+      startsOn: '2026-03-09',
+      endsOn: '2026-07-18'
+    })
+    const subject = db
+      .insert(subjects)
+      .values({ name: 'Derecho Romano', code: 'DR-101', color: '#4C8DFF', periodId: period.id })
+      .returning()
+      .get()
+    return { period, subject }
+  }
+
+  it('includes a pending, dated parcial with periodId, subjectName, label and date, no subjectColor', () => {
+    const repository = createSqliteProgramRepository(db)
+    const program = repository.create(abogacia)
+    const { period, subject } = seedSubject(program.id)
+    const exam = db
+      .insert(partialExams)
+      .values({ subjectId: subject.id, label: '1er parcial', takenOn: '2026-09-10', result: 'pendiente' })
+      .returning()
+      .get()
+
+    const detail = repository.detail(program.id)
+
+    expect(detail?.upcomingTimelineMarkers).toEqual([
+      {
+        kind: 'parcial',
+        id: exam.id,
+        subjectId: subject.id,
+        periodId: period.id,
+        subjectName: 'Derecho Romano',
+        label: '1er parcial',
+        date: '2026-09-10'
+      }
+    ])
+    expect(detail?.upcomingTimelineMarkers?.[0]).not.toHaveProperty('subjectColor')
+  })
+
+  it('excludes a parcial marked aprobado or reprobado', () => {
+    const repository = createSqliteProgramRepository(db)
+    const program = repository.create(abogacia)
+    const { subject } = seedSubject(program.id)
+    db.insert(partialExams)
+      .values({ subjectId: subject.id, label: 'aprobado', takenOn: '2026-09-10', result: 'aprobado' })
+      .run()
+    db.insert(partialExams)
+      .values({ subjectId: subject.id, label: 'reprobado', takenOn: '2026-09-11', result: 'reprobado' })
+      .run()
+
+    expect(repository.detail(program.id)?.upcomingTimelineMarkers).toEqual([])
+  })
+
+  it('excludes a pending parcial with no taken date', () => {
+    const repository = createSqliteProgramRepository(db)
+    const program = repository.create(abogacia)
+    const { subject } = seedSubject(program.id)
+    db.insert(partialExams).values({ subjectId: subject.id, label: 'sin fecha', result: 'pendiente' }).run()
+
+    expect(repository.detail(program.id)?.upcomingTimelineMarkers).toEqual([])
+  })
+
+  it("excludes another program's subject", () => {
+    const repository = createSqliteProgramRepository(db)
+    const program = repository.create(abogacia)
+    const otherProgram = repository.create(bartender)
+    const { subject: otherSubject } = seedSubject(otherProgram.id)
+    db.insert(partialExams)
+      .values({ subjectId: otherSubject.id, label: 'ajena', takenOn: '2026-09-10', result: 'pendiente' })
+      .run()
+
+    expect(repository.detail(program.id)?.upcomingTimelineMarkers).toEqual([])
+  })
+
+  it('still includes a past-dated pending parcial — no "now" filter reaches SQL', () => {
+    const repository = createSqliteProgramRepository(db)
+    const program = repository.create(abogacia)
+    const { subject } = seedSubject(program.id)
+    db.insert(partialExams)
+      .values({ subjectId: subject.id, label: 'vencido', takenOn: '2020-01-01', result: 'pendiente' })
+      .run()
+
+    expect(repository.detail(program.id)?.upcomingTimelineMarkers).toHaveLength(1)
+  })
+})
+
+describe('createSqliteProgramRepository — upcomingTimelineMarkers (finales)', () => {
+  let db: ReturnType<typeof createTestDb>
+
+  beforeEach(() => {
+    db = createTestDb()
+  })
+
+  function seedSubject(programId: number) {
+    const repository = createSqliteProgramRepository(db)
+    const period = repository.createPeriod({
+      programId,
+      name: '1er 2026',
+      kind: 'cuatrimestre',
+      startsOn: '2026-03-09',
+      endsOn: '2026-07-18'
+    })
+    const subject = db
+      .insert(subjects)
+      .values({ name: 'Derecho Romano', code: 'DR-101', color: '#4C8DFF', periodId: period.id })
+      .returning()
+      .get()
+    return { period, subject }
+  }
+
+  it('includes a pending, dated final with periodId, subjectName, label and date', () => {
+    const repository = createSqliteProgramRepository(db)
+    const program = repository.create(abogacia)
+    const { period, subject } = seedSubject(program.id)
+    const exam = db
+      .insert(finalExams)
+      .values({ subjectId: subject.id, label: '1ra mesa', takenOn: '2026-09-15', result: 'pendiente' })
+      .returning()
+      .get()
+
+    expect(repository.detail(program.id)?.upcomingTimelineMarkers).toEqual([
+      {
+        kind: 'final',
+        id: exam.id,
+        subjectId: subject.id,
+        periodId: period.id,
+        subjectName: 'Derecho Romano',
+        label: '1ra mesa',
+        date: '2026-09-15'
+      }
+    ])
+  })
+
+  it('excludes a final marked resuelto or undated', () => {
+    const repository = createSqliteProgramRepository(db)
+    const program = repository.create(abogacia)
+    const { subject } = seedSubject(program.id)
+    db.insert(finalExams)
+      .values({ subjectId: subject.id, label: 'aprobada', takenOn: '2026-09-15', result: 'aprobado' })
+      .run()
+    db.insert(finalExams).values({ subjectId: subject.id, label: 'sin fecha', result: 'pendiente' }).run()
+
+    expect(repository.detail(program.id)?.upcomingTimelineMarkers).toEqual([])
+  })
+
+  it("excludes another program's final", () => {
+    const repository = createSqliteProgramRepository(db)
+    const program = repository.create(abogacia)
+    const otherProgram = repository.create(bartender)
+    const { subject: otherSubject } = seedSubject(otherProgram.id)
+    db.insert(finalExams)
+      .values({ subjectId: otherSubject.id, label: 'ajena', takenOn: '2026-09-15', result: 'pendiente' })
+      .run()
+
+    expect(repository.detail(program.id)?.upcomingTimelineMarkers).toEqual([])
+  })
+
+  it('still includes a past-dated pending final — no "now" filter reaches SQL', () => {
+    const repository = createSqliteProgramRepository(db)
+    const program = repository.create(abogacia)
+    const { subject } = seedSubject(program.id)
+    db.insert(finalExams)
+      .values({ subjectId: subject.id, label: 'vencida', takenOn: '2020-01-01', result: 'pendiente' })
+      .run()
+
+    expect(repository.detail(program.id)?.upcomingTimelineMarkers).toHaveLength(1)
+  })
+})
+
+describe('createSqliteProgramRepository — upcomingTimelineMarkers (entregas)', () => {
+  let db: ReturnType<typeof createTestDb>
+
+  beforeEach(() => {
+    db = createTestDb()
+  })
+
+  function seedSubject(programId: number) {
+    const repository = createSqliteProgramRepository(db)
+    const period = repository.createPeriod({
+      programId,
+      name: '1er 2026',
+      kind: 'cuatrimestre',
+      startsOn: '2026-03-09',
+      endsOn: '2026-07-18'
+    })
+    const subject = db
+      .insert(subjects)
+      .values({ name: 'Derecho Romano', code: 'DR-101', color: '#4C8DFF', periodId: period.id })
+      .returning()
+      .get()
+    return { period, subject }
+  }
+
+  it('includes a pending entrega (done: false), title as label', () => {
+    const repository = createSqliteProgramRepository(db)
+    const program = repository.create(abogacia)
+    const { period, subject } = seedSubject(program.id)
+    const deadline = db
+      .insert(deadlines)
+      .values({ subjectId: subject.id, title: 'TP1', type: 'trabajo', dueAt: '2026-09-10T18:00', done: false })
+      .returning()
+      .get()
+
+    expect(repository.detail(program.id)?.upcomingTimelineMarkers).toEqual([
+      {
+        kind: 'entrega',
+        id: deadline.id,
+        subjectId: subject.id,
+        periodId: period.id,
+        subjectName: 'Derecho Romano',
+        label: 'TP1',
+        date: '2026-09-10'
+      }
+    ])
+  })
+
+  it('excludes a done entrega', () => {
+    const repository = createSqliteProgramRepository(db)
+    const program = repository.create(abogacia)
+    const { subject } = seedSubject(program.id)
+    db.insert(deadlines)
+      .values({ subjectId: subject.id, title: 'TP1', type: 'trabajo', dueAt: '2026-09-10T18:00', done: true })
+      .run()
+
+    expect(repository.detail(program.id)?.upcomingTimelineMarkers).toEqual([])
+  })
+
+  it("truncates dueAt's time-of-day to the calendar day only", () => {
+    const repository = createSqliteProgramRepository(db)
+    const program = repository.create(abogacia)
+    const { subject } = seedSubject(program.id)
+    db.insert(deadlines)
+      .values({ subjectId: subject.id, title: 'TP2', type: 'trabajo', dueAt: '2026-11-20T23:59', done: false })
+      .run()
+
+    const marker = repository.detail(program.id)?.upcomingTimelineMarkers?.[0]
+
+    expect(marker?.date).toBe('2026-11-20')
+    expect(marker?.date).not.toContain('T')
+  })
+
+  it('still includes a past-dated pending entrega — no "now" filter reaches SQL', () => {
+    const repository = createSqliteProgramRepository(db)
+    const program = repository.create(abogacia)
+    const { subject } = seedSubject(program.id)
+    db.insert(deadlines)
+      .values({ subjectId: subject.id, title: 'vencido', type: 'trabajo', dueAt: '2020-01-01T09:00', done: false })
+      .run()
+
+    expect(repository.detail(program.id)?.upcomingTimelineMarkers).toHaveLength(1)
   })
 })
 

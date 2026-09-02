@@ -1,4 +1,4 @@
-import { eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, isNotNull } from 'drizzle-orm'
 import type {
   CreatePeriodInput,
   CreateProgramInput,
@@ -10,11 +10,13 @@ import type {
   ProgramRecord,
   ProgramWithPeriods,
   SubjectOutcome,
+  TimelineMarkerKind,
+  TimelineMarkerRecord,
   UpdatePeriodInput,
   UpdateProgramInput
 } from '../../../shared/ipc/carreras'
 import type { AppDatabase } from '../../db/connection'
-import { finalExams, periods, programs, subjects } from '../../db/schema'
+import { deadlines, finalExams, partialExams, periods, programs, subjects } from '../../db/schema'
 
 export interface ProgramRepository {
   create(input: CreateProgramInput): ProgramRecord
@@ -111,10 +113,76 @@ function ranksAboveApproved(
   return candidate.id > current.id
 }
 
+// A row feeding one timeline marker, common shape across parciales, finales
+// and entregas (design "Owned Vocabulary" — no `subjectColor`: the approved
+// pen delta colours markers by KIND, never by subject).
+interface TimelineMarkerRow {
+  id: number
+  subjectId: number
+  periodId: number
+  subjectName: string
+  label: string
+  date: string
+  programId: number
+}
+
+// The raw shape each SELECT below returns, BEFORE narrowing. `periodId` is
+// typed nullable only because `subjects.periodId` is nullable at the column
+// level — the inner join on `periods` means an unassigned subject never
+// reaches this row, so it is always populated in practice. `date` is typed
+// nullable only for parciales/finales, whose `takenOn` column allows NULL —
+// the SQL `isNotNull` filter guarantees it is never actually null here;
+// `deadlines.due_at` is NOT NULL already.
+interface TimelineMarkerQueryRow {
+  id: number
+  subjectId: number
+  periodId: number | null
+  subjectName: string
+  label: string
+  date: string | null
+  programId: number
+}
+
 /**
- * Loads periods and subject roll-ups for a set of programs in a FIXED number
- * of queries (four), never one per program — the Carreras screen renders
- * every program at once.
+ * The ONLY place a marker's `date` is normalised: `deadlines.due_at` carries
+ * a local naive datetime (`schema.ts`'s docblock on `deadlines`), while
+ * parciales/finales already store a bare calendar day — `.slice(0, 10)` is a
+ * no-op for those and truncates the time-of-day for an entrega (spec
+ * "Entrega marker dates carry no time-of-day").
+ */
+function toTimelineMarkerRecord(kind: TimelineMarkerKind, row: TimelineMarkerRow): TimelineMarkerRecord {
+  return {
+    kind,
+    id: row.id,
+    subjectId: row.subjectId,
+    periodId: row.periodId,
+    subjectName: row.subjectName,
+    label: row.label,
+    date: row.date.slice(0, 10)
+  }
+}
+
+/**
+ * Maps a kind's raw query rows into `byProgram`, mutating it in place. Narrows
+ * `periodId`/`date` to non-null — see `TimelineMarkerQueryRow`'s comment for
+ * why that narrowing is always safe here.
+ */
+function bucketTimelineMarkers(
+  byProgram: Map<number, TimelineMarkerRecord[]>,
+  kind: TimelineMarkerKind,
+  rows: TimelineMarkerQueryRow[]
+): void {
+  for (const row of rows) {
+    const bucket = byProgram.get(row.programId) ?? []
+    bucket.push(toTimelineMarkerRecord(kind, row as TimelineMarkerRow))
+    byProgram.set(row.programId, bucket)
+  }
+}
+
+/**
+ * Loads periods, subject roll-ups and upcoming timeline markers for a set of
+ * programs in a FIXED number of queries (seven), never one per program — the
+ * Carreras screen renders every program at once.
  */
 function assemble(db: AppDatabase, programRows: ProgramRow[]): ProgramWithPeriods[] {
   if (programRows.length === 0) {
@@ -162,6 +230,74 @@ function assemble(db: AppDatabase, programRows: ProgramRow[]): ProgramWithPeriod
     }
   }
 
+  // Pending, dated parciales for the timeline (design "Owned Vocabulary").
+  // SQL filters ONLY on pending status and a non-null date — the "today" cut
+  // is a rendering-time concern (spec "The projection is not filtered by
+  // 'today'"), so a past-dated pending row is deliberately still selected
+  // here.
+  const partialExamRows = db
+    .select({
+      id: partialExams.id,
+      subjectId: partialExams.subjectId,
+      periodId: subjects.periodId,
+      subjectName: subjects.name,
+      label: partialExams.label,
+      date: partialExams.takenOn,
+      programId: periods.programId
+    })
+    .from(partialExams)
+    .innerJoin(subjects, eq(partialExams.subjectId, subjects.id))
+    .innerJoin(periods, eq(subjects.periodId, periods.id))
+    .where(
+      and(inArray(periods.programId, programIds), eq(partialExams.result, 'pendiente'), isNotNull(partialExams.takenOn))
+    )
+    .all()
+
+  // Pending, dated finales — same shape and same "no 'now' in SQL" rule as
+  // the parcial query above.
+  const finalExamRows = db
+    .select({
+      id: finalExams.id,
+      subjectId: finalExams.subjectId,
+      periodId: subjects.periodId,
+      subjectName: subjects.name,
+      label: finalExams.label,
+      date: finalExams.takenOn,
+      programId: periods.programId
+    })
+    .from(finalExams)
+    .innerJoin(subjects, eq(finalExams.subjectId, subjects.id))
+    .innerJoin(periods, eq(subjects.periodId, periods.id))
+    .where(
+      and(inArray(periods.programId, programIds), eq(finalExams.result, 'pendiente'), isNotNull(finalExams.takenOn))
+    )
+    .all()
+
+  // Pending entregas. No null-date filter: `deadlines.due_at` is NOT NULL
+  // (`schema.ts`), unlike `takenOn` above. `title` stands in for `label`
+  // (design "Owned Vocabulary"), and its normalisation to a calendar-day
+  // `date` happens in `toTimelineMarkerRecord`, not here.
+  const deadlineRows = db
+    .select({
+      id: deadlines.id,
+      subjectId: deadlines.subjectId,
+      periodId: subjects.periodId,
+      subjectName: subjects.name,
+      label: deadlines.title,
+      date: deadlines.dueAt,
+      programId: periods.programId
+    })
+    .from(deadlines)
+    .innerJoin(subjects, eq(deadlines.subjectId, subjects.id))
+    .innerJoin(periods, eq(subjects.periodId, periods.id))
+    .where(and(inArray(periods.programId, programIds), eq(deadlines.done, false)))
+    .all()
+
+  const timelineMarkersByProgram = new Map<number, TimelineMarkerRecord[]>()
+  bucketTimelineMarkers(timelineMarkersByProgram, 'parcial', partialExamRows)
+  bucketTimelineMarkers(timelineMarkersByProgram, 'final', finalExamRows)
+  bucketTimelineMarkers(timelineMarkersByProgram, 'entrega', deadlineRows)
+
   const periodsByProgram = new Map<number, PeriodRecord[]>()
   for (const row of periodRows) {
     const bucket = periodsByProgram.get(row.programId) ?? []
@@ -190,7 +326,8 @@ function assemble(db: AppDatabase, programRows: ProgramRow[]): ProgramWithPeriod
       // chronologically without every caller re-sorting.
       periods: [...(periodsByProgram.get(row.id) ?? [])].sort((a, b) => a.startsOn.localeCompare(b.startsOn)),
       subjectCount: gradedSubjects.length,
-      gradedSubjects
+      gradedSubjects,
+      upcomingTimelineMarkers: timelineMarkersByProgram.get(row.id) ?? []
     }
   })
 }
