@@ -44990,21 +44990,21 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "ITc2C",
+                                  "id": "Jrlbv",
                                   "name": "Track",
                                   "width": 756,
                                   "height": 34,
                                   "children": [
                                     {
                                       "type": "frame",
-                                      "id": "w8B3F",
+                                      "id": "cQNKE",
                                       "name": "Offset",
                                       "width": 534,
                                       "height": 1
                                     },
                                     {
                                       "type": "frame",
-                                      "id": "Gbswp",
+                                      "id": "cUsve",
                                       "name": "Bar",
                                       "clip": true,
                                       "width": 162,
@@ -45022,7 +45022,7 @@
                                       "children": [
                                         {
                                           "type": "text",
-                                          "id": "GxGMt",
+                                          "id": "SLngc",
                                           "name": "Bar Label",
                                           "fill": "$on-accent",
                                           "content": "12 ago – 04 dic 2026",
@@ -45034,31 +45034,31 @@
                                     },
                                     {
                                       "type": "frame",
-                                      "id": "fJSAA",
+                                      "id": "v5K7XC",
                                       "layoutPosition": "absolute",
-                                      "x": 568,
-                                      "y": 19,
-                                      "name": "Event Marker — Parcial 1 · ITICS · 10 sep",
-                                      "width": 14,
-                                      "height": 14,
+                                      "x": 567,
+                                      "y": 18,
+                                      "name": "Event Marker — Parcial 1 · ITICS · 10 sep (hover)",
+                                      "width": 16,
+                                      "height": 16,
                                       "fill": "$surface",
-                                      "cornerRadius": 7,
+                                      "cornerRadius": 8,
                                       "justifyContent": "center",
                                       "alignItems": "center",
                                       "children": [
                                         {
                                           "type": "ellipse",
-                                          "id": "gHA2s",
+                                          "id": "w8nKd",
                                           "name": "Marker Dot",
                                           "fill": "$warn",
-                                          "width": 8,
-                                          "height": 8
+                                          "width": 10,
+                                          "height": 10
                                         }
                                       ]
                                     },
                                     {
                                       "type": "frame",
-                                      "id": "oIJ82",
+                                      "id": "NKXEX",
                                       "layoutPosition": "absolute",
                                       "x": 594,
                                       "y": 19,
@@ -45072,7 +45072,7 @@
                                       "children": [
                                         {
                                           "type": "ellipse",
-                                          "id": "NSWPP",
+                                          "id": "DNm8L",
                                           "name": "Marker Dot",
                                           "fill": "$ok",
                                           "width": 8,
@@ -45082,7 +45082,7 @@
                                     },
                                     {
                                       "type": "frame",
-                                      "id": "MPDWU",
+                                      "id": "JhY8T",
                                       "layoutPosition": "absolute",
                                       "x": 666,
                                       "y": 19,
@@ -45096,11 +45096,70 @@
                                       "children": [
                                         {
                                           "type": "ellipse",
-                                          "id": "MFwj7",
+                                          "id": "js86W",
                                           "name": "Marker Dot",
                                           "fill": "$urgent",
                                           "width": 8,
                                           "height": 8
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "ZTgrE",
+                                      "layoutPosition": "absolute",
+                                      "x": 495,
+                                      "y": -34,
+                                      "name": "Marker Tooltip",
+                                      "fill": "$surface",
+                                      "cornerRadius": 8,
+                                      "stroke": "$border",
+                                      "strokeWidth": 1,
+                                      "strokeAlignment": "inner",
+                                      "effect": {
+                                        "type": "shadow",
+                                        "shadowType": "outer",
+                                        "color": "#00000073",
+                                        "offset": {
+                                          "x": 0,
+                                          "y": 4
+                                        },
+                                        "blur": 16
+                                      },
+                                      "gap": 8,
+                                      "padding": [
+                                        6,
+                                        10
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "ellipse",
+                                          "id": "YiB6Z",
+                                          "name": "Tooltip Dot",
+                                          "fill": "$warn",
+                                          "width": 7,
+                                          "height": 7
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "srExB",
+                                          "name": "Tooltip Title",
+                                          "fill": "$text-primary",
+                                          "content": "Parcial 1 · ITICS",
+                                          "fontFamily": "$font-ui",
+                                          "fontSize": 11,
+                                          "fontWeight": "600"
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "vSSat",
+                                          "name": "Tooltip Date",
+                                          "fill": "$text-muted",
+                                          "content": "10 sep",
+                                          "fontFamily": "$font-ui",
+                                          "fontSize": 11,
+                                          "fontWeight": "500"
                                         }
                                       ]
                                     }
@@ -51470,7 +51529,7 @@
                                   "x": 138,
                                   "y": 54,
                                   "name": "Ln introciv11",
-                                  "fill": "$border",
+                                  "fill": "$ok",
                                   "width": 16,
                                   "height": 2
                                 },
@@ -51480,7 +51539,7 @@
                                   "x": 153,
                                   "y": 55,
                                   "name": "Ln introciv12",
-                                  "fill": "$border",
+                                  "fill": "$ok",
                                   "width": 2,
                                   "height": 84
                                 },
@@ -51490,7 +51549,7 @@
                                   "x": 154,
                                   "y": 138,
                                   "name": "Ln introciv13",
-                                  "fill": "$border",
+                                  "fill": "$ok",
                                   "width": 16,
                                   "height": 2
                                 },
@@ -51500,7 +51559,7 @@
                                   "x": 138,
                                   "y": 138,
                                   "name": "Ln romciv11",
-                                  "fill": "$border",
+                                  "fill": "$ok",
                                   "width": 16,
                                   "height": 2
                                 },
@@ -51510,7 +51569,7 @@
                                   "x": 154,
                                   "y": 138,
                                   "name": "Ln romciv13",
-                                  "fill": "$border",
+                                  "fill": "$ok",
                                   "width": 16,
                                   "height": 2
                                 },
@@ -51520,7 +51579,7 @@
                                   "x": 138,
                                   "y": 54,
                                   "name": "Ln intropen11",
-                                  "fill": "$accent",
+                                  "fill": "$ok",
                                   "width": 16,
                                   "height": 2
                                 },
@@ -51530,7 +51589,7 @@
                                   "x": 154,
                                   "y": 54,
                                   "name": "Ln intropen13",
-                                  "fill": "$accent",
+                                  "fill": "$ok",
                                   "width": 16,
                                   "height": 2
                                 },
@@ -51540,7 +51599,7 @@
                                   "x": 138,
                                   "y": 222,
                                   "name": "Ln histcons1",
-                                  "fill": "$border",
+                                  "fill": "$ok",
                                   "width": 16,
                                   "height": 2
                                 },
@@ -51550,7 +51609,7 @@
                                   "x": 154,
                                   "y": 222,
                                   "name": "Ln histcons3",
-                                  "fill": "$border",
+                                  "fill": "$ok",
                                   "width": 16,
                                   "height": 2
                                 },
@@ -51560,7 +51619,7 @@
                                   "x": 138,
                                   "y": 306,
                                   "name": "Ln econsoc1",
-                                  "fill": "$border",
+                                  "fill": "$ok",
                                   "width": 16,
                                   "height": 2
                                 },
@@ -51570,7 +51629,7 @@
                                   "x": 154,
                                   "y": 306,
                                   "name": "Ln econsoc3",
-                                  "fill": "$border",
+                                  "fill": "$ok",
                                   "width": 16,
                                   "height": 2
                                 },
@@ -51600,7 +51659,7 @@
                                   "x": 308,
                                   "y": 54,
                                   "name": "Ln pen1pen21",
-                                  "fill": "$accent",
+                                  "fill": "$border",
                                   "width": 16,
                                   "height": 2
                                 },
@@ -51610,7 +51669,7 @@
                                   "x": 324,
                                   "y": 54,
                                   "name": "Ln pen1pen23",
-                                  "fill": "$accent",
+                                  "fill": "$border",
                                   "width": 16,
                                   "height": 2
                                 },
@@ -51730,7 +51789,7 @@
                                   "x": 138,
                                   "y": 54,
                                   "name": "Ln skip-a",
-                                  "fill": "$border",
+                                  "fill": "$ok",
                                   "width": 16,
                                   "height": 2
                                 },
@@ -51740,7 +51799,7 @@
                                   "x": 153,
                                   "y": 55,
                                   "name": "Ln skip-b",
-                                  "fill": "$border",
+                                  "fill": "$ok",
                                   "width": 2,
                                   "height": 42
                                 },
@@ -51750,7 +51809,7 @@
                                   "x": 154,
                                   "y": 96,
                                   "name": "Ln skip-c",
-                                  "fill": "$border",
+                                  "fill": "$ok",
                                   "width": 172,
                                   "height": 2
                                 },
@@ -51760,7 +51819,7 @@
                                   "x": 325,
                                   "y": 97,
                                   "name": "Ln skip-d",
-                                  "fill": "$border",
+                                  "fill": "$ok",
                                   "width": 2,
                                   "height": 126
                                 },
@@ -51770,7 +51829,7 @@
                                   "x": 326,
                                   "y": 222,
                                   "name": "Ln skip-e",
-                                  "fill": "$border",
+                                  "fill": "$ok",
                                   "width": 14,
                                   "height": 2
                                 },
@@ -75164,6 +75223,2176 @@
                                   "fontFamily": "$font-ui",
                                   "fontSize": 12,
                                   "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "fSd9Y",
+              "name": "Screen — Carrera (períodos · racimo de fechas)",
+              "clip": true,
+              "width": 1280,
+              "height": 800,
+              "fill": "$bg",
+              "children": [
+                {
+                  "id": "Ldmqq",
+                  "type": "ref",
+                  "ref": "LczWA",
+                  "name": "Sidebar",
+                  "descendants": {
+                    "tTph6": {
+                      "fontSize": 12
+                    },
+                    "o1KG56": {
+                      "fontSize": 12
+                    },
+                    "CwSZn": {
+                      "fontSize": 12
+                    },
+                    "QPe2g": {
+                      "fontSize": 12
+                    },
+                    "kjqKH": {
+                      "fontSize": 12
+                    },
+                    "wx0uR": {
+                      "fill": "$accent-soft"
+                    },
+                    "g1iABG": {
+                      "fill": "$accent"
+                    },
+                    "KGycc": {
+                      "fill": "$accent",
+                      "fontWeight": "600",
+                      "fontSize": 12
+                    },
+                    "TTUST": {
+                      "fontSize": 12
+                    },
+                    "YfHS1": {
+                      "fontSize": 12
+                    },
+                    "U6TJS": {
+                      "fontSize": 12
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "PPvWu",
+                  "name": "Main",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": [
+                    24,
+                    40
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "prJGm",
+                      "name": "Back Row",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "a2gaH",
+                          "name": "Back Icon",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "chevron-left",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        },
+                        {
+                          "type": "text",
+                          "id": "nVVHQ",
+                          "name": "Back Label",
+                          "fill": "$text-muted",
+                          "content": "Carreras",
+                          "fontFamily": "$font-ui",
+                          "fontSize": 12,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "LWSv1",
+                      "name": "Header",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "end",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "vKZJw",
+                          "name": "Header Left",
+                          "layout": "vertical",
+                          "gap": 8,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "libVj",
+                              "name": "Title Row",
+                              "gap": 12,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "rectangle",
+                                  "cornerRadius": 4,
+                                  "id": "JcwJU",
+                                  "name": "Color Bar",
+                                  "fill": "$subject-1",
+                                  "width": 3,
+                                  "height": 34
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "YxD77",
+                                  "name": "Page Title",
+                                  "fill": "$text-primary",
+                                  "content": "Abogacía",
+                                  "lineHeight": 1.1,
+                                  "fontFamily": "$font-display",
+                                  "fontSize": 30,
+                                  "fontWeight": "700",
+                                  "letterSpacing": -1.2
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "YU7aG",
+                              "name": "Page Subtitle",
+                              "fill": "$text-secondary",
+                              "content": "Universidad de Buenos Aires · 2 períodos · 6 materias",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "YlrXt",
+                          "name": "Header Actions",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "JVC6h",
+                              "name": "Edit Program Button",
+                              "cornerRadius": 8,
+                              "stroke": "$border",
+                              "strokeWidth": 1,
+                              "strokeAlignment": "inner",
+                              "gap": 8,
+                              "padding": [
+                                12,
+                                16
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "UZgST",
+                                  "name": "Edit Icon",
+                                  "width": 16,
+                                  "height": 16,
+                                  "icon": "pencil",
+                                  "library": "lucide",
+                                  "fill": "$text-primary"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "juKK5",
+                                  "name": "Edit Label",
+                                  "fill": "$text-primary",
+                                  "content": "Editar carrera",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 14,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Y0hnqI",
+                              "name": "Add Button",
+                              "fill": "$accent",
+                              "cornerRadius": 8,
+                              "gap": 8,
+                              "padding": [
+                                12,
+                                16
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "vGqbk",
+                                  "name": "Plus Icon",
+                                  "width": 16,
+                                  "height": 16,
+                                  "icon": "plus",
+                                  "library": "lucide",
+                                  "fill": "$on-accent"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "L9cziw",
+                                  "name": "Add Label",
+                                  "fill": "$on-accent",
+                                  "content": "Agregar período",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "V4e6a",
+                      "name": "Carrera Tabs",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "r1DgE",
+                          "name": "Filter Activas",
+                          "fill": "$accent-soft",
+                          "cornerRadius": 8,
+                          "stroke": "$accent",
+                          "strokeWidth": 1,
+                          "strokeAlignment": "inner",
+                          "gap": 8,
+                          "padding": [
+                            8,
+                            12
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "q8cAGv",
+                              "name": "Filter Label",
+                              "fill": "$accent-text",
+                              "content": "Períodos",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "bWkGj",
+                          "name": "Filter Standby",
+                          "fill": "$surface-sunken",
+                          "cornerRadius": 8,
+                          "stroke": "$border",
+                          "strokeWidth": 1,
+                          "strokeAlignment": "inner",
+                          "gap": 8,
+                          "padding": [
+                            8,
+                            12
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "IEJbj",
+                              "name": "Filter Label",
+                              "fill": "$text-secondary",
+                              "content": "Plan de estudios",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "iryFB",
+                      "name": "Timeline Card",
+                      "width": "fill_container",
+                      "height": 164,
+                      "fill": "$surface",
+                      "cornerRadius": 12,
+                      "stroke": "$border",
+                      "strokeWidth": 1,
+                      "strokeAlignment": "inner",
+                      "layout": "vertical",
+                      "gap": 10,
+                      "padding": 20,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "q2w66B",
+                          "name": "TL Head",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "J1IMUJ",
+                              "name": "TL Title",
+                              "fill": "$text-muted",
+                              "content": "LÍNEA DE TIEMPO",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 10,
+                              "fontWeight": "600",
+                              "letterSpacing": 0.6
+                            },
+                            {
+                              "type": "frame",
+                              "id": "B9H8G",
+                              "name": "Legend",
+                              "gap": 16,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "OiWCO",
+                                  "name": "Legend finalizado",
+                                  "gap": 8,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "ellipse",
+                                      "id": "x53MCw",
+                                      "name": "Dot",
+                                      "fill": "$text-muted",
+                                      "width": 7,
+                                      "height": 7
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "ushQs",
+                                      "name": "Legend Label",
+                                      "fill": "$text-muted",
+                                      "content": "Finalizado",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "Ie5lw",
+                                  "name": "Legend activo",
+                                  "gap": 8,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "ellipse",
+                                      "id": "F9IVdR",
+                                      "name": "Dot",
+                                      "fill": "$accent",
+                                      "width": 7,
+                                      "height": 7
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "cPvEx",
+                                      "name": "Legend Label",
+                                      "fill": "$text-muted",
+                                      "content": "Activo",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "cZtIw",
+                                  "name": "Legend próximo",
+                                  "gap": 8,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "ellipse",
+                                      "id": "TKxNX",
+                                      "name": "Dot",
+                                      "fill": "$text-secondary",
+                                      "width": 7,
+                                      "height": 7
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "CGWGS",
+                                      "name": "Legend Label",
+                                      "fill": "$text-muted",
+                                      "content": "Próximo",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "p0cWQ",
+                                  "name": "Legend Divider",
+                                  "width": 1,
+                                  "height": 12,
+                                  "fill": "$border"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "xXMSl",
+                                  "name": "Legend parcial",
+                                  "gap": 8,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "ellipse",
+                                      "id": "KtnMe",
+                                      "name": "Dot",
+                                      "fill": "$warn",
+                                      "width": 7,
+                                      "height": 7
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "c3Cade",
+                                      "name": "Legend Label",
+                                      "fill": "$text-muted",
+                                      "content": "Parcial",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "DYX9N",
+                                  "name": "Legend final",
+                                  "gap": 8,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "ellipse",
+                                      "id": "cgn9f",
+                                      "name": "Dot",
+                                      "fill": "$urgent",
+                                      "width": 7,
+                                      "height": 7
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "nt3cf",
+                                      "name": "Legend Label",
+                                      "fill": "$text-muted",
+                                      "content": "Final",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "FWuR5",
+                                  "name": "Legend entrega",
+                                  "gap": 8,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "ellipse",
+                                      "id": "wjdpC",
+                                      "name": "Dot",
+                                      "fill": "$ok",
+                                      "width": 7,
+                                      "height": 7
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "tzsk1",
+                                      "name": "Legend Label",
+                                      "fill": "$text-muted",
+                                      "content": "Entrega",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "rDdGk",
+                          "name": "Scale Row",
+                          "width": "fill_container",
+                          "gap": 12,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "AHl8f",
+                              "name": "Scale Label Gutter",
+                              "width": 160,
+                              "height": 1
+                            },
+                            {
+                              "type": "frame",
+                              "id": "vAC0t",
+                              "name": "Scale Track",
+                              "width": 756,
+                              "layout": "vertical",
+                              "gap": 4,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "XhTtn",
+                                  "name": "Months",
+                                  "width": "fill_container",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "sUNab",
+                                      "name": "Month ago 25",
+                                      "width": 126,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "oynUl",
+                                          "name": "Month Label",
+                                          "fill": "$text-muted",
+                                          "content": "ago 25",
+                                          "fontFamily": "$font-ui",
+                                          "fontSize": 10,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "z6tiN",
+                                      "name": "Month nov 25",
+                                      "width": 126,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "sBNTj",
+                                          "name": "Month Label",
+                                          "fill": "$text-muted",
+                                          "content": "nov 25",
+                                          "fontFamily": "$font-ui",
+                                          "fontSize": 10,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "m0g9w",
+                                      "name": "Month feb 26",
+                                      "width": 126,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "CrQHN",
+                                          "name": "Month Label",
+                                          "fill": "$text-muted",
+                                          "content": "feb 26",
+                                          "fontFamily": "$font-ui",
+                                          "fontSize": 10,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "O0OLc5",
+                                      "name": "Month may 26",
+                                      "width": 126,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "hbkgj",
+                                          "name": "Month Label",
+                                          "fill": "$text-muted",
+                                          "content": "may 26",
+                                          "fontFamily": "$font-ui",
+                                          "fontSize": 10,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "bjtCJ",
+                                      "name": "Month ago 26",
+                                      "width": 126,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "zy7NO",
+                                          "name": "Month Label",
+                                          "fill": "$text-muted",
+                                          "content": "ago 26",
+                                          "fontFamily": "$font-ui",
+                                          "fontSize": 10,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "s5KBD",
+                                      "name": "Month nov 26",
+                                      "width": 126,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "kNkwF",
+                                          "name": "Month Label",
+                                          "fill": "$text-muted",
+                                          "content": "nov 26",
+                                          "fontFamily": "$font-ui",
+                                          "fontSize": 10,
+                                          "fontWeight": "500"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "id": "b6iWz",
+                                  "name": "Scale Hairline",
+                                  "fill": "$border",
+                                  "width": "fill_container",
+                                  "height": 1
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "WvHLF",
+                                  "name": "Today Row",
+                                  "width": "fill_container",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "jxZOJ",
+                                      "name": "Today Offset",
+                                      "width": 539,
+                                      "height": 1
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "Jskys",
+                                      "name": "Today Marker",
+                                      "gap": 4,
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "rectangle",
+                                          "cornerRadius": 4,
+                                          "id": "EOcGo",
+                                          "name": "Today Tick",
+                                          "fill": "$urgent",
+                                          "width": 2,
+                                          "height": 11
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "A1ztF8",
+                                          "name": "Today Label",
+                                          "fill": "$urgent",
+                                          "content": "hoy · 15 ago",
+                                          "fontFamily": "$font-ui",
+                                          "fontSize": 10,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "kCG4b",
+                          "name": "Bars",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 8,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "lvGMd",
+                              "name": "TL Row — 2do Cuatrimestre 2025",
+                              "width": "fill_container",
+                              "gap": 12,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "vqmgy",
+                                  "name": "Label Cell",
+                                  "width": 160,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "XyiKG",
+                                      "name": "Row Label",
+                                      "fill": "$text-muted",
+                                      "content": "2do cuatrimestre",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "500"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "PyGqn",
+                                  "name": "Track",
+                                  "width": 756,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "Qxp8j",
+                                      "name": "Offset",
+                                      "width": 16,
+                                      "height": 1
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "kLGLr",
+                                      "name": "Bar",
+                                      "clip": true,
+                                      "width": 165,
+                                      "height": 26,
+                                      "fill": "$surface-sunken",
+                                      "cornerRadius": 6,
+                                      "stroke": "$border",
+                                      "strokeWidth": 1,
+                                      "strokeAlignment": "inner",
+                                      "padding": [
+                                        0,
+                                        12
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "SzGBP",
+                                          "name": "Bar Label",
+                                          "fill": "$text-muted",
+                                          "content": "12 ago – 06 dic 2025",
+                                          "fontFamily": "$font-ui",
+                                          "fontSize": 12,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "dezWp",
+                              "name": "TL Row — 2do Cuatrimestre 2026",
+                              "width": "fill_container",
+                              "gap": 12,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "BYdvp",
+                                  "name": "Label Cell",
+                                  "width": 160,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "QERhg",
+                                      "name": "Row Label",
+                                      "fill": "$text-primary",
+                                      "content": "2do cuatrimestre",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "ILsmB",
+                                  "name": "Track",
+                                  "width": 756,
+                                  "height": 34,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "tcnFX",
+                                      "name": "Offset",
+                                      "width": 534,
+                                      "height": 1
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "QRUCD",
+                                      "name": "Bar",
+                                      "clip": true,
+                                      "width": 162,
+                                      "height": 26,
+                                      "fill": "$accent",
+                                      "cornerRadius": 6,
+                                      "stroke": "$accent",
+                                      "strokeWidth": 1,
+                                      "strokeAlignment": "inner",
+                                      "padding": [
+                                        0,
+                                        12
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "Eg1ma",
+                                          "name": "Bar Label",
+                                          "fill": "$on-accent",
+                                          "content": "12 ago – 04 dic 2026",
+                                          "fontFamily": "$font-ui",
+                                          "fontSize": 12,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "dPtoJ",
+                                      "layoutPosition": "absolute",
+                                      "x": 568,
+                                      "y": 19,
+                                      "name": "Event Marker — Parcial 1 · ITICS · 10 sep",
+                                      "width": 14,
+                                      "height": 14,
+                                      "fill": "$surface",
+                                      "cornerRadius": 7,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "ellipse",
+                                          "id": "wZnQh",
+                                          "name": "Marker Dot",
+                                          "fill": "$warn",
+                                          "width": 8,
+                                          "height": 8
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "I6dlCd",
+                                      "layoutPosition": "absolute",
+                                      "x": 632,
+                                      "y": 18,
+                                      "name": "Event Cluster — 3 fechas · 04-07 nov (hover)",
+                                      "width": 16,
+                                      "height": 16,
+                                      "fill": "$surface",
+                                      "cornerRadius": 8,
+                                      "stroke": "$text-secondary",
+                                      "strokeWidth": 1,
+                                      "strokeAlignment": "inner",
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "C3L7R",
+                                          "name": "Cluster Count",
+                                          "fill": "$text-primary",
+                                          "content": "3",
+                                          "fontFamily": "$font-ui",
+                                          "fontSize": 9,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "XN3v9",
+                                      "layoutPosition": "absolute",
+                                      "x": 666,
+                                      "y": 19,
+                                      "name": "Event Marker — Final · Derecho Civil II · 18 nov",
+                                      "width": 14,
+                                      "height": 14,
+                                      "fill": "$surface",
+                                      "cornerRadius": 7,
+                                      "justifyContent": "center",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "ellipse",
+                                          "id": "R9Bpz",
+                                          "name": "Marker Dot",
+                                          "fill": "$urgent",
+                                          "width": 8,
+                                          "height": 8
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "SL6Lh",
+                                      "layoutPosition": "absolute",
+                                      "x": 495,
+                                      "y": -75,
+                                      "name": "Cluster Popover",
+                                      "fill": "$surface",
+                                      "cornerRadius": 8,
+                                      "stroke": "$border",
+                                      "strokeWidth": 1,
+                                      "strokeAlignment": "inner",
+                                      "effect": {
+                                        "type": "shadow",
+                                        "shadowType": "outer",
+                                        "color": "#00000073",
+                                        "offset": {
+                                          "x": 0,
+                                          "y": 4
+                                        },
+                                        "blur": 16
+                                      },
+                                      "layout": "vertical",
+                                      "gap": 6,
+                                      "padding": [
+                                        8,
+                                        10
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "p1K77",
+                                          "name": "Cluster Row — Parcial 2 · Derecho Penal",
+                                          "gap": 8,
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "ellipse",
+                                              "id": "Cp2sF",
+                                              "name": "Row Dot",
+                                              "fill": "$warn",
+                                              "width": 7,
+                                              "height": 7
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "dMvH3",
+                                              "name": "Row Title",
+                                              "fill": "$text-primary",
+                                              "content": "Parcial 2 · Derecho Penal",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 11,
+                                              "fontWeight": "600"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "H9ySRn",
+                                              "name": "Row Date",
+                                              "fill": "$text-muted",
+                                              "content": "04 nov",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 11,
+                                              "fontWeight": "500"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "fK3ex",
+                                          "name": "Cluster Row — Entrega TP3 · Práctica Profesional",
+                                          "gap": 8,
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "ellipse",
+                                              "id": "gEVZ1",
+                                              "name": "Row Dot",
+                                              "fill": "$ok",
+                                              "width": 7,
+                                              "height": 7
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "b18Sp3",
+                                              "name": "Row Title",
+                                              "fill": "$text-primary",
+                                              "content": "Entrega TP3 · Práctica Profesional",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 11,
+                                              "fontWeight": "600"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "n3B4i",
+                                              "name": "Row Date",
+                                              "fill": "$text-muted",
+                                              "content": "05 nov",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 11,
+                                              "fontWeight": "500"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "uheJS",
+                                          "name": "Cluster Row — Parcial 2 · Derecho Civil II",
+                                          "gap": 8,
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "ellipse",
+                                              "id": "QPzZU",
+                                              "name": "Row Dot",
+                                              "fill": "$warn",
+                                              "width": 7,
+                                              "height": 7
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "ZCu3j",
+                                              "name": "Row Title",
+                                              "fill": "$text-primary",
+                                              "content": "Parcial 2 · Derecho Civil II",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 11,
+                                              "fontWeight": "600"
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "h57WH",
+                                              "name": "Row Date",
+                                              "fill": "$text-muted",
+                                              "content": "07 nov",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 11,
+                                              "fontWeight": "500"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "H39ag",
+                      "name": "Body",
+                      "width": "fill_container",
+                      "height": 453,
+                      "gap": 24,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "nWCG4",
+                          "name": "Left Column",
+                          "width": "fill_container",
+                          "height": 453,
+                          "layout": "vertical",
+                          "gap": 12,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "cZDAs",
+                              "name": "Periods Table",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "aeogf",
+                                  "name": "Periods Heading",
+                                  "fill": "$text-muted",
+                                  "content": "PERÍODOS · 2",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 10,
+                                  "fontWeight": "600",
+                                  "letterSpacing": 0.6
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "fqr5i",
+                                  "name": "Table Rows",
+                                  "width": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 8,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "j74RG",
+                                      "name": "Row — 2do Cuatrimestre 2025",
+                                      "width": "fill_container",
+                                      "fill": "$surface",
+                                      "cornerRadius": 8,
+                                      "stroke": "$border",
+                                      "strokeWidth": 1,
+                                      "strokeAlignment": "inner",
+                                      "padding": [
+                                        8,
+                                        12
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "ujmFp",
+                                          "name": "Cell Period",
+                                          "width": "fill_container",
+                                          "layout": "vertical",
+                                          "gap": 3,
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "H6TgS",
+                                              "name": "Period Name",
+                                              "fill": "$text-primary",
+                                              "content": "2do cuatrimestre 2025",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 14,
+                                              "fontWeight": "600",
+                                              "letterSpacing": -0.1
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "fFsnR",
+                                              "name": "Year Hint",
+                                              "fill": "$text-muted",
+                                              "content": "cuatrimestre · 12 ago 2025 – 06 dic 2025 · 5 materias",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 12,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "mso6J",
+                                          "name": "Cell State",
+                                          "width": 110,
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "TaNb6",
+                                              "name": "State Badge",
+                                              "fill": "$surface-sunken",
+                                              "cornerRadius": 6,
+                                              "stroke": "$border",
+                                              "strokeWidth": 1,
+                                              "strokeAlignment": "inner",
+                                              "padding": [
+                                                4,
+                                                8
+                                              ],
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "vVOeV",
+                                                  "name": "State Label",
+                                                  "fill": "$text-muted",
+                                                  "content": "Finalizado",
+                                                  "fontFamily": "$font-ui",
+                                                  "fontSize": 12,
+                                                  "fontWeight": "600"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "u2Yaxe",
+                                          "name": "Cell Actions",
+                                          "width": 48,
+                                          "gap": 16,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "pUBZM",
+                                              "name": "Edit Icon",
+                                              "width": 16,
+                                              "height": 16,
+                                              "icon": "pencil",
+                                              "library": "lucide",
+                                              "fill": "$text-muted"
+                                            },
+                                            {
+                                              "type": "icon",
+                                              "id": "wKEBQ",
+                                              "name": "Delete Icon",
+                                              "width": 16,
+                                              "height": 16,
+                                              "icon": "trash-2",
+                                              "library": "lucide",
+                                              "fill": "$text-muted"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "SXJ4F",
+                                      "name": "Row — 2do Cuatrimestre 2026",
+                                      "width": "fill_container",
+                                      "fill": "$surface",
+                                      "cornerRadius": 8,
+                                      "stroke": "$border",
+                                      "strokeWidth": 1,
+                                      "strokeAlignment": "inner",
+                                      "padding": [
+                                        8,
+                                        12
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "frame",
+                                          "id": "uCBpa",
+                                          "name": "Cell Period",
+                                          "width": "fill_container",
+                                          "layout": "vertical",
+                                          "gap": 3,
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "Ykekw",
+                                              "name": "Period Name",
+                                              "fill": "$text-primary",
+                                              "content": "2do cuatrimestre 2026",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 14,
+                                              "fontWeight": "600",
+                                              "letterSpacing": -0.1
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "WINp9",
+                                              "name": "Year Hint",
+                                              "fill": "$text-muted",
+                                              "content": "cuatrimestre · 12 ago 2026 – 04 dic 2026 · 5 materias",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 12,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "aM1oZ",
+                                          "name": "Cell State",
+                                          "width": 110,
+                                          "children": [
+                                            {
+                                              "type": "frame",
+                                              "id": "GmvCJ",
+                                              "name": "State Badge",
+                                              "fill": "$accent-soft",
+                                              "cornerRadius": 6,
+                                              "stroke": "$accent",
+                                              "strokeWidth": 1,
+                                              "strokeAlignment": "inner",
+                                              "padding": [
+                                                4,
+                                                8
+                                              ],
+                                              "children": [
+                                                {
+                                                  "type": "text",
+                                                  "id": "SWx5X",
+                                                  "name": "State Label",
+                                                  "fill": "$accent-text",
+                                                  "content": "Activo",
+                                                  "fontFamily": "$font-ui",
+                                                  "fontSize": 12,
+                                                  "fontWeight": "600"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "EtzO6",
+                                          "name": "Cell Actions",
+                                          "width": 48,
+                                          "gap": 16,
+                                          "justifyContent": "center",
+                                          "alignItems": "center",
+                                          "children": [
+                                            {
+                                              "type": "icon",
+                                              "id": "X0zWYn",
+                                              "name": "Edit Icon",
+                                              "width": 16,
+                                              "height": 16,
+                                              "icon": "pencil",
+                                              "library": "lucide",
+                                              "fill": "$text-muted"
+                                            },
+                                            {
+                                              "type": "icon",
+                                              "id": "V9p3e",
+                                              "name": "Delete Icon",
+                                              "width": 16,
+                                              "height": 16,
+                                              "icon": "trash-2",
+                                              "library": "lucide",
+                                              "fill": "$text-muted"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "PgaPh",
+                              "name": "Program Subjects Section",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "bl3og",
+                                  "name": "Subjects Heading",
+                                  "fill": "$text-muted",
+                                  "content": "MATERIAS DE ESTA CARRERA · 6",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 10,
+                                  "fontWeight": "600",
+                                  "letterSpacing": 0.6
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "tc9nN",
+                                  "name": "Subjects List",
+                                  "clip": true,
+                                  "width": "fill_container",
+                                  "height": 222,
+                                  "layout": "vertical",
+                                  "gap": 6,
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "xyLlj",
+                                      "name": "Subject Row — Derecho Constitucional",
+                                      "width": "fill_container",
+                                      "fill": "$surface",
+                                      "cornerRadius": 8,
+                                      "stroke": "$border",
+                                      "strokeWidth": 1,
+                                      "strokeAlignment": "inner",
+                                      "gap": 12,
+                                      "padding": [
+                                        8,
+                                        12
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "rectangle",
+                                          "cornerRadius": 4,
+                                          "id": "Cp6PN",
+                                          "name": "Color Bar",
+                                          "fill": "$subject-1",
+                                          "width": 3,
+                                          "height": 26
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "AExYc",
+                                          "name": "Subject Info",
+                                          "width": "fill_container",
+                                          "layout": "vertical",
+                                          "gap": 3,
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "RvlcL",
+                                              "name": "Subject Name",
+                                              "fill": "$text-primary",
+                                              "content": "Derecho Constitucional",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 14,
+                                              "fontWeight": "600",
+                                              "letterSpacing": -0.1
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "SDmsQ",
+                                              "name": "Subject Meta",
+                                              "fill": "$text-muted",
+                                              "content": "DER-101 · 2do cuatrimestre 2026 · asistencia libre · sin pendientes",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 12,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "jn1Q4",
+                                          "name": "State Pill",
+                                          "fill": "$surface-sunken",
+                                          "cornerRadius": 999,
+                                          "padding": [
+                                            4,
+                                            8
+                                          ],
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "V9fUE",
+                                              "name": "State Text",
+                                              "fill": "$accent",
+                                              "content": "Final pendiente",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 12,
+                                              "fontWeight": "600"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "VFdoo",
+                                      "name": "Subject Row — Derecho Civil II",
+                                      "width": "fill_container",
+                                      "fill": "$surface",
+                                      "cornerRadius": 8,
+                                      "stroke": "$border",
+                                      "strokeWidth": 1,
+                                      "strokeAlignment": "inner",
+                                      "gap": 12,
+                                      "padding": [
+                                        8,
+                                        12
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "rectangle",
+                                          "cornerRadius": 4,
+                                          "id": "pn1N4",
+                                          "name": "Color Bar",
+                                          "fill": "$subject-2",
+                                          "width": 3,
+                                          "height": 26
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "zdMDj",
+                                          "name": "Subject Info",
+                                          "width": "fill_container",
+                                          "layout": "vertical",
+                                          "gap": 3,
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "bMPpX",
+                                              "name": "Subject Name",
+                                              "fill": "$text-primary",
+                                              "content": "Derecho Civil II",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 14,
+                                              "fontWeight": "600",
+                                              "letterSpacing": -0.1
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "ipiyI",
+                                              "name": "Subject Meta",
+                                              "fill": "$text-muted",
+                                              "content": "DER-204 · 2do cuatrimestre 2026 · asistencia 75% · 2 pendientes",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 12,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "Oxzjm",
+                                          "name": "State Pill",
+                                          "fill": "$surface-sunken",
+                                          "cornerRadius": 999,
+                                          "padding": [
+                                            4,
+                                            8
+                                          ],
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "VfxUP",
+                                              "name": "State Text",
+                                              "fill": "$text-secondary",
+                                              "content": "Cursando",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 12,
+                                              "fontWeight": "600"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "mN4yn",
+                                      "name": "Subject Row — Derecho Penal",
+                                      "width": "fill_container",
+                                      "fill": "$surface",
+                                      "cornerRadius": 8,
+                                      "stroke": "$border",
+                                      "strokeWidth": 1,
+                                      "strokeAlignment": "inner",
+                                      "gap": 12,
+                                      "padding": [
+                                        8,
+                                        12
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "rectangle",
+                                          "cornerRadius": 4,
+                                          "id": "uwCHm",
+                                          "name": "Color Bar",
+                                          "fill": "$subject-3",
+                                          "width": 3,
+                                          "height": 26
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "fRZix",
+                                          "name": "Subject Info",
+                                          "width": "fill_container",
+                                          "layout": "vertical",
+                                          "gap": 3,
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "SB8XJ",
+                                              "name": "Subject Name",
+                                              "fill": "$text-primary",
+                                              "content": "Derecho Penal",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 14,
+                                              "fontWeight": "600",
+                                              "letterSpacing": -0.1
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "Zpn8t",
+                                              "name": "Subject Meta",
+                                              "fill": "$text-muted",
+                                              "content": "DER-210 · 2do cuatrimestre 2026 · asistencia libre · sin pendientes",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 12,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "yHqy5",
+                                          "name": "State Pill",
+                                          "fill": "$surface-sunken",
+                                          "cornerRadius": 999,
+                                          "padding": [
+                                            4,
+                                            8
+                                          ],
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "J5jBP",
+                                              "name": "State Text",
+                                              "fill": "$text-secondary",
+                                              "content": "Cursando",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 12,
+                                              "fontWeight": "600"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "OybXK",
+                                      "name": "Subject Row — Práctica Profesional",
+                                      "width": "fill_container",
+                                      "fill": "$surface",
+                                      "cornerRadius": 8,
+                                      "stroke": "$border",
+                                      "strokeWidth": 1,
+                                      "strokeAlignment": "inner",
+                                      "gap": 12,
+                                      "padding": [
+                                        8,
+                                        12
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "rectangle",
+                                          "cornerRadius": 4,
+                                          "id": "L0iLIW",
+                                          "name": "Color Bar",
+                                          "fill": "$subject-4",
+                                          "width": 3,
+                                          "height": 26
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "gkwrr",
+                                          "name": "Subject Info",
+                                          "width": "fill_container",
+                                          "layout": "vertical",
+                                          "gap": 3,
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "gifDg",
+                                              "name": "Subject Name",
+                                              "fill": "$text-primary",
+                                              "content": "Práctica Profesional",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 14,
+                                              "fontWeight": "600",
+                                              "letterSpacing": -0.1
+                                            },
+                                            {
+                                              "type": "text",
+                                              "id": "WSI6o",
+                                              "name": "Subject Meta",
+                                              "fill": "$text-muted",
+                                              "content": "DER-401 · 2do cuatrimestre 2026 · asistencia 80% · 1 pendiente",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 12,
+                                              "fontWeight": "normal"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "frame",
+                                          "id": "rtjla",
+                                          "name": "State Pill",
+                                          "fill": "$surface-sunken",
+                                          "cornerRadius": 999,
+                                          "padding": [
+                                            4,
+                                            8
+                                          ],
+                                          "children": [
+                                            {
+                                              "type": "text",
+                                              "id": "YFeHk",
+                                              "name": "State Text",
+                                              "fill": "$text-secondary",
+                                              "content": "Cursando",
+                                              "fontFamily": "$font-ui",
+                                              "fontSize": 12,
+                                              "fontWeight": "600"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "kOnFY",
+                              "name": "Policy Note",
+                              "width": "fill_container",
+                              "fill": "$surface-sunken",
+                              "cornerRadius": 8,
+                              "gap": 8,
+                              "padding": [
+                                12,
+                                16
+                              ],
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "xfSMN",
+                                  "name": "Note Icon",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "info",
+                                  "library": "lucide",
+                                  "fill": "$text-muted"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "SkJPr",
+                                  "name": "Note Text",
+                                  "fill": "$text-secondary",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Tocá una fila para abrir el período. Eliminarlo no borra sus materias.",
+                                  "lineHeight": 1.45,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "N49yJ",
+                          "name": "Right Column",
+                          "width": 336,
+                          "height": 453,
+                          "layout": "vertical",
+                          "gap": 12,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "aOakY",
+                              "name": "Current Period Card",
+                              "width": "fill_container",
+                              "fill": "$accent-soft",
+                              "cornerRadius": 12,
+                              "stroke": "$accent",
+                              "strokeWidth": 1,
+                              "strokeAlignment": "inner",
+                              "layout": "vertical",
+                              "gap": 8,
+                              "padding": 16,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "ZYrUl",
+                                  "name": "NC Label",
+                                  "fill": "$accent-text",
+                                  "content": "PERÍODO EN CURSO",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 10,
+                                  "fontWeight": "600",
+                                  "letterSpacing": 0.9
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "b1HJJJ",
+                                  "name": "NC Time",
+                                  "fill": "$text-primary",
+                                  "content": "2do cuatrimestre 2026",
+                                  "fontFamily": "$font-display",
+                                  "fontSize": 20,
+                                  "fontWeight": "700",
+                                  "letterSpacing": -0.5
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "LXXRR",
+                                  "name": "NC Meta",
+                                  "fill": "$text-secondary",
+                                  "content": "12 ago – 04 dic 2026 · en curso",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "FsWzE",
+                              "name": "Academic Progress Card",
+                              "width": "fill_container",
+                              "fill": "$surface",
+                              "cornerRadius": 12,
+                              "stroke": "$border",
+                              "strokeWidth": 1,
+                              "strokeAlignment": "inner",
+                              "layout": "vertical",
+                              "gap": 10,
+                              "padding": 16,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "T1UY2R",
+                                  "name": "AP Label",
+                                  "fill": "$text-muted",
+                                  "content": "AVANCE ACADÉMICO",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 10,
+                                  "fontWeight": "600",
+                                  "letterSpacing": 0.9
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "BRYQp",
+                                  "name": "Hero Row",
+                                  "width": "fill_container",
+                                  "justifyContent": "space_between",
+                                  "alignItems": "end",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "JoOus",
+                                      "name": "Avg Group",
+                                      "layout": "vertical",
+                                      "gap": 2,
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "OQkMz",
+                                          "name": "Avg Value",
+                                          "fill": "$text-primary",
+                                          "content": "8,50",
+                                          "fontFamily": "$font-display",
+                                          "fontSize": 28,
+                                          "fontWeight": "700",
+                                          "letterSpacing": -0.5
+                                        },
+                                        {
+                                          "type": "text",
+                                          "id": "o8IFQ",
+                                          "name": "Avg Label",
+                                          "fill": "$text-secondary",
+                                          "content": "promedio general",
+                                          "fontFamily": "$font-ui",
+                                          "fontSize": 12,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "P8c9O",
+                                      "name": "Approved Pill",
+                                      "fill": "$ok-soft",
+                                      "cornerRadius": 999,
+                                      "padding": [
+                                        4,
+                                        10
+                                      ],
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "eu4pa",
+                                          "name": "Approved Count",
+                                          "fill": "$ok",
+                                          "content": "3 de 6 aprobadas",
+                                          "fontFamily": "$font-ui",
+                                          "fontSize": 12,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "Mdo6K",
+                                  "name": "Progress Track",
+                                  "clip": true,
+                                  "width": "fill_container",
+                                  "height": 6,
+                                  "fill": "$surface-sunken",
+                                  "cornerRadius": 3,
+                                  "children": [
+                                    {
+                                      "type": "rectangle",
+                                      "cornerRadius": 3,
+                                      "id": "j1XHtG",
+                                      "name": "Progress Fill",
+                                      "fill": "$ok",
+                                      "width": 152,
+                                      "height": 6
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "id": "GE63V",
+                                  "name": "AP Divider",
+                                  "fill": "$border",
+                                  "width": "fill_container",
+                                  "height": 1
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "s3fxlb",
+                                  "name": "N Periodos",
+                                  "width": "fill_container",
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "snBii",
+                                      "name": "N Key",
+                                      "fill": "$text-secondary",
+                                      "content": "Períodos",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "pAmTg",
+                                      "name": "N Val",
+                                      "fill": "$text-primary",
+                                      "content": "2",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "b0ihB",
+                                  "name": "N En curso",
+                                  "width": "fill_container",
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "axHEr",
+                                      "name": "N Key",
+                                      "fill": "$text-secondary",
+                                      "content": "En curso",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "cP1KJ",
+                                      "name": "N Val",
+                                      "fill": "$text-primary",
+                                      "content": "1",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "oC9Kb",
+                              "name": "Fechas Card",
+                              "width": "fill_container",
+                              "fill": "$surface",
+                              "cornerRadius": 12,
+                              "stroke": "$border",
+                              "strokeWidth": 1,
+                              "strokeAlignment": "inner",
+                              "layout": "vertical",
+                              "padding": [
+                                12,
+                                16
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "C3L6LF",
+                                  "name": "FD Label",
+                                  "fill": "$text-muted",
+                                  "content": "FECHAS ADMINISTRATIVAS",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 10,
+                                  "fontWeight": "600",
+                                  "letterSpacing": 0.9
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "GOk4s",
+                                  "name": "FD Row 1",
+                                  "width": "fill_container",
+                                  "padding": [
+                                    8,
+                                    0
+                                  ],
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "FzLYN",
+                                      "name": "C Key",
+                                      "fill": "$text-secondary",
+                                      "content": "Inscripción a finales",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "ZIfXb",
+                                      "name": "C Val",
+                                      "fill": "$text-secondary",
+                                      "content": "1 – 5 DIC",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "WQSBi",
+                                  "name": "FD Row 2",
+                                  "width": "fill_container",
+                                  "padding": [
+                                    8,
+                                    0
+                                  ],
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "JIzrd",
+                                      "name": "C Key",
+                                      "fill": "$text-secondary",
+                                      "content": "Vencimiento de regularidad",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "B8PVX",
+                                      "name": "C Val",
+                                      "fill": "$text-secondary",
+                                      "content": "20 DIC",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "UZs2V",
+                                  "name": "FD Row 3",
+                                  "width": "fill_container",
+                                  "padding": [
+                                    8,
+                                    0
+                                  ],
+                                  "justifyContent": "space_between",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "MeQ2r",
+                                      "name": "C Key",
+                                      "fill": "$text-secondary",
+                                      "content": "Inscripción a cursadas",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "yg0Ne",
+                                      "name": "C Val",
+                                      "fill": "$text-secondary",
+                                      "content": "10 – 14 FEB",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "GqhJP",
+                                  "name": "FD Add",
+                                  "gap": 4,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "ZTuuF",
+                                      "name": "C Val",
+                                      "fill": "$accent-text",
+                                      "content": "Agregar fecha",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    },
+                                    {
+                                      "type": "icon",
+                                      "id": "c8AvD",
+                                      "name": "C Ext",
+                                      "width": 12,
+                                      "height": 12,
+                                      "icon": "plus",
+                                      "library": "lucide",
+                                      "fill": "$accent-text"
+                                    }
+                                  ]
                                 }
                               ]
                             }
