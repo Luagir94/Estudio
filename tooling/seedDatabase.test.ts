@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { collectRequirementsOf } from '../src/shared/domain/prerequisiteGraph'
-import { buildSeedData, type SeedProgram, type SeedSubject } from './seedDatabase.mts'
+import { buildSeedData, type SeedData, type SeedProgram, type SeedSubject } from './seedDatabase.mts'
 
 // A fixed Wednesday, so weekday-derived assertions (attendance, slots) are
 // stable regardless of when the suite runs.
@@ -8,6 +8,13 @@ const TODAY = new Date(2026, 8, 2)
 
 function allSubjects(programs: SeedProgram[]): SeedSubject[] {
   return programs.flatMap((program) => program.subjects)
+}
+
+/** The engineering program: the first one the dataset builds, and the one with the cuatrimestre calendar. */
+function firstProgram(data: SeedData): SeedProgram {
+  const [program] = data.programs
+  if (program === undefined) throw new Error('the seed dataset must build at least one program')
+  return program
 }
 
 function isoDate(date: Date): string {
@@ -23,7 +30,7 @@ describe('buildSeedData', () => {
 
   it('anchors the dataset to the given day rather than to a hardcoded year', () => {
     const later = buildSeedData(new Date(2031, 8, 2))
-    const periodNames = later.programs[0].periods.map((period) => period.name)
+    const periodNames = firstProgram(later).periods.map((period) => period.name)
 
     expect(periodNames.some((name) => name.includes('2031'))).toBe(true)
     expect(periodNames.some((name) => name.includes('2026'))).toBe(false)
@@ -34,19 +41,20 @@ describe('buildSeedData', () => {
     // derived from the day the seed runs, so a February run must not produce a
     // cuatrimestre starting in January.
     for (let month = 0; month < 12; month += 1) {
-      const program = buildSeedData(new Date(2026, month, 15)).programs[0]
+      const program = firstProgram(buildSeedData(new Date(2026, month, 15)))
       const cuatrimestres = program.periods.filter((period) => period.kind === 'cuatrimestre')
       const names = cuatrimestres.map((period) => period.name)
 
       expect(new Set(names).size).toBe(names.length)
-      for (const period of cuatrimestres) {
+      cuatrimestres.forEach((period, index) => {
         const startMonth = Number(period.startsOn.slice(5, 7))
-        // The one in progress is anchored to `today` and may legitimately start
-        // anywhere; the calendar-derived ones start in March or in August.
-        if (period.name !== cuatrimestres[2].name) {
+        // The one in progress — the third — is anchored to `today` and may
+        // legitimately start anywhere; the calendar-derived ones start in
+        // March or in August.
+        if (index !== 2) {
           expect([3, 8]).toContain(startMonth)
         }
-      }
+      })
     }
   })
 
@@ -76,7 +84,10 @@ describe('buildSeedData', () => {
     for (const program of data.programs) {
       for (const period of program.periods) {
         expect(period.startsOn).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-        expect(period.endsOn === null || /^\d{4}-\d{2}-\d{2}$/.test(period.endsOn)).toBe(true)
+        // `endsOn` is a nullable column, so the insert type allows it to be
+        // absent as well as null; both mean the same open-ended período.
+        const endsOn = period.endsOn ?? null
+        expect(endsOn === null || /^\d{4}-\d{2}-\d{2}$/.test(endsOn)).toBe(true)
       }
       for (const academicDate of program.academicDates) {
         expect(academicDate.startsOn).toMatch(/^\d{4}-\d{2}-\d{2}$/)

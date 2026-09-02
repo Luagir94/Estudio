@@ -134,10 +134,14 @@ export interface SeedData {
 
 // --- dataset --------------------------------------------------------------
 
-const SUBJECT_COLORS = ['#4C8DFF', '#7C3AED', '#0EA5E9', '#F97316', '#10B981', '#E11D48', '#EAB308', '#8B5CF6']
+const SUBJECT_COLORS = ['#4C8DFF', '#7C3AED', '#0EA5E9', '#F97316', '#10B981', '#E11D48', '#EAB308', '#8B5CF6'] as const
 
 function colorFor(index: number): string {
-  return SUBJECT_COLORS[index % SUBJECT_COLORS.length]
+  // A modulo of the palette's own length is always in range, but only for a
+  // whole, non-negative index; the first colour is what an out-of-range one
+  // falls back to, which is also what the tuple lets the type say without an
+  // assertion.
+  return SUBJECT_COLORS[index % SUBJECT_COLORS.length] ?? SUBJECT_COLORS[0]
 }
 
 /** "1er cuatrimestre 2026" / "2do cuatrimestre 2026", from the start date. */
@@ -173,9 +177,17 @@ function buildEngineeringProgram(today: Date, random: () => number): SeedProgram
   // current one opened; the next one is the first that opens after it closes.
   const canonical = canonicalCuatrimestres(currentStart.getFullYear())
   const closed = canonical.filter((window) => window.end < currentStart)
-  const [oldestStart, oldestEnd] = [closed[closed.length - 2].start, closed[closed.length - 2].end]
-  const [previousStart, previousEnd] = [closed[closed.length - 1].start, closed[closed.length - 1].end]
-  const upcoming = canonical.find((window) => window.start > currentEnd)!
+  const oldestWindow = closed[closed.length - 2]
+  const previousWindow = closed[closed.length - 1]
+  const upcoming = canonical.find((window) => window.start > currentEnd)
+  if (oldestWindow === undefined || previousWindow === undefined || upcoming === undefined) {
+    // `canonicalCuatrimestres` spans three years either side of the cursada in
+    // progress, so it always closes at least two windows before it and opens
+    // one after it. Landing here means that window generator changed shape.
+    throw new Error('the canonical calendar must surround the cursada in progress with two closed windows and one open')
+  }
+  const [oldestStart, oldestEnd] = [oldestWindow.start, oldestWindow.end]
+  const [previousStart, previousEnd] = [previousWindow.start, previousWindow.end]
   const [nextStart, nextEnd] = [upcoming.start, upcoming.end]
 
   const oldest = cuatrimestreName(oldestStart)
@@ -655,18 +667,17 @@ function buildEngineeringProgram(today: Date, random: () => number): SeedProgram
   // Plan-de-estudios rows: no período, no cursada, just a place on the map.
   // `nivel: null` on the last one is the "sin ordenar" tray, a real state.
   const planned: SeedSubject[] = [
-    'Ingeniería y Calidad de Software|042|4',
-    'Redes de Información|043|4',
-    'Legislación|014|4',
-    'Investigación Operativa|094|4',
-    'Práctica Profesional Supervisada|950|'
+    { name: 'Ingeniería y Calidad de Software', code: '042', nivel: 4 },
+    { name: 'Redes de Información', code: '043', nivel: 4 },
+    { name: 'Legislación', code: '014', nivel: 4 },
+    { name: 'Investigación Operativa', code: '094', nivel: 4 },
+    { name: 'Práctica Profesional Supervisada', code: '950', nivel: null }
   ].map((row, index) => {
-    const [name, code, nivel] = row.split('|')
     return {
-      name,
-      code,
+      name: row.name,
+      code: row.code,
       periodName: null,
-      nivel: nivel === '' ? null : Number(nivel),
+      nivel: row.nivel,
       outcome: null,
       grade: null,
       regularity: null,
@@ -819,7 +830,10 @@ function buildLanguageProgram(today: Date): SeedProgram {
 export function buildSeedData(today: Date): SeedData {
   const random = createRandom(20260101)
   const language = buildLanguageProgram(today)
-  const english = language.subjects[0]
+  const [english] = language.subjects
+  if (english === undefined) {
+    throw new Error('the language program must define the subject its attendance is written onto')
+  }
 
   // Same attendance treatment the engineering cursada gets.
   const marks = new Map<string, NewAttendance>()
@@ -870,27 +884,46 @@ function resetSeededTables(raw: Database.Database): void {
   })()
 }
 
+/**
+ * The id a single-row `.returning({ id }).all()` insert gives back. Drizzle
+ * types the result as an array, so the caller has to say out loud that an
+ * insert coming back empty is a broken invariant rather than a case to handle.
+ */
+function insertedId(rows: { id: number }[], table: string): number {
+  const [row] = rows
+  if (row === undefined) {
+    throw new Error(`the insert into ${table} returned no row`)
+  }
+  return row.id
+}
+
 function writeSeedData(db: AppDatabase, data: SeedData): void {
   for (const program of data.programs) {
-    const [{ id: programId }] = db
-      .insert(schema.programs)
-      .values({
-        name: program.name,
-        institution: program.institution,
-        color: program.color,
-        gradingScheme: program.gradingScheme,
-        gradeScale: program.gradeScale
-      })
-      .returning({ id: schema.programs.id })
-      .all()
+    const programId = insertedId(
+      db
+        .insert(schema.programs)
+        .values({
+          name: program.name,
+          institution: program.institution,
+          color: program.color,
+          gradingScheme: program.gradingScheme,
+          gradeScale: program.gradeScale
+        })
+        .returning({ id: schema.programs.id })
+        .all(),
+      'programs'
+    )
 
     const periodIds = new Map<string, number>()
     for (const period of program.periods) {
-      const [{ id }] = db
-        .insert(schema.periods)
-        .values({ ...period, programId })
-        .returning({ id: schema.periods.id })
-        .all()
+      const id = insertedId(
+        db
+          .insert(schema.periods)
+          .values({ ...period, programId })
+          .returning({ id: schema.periods.id })
+          .all(),
+        'periods'
+      )
       periodIds.set(period.name, id)
     }
 
@@ -903,15 +936,18 @@ function writeSeedData(db: AppDatabase, data: SeedData): void {
     const subjectIds = new Map<string, number>()
     for (const subject of program.subjects) {
       const { periodName, slots, deadlines, partialExams, finalExams, attendance, ...fields } = subject
-      const [{ id: subjectId }] = db
-        .insert(schema.subjects)
-        .values({
-          ...fields,
-          programId,
-          periodId: periodName === null ? null : (periodIds.get(periodName) ?? null)
-        })
-        .returning({ id: schema.subjects.id })
-        .all()
+      const subjectId = insertedId(
+        db
+          .insert(schema.subjects)
+          .values({
+            ...fields,
+            programId,
+            periodId: periodName === null ? null : (periodIds.get(periodName) ?? null)
+          })
+          .returning({ id: schema.subjects.id })
+          .all(),
+        'subjects'
+      )
       subjectIds.set(subject.code, subjectId)
 
       if (slots.length > 0) {
