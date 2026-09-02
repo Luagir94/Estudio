@@ -22,6 +22,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "drizzle-kit generate",
+    "db:seed": "node tooling/seedDatabase.mts",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
     "dist:win": "electron-vite build && electron-builder --win"
   },

@@ -77,6 +77,20 @@ Rules:
 - Never edit a migration that has been applied; author a new one.
 - Migrations are bundled into the packaged app (`electron-builder.yml` includes `drizzle/migrations/**/*`), so users are migrated on update with the same backup-first policy.
 
+### Development seed
+
+`npm run db:seed` fills the dev database with a realistic academic history — two programs (one `numerico` carrera, one `binario` course), five períodos, nineteen materias across cursadas past and present, correlativas, horarios, entregas, parciales, finales, asistencia and a próximo-período draft — so every screen has something true-to-life to render.
+
+| Command                          | Effect                                                   |
+| -------------------------------- | -------------------------------------------------------- |
+| `npm run db:seed`                | Appends the dataset to the dev database in `userData`.   |
+| `npm run db:seed -- --reset`     | Clears the academic tables first (see the caveat below). |
+| `npm run db:seed -- --db <path>` | Targets another database file, e.g. a scratch copy.      |
+
+- The dataset is anchored to **the day the seed runs**, not to hardcoded years: a cursada is always in progress, parciales were just taken, and some entregas are due this week. `buildSeedData(today)` is pure and unit-tested (`tooling/seedDatabase.test.ts`).
+- The seed runs the production migrator first, so it also works against a database file that does not exist yet.
+- `--reset` deletes the academic tables (programs down to attendance) but **not** the attachment FILES already copied into `userData/attachments`; conversations, ask history and `app_settings` are never touched.
+
 ## Architecture rules in practice
 
 `npm run lint:deps` (also part of `npm test`) runs the in-repo guard `tooling/dependencyGuard.mts`. The two rules it enforces, and the import forms it covers, are specified in [architecture.md — Enforced boundaries](architecture.md#enforced-boundaries); that section is the normative list.
