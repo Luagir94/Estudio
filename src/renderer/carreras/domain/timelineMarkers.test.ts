@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { TimelineMarkerRecord } from '../../../shared/ipc/carreras'
 import {
+  clampPopoverLeft,
   compareTimelineMarkers,
   groupNearbyMarkers,
   isUpcomingMarker,
@@ -209,5 +210,19 @@ describe('layoutPeriodMarkers', () => {
     const groups = layoutPeriodMarkers([nearby, alsoNearby], 100, scale, today)
 
     expect(groups).toEqual([{ type: 'cluster', left: expect.any(Number), markers: [nearby, alsoNearby] }])
+  })
+})
+
+describe('clampPopoverLeft', () => {
+  it('matches the pen-verified case: a 261px popover centred at x=640 on a 756px track', () => {
+    expect(clampPopoverLeft(640, 261, 756)).toBe(495)
+  })
+
+  it('clamps to the left edge when centring would push the popover off it', () => {
+    expect(clampPopoverLeft(0, 261, 756)).toBe(0)
+  })
+
+  it('clamps to the left edge when the popover is wider than the track', () => {
+    expect(clampPopoverLeft(400, 800, 756)).toBe(0)
   })
 })

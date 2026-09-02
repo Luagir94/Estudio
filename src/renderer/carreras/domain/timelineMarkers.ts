@@ -140,3 +140,18 @@ export function layoutPeriodMarkers(
 
   return groupNearbyMarkers(positioned)
 }
+
+/**
+ * Horizontal offset (px, from the track's left edge) for a popover anchored
+ * at `anchorPx`, so a `popoverWidth`-wide popover never overflows a track
+ * `trackWidth` wide (design D10). Centers on the anchor when there is room,
+ * then clamps into `[0, trackWidth - popoverWidth]`; a popover wider than
+ * the track clamps fully to the left edge (`0`) rather than partially
+ * overflowing, because a fit-content popover's width is dictated by its
+ * rows and is never shrunk to fit. Pen-verified against the approved
+ * cluster popover: `clampPopoverLeft(640, 261, 756) === 495`.
+ */
+export function clampPopoverLeft(anchorPx: number, popoverWidth: number, trackWidth: number): number {
+  const centered = anchorPx - popoverWidth / 2
+  return Math.min(Math.max(centered, 0), Math.max(trackWidth - popoverWidth, 0))
+}

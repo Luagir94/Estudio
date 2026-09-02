@@ -82,7 +82,16 @@
   },
   "periodTimeline": {
     "heading": "LÍNEA DE TIEMPO",
-    "today": "hoy"
+    "today": "hoy",
+    "markerKind": {
+      "parcial": "Parcial",
+      "final": "Final",
+      "entrega": "Entrega"
+    },
+    "markerTitle": "{{label}} · {{subject}}",
+    "markerLabel": "{{kind}} · {{label}} · {{subject}} · {{date}}",
+    "markerCluster_one": "{{count}} fecha próxima",
+    "markerCluster_other": "{{count}} fechas próximas"
   },
   "periodDetail": {
     "subtitle": "{{program}} · año {{year}} · derivado de la fecha de inicio",
