@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { barPosition, markerPosition, timelineScale } from './timeline'
+import { barPosition, clampedMarkerPosition, markerPosition, timelineScale } from './timeline'
 
 const cuatri1 = { startsOn: '2026-03-09', endsOn: '2026-07-18' }
 const cuatri2 = { startsOn: '2026-08-12', endsOn: '2026-12-04' }
@@ -84,5 +84,26 @@ describe('markerPosition', () => {
   it('reports nothing when today falls outside the range', () => {
     expect(markerPosition(new Date(2027, 5, 1), scale)).toBeNull()
     expect(markerPosition(new Date(2025, 5, 1), scale)).toBeNull()
+  })
+})
+
+describe('clampedMarkerPosition', () => {
+  const scale = { from: '2026-03-09', to: '2026-12-04' }
+
+  it('positions an in-window date exactly, matching markerPosition', () => {
+    expect(clampedMarkerPosition('2026-08-15', scale)).toBeCloseTo(markerPosition(today, scale)!, 5)
+  })
+
+  it('clamps a before-window date to 0 instead of dropping it', () => {
+    expect(clampedMarkerPosition('2025-01-01', scale)).toBe(0)
+  })
+
+  it('clamps an after-window date to 100 instead of dropping it', () => {
+    expect(clampedMarkerPosition('2027-06-01', scale)).toBe(100)
+  })
+
+  it('places both boundary dates exactly at the edges', () => {
+    expect(clampedMarkerPosition(scale.from, scale)).toBe(0)
+    expect(clampedMarkerPosition(scale.to, scale)).toBe(100)
   })
 })

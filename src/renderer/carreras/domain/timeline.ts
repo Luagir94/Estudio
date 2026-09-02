@@ -130,3 +130,15 @@ export function markerPosition(day: Date, scale: TimelineScale): number | null {
   }
   return ((toDayNumber(iso) - toDayNumber(scale.from)) / span(scale)) * 100
 }
+
+/**
+ * Where an event marker (parcial, final, entrega) sits, as a percentage
+ * ALWAYS clamped into `[0, 100]` rather than reported as absent. Unlike
+ * `markerPosition`'s "hoy" line, an out-of-window event marker still needs
+ * somewhere to render — dropping it would hide a real upcoming date instead
+ * of showing it pinned to the edge it is nearest to.
+ */
+export function clampedMarkerPosition(date: string, scale: TimelineScale): number {
+  const position = ((toDayNumber(date) - toDayNumber(scale.from)) / span(scale)) * 100
+  return clamp(position, 0, 100)
+}
