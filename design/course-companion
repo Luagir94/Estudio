@@ -51530,13 +51530,13 @@
                                   "y": 54,
                                   "name": "Ln introciv11",
                                   "fill": "$ok",
-                                  "width": 16,
+                                  "width": 7,
                                   "height": 2
                                 },
                                 {
                                   "type": "rectangle",
                                   "id": "o7ONJ",
-                                  "x": 153,
+                                  "x": 144,
                                   "y": 55,
                                   "name": "Ln introciv12",
                                   "fill": "$ok",
@@ -51546,11 +51546,11 @@
                                 {
                                   "type": "rectangle",
                                   "id": "xAiTE",
-                                  "x": 154,
+                                  "x": 145,
                                   "y": 138,
                                   "name": "Ln introciv13",
                                   "fill": "$ok",
-                                  "width": 16,
+                                  "width": 25,
                                   "height": 2
                                 },
                                 {
@@ -51560,17 +51560,17 @@
                                   "y": 138,
                                   "name": "Ln romciv11",
                                   "fill": "$ok",
-                                  "width": 16,
+                                  "width": 13,
                                   "height": 2
                                 },
                                 {
                                   "type": "rectangle",
                                   "id": "oSFOS",
-                                  "x": 154,
+                                  "x": 151,
                                   "y": 138,
                                   "name": "Ln romciv13",
                                   "fill": "$ok",
-                                  "width": 16,
+                                  "width": 19,
                                   "height": 2
                                 },
                                 {
@@ -51580,17 +51580,17 @@
                                   "y": 54,
                                   "name": "Ln intropen11",
                                   "fill": "$ok",
-                                  "width": 16,
+                                  "width": 7,
                                   "height": 2
                                 },
                                 {
                                   "type": "rectangle",
                                   "id": "QGqx8",
-                                  "x": 154,
+                                  "x": 145,
                                   "y": 54,
                                   "name": "Ln intropen13",
                                   "fill": "$ok",
-                                  "width": 16,
+                                  "width": 25,
                                   "height": 2
                                 },
                                 {
@@ -51600,17 +51600,17 @@
                                   "y": 222,
                                   "name": "Ln histcons1",
                                   "fill": "$ok",
-                                  "width": 16,
+                                  "width": 19,
                                   "height": 2
                                 },
                                 {
                                   "type": "rectangle",
                                   "id": "uGDx0",
-                                  "x": 154,
+                                  "x": 157,
                                   "y": 222,
                                   "name": "Ln histcons3",
                                   "fill": "$ok",
-                                  "width": 16,
+                                  "width": 13,
                                   "height": 2
                                 },
                                 {
@@ -51620,17 +51620,17 @@
                                   "y": 306,
                                   "name": "Ln econsoc1",
                                   "fill": "$ok",
-                                  "width": 16,
+                                  "width": 25,
                                   "height": 2
                                 },
                                 {
                                   "type": "rectangle",
                                   "id": "OT164",
-                                  "x": 154,
+                                  "x": 163,
                                   "y": 306,
                                   "name": "Ln econsoc3",
                                   "fill": "$ok",
-                                  "width": 16,
+                                  "width": 7,
                                   "height": 2
                                 },
                                 {
@@ -51640,17 +51640,17 @@
                                   "y": 138,
                                   "name": "Ln civ1civ21",
                                   "fill": "$border",
-                                  "width": 16,
+                                  "width": 13,
                                   "height": 2
                                 },
                                 {
                                   "type": "rectangle",
                                   "id": "tNz76",
-                                  "x": 324,
+                                  "x": 321,
                                   "y": 138,
                                   "name": "Ln civ1civ23",
                                   "fill": "$border",
-                                  "width": 16,
+                                  "width": 19,
                                   "height": 2
                                 },
                                 {
@@ -51660,17 +51660,17 @@
                                   "y": 54,
                                   "name": "Ln pen1pen21",
                                   "fill": "$border",
-                                  "width": 16,
+                                  "width": 7,
                                   "height": 2
                                 },
                                 {
                                   "type": "rectangle",
                                   "id": "Z41MzC",
-                                  "x": 324,
+                                  "x": 315,
                                   "y": 54,
                                   "name": "Ln pen1pen23",
                                   "fill": "$border",
-                                  "width": 16,
+                                  "width": 25,
                                   "height": 2
                                 },
                                 {
@@ -51680,17 +51680,17 @@
                                   "y": 222,
                                   "name": "Ln consadm1",
                                   "fill": "$border",
-                                  "width": 16,
+                                  "width": 19,
                                   "height": 2
                                 },
                                 {
                                   "type": "rectangle",
                                   "id": "fG0BU",
-                                  "x": 324,
+                                  "x": 327,
                                   "y": 222,
                                   "name": "Ln consadm3",
                                   "fill": "$border",
-                                  "width": 16,
+                                  "width": 13,
                                   "height": 2
                                 },
                                 {
@@ -51700,13 +51700,13 @@
                                   "y": 138,
                                   "name": "Ln civ2proc1",
                                   "fill": "$border",
-                                  "width": 16,
+                                  "width": 13,
                                   "height": 2
                                 },
                                 {
                                   "type": "rectangle",
                                   "id": "ZmWBw",
-                                  "x": 493,
+                                  "x": 490,
                                   "y": 55,
                                   "name": "Ln civ2proc2",
                                   "fill": "$border",
@@ -51716,11 +51716,11 @@
                                 {
                                   "type": "rectangle",
                                   "id": "RwThv",
-                                  "x": 494,
+                                  "x": 491,
                                   "y": 54,
                                   "name": "Ln civ2proc3",
                                   "fill": "$border",
-                                  "width": 16,
+                                  "width": 19,
                                   "height": 2
                                 },
                                 {
@@ -51730,17 +51730,17 @@
                                   "y": 138,
                                   "name": "Ln civ2com1",
                                   "fill": "$border",
-                                  "width": 16,
+                                  "width": 13,
                                   "height": 2
                                 },
                                 {
                                   "type": "rectangle",
                                   "id": "nTKsJ",
-                                  "x": 494,
+                                  "x": 491,
                                   "y": 138,
                                   "name": "Ln civ2com3",
                                   "fill": "$border",
-                                  "width": 16,
+                                  "width": 19,
                                   "height": 2
                                 },
                                 {
@@ -51750,17 +51750,17 @@
                                   "y": 222,
                                   "name": "Ln admlab1",
                                   "fill": "$border",
-                                  "width": 16,
+                                  "width": 19,
                                   "height": 2
                                 },
                                 {
                                   "type": "rectangle",
                                   "id": "ZIzgn",
-                                  "x": 494,
+                                  "x": 497,
                                   "y": 222,
                                   "name": "Ln admlab3",
                                   "fill": "$border",
-                                  "width": 16,
+                                  "width": 13,
                                   "height": 2
                                 },
                                 {
@@ -51770,17 +51770,17 @@
                                   "y": 54,
                                   "name": "Ln pen2proc1",
                                   "fill": "$border",
-                                  "width": 16,
+                                  "width": 7,
                                   "height": 2
                                 },
                                 {
                                   "type": "rectangle",
                                   "id": "rnbVs",
-                                  "x": 494,
+                                  "x": 485,
                                   "y": 54,
                                   "name": "Ln pen2proc3",
                                   "fill": "$border",
-                                  "width": 16,
+                                  "width": 25,
                                   "height": 2
                                 },
                                 {
@@ -51790,13 +51790,13 @@
                                   "y": 54,
                                   "name": "Ln skip-a",
                                   "fill": "$ok",
-                                  "width": 16,
+                                  "width": 7,
                                   "height": 2
                                 },
                                 {
                                   "type": "rectangle",
                                   "id": "jgC6t",
-                                  "x": 153,
+                                  "x": 144,
                                   "y": 55,
                                   "name": "Ln skip-b",
                                   "fill": "$ok",
@@ -51806,11 +51806,11 @@
                                 {
                                   "type": "rectangle",
                                   "id": "u6S28",
-                                  "x": 154,
+                                  "x": 145,
                                   "y": 96,
                                   "name": "Ln skip-c",
                                   "fill": "$ok",
-                                  "width": 172,
+                                  "width": 180,
                                   "height": 2
                                 },
                                 {
@@ -51848,10 +51848,7 @@
                                   "strokeAlignment": "inner",
                                   "layout": "vertical",
                                   "gap": 2,
-                                  "padding": [
-                                    8,
-                                    10
-                                  ],
+                                  "padding": 6,
                                   "justifyContent": "center",
                                   "children": [
                                     {
@@ -51907,10 +51904,7 @@
                                   "strokeAlignment": "inner",
                                   "layout": "vertical",
                                   "gap": 2,
-                                  "padding": [
-                                    8,
-                                    10
-                                  ],
+                                  "padding": 6,
                                   "justifyContent": "center",
                                   "children": [
                                     {
@@ -51966,10 +51960,7 @@
                                   "strokeAlignment": "inner",
                                   "layout": "vertical",
                                   "gap": 2,
-                                  "padding": [
-                                    8,
-                                    10
-                                  ],
+                                  "padding": 6,
                                   "justifyContent": "center",
                                   "children": [
                                     {
@@ -52025,10 +52016,7 @@
                                   "strokeAlignment": "inner",
                                   "layout": "vertical",
                                   "gap": 2,
-                                  "padding": [
-                                    8,
-                                    10
-                                  ],
+                                  "padding": 6,
                                   "justifyContent": "center",
                                   "children": [
                                     {
@@ -52083,7 +52071,7 @@
                                   "strokeWidth": 1,
                                   "strokeAlignment": "inner",
                                   "gap": 6,
-                                  "padding": 8,
+                                  "padding": 6,
                                   "justifyContent": "center",
                                   "alignItems": "center",
                                   "children": [
@@ -52162,7 +52150,7 @@
                                   "strokeWidth": 1,
                                   "strokeAlignment": "inner",
                                   "gap": 6,
-                                  "padding": 8,
+                                  "padding": 6,
                                   "justifyContent": "center",
                                   "alignItems": "center",
                                   "children": [
@@ -52241,7 +52229,7 @@
                                   "strokeWidth": 1,
                                   "strokeAlignment": "inner",
                                   "gap": 6,
-                                  "padding": 8,
+                                  "padding": 6,
                                   "justifyContent": "center",
                                   "alignItems": "center",
                                   "children": [
@@ -52320,7 +52308,7 @@
                                   "strokeWidth": 1,
                                   "strokeAlignment": "inner",
                                   "gap": 6,
-                                  "padding": 8,
+                                  "padding": 6,
                                   "justifyContent": "center",
                                   "alignItems": "center",
                                   "children": [
@@ -52401,10 +52389,7 @@
                                   "strokeAlignment": "inner",
                                   "layout": "vertical",
                                   "gap": 2,
-                                  "padding": [
-                                    8,
-                                    10
-                                  ],
+                                  "padding": 6,
                                   "justifyContent": "center",
                                   "children": [
                                     {
@@ -52432,10 +52417,10 @@
                                           "type": "text",
                                           "id": "F1md1",
                                           "name": "Cand Meta",
-                                          "fill": "$urgent",
+                                          "fill": "$text-muted",
                                           "textGrowth": "fixed-width",
                                           "width": "fill_container",
-                                          "content": "Falta Penal I aprobada",
+                                          "content": "DER-302",
                                           "lineHeight": 1.2,
                                           "fontFamily": "$font-ui",
                                           "fontSize": 9,
@@ -52461,10 +52446,7 @@
                                   "strokeAlignment": "inner",
                                   "layout": "vertical",
                                   "gap": 2,
-                                  "padding": [
-                                    8,
-                                    10
-                                  ],
+                                  "padding": 6,
                                   "justifyContent": "center",
                                   "children": [
                                     {
@@ -52492,10 +52474,10 @@
                                           "type": "text",
                                           "id": "xloGO",
                                           "name": "Cand Meta",
-                                          "fill": "$urgent",
+                                          "fill": "$text-muted",
                                           "textGrowth": "fixed-width",
                                           "width": "fill_container",
-                                          "content": "Falta Civil I aprobada",
+                                          "content": "DER-301",
                                           "lineHeight": 1.2,
                                           "fontFamily": "$font-ui",
                                           "fontSize": 9,
@@ -52511,7 +52493,6 @@
                                   "x": 340,
                                   "y": 194,
                                   "name": "Box adm",
-                                  "opacity": 0.55,
                                   "width": 138,
                                   "height": 58,
                                   "fill": "$surface",
@@ -52521,10 +52502,7 @@
                                   "strokeAlignment": "inner",
                                   "layout": "vertical",
                                   "gap": 2,
-                                  "padding": [
-                                    8,
-                                    10
-                                  ],
+                                  "padding": 6,
                                   "justifyContent": "center",
                                   "children": [
                                     {
@@ -52552,10 +52530,10 @@
                                           "type": "text",
                                           "id": "jdg0e",
                                           "name": "Cand Meta",
-                                          "fill": "$urgent",
+                                          "fill": "$text-muted",
                                           "textGrowth": "fixed-width",
                                           "width": "fill_container",
-                                          "content": "Falta Constitucional",
+                                          "content": "DER-303",
                                           "lineHeight": 1.2,
                                           "fontFamily": "$font-ui",
                                           "fontSize": 9,
@@ -52579,7 +52557,7 @@
                                   "strokeWidth": 1,
                                   "strokeAlignment": "inner",
                                   "gap": 6,
-                                  "padding": 8,
+                                  "padding": 6,
                                   "justifyContent": "center",
                                   "alignItems": "center",
                                   "children": [
@@ -52660,10 +52638,7 @@
                                   "strokeAlignment": "inner",
                                   "layout": "vertical",
                                   "gap": 2,
-                                  "padding": [
-                                    8,
-                                    10
-                                  ],
+                                  "padding": 6,
                                   "justifyContent": "center",
                                   "children": [
                                     {
@@ -52691,10 +52666,10 @@
                                           "type": "text",
                                           "id": "Ep8nM",
                                           "name": "Cand Meta",
-                                          "fill": "$urgent",
+                                          "fill": "$text-muted",
                                           "textGrowth": "fixed-width",
                                           "width": "fill_container",
-                                          "content": "Falta Civil II aprobada",
+                                          "content": "DER-402",
                                           "lineHeight": 1.2,
                                           "fontFamily": "$font-ui",
                                           "fontSize": 9,
@@ -52720,10 +52695,7 @@
                                   "strokeAlignment": "inner",
                                   "layout": "vertical",
                                   "gap": 2,
-                                  "padding": [
-                                    8,
-                                    10
-                                  ],
+                                  "padding": 6,
                                   "justifyContent": "center",
                                   "children": [
                                     {
@@ -52751,10 +52723,10 @@
                                           "type": "text",
                                           "id": "Z9WhY",
                                           "name": "Cand Meta",
-                                          "fill": "$urgent",
+                                          "fill": "$text-muted",
                                           "textGrowth": "fixed-width",
                                           "width": "fill_container",
-                                          "content": "Falta Civil II aprobada",
+                                          "content": "DER-403",
                                           "lineHeight": 1.2,
                                           "fontFamily": "$font-ui",
                                           "fontSize": 9,
@@ -52780,10 +52752,7 @@
                                   "strokeAlignment": "inner",
                                   "layout": "vertical",
                                   "gap": 2,
-                                  "padding": [
-                                    8,
-                                    10
-                                  ],
+                                  "padding": 6,
                                   "justifyContent": "center",
                                   "children": [
                                     {
@@ -52811,10 +52780,10 @@
                                           "type": "text",
                                           "id": "IJi5v",
                                           "name": "Cand Meta",
-                                          "fill": "$urgent",
+                                          "fill": "$text-muted",
                                           "textGrowth": "fixed-width",
                                           "width": "fill_container",
-                                          "content": "Falta Administrativo",
+                                          "content": "DER-404",
                                           "lineHeight": 1.2,
                                           "fontFamily": "$font-ui",
                                           "fontSize": 9,
@@ -52838,7 +52807,7 @@
                                   "strokeWidth": 1,
                                   "strokeAlignment": "inner",
                                   "gap": 6,
-                                  "padding": 8,
+                                  "padding": 6,
                                   "justifyContent": "center",
                                   "alignItems": "center",
                                   "children": [
@@ -52900,6 +52869,55 @@
                                           "fill": "$accent-text"
                                         }
                                       ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "L8W8M",
+                                  "layoutPosition": "absolute",
+                                  "x": 340,
+                                  "y": 250,
+                                  "name": "Blocked Tooltip",
+                                  "fill": "$surface",
+                                  "cornerRadius": 8,
+                                  "stroke": "$border",
+                                  "strokeWidth": 1,
+                                  "strokeAlignment": "inner",
+                                  "effect": {
+                                    "type": "shadow",
+                                    "shadowType": "outer",
+                                    "color": "#00000073",
+                                    "offset": {
+                                      "x": 0,
+                                      "y": 4
+                                    },
+                                    "blur": 16
+                                  },
+                                  "gap": 8,
+                                  "padding": [
+                                    6,
+                                    10
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "ellipse",
+                                      "id": "L0LUOh",
+                                      "name": "Tooltip Dot",
+                                      "fill": "$urgent",
+                                      "width": 7,
+                                      "height": 7
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "w3DUX",
+                                      "name": "Tooltip Title",
+                                      "fill": "$text-primary",
+                                      "content": "Falta Constitucional aprobada",
+                                      "fontFamily": "$font-ui",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
                                     }
                                   ]
                                 }
