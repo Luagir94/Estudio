@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, Pencil, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { withoutImpliedEdges } from '../../../shared/domain/prerequisiteGraph'
 import type { PeriodRecord } from '../../../shared/ipc/carreras'
 import { FechasCardContainer } from '../../fechas/containers/FechasCardContainer'
 import { materiasApi } from '../../materias/adapters/materiasApi'
@@ -307,11 +308,24 @@ export function CarreraDetailContainer({
       }
     })
 
-    const edges = ownSubjects.flatMap((subject) =>
-      subject.prerequisites.map((prerequisite) => ({
-        subjectId: subject.id,
-        requiresSubjectId: prerequisite.requiresSubjectId
-      }))
+    // Reduced, never raw. The write path accepts a correlativa the chain
+    // already implies — it is noise, not a contradiction — so a stored plan can
+    // hold one. Drawing it would put a line on the map carrying nothing the
+    // other two do not already say, and an implied edge usually SKIPS a column,
+    // so it travels a lane around the boxes in between to get there: a loop
+    // curling under an unrelated materia, for no information at all.
+    //
+    // Reduced before `layOutPlanMap`, not after, so the ordering sweep is not
+    // pulled around by an edge nobody will see either. The stored correlativas
+    // are untouched: the rail still lists the redundant one, and removing it is
+    // the student's call.
+    const edges = withoutImpliedEdges(
+      ownSubjects.flatMap((subject) =>
+        subject.prerequisites.map((prerequisite) => ({
+          subjectId: subject.id,
+          requiresSubjectId: prerequisite.requiresSubjectId
+        }))
+      )
     )
     // `SubjectWithStatus` satisfies `DraftSubject` structurally (id/name/color/
     // slots), so this narrows rather than adapts — no second shape to keep in

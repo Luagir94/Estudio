@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { collectRequirementsOf, collectRequiredBy, type PrerequisiteEdge, wouldCreateCycle } from './prerequisiteGraph'
+import {
+  collectRequirementsOf,
+  collectRequiredBy,
+  type PrerequisiteEdge,
+  withoutImpliedEdges,
+  wouldCreateCycle
+} from './prerequisiteGraph'
 
 function edge(subjectId: number, requiresSubjectId: number): PrerequisiteEdge {
   return { subjectId, requiresSubjectId }
@@ -152,5 +158,92 @@ describe('collectRequirementsOf', () => {
     ]
 
     expect(collectRequirementsOf(edges, 1)).toEqual(new Set([1, 2]))
+  })
+})
+
+describe('withoutImpliedEdges', () => {
+  it('keeps a graph that says nothing twice', () => {
+    const edges: PrerequisiteEdge[] = [
+      { subjectId: 2, requiresSubjectId: 1 },
+      { subjectId: 3, requiresSubjectId: 2 }
+    ]
+
+    expect(withoutImpliedEdges(edges)).toEqual(edges)
+  })
+
+  // The shape the seed used to hold: 3 requires 2, 2 requires 1, and 3 names 1
+  // as well. The chain already said it.
+  it('drops the shortcut across a chain and keeps the chain', () => {
+    const edges: PrerequisiteEdge[] = [
+      { subjectId: 2, requiresSubjectId: 1 },
+      { subjectId: 3, requiresSubjectId: 2 },
+      { subjectId: 3, requiresSubjectId: 1 }
+    ]
+
+    expect(withoutImpliedEdges(edges)).toEqual([
+      { subjectId: 2, requiresSubjectId: 1 },
+      { subjectId: 3, requiresSubjectId: 2 }
+    ])
+  })
+
+  it('drops a shortcut across a longer chain', () => {
+    const edges: PrerequisiteEdge[] = [
+      { subjectId: 2, requiresSubjectId: 1 },
+      { subjectId: 3, requiresSubjectId: 2 },
+      { subjectId: 4, requiresSubjectId: 3 },
+      { subjectId: 4, requiresSubjectId: 1 }
+    ]
+
+    expect(withoutImpliedEdges(edges)).toEqual([
+      { subjectId: 2, requiresSubjectId: 1 },
+      { subjectId: 3, requiresSubjectId: 2 },
+      { subjectId: 4, requiresSubjectId: 3 }
+    ])
+  })
+
+  // Both branches reach 1, so 4 → 1 is implied twice over. Neither branch may
+  // be mistaken for the shortcut and dropped in its place.
+  it('drops the shortcut across a diamond and keeps both branches', () => {
+    const edges: PrerequisiteEdge[] = [
+      { subjectId: 2, requiresSubjectId: 1 },
+      { subjectId: 3, requiresSubjectId: 1 },
+      { subjectId: 4, requiresSubjectId: 2 },
+      { subjectId: 4, requiresSubjectId: 3 },
+      { subjectId: 4, requiresSubjectId: 1 }
+    ]
+
+    expect(withoutImpliedEdges(edges)).toEqual([
+      { subjectId: 2, requiresSubjectId: 1 },
+      { subjectId: 3, requiresSubjectId: 1 },
+      { subjectId: 4, requiresSubjectId: 2 },
+      { subjectId: 4, requiresSubjectId: 3 }
+    ])
+  })
+
+  // A duplicate implies itself through its twin, so a naive filter drops BOTH
+  // and loses the correlativa entirely. One copy has to survive.
+  it('collapses a duplicated correlativa to one instead of losing it', () => {
+    const edges: PrerequisiteEdge[] = [
+      { subjectId: 2, requiresSubjectId: 1 },
+      { subjectId: 2, requiresSubjectId: 1 }
+    ]
+
+    expect(withoutImpliedEdges(edges)).toEqual([{ subjectId: 2, requiresSubjectId: 1 }])
+  })
+
+  // A stored graph written before `wouldCreateCycle` existed can hold a loop.
+  // Every edge in it is implied by the rest, and returning nothing would erase
+  // the very correlativas that need looking at.
+  it('leaves a cyclic graph alone rather than emptying it', () => {
+    const edges: PrerequisiteEdge[] = [
+      { subjectId: 2, requiresSubjectId: 1 },
+      { subjectId: 1, requiresSubjectId: 2 }
+    ]
+
+    expect(withoutImpliedEdges(edges)).toEqual(edges)
+  })
+
+  it('has nothing to do with an empty graph', () => {
+    expect(withoutImpliedEdges([])).toEqual([])
   })
 })

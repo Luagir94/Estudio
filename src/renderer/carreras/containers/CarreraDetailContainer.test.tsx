@@ -1513,6 +1513,43 @@ describe('CarreraDetailContainer — plan de estudios tab', () => {
       expect(planificadorApiMock.removeEntry.mock.calls[0]?.[0]).toEqual({ periodId: 2, subjectId: 1 })
     })
   })
+
+  // The write path ACCEPTS a correlativa the chain already implies — it is
+  // noise, not a contradiction — so a stored plan can hold one, from a hand
+  // edit or from before the picker filtered it. The map must not DRAW it: the
+  // line carries nothing the other two do not already say, and it has to take a
+  // lane around the box in between to get there, which is the loop the student
+  // sees curling under an unrelated materia.
+  it('never draws a correlativa another correlativa already implies', async () => {
+    const segundo = subject({
+      id: 2,
+      name: 'Derecho Civil I',
+      nivel: 2,
+      prerequisites: [{ requiresSubjectId: 1, requiredLevel: 'aprobada' }]
+    })
+    const tercero = subject({
+      id: 3,
+      name: 'Derecho Civil II',
+      nivel: 3,
+      // 3 requires 2, 2 requires 1 — so naming 1 here says nothing new.
+      prerequisites: [
+        { requiresSubjectId: 2, requiredLevel: 'aprobada' },
+        { requiresSubjectId: 1, requiredLevel: 'aprobada' }
+      ]
+    })
+    materiasApiMock.list.mockResolvedValue([introduccion, segundo, tercero])
+
+    const { container } = renderDetail()
+    await screen.findByRole('heading', { name: 'Abogacía' })
+    await userEvent.click(screen.getByRole('tab', { name: 'Plan de estudios' }))
+
+    const drawn = new Set(
+      [...container.querySelectorAll('[data-testid="plan-map-connector"]')].map((segment) =>
+        segment.getAttribute('data-edge')
+      )
+    )
+    expect(drawn).toEqual(new Set(['1-2', '2-3']))
+  })
 })
 
 // The tab used to live in this container's own `useState`. It moves to the

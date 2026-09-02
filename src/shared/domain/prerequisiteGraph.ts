@@ -104,3 +104,50 @@ export function collectRequirementsOf(edges: readonly PrerequisiteEdge[], subjec
 
   return collected
 }
+
+/** `subjectId`/`requiresSubjectId` as one comparable value. */
+function edgeKey(edge: PrerequisiteEdge): string {
+  return `${edge.subjectId}-${edge.requiresSubjectId}`
+}
+
+/**
+ * The same graph with every correlativa another correlativa already implies
+ * taken out — a transitive reduction, in the standard name.
+ *
+ * The picker refuses to OFFER such an edge (`collectRequirementsOf` is exactly
+ * the set it subtracts), but the WRITE path still accepts one: a redundant
+ * correlativa is noise, not a contradiction, and a database can hold one from
+ * before that filter existed, from a hand edit, or from a seed. So anything
+ * that DRAWS the graph has to reduce it itself rather than trust its input.
+ *
+ * Not a validation rule and not a repair: nothing is deleted from the database.
+ * This is for the plan map, where an implied edge draws a line whose only
+ * content is what two other lines already said — and, worse, a line that has to
+ * travel a lane around the boxes in between to get there.
+ *
+ * Two shapes it must survive, both of which a naive filter gets wrong:
+ *
+ *   - A DUPLICATE implies itself through its twin, so filtering each edge
+ *     against all the others drops BOTH and loses the correlativa. The dedupe
+ *     below runs first for that reason, not for tidiness.
+ *   - A CYCLE makes every edge in the loop implied by the rest. Emptying it
+ *     would hide precisely the correlativas someone needs to look at, so the
+ *     walk is the one in `collectRequirementsOf`, which stops at the edges it
+ *     is given and therefore leaves a loop standing.
+ */
+export function withoutImpliedEdges(edges: readonly PrerequisiteEdge[]): PrerequisiteEdge[] {
+  const seen = new Set<string>()
+  const unique = edges.filter((edge) => {
+    const key = edgeKey(edge)
+    if (seen.has(key)) {
+      return false
+    }
+    seen.add(key)
+    return true
+  })
+
+  return unique.filter((edge, index) => {
+    const rest = unique.filter((_, other) => other !== index)
+    return !collectRequirementsOf(rest, edge.subjectId).has(edge.requiresSubjectId)
+  })
+}
