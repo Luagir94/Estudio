@@ -66,7 +66,15 @@ describe('horarioApi', () => {
           deleteNote: vi.fn()
         },
         entregas: { create: vi.fn(), list: vi.fn(), update: vi.fn(), setDone: vi.fn(), delete: vi.fn() },
-        adjuntos: { list: vi.fn(), add: vi.fn(), open: vi.fn(), remove: vi.fn(), read: vi.fn(), write: vi.fn() },
+        adjuntos: {
+          list: vi.fn(),
+          add: vi.fn(),
+          open: vi.fn(),
+          remove: vi.fn(),
+          read: vi.fn(),
+          write: vi.fn(),
+          createDocument: vi.fn()
+        },
         indexado: { sync: vi.fn(), onStatusChanged: vi.fn().mockReturnValue(vi.fn()) },
         theme: { getPreference: vi.fn(), setPreference: vi.fn(), getPalette: vi.fn(), setPalette: vi.fn() },
         app: { openExternal: vi.fn(), exportJson: vi.fn(), onExportRequested: vi.fn() },
