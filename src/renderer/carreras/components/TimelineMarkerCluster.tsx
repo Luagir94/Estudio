@@ -38,6 +38,13 @@ interface TimelineMarkerClusterProps {
 const POPOVER_SURFACE =
   'absolute bottom-[calc(100%+8px)] left-0 z-20 rounded-lg border border-border bg-popover shadow-[0_4px_16px_rgba(0,0,0,0.45)]'
 
+// The vertical offset belongs on the positioned element, not on the chip
+// inside it: a `top-*` utility is silently inert on a statically positioned
+// button, and the chip then baseline-aligns inside this wrapper's line box
+// instead. `flex` keeps the wrapper exactly as tall as the chip, so the
+// popover's `bottom: 100% + 8px` still measures from the chip's top edge.
+const ANCHOR = 'absolute top-[18px] flex -translate-x-1/2'
+
 export function TimelineMarkerCluster({
   markers,
   left,
@@ -106,7 +113,7 @@ export function TimelineMarkerCluster({
   return (
     <div
       ref={containerRef}
-      className="absolute -translate-x-1/2"
+      className={ANCHOR}
       style={{ left: `${left}%` }}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
@@ -135,7 +142,7 @@ export function TimelineMarkerCluster({
           }
         }}
         className={cn(
-          'top-[18px] h-4 w-4 rounded-full border border-secondary-foreground bg-card text-[9px] font-bold text-foreground',
+          'h-4 w-4 rounded-full border border-secondary-foreground bg-card text-[9px] font-bold text-foreground',
           interactive
         )}
       >
@@ -149,7 +156,7 @@ export function TimelineMarkerCluster({
           data-testid="timeline-marker-popover"
           role="menu"
           aria-label={clusterLabel}
-          className={cn(POPOVER_SURFACE, 'flex flex-col gap-1.5 px-2.5 py-2')}
+          className={cn(POPOVER_SURFACE, 'flex flex-col gap-1.5 px-2.5 py-2 whitespace-nowrap')}
         >
           {markers.map((marker, index) =>
             onOpenSubject === undefined ? (

@@ -224,4 +224,32 @@ describe('TimelineMarkerCluster', () => {
     const anchorPx = (756 * leftPercent) / 100
     expect(popover.style.left).toBe(`${clampPopoverLeft(anchorPx, 261, 756) - anchorPx}px`)
   })
+
+  // jsdom does no layout, so these two guard against defects a real capture of
+  // the running app caught and every behavioural test above missed: the chip
+  // floated ~12px above the single markers, and the popover was a third of its
+  // intended width with every row broken over four lines.
+  describe('layout contract', () => {
+    it('carries the vertical offset on the positioned element, not on the static chip', () => {
+      renderCluster(clusterMarkers(3), vi.fn())
+
+      const chip = screen.getByTestId('timeline-marker-cluster')
+      const anchor = chip.parentElement!
+
+      // A `top-*` utility is inert on a statically positioned element, so the
+      // offset has to sit on whichever element is actually absolute.
+      expect(anchor.className).toContain('absolute')
+      expect(anchor.className).toContain('top-[18px]')
+      expect(chip.className).not.toContain('top-[')
+    })
+
+    it('keeps popover rows on one line each', async () => {
+      const user = userEvent.setup()
+      renderCluster(clusterMarkers(3), vi.fn())
+
+      await user.click(screen.getByTestId('timeline-marker-cluster'))
+
+      expect(screen.getByTestId('timeline-marker-popover').className).toContain('whitespace-nowrap')
+    })
+  })
 })
