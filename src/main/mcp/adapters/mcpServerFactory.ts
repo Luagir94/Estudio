@@ -137,9 +137,17 @@ export function createConnectionMcpServer(
   const server = new McpServer(SERVER_INFO)
   const connection = createConnectionState()
   for (const descriptor of descriptors) {
+    // Spike B fallback (design "defineTool and schema mapping", PR5 task
+    // 5.1): `advertisedShapeOverrides`, when present, replaces individual
+    // fields ONLY in the shape handed to the SDK for `tools/list`
+    // advertising. `descriptor.inputSchema` itself — what `createToolHandler`
+    // re-parses against — is never touched, so real validation stays exact.
+    const advertisedShape = descriptor.advertisedShapeOverrides
+      ? { ...descriptor.inputSchema.shape, ...descriptor.advertisedShapeOverrides }
+      : descriptor.inputSchema.shape
     server.registerTool(
       descriptor.name,
-      { description: descriptor.description, inputSchema: descriptor.inputSchema.shape },
+      { description: descriptor.description, inputSchema: advertisedShape },
       createToolHandler(descriptor, connection, deps)
     )
   }

@@ -35,6 +35,21 @@ export interface ToolDescriptor<S extends z.ZodObject, R> {
   action: McpAction
   description: string
   inputSchema: S
+  /**
+   * Optional per-field overrides applied ONLY to the raw shape handed to
+   * the SDK for `tools/list` advertising (`mcpServerFactory`'s
+   * `server.registerTool` call) — NEVER to `inputSchema` itself, which
+   * stays the exact contract `createToolHandler`'s double parse
+   * re-validates against. Exists for the Spike B fallback (design
+   * "defineTool and schema mapping", PR5 task 5.1): the installed SDK
+   * (1.30.0) drops a `z.preprocess`-backed REQUIRED field (a `ZodPipe`,
+   * e.g. `materias.ts`'s `requiredPeriodId`) from the advertised
+   * `tools/list` `required` array. Swapping just that field's advertised
+   * type with `z.unknown()` restores it to `required`, at the documented
+   * cost of losing its advertised type (design: "JSON schema is looser").
+   * Real validation is completely unaffected by this field.
+   */
+  advertisedShapeOverrides?: Record<string, z.ZodType>
   exec(input: z.output<S>): Promise<R | null> | R | null
   summarize(input: z.output<S>, result: R | null): string
 }

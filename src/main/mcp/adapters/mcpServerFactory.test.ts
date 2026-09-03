@@ -268,6 +268,58 @@ describe('createToolHandler — stale -> authorize -> parse -> exec -> envelope 
   })
 })
 
+// --- Spike B fallback (PR5 task 5.1): advertisedShapeOverrides -----------
+//
+// Installed 1.30.0 drops a `z.preprocess`-backed REQUIRED field from the
+// advertised `tools/list` JSON schema's `required` array (verified in
+// `materiasTools.test.ts`'s Spike B test against `materias_create`'s real
+// `periodId` field). This decoupled override restores it: it is applied
+// ONLY to the raw shape handed to the SDK for advertising, never to
+// `descriptor.inputSchema` itself, so `createToolHandler`'s double parse
+// keeps validating the exact, unmodified contract.
+describe('createConnectionMcpServer — advertisedShapeOverrides (Spike B fallback, task 5.1)', () => {
+  function buildProbeDescriptor() {
+    return defineTool({
+      name: 'probe_tool',
+      slice: 'materias',
+      action: 'write',
+      description: 'Probes the advertised-shape override.',
+      inputSchema: z.object({ id: z.preprocess((value) => value, z.number().int().positive()) }),
+      advertisedShapeOverrides: { id: z.unknown() },
+      exec: vi.fn().mockResolvedValue({ id: 1 }),
+      summarize: () => 'probe_tool'
+    })
+  }
+
+  it('advertises the overridden field as required with a looser (untyped) JSON schema', async () => {
+    const { server } = createConnectionMcpServer([buildProbeDescriptor()], { authorize: () => true, audit: vi.fn() })
+    const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair()
+    const client = new Client({ name: 'probe-client', version: '0.0.0' })
+
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)])
+    const { tools } = await client.listTools()
+    const [probeTool] = tools
+    if (!probeTool) {
+      throw new Error('expected the probe tool to be registered')
+    }
+
+    expect(probeTool.inputSchema.required).toContain('id')
+    expect(probeTool.inputSchema.properties?.id).toEqual({})
+  })
+
+  it('leaves real validation completely unaffected — a missing field still fails the double parse', async () => {
+    const audit = vi.fn()
+    const connection = createConnectionState()
+    const handler = createToolHandler(buildProbeDescriptor(), connection, { authorize: () => true, audit })
+
+    const result = await handler({})
+
+    expect(result.isError).toBe(true)
+    expect(JSON.parse((result.content[0] as { text: string }).text).code).toBe('VALIDATION_ERROR')
+    expect(audit).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'invalid' }))
+  })
+})
+
 describe('createConnectionMcpServer — wiring through the real SDK', () => {
   it('registers each descriptor as a tool and dispatches tools/call through the wrapper', async () => {
     const exec = vi.fn().mockResolvedValue({ id: 7 })
