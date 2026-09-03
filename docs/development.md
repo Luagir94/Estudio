@@ -43,15 +43,16 @@ npm install
 
 ### End-to-end tests (Playwright)
 
-`npm run test:e2e` first runs `electron-vite build`, then drives the **real production build** (`out/main/index.js`) through Playwright's `_electron` fixture — real preload bridge, real IPC, real SQLite, strict production CSP. Specs run serially (one worker, no retries, 60s timeout). The five specs in `e2e/`:
+`npm run test:e2e` first runs `npm run build` (electron-vite build plus the MCP shim build, see "Connecting an MCP client" above), then drives the **real production build** (`out/main/index.js`) through Playwright's `_electron` fixture — real preload bridge, real IPC, real SQLite, strict production CSP. Specs run serially (one worker, no retries, 60s timeout). Among the specs in `e2e/`:
 
-| Spec                              | Covers                                                                                |
-| --------------------------------- | ------------------------------------------------------------------------------------- |
-| `hoy-export.spec.ts`              | App launches, Hoy renders with zero navigation, JSON export writes a real file        |
-| `claude-connection.spec.ts`       | Ajustes probes the installed CLI and reports connected with version and path          |
-| `ask-my-materials.spec.ts`        | The ask panel opens from Hoy, is wired end to end, and closes cleanly                 |
-| `ask-history-persistence.spec.ts` | A conversation written before relaunch is resumed after relaunch (same user-data dir) |
-| `attachment-indexing.spec.ts`     | Sincronizar indexes pending and ai-generated attachments; chunks are BM25-retrievable |
+| Spec                              | Covers                                                                                                                                                                     |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hoy-export.spec.ts`              | App launches, Hoy renders with zero navigation, JSON export writes a real file                                                                                             |
+| `claude-connection.spec.ts`       | Ajustes probes the installed CLI and reports connected with version and path                                                                                               |
+| `ask-my-materials.spec.ts`        | The ask panel opens from Hoy, is wired end to end, and closes cleanly                                                                                                      |
+| `ask-history-persistence.spec.ts` | A conversation written before relaunch is resumed after relaunch (same user-data dir)                                                                                      |
+| `attachment-indexing.spec.ts`     | Sincronizar indexes pending and ai-generated attachments; chunks are BM25-retrievable                                                                                      |
+| `mcp-round-trip.spec.ts`          | An external process spawns the real MCP shim, keeps stdout pure under load, and fails closed when the app is not running, the token is wrong, or the app quits mid-session |
 
 Note: `claude-connection.spec.ts` expects a locally installed Claude Code CLI to resolve.
 
@@ -111,6 +112,44 @@ npm run dist:win
 ```
 
 Builds production output and runs electron-builder for Windows. The NSIS installer (not one-click; user-selectable install directory) lands in `release/` as `Course Companion-<version>-setup.exe`. Electron Fuses are flipped into the binary at package time — the shipped app cannot run as a Node interpreter, ignores `NODE_OPTIONS`, and only loads its integrity-checked `app.asar`. Packaging is Windows-only today.
+
+## Connecting an MCP client
+
+Course Companion runs an inbound [MCP](https://modelcontextprotocol.io) server so an MCP-capable client (Claude Code, Claude Desktop, or another CLI) can read and write your academic data directly. The app itself never opens a network port: an external client spawns a small relay ("the shim") that talks to the running app over a local named pipe (Windows) or Unix socket (elsewhere).
+
+**Prerequisites**: Course Companion must be running, with a token issued and at least one slice granted from Ajustes; **system Node.js >= 20 must be on `PATH`** — the client spawns the shim with your own `node`, never Electron's bundled one.
+
+### Client configuration
+
+Point your MCP client at the shim with the same `{ command, args, env }` shape most stdio-based clients use:
+
+```json
+{
+  "mcpServers": {
+    "course-companion": {
+      "command": "node",
+      "args": ["<install-dir>/resources/mcp-shim/index.cjs"],
+      "env": {
+        "COURSE_COMPANION_MCP_TOKEN": "<the token from Ajustes>"
+      }
+    }
+  }
+}
+```
+
+- **After install**, the shim lives at `<install-dir>/resources/mcp-shim/index.cjs` (outside `app.asar`, since the client's system Node needs to read it directly). Ajustes' MCP card shows this exact path once it ships.
+- **Running from source** instead, point `args` at `out/mcp-shim/index.cjs` (repo root, after `npm run build`).
+- The token is shown in plaintext exactly once, when it is issued or rotated in Ajustes — supply it to the client only through `env`, never on the command line: it is validated during the connection handshake, before any tool call is dispatched.
+
+### When it will not connect
+
+The shim never launches the app on your behalf, never opens the database itself, and never queues a call while disconnected — on any failure it exits with one diagnostic line on stderr instead of touching stdout, so a client's own error surface is what you should check first.
+
+| Symptom                                                              | Cause                                                                                                                                  |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| The client reports the server exited immediately and no tools appear | Course Companion is not running, or MCP is not enabled (no token issued, or no slice granted)                                          |
+| Same symptom, but the app _is_ running                               | The token in the client's `env` does not match the one currently issued — reissue or rotate it in Ajustes and update the client config |
+| The client was working, then the connection dropped mid-session      | The app was closed or restarted; reconnect once it is running again                                                                    |
 
 ## Conventions
 
