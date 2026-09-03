@@ -33,5 +33,20 @@
       "clases": { "name": "Clases", "description": "2 herramientas · solo asistencia" },
       "horario": { "name": "Horario", "description": "1 herramienta · solo lectura" }
     }
+  },
+  "mcpActivityScreen": {
+    "title": "Actividad MCP",
+    "subtitle": "Todo lo que hicieron los CLI conectados · el token nunca aparece acá",
+    "card": {
+      "title": "Últimas operaciones",
+      "description": "Más recientes primero · se guardan las últimas 5.000"
+    },
+    "outcome": {
+      "success": "OK",
+      "denied": "Denegado",
+      "authFailed": "Auth fallida",
+      "invalid": "Inválido"
+    },
+    "footerNote": "Se guardan las últimas 5.000 operaciones y, por separado, los últimos 500 intentos fallidos de autenticación — así una ráfaga de intentos no te borra el historial real."
   }
 }

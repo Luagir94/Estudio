@@ -92,6 +92,9 @@ import type {
 } from '../../shared/ipc/materias'
 import type {
   IssueMcpTokenResult,
+  ListMcpActivityInput,
+  ListMcpActivityResult,
+  McpActivityChangedPayload,
   McpStatusResult,
   RevokeMcpTokenResult,
   SetMcpPermissionInput,
@@ -231,6 +234,10 @@ declare global {
         revokeToken: () => Promise<IpcResult<RevokeMcpTokenResult>>
         /** Sets ONE slice's full grant (both flags together — there is no separate per-flag channel). */
         setPermission: (input: SetMcpPermissionInput) => Promise<IpcResult<SetMcpPermissionResult>>
+        /** Newest-first audit rows, capped by `input.limit` (design D9/D10). */
+        listActivity: (input: ListMcpActivityInput) => Promise<IpcResult<ListMcpActivityResult>>
+        /** Pushed on every audit insert. Returns an unsubscribe function. */
+        onActivityChanged: (callback: (payload: McpActivityChangedPayload) => void) => () => void
       }
     }
   }

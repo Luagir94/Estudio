@@ -3,8 +3,12 @@
 // typed data to TanStack Query — same two-directional parsing rule as every
 // other adapter (`ajustesApi.ts`). Four channels now: PR15's
 // status/issueToken/revokeToken plus PR16's setPermission.
-// `listActivity`/`onActivityChanged` (PR17/18) join this module and
-// `window.d.ts`'s `mcp` entry when their own callers land, same
+//
+// `listActivity`/`onActivityChanged` do NOT join this module: per the tasks
+// plan (Engram `sdd/mcp-app-control/tasks` obs #576, PR17), they land in
+// their OWN adapter, `mcpActivityApi.ts` — this comment's own earlier
+// prediction that they would join here was superseded once PR17 actually
+// landed. `window.d.ts`'s `mcp` entry still gains both, same
 // incremental-typing convention as every other domain there.
 import {
   issueMcpTokenResultSchema,
