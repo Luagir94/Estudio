@@ -11,11 +11,11 @@
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "electron-vite build && vite build --config vite.mcp-shim.config.ts",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test:unit": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "electron-vite build && playwright test",
+    "test:e2e": "npm run build && playwright test",
     "test": "npm run format:check && npm run test:unit && npm run lint:deps && npm run lint",
     "lint": "eslint .",
     "lint:deps": "node tooling/dependencyGuard.mts",
@@ -24,7 +24,7 @@
     "db:generate": "drizzle-kit generate",
     "db:seed": "node tooling/seedDatabase.mts",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
-    "dist:win": "electron-vite build && electron-builder --win"
+    "dist:win": "npm run build && electron-builder --win"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.8.0",

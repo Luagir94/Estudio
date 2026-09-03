@@ -23,8 +23,10 @@
     // must list every file in the program, so the import alone is not enough).
     "src/renderer/i18n/**/*",
     "src/renderer/locales/**/*.json",
+    "src/mcp-shim/**/*",
     "tooling/**/*",
     "electron.vite.config.ts",
+    "vite.mcp-shim.config.ts",
     "drizzle.config.ts",
     "vitest.config.ts",
     "vitest.setup.ts"

@@ -67,6 +67,17 @@ export default tseslint.config(
     ...jsxA11y.flatConfigs.recommended,
     files: ['**/*.tsx']
   },
+  {
+    // Stdout purity (spec "Shim stdout carries only MCP messages"): the MCP
+    // stdio transport requires stdout to carry ONLY valid MCP messages, so a
+    // stray `console.log` here would corrupt every client's JSON-RPC framing.
+    // `console.error` (stderr) is the shim's one permitted diagnostic
+    // channel (design D6) and stays allowed.
+    files: ['src/mcp-shim/**'],
+    rules: {
+      'no-console': ['error', { allow: ['error'] }]
+    }
+  },
   // Last: silence stylistic rules that would fight Prettier.
   prettier
 )

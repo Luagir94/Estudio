@@ -6,8 +6,19 @@ directories:
 
 files:
   - out/**/*
+  # The shim ships once, copied out via `extraResources` below — never
+  # duplicated inside app.asar, where the SYSTEM Node that spawns it
+  # (design D2) could not read it anyway.
+  - '!out/mcp-shim/**'
   - drizzle/migrations/**/*
   - package.json
+
+# Copies the shim's standalone build (`vite.mcp-shim.config.ts`, B1 build
+# chain) to `<install>/resources/mcp-shim/index.cjs` — outside app.asar, so
+# an external MCP client's system Node can read and run it (design D2).
+extraResources:
+  - from: out/mcp-shim
+    to: mcp-shim
 
 # better-sqlite3 is a native module — must be rebuilt against Electron's
 # ABI. electron-builder re-runs the rebuild at package time in addition
