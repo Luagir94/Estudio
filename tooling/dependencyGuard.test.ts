@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { MINIMUM_EXPECTED_MODULES, extractModuleReferences, scanFiles, scanProject } from './dependencyGuard.mts'
+import { MINIMUM_EXPECTED_MODULES, RULES, extractModuleReferences, scanFiles, scanProject } from './dependencyGuard.mts'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -35,6 +35,43 @@ describe('domain dependency guard', () => {
     const violations = scanFiles(['src/main/claude/__fixtures__/typeOnlyChildProcessImport.ts'], repoRoot)
 
     expect(violations).toEqual([])
+  })
+
+  it('fails a module outside the listener that imports node:net (mcp-app-control PR10)', () => {
+    const file = 'src/main/mcp/__fixtures__/violatesNetImport.ts'
+
+    expect(scanFiles([file], repoRoot)).toEqual([{ rule: 'listener-only-in-mcp-slice', file, specifier: 'node:net' }])
+  })
+
+  it('exempts type-only node:net imports outside the listener', () => {
+    const violations = scanFiles(['src/main/mcp/__fixtures__/typeOnlyNetImport.ts'], repoRoot)
+
+    expect(violations).toEqual([])
+  })
+
+  it('clears pipeListener.ts and its colocated test despite their real node:net import', () => {
+    // The exemption must cover the test as well as the implementation:
+    // `scanProject` scans colocated `.test.ts` files too (only
+    // `/__fixtures__/` paths are filtered), and `pipeListener.test.ts` opens
+    // a real client socket to prove preamble limits, backoff and
+    // `EADDRINUSE` — it could not do that without its own runtime
+    // `node:net` import.
+    const files = ['src/main/mcp/adapters/pipeListener.ts', 'src/main/mcp/adapters/pipeListener.test.ts']
+
+    expect(scanFiles(files, repoRoot)).toEqual([])
+  })
+
+  it('exempts the not-yet-existing mcp-shim/index.ts by pattern, without needing the file to exist', () => {
+    // `src/mcp-shim/index.ts` ships in a later PR; the exemption must already
+    // tolerate that path today so the rule never has to change again when it
+    // lands. `scanFiles` can only be exercised against real files, so this
+    // asserts the rule's own `fromNot` pattern directly.
+    const rule = RULES.find((candidate) => candidate.name === 'listener-only-in-mcp-slice')
+
+    expect(rule).toBeDefined()
+    expect(rule!.fromNot!.test('src/mcp-shim/index.ts')).toBe(true)
+    // Every other file under src/ stays inside the guard universe.
+    expect(rule!.fromNot!.test('src/main/mcp/adapters/mcpServerFactory.ts')).toBe(false)
   })
 })
 

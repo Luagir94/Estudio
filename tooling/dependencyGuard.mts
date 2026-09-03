@@ -36,7 +36,7 @@ type Rule = {
   contentHints: string[]
 }
 
-const RULES: Rule[] = [
+export const RULES: Rule[] = [
   {
     // Domain modules are the pure, framework-free core of each
     // screaming-architecture slice. They must never import Electron or the
@@ -66,6 +66,27 @@ const RULES: Rule[] = [
     to: /^(node:)?child_process$/,
     exemptTypeOnly: true,
     contentHints: ['child_process']
+  },
+  {
+    // The internal MCP leg's socket boundary is the sole `node:net`/`http`
+    // trust boundary for this app (design D4/D10, mcp-app-control PR10):
+    // every other module reaches it only through the `ListenerPort` seam
+    // `mcpService.ts` (PR9) declares and consumes. Baseline verified clean
+    // (zero matching runtime imports under `src/` before this rule shipped).
+    // `pipeListener.test.ts` is exempted alongside its subject because it is
+    // the only way to prove preamble limits, backoff and `EADDRINUSE`
+    // against a real socket — `scanProject` scans colocated tests too, only
+    // `/__fixtures__/` paths are filtered (see `scanProject` below), so a
+    // test that dials a real server must be exempted explicitly, not just
+    // its implementation. `src/mcp-shim/index.ts` does not exist yet (it
+    // ships in a later PR) — an unmatched alternative in this pattern is
+    // harmless, `scanProject` only ever tests it against files that exist.
+    name: 'listener-only-in-mcp-slice',
+    from: /^src\//,
+    fromNot: /^src\/(main\/mcp\/adapters\/pipeListener(\.test)?\.ts|mcp-shim\/index\.ts)$/,
+    to: /^(node:)?(net|http|https|http2)$/,
+    exemptTypeOnly: true,
+    contentHints: ['net', 'http']
   }
 ]
 
