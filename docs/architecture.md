@@ -120,6 +120,7 @@ Screens are addresses. `src/renderer/router.tsx` is the renderer's navigation co
 - **Navigation lockdown**: a deny-all `setWindowOpenHandler` plus a `will-navigate` guard that pins the main frame to the document it loaded.
 - **Electron Fuses** (flipped at package time via `electron-builder.yml`): `runAsNode` off, `NODE_OPTIONS` and Node CLI inspect arguments off, cookie encryption on, ASAR integrity validation on, `onlyLoadAppFromAsar` on.
 - **Sole spawn site**: only `src/main/claude/claudeExecutableValidator.ts` may import `child_process` — machine-enforced across `src/` by the dependency guard (build scripts and e2e specs live outside that enforcement). Every CLI launch passes its pre-spawn validation, user text travels over **stdin, never argv**, and model ids must match a construct-time character allowlist before they may reach a command line.
+- **Sole socket site**: only `src/main/mcp/adapters/pipeListener.ts` (plus its colocated test) may import `node:net`/`http`/`https`/`http2` — the internal leg of the inbound MCP server (mcp-app-control design D1), a per-user named pipe (Unix socket off-Windows), machine-enforced the same way as the spawn boundary above. Every other module reaches it only through the `ListenerPort` seam `src/main/mcp/mcpService.ts` declares and consumes, never the raw socket API directly. The listener starts only once a token exists AND at least one slice is granted, and every accepted connection passes a token handshake before any tool call is dispatched — a rejected handshake never reaches a tool, and every tool call is authorized per-connection, per-call, default-deny.
 
 ## Enforced boundaries
 
@@ -127,6 +128,7 @@ The architecture is machine-checked, not aspirational. `tooling/dependencyGuard.
 
 1. `no-electron-or-sqlite-in-domain` — renderer `domain/` layers may not import `electron` or `better-sqlite3`.
 2. `child-process-only-in-claude-validator` — no module under `src/` except the executable validator may import `child_process` (`node:` specifier included; type-only imports exempt, since they carry no runtime footprint). Rule 1 deliberately has **no** type-only exemption: naming Electron types already couples a domain module to the framework.
+3. `listener-only-in-mcp-slice` — no module under `src/` except `src/main/mcp/adapters/pipeListener.ts` (and its colocated test, which dials a real socket to prove preamble limits, backoff and `EADDRINUSE`) may import `node:net`/`http`/`https`/`http2` (type-only imports exempt). `src/mcp-shim/index.ts`, the dependency-free stdio shim spawned outside the app, is exempt too.
 
 The guard covers static imports, re-exports, dynamic `import()` (string and no-substitution template literals), `require()`, `import =`, and type-position `import()` forms across `.ts/.tsx/.mts/.cts/.js/.jsx/.mjs/.cjs`, and it refuses to pass when the scan drops below a minimum module count shared with the test suite — a guard that sees (almost) nothing proves nothing. It replaced dependency-cruiser, which has no TypeScript 7 support and passed vacuously under it.
 

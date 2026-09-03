@@ -1,4 +1,5 @@
 import * as nodeFs from 'node:fs/promises'
+import os from 'node:os'
 import path from 'node:path'
 import { app, BrowserWindow, dialog, Menu, nativeTheme } from 'electron'
 import log from 'electron-log'
@@ -53,6 +54,19 @@ import { createSqliteSubjectRepository } from './materias/adapters/sqliteSubject
 import { registerMateriasHandlers } from './materias/ipc/registerMateriasHandlers'
 import { createMateriasService } from './materias/materiasService'
 import { registerHorarioHandlers } from './horario/ipc/registerHorarioHandlers'
+import { createSqliteMcpAuditRepository } from './mcp/adapters/sqliteMcpAuditRepository'
+import { createSqliteMcpPermissionRepository } from './mcp/adapters/sqliteMcpPermissionRepository'
+import { createPipeListener } from './mcp/adapters/pipeListener'
+import { createMcpService } from './mcp/mcpService'
+import { createCarrerasTools } from './mcp/tools/carrerasTools'
+import { createClasesTools } from './mcp/tools/clasesTools'
+import { createEntregasTools } from './mcp/tools/entregasTools'
+import { createFechasTools } from './mcp/tools/fechasTools'
+import { createFinalesTools } from './mcp/tools/finalesTools'
+import { createHorarioTools as createMcpHorarioTools } from './mcp/tools/horarioTools'
+import { createMateriasTools } from './mcp/tools/materiasTools'
+import { createParcialesTools } from './mcp/tools/parcialesTools'
+import { MCP_ENDPOINT_ENV_VAR, resolveEndpoint } from '../shared/mcp/endpoint'
 import { createThemeService } from './theme/themeService'
 import { registerThemeHandlers } from './theme/ipc/registerThemeHandlers'
 import { applyContentSecurityPolicy, createMainWindow } from './window'
@@ -72,6 +86,18 @@ function getDatabasePath(): string {
 // what keeps `fileAttachmentStorage.ts` free of any Electron import.
 function getAttachmentsRootDir(): string {
   return path.join(app.getPath('userData'), 'attachments')
+}
+
+// Runtime location handed to the renderer by `mcp:status` (mcp-app-control
+// design D2), consumed starting PR14 — resolved here, like
+// `getAttachmentsRootDir()` above, so a packaged vs. dev-mode launch never
+// disagrees about where the shim lives. `path.join` never touches the
+// filesystem: the shim binary itself does not exist until PR12 builds it,
+// and resolving its path must never throw regardless of that.
+function getMcpShimPath(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'mcp-shim', 'index.cjs')
+    : path.join(app.getAppPath(), 'out', 'mcp-shim', 'index.cjs')
 }
 
 /**
@@ -171,13 +197,17 @@ async function bootstrap(): Promise<void> {
   registerFinalesHandlers(finalExamRepository)
   // Parciales follow the SAME shape as final exams: cascade-deleted with the
   // subject, own lifecycle, own repository and command set. They are read
-  // through `materias:detail` (no `parciales:list` channel exists), so this
-  // instance is not shared with anything else.
-  registerParcialesHandlers(createSqlitePartialExamRepository(db))
+  // through `materias:detail` (no `parciales:list` channel exists). Held in
+  // a variable — shared with the MCP tool catalog below (mcp-app-control
+  // design "Repository reuse needs two hoists"), not with anything else.
+  const partialExamRepository = createSqlitePartialExamRepository(db)
+  registerParcialesHandlers(partialExamRepository)
   // Administrative dates hang off the PROGRAM (cascade-deleted with it) and
   // own their lifecycle, so — like final exams — they get their own
-  // repository and command set rather than riding inside `carreras:*`.
-  registerFechasHandlers(createSqliteAcademicDateRepository(db))
+  // repository and command set rather than riding inside `carreras:*`. Held
+  // in a variable for the same reason as `partialExamRepository` above.
+  const academicDateRepository = createSqliteAcademicDateRepository(db)
+  registerFechasHandlers(academicDateRepository)
   // Correlativas and the próximo-período draft. Its own repository even though
   // `subjectRepository` READS the correlativa rows into the subject payloads:
   // that read is a join, this is the lifecycle, and the same split already
@@ -409,6 +439,54 @@ async function bootstrap(): Promise<void> {
   app.on('will-quit', () => {
     askService.cancel()
     warmPromptSession.dispose()
+  })
+
+  // Inbound MCP server (mcp-app-control design D1-D10). Reuses the SAME
+  // repository instances every `<slice>:*` IPC handler set above already
+  // constructed — an MCP tool call and its IPC sibling read and write
+  // through the identical adapter, never a second connection to the same
+  // table. The listener itself only ever starts once BOTH a token exists AND
+  // at least one slice is granted (`mcpService.reconcileListener`, spec
+  // "Listener lifecycle is gated by token and grant state") — nothing in the
+  // app can issue that first token today (Ajustes' `McpTokenCard` ships in
+  // PR15), so `reconcileListener()` below is a genuine no-op on every launch
+  // until then, exactly like PR1-PR10 shipped dark.
+  const mcpPermissionRepository = createSqliteMcpPermissionRepository(db)
+  const mcpAuditRepository = createSqliteMcpAuditRepository(db)
+  const mcpEndpoint = resolveEndpoint({
+    platform: process.platform,
+    username: os.userInfo().username,
+    tmpdir: os.tmpdir(),
+    override: process.env[MCP_ENDPOINT_ENV_VAR]
+  })
+  const mcpListener = createPipeListener()
+  const mcpService = createMcpService({
+    settings: appSettingsRepository,
+    permissions: mcpPermissionRepository,
+    audit: mcpAuditRepository,
+    listener: mcpListener,
+    endpoint: mcpEndpoint,
+    descriptors: [
+      ...createMateriasTools({ repository: subjectRepository, materiasService }),
+      ...createMcpHorarioTools({ repository: subjectRepository }),
+      ...createCarrerasTools({ repository: programRepository }),
+      ...createEntregasTools({ repository: deadlineRepository }),
+      ...createFechasTools({ repository: academicDateRepository }),
+      ...createClasesTools({ repository: claseRepository }),
+      ...createParcialesTools({ repository: partialExamRepository }),
+      ...createFinalesTools({ repository: finalExamRepository })
+    ]
+  })
+  mcpService.reconcileListener()
+
+  const shimPath = getMcpShimPath()
+  log.info(`mcp: shim path resolved to ${shimPath}`)
+
+  // Best-effort on quit, same shape as the askService/warmPromptSession hook
+  // above: release the OS-level pipe/socket handle rather than leaving it
+  // held until the process actually exits.
+  app.on('will-quit', () => {
+    mcpListener.close()
   })
 
   // Native File menu (spec: "Export from File menu" — "the same export flow
