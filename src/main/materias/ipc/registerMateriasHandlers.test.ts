@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AttachmentStorage } from '../../adjuntos/adapters/fileAttachmentStorage'
+import type { MateriasService } from '../materiasService'
 import type { SubjectRepository, SubjectWithDetail, SubjectWithSlots } from '../adapters/sqliteSubjectRepository'
 
 const { ipcMainMock } = vi.hoisted(() => {
@@ -14,11 +14,10 @@ const { ipcMainMock } = vi.hoisted(() => {
   }
 })
 
-const logWarnMock = vi.hoisted(() => vi.fn())
 const logErrorMock = vi.hoisted(() => vi.fn())
 
 vi.mock('electron', () => ({ ipcMain: ipcMainMock }))
-vi.mock('electron-log', () => ({ default: { warn: logWarnMock, error: logErrorMock } }))
+vi.mock('electron-log', () => ({ default: { error: logErrorMock } }))
 
 import { registerMateriasHandlers } from './registerMateriasHandlers'
 
@@ -64,12 +63,11 @@ const sampleDetail: SubjectWithDetail = {
 
 describe('registerMateriasHandlers', () => {
   let repository: SubjectRepository
-  let attachmentStorage: AttachmentStorage
+  let materiasService: MateriasService
 
   beforeEach(() => {
     ipcMainMock.handlers.clear()
     ipcMainMock.handle.mockClear()
-    logWarnMock.mockClear()
     logErrorMock.mockClear()
     repository = {
       create: vi.fn().mockReturnValue(sampleSubject),
@@ -79,16 +77,10 @@ describe('registerMateriasHandlers', () => {
       remove: vi.fn().mockReturnValue({ deletedSlots: 1, deletedDeadlines: 1 }),
       setOutcome: vi.fn().mockReturnValue({ ...sampleSubject, outcome: 'aprobada', grade: 8, period: null, finals: [] })
     }
-    attachmentStorage = {
-      statSize: vi.fn(),
-      copyIntoSubjectDir: vi.fn(),
-      writeIntoSubjectDir: vi.fn(),
-      readTextFile: vi.fn(),
-      resolveStoredPath: vi.fn(),
-      removeFile: vi.fn(),
-      removeSubjectDir: vi.fn().mockResolvedValue(undefined)
+    materiasService = {
+      deleteSubject: vi.fn().mockResolvedValue({ deletedSlots: 1, deletedDeadlines: 1 })
     }
-    registerMateriasHandlers(repository, { attachmentStorage })
+    registerMateriasHandlers(repository, { materiasService })
   })
 
   it('materias:create rejects an invalid payload without calling the repository', () => {
@@ -134,7 +126,7 @@ describe('registerMateriasHandlers', () => {
     repository.create = vi.fn().mockImplementation(() => {
       throw new Error('database is locked')
     })
-    registerMateriasHandlers(repository, { attachmentStorage })
+    registerMateriasHandlers(repository, { materiasService })
 
     const result = invoke('materias:create', {
       name: 'Bases de Datos',
@@ -151,7 +143,7 @@ describe('registerMateriasHandlers', () => {
     repository.create = vi.fn().mockImplementation(() => {
       throw new Error('database is locked')
     })
-    registerMateriasHandlers(repository, { attachmentStorage })
+    registerMateriasHandlers(repository, { materiasService })
 
     invoke('materias:create', {
       name: 'Bases de Datos',
@@ -180,7 +172,7 @@ describe('registerMateriasHandlers', () => {
 
   it('materias:detail returns NOT_FOUND when the repository finds nothing', () => {
     repository.detail = vi.fn().mockReturnValue(null)
-    registerMateriasHandlers(repository, { attachmentStorage })
+    registerMateriasHandlers(repository, { materiasService })
 
     const result = invoke('materias:detail', { id: 999 })
 
@@ -218,7 +210,7 @@ describe('registerMateriasHandlers', () => {
     repository.updateSchedule = vi.fn().mockImplementation(() => {
       throw new Error('database is locked')
     })
-    registerMateriasHandlers(repository, { attachmentStorage })
+    registerMateriasHandlers(repository, { materiasService })
 
     const result = invoke('materias:updateSchedule', {
       id: 1,
@@ -231,56 +223,39 @@ describe('registerMateriasHandlers', () => {
     expect(result).toMatchObject({ ok: false, error: { code: 'UPDATE_FAILED' } })
   })
 
-  it('materias:delete rejects an invalid payload without calling the repository', async () => {
+  it('materias:delete rejects an invalid payload without calling materiasService', async () => {
     const result = await invoke('materias:delete', { id: 'not-a-number' })
 
     expect(result).toMatchObject({ ok: false })
-    expect(repository.remove).not.toHaveBeenCalled()
+    expect(materiasService.deleteSubject).not.toHaveBeenCalled()
   })
 
-  it('materias:delete returns NOT_FOUND when the repository finds nothing to delete', async () => {
-    repository.remove = vi.fn().mockReturnValue(null)
-    registerMateriasHandlers(repository, { attachmentStorage })
+  // The row-then-attachment-directory cascade itself is materiasService's
+  // responsibility now (see materiasService.test.ts) — this handler only
+  // needs to prove it delegates the id and translates the service result.
+  it('materias:delete returns NOT_FOUND when materiasService finds nothing to delete', async () => {
+    materiasService.deleteSubject = vi.fn().mockResolvedValue(null)
+    registerMateriasHandlers(repository, { materiasService })
 
     const result = await invoke('materias:delete', { id: 999 })
 
     expect(result).toMatchObject({ ok: false, error: { code: 'NOT_FOUND' } })
   })
 
-  it('materias:delete returns the deleted slot/deadline counts (spec: cascade removes slots AND deadlines)', async () => {
+  it('materias:delete calls materiasService.deleteSubject with the parsed id and returns its result', async () => {
     const result = await invoke('materias:delete', { id: 1 })
 
-    expect(repository.remove).toHaveBeenCalledWith(1)
+    expect(materiasService.deleteSubject).toHaveBeenCalledWith(1)
     expect(result).toEqual({ ok: true, data: { deletedSlots: 1, deletedDeadlines: 1 } })
   })
 
-  it('materias:delete does NOT attempt attachment cleanup when the subject was never found', async () => {
-    repository.remove = vi.fn().mockReturnValue(null)
-    registerMateriasHandlers(repository, { attachmentStorage })
-
-    await invoke('materias:delete', { id: 999 })
-
-    expect(attachmentStorage.removeSubjectDir).not.toHaveBeenCalled()
-  })
-
-  it('materias:delete awaits storage.removeSubjectDir for the deleted subject after the repository removal', async () => {
-    const result = await invoke('materias:delete', { id: 1 })
-
-    expect(attachmentStorage.removeSubjectDir).toHaveBeenCalledWith(1)
-    expect(result).toEqual({ ok: true, data: { deletedSlots: 1, deletedDeadlines: 1 } })
-  })
-
-  it('materias:delete logs a warning and still succeeds when attachment cleanup fails — the await is what makes the rejection observable', async () => {
-    // If the handler forgot to `await storage.removeSubjectDir(...)`, this
-    // rejection would become an unhandled promise rejection and log.warn
-    // would never run — that is exactly the regression this test catches.
-    attachmentStorage.removeSubjectDir = vi.fn().mockRejectedValue(new Error('EBUSY: directory is locked'))
-    registerMateriasHandlers(repository, { attachmentStorage })
+  it('materias:delete never throws across the bridge on a materiasService-level failure', async () => {
+    materiasService.deleteSubject = vi.fn().mockRejectedValue(new Error('database is locked'))
+    registerMateriasHandlers(repository, { materiasService })
 
     const result = await invoke('materias:delete', { id: 1 })
 
-    expect(logWarnMock).toHaveBeenCalledTimes(1)
-    expect(logWarnMock.mock.calls[0]?.[0]).toContain('EBUSY')
-    expect(result).toEqual({ ok: true, data: { deletedSlots: 1, deletedDeadlines: 1 } })
+    expect(result).toMatchObject({ ok: false, error: { code: 'DELETE_FAILED' } })
+    expect(logErrorMock).toHaveBeenCalledWith('materias:delete failed', expect.any(Error))
   })
 })

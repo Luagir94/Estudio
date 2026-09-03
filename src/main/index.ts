@@ -51,6 +51,7 @@ import { createIndexadoService } from './indexado/indexadoService'
 import { registerIndexadoHandlers } from './indexado/ipc/registerIndexadoHandlers'
 import { createSqliteSubjectRepository } from './materias/adapters/sqliteSubjectRepository'
 import { registerMateriasHandlers } from './materias/ipc/registerMateriasHandlers'
+import { createMateriasService } from './materias/materiasService'
 import { registerHorarioHandlers } from './horario/ipc/registerHorarioHandlers'
 import { createThemeService } from './theme/themeService'
 import { registerThemeHandlers } from './theme/ipc/registerThemeHandlers'
@@ -133,7 +134,11 @@ async function bootstrap(): Promise<void> {
   // serves (design §2), never a separate table or write path.
   const subjectRepository = createSqliteSubjectRepository(db)
   const attachmentStorage = createAttachmentStorage({ rootDir: getAttachmentsRootDir() })
-  registerMateriasHandlers(subjectRepository, { attachmentStorage })
+  // materiasService only wraps the row-then-attachment-directory delete
+  // cascade (mcp-app-control design D5) — everything else in
+  // registerMateriasHandlers still calls subjectRepository directly.
+  const materiasService = createMateriasService({ repository: subjectRepository, attachmentStorage })
+  registerMateriasHandlers(subjectRepository, { materiasService })
   registerHorarioHandlers(subjectRepository)
   // Deadline is NOT owned by the Subject aggregate for lifecycle purposes
   // (design amendment 7) — its own repository, separate from subjectRepository.

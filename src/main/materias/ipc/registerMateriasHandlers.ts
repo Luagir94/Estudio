@@ -13,11 +13,11 @@ import {
   updateSubjectScheduleInputSchema
 } from '../../../shared/ipc/materias'
 import { setSubjectOutcomeInputSchema, type SubjectWithStatus } from '../../../shared/ipc/materias'
-import type { AttachmentStorage } from '../../adjuntos/adapters/fileAttachmentStorage'
+import type { MateriasService } from '../materiasService'
 import type { SubjectRepository } from '../adapters/sqliteSubjectRepository'
 
 interface RegisterMateriasHandlersDeps {
-  attachmentStorage: AttachmentStorage
+  materiasService: MateriasService
 }
 
 /**
@@ -29,7 +29,7 @@ interface RegisterMateriasHandlersDeps {
  */
 export function registerMateriasHandlers(
   repository: SubjectRepository,
-  { attachmentStorage }: RegisterMateriasHandlersDeps
+  { materiasService }: RegisterMateriasHandlersDeps
 ): void {
   ipcMain.handle('materias:create', (_event, payload): IpcResult<SubjectWithSlots> => {
     const parsed = parsePayload(createSubjectInputSchema, payload)
@@ -88,9 +88,10 @@ export function registerMateriasHandlers(
 
   // Confirmation-count comes from the already-fetched materias:detail
   // payload (deadlines.length), not a separate round-trip (spec: "Subject
-  // Deletion Cascade"). Attachment ROWS cascade away via the FK (PR1); the
-  // FILES on disk do not, so this handler also removes the subject's whole
-  // attachment directory (spec "Subject Deletion Cascades to Attachments").
+  // Deletion Cascade"). The row-then-attachment-directory cascade itself
+  // lives in `materiasService.deleteSubject` (mcp-app-control design D5), so
+  // this handler is only parse → service call → envelope, same as every
+  // other handler in this file.
   ipcMain.handle('materias:delete', async (_event, payload): Promise<IpcResult<DeleteSubjectResult>> => {
     const parsed = parsePayload(subjectIdInputSchema, payload)
     if (!parsed.ok) {
@@ -98,24 +99,10 @@ export function registerMateriasHandlers(
     }
 
     try {
-      const result = repository.remove(parsed.data.id)
+      const result = await materiasService.deleteSubject(parsed.data.id)
       if (!result) {
         return ipcErr('NOT_FOUND', `No subject with id ${parsed.data.id}`)
       }
-
-      // The `await` here is mandatory: without it, a rejection from
-      // `removeSubjectDir` becomes an unhandled promise rejection instead
-      // of reaching this catch, and `log.warn` below would never fire.
-      // Best-effort ONLY — a locked or missing directory must never block
-      // or reverse the subject deletion that already committed above.
-      try {
-        await attachmentStorage.removeSubjectDir(parsed.data.id)
-      } catch (cleanupError) {
-        log.warn(
-          `Failed to remove attachment directory for subject ${parsed.data.id}: ${cleanupError instanceof Error ? cleanupError.message : 'Unknown error'}`
-        )
-      }
-
       return ipcOk(result)
     } catch (error) {
       log.error('materias:delete failed', error)
