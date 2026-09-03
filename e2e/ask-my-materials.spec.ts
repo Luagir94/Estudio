@@ -31,7 +31,40 @@ import { _electron as electron, expect, test } from '@playwright/test'
 test('launch -> open the ask panel from Hoy -> the shell is wired and closes cleanly', async () => {
   const projectRoot = path.join(__dirname, '..')
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'course-companion-e2e-ask-'))
-  const launch = () => electron.launch({ args: ['.', `--user-data-dir=${userDataDir}`], cwd: projectRoot })
+
+  // A HOME of its own, and it is the height assertion below that needs it.
+  // Model discovery reads each CLI's per-user state file relative to the HOME
+  // directory, never to `--user-data-dir`, so an isolated user-data-dir does
+  // not isolate the menu: it is built from whatever the developer running the
+  // suite happens to have configured. Seeding a home of our own is what makes
+  // the row count the same on every machine.
+  const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'course-companion-e2e-ask-home-'))
+  fs.writeFileSync(
+    path.join(homeDir, '.claude.json'),
+    JSON.stringify({
+      // Server-granted options, the first evidence source the parser reads.
+      // Enough of them that the list is certain to outgrow its 360px cap —
+      // the baseline five alone never do, which is exactly how this assertion
+      // came to pass on one machine and fail on the next.
+      additionalModelOptionsCache: [
+        'claude-sonnet-4-5-20250929',
+        'claude-opus-4-1-20250805',
+        'claude-haiku-3-5-20241022',
+        'claude-sonnet-3-7-20250219',
+        'claude-opus-4-20250514',
+        'claude-haiku-4-20250601'
+      ].map((value) => ({ value }))
+    })
+  )
+  const inheritedEnv = Object.fromEntries(
+    Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined)
+  )
+  const launch = () =>
+    electron.launch({
+      args: ['.', `--user-data-dir=${userDataDir}`],
+      cwd: projectRoot,
+      env: { ...inheritedEnv, USERPROFILE: homeDir, HOME: homeDir }
+    })
 
   // One throwaway launch to run the forward-only migration, so there is a
   // schema to seed the opt-in into.
@@ -118,5 +151,6 @@ test('launch -> open the ask panel from Hoy -> the shell is wired and closes cle
   } finally {
     await electronApp.close()
     fs.rmSync(userDataDir, { recursive: true, force: true })
+    fs.rmSync(homeDir, { recursive: true, force: true })
   }
 })
