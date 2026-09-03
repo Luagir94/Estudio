@@ -28,3 +28,11 @@ export const ADJUNTOS_WRITE_CHANNEL = 'adjuntos:write'
 // "Nuevo documento" — creates an empty `.md` attachment from a typed name.
 // Same zod-free-module requirement as the two channels above.
 export const ADJUNTOS_CREATE_DOCUMENT_CHANNEL = 'adjuntos:create-document'
+
+// Pushed whenever an MCP audit row is inserted — tool call, denial, or a
+// rejected handshake (mcp-app-control design D9, precedent
+// `INDEXADO_STATUS_CHANGED_CHANNEL` above). Same zod-free-module requirement:
+// preload's `mcp.onActivityChanged` forwarder needs the runtime channel NAME
+// without pulling `zod` in through `shared/ipc/mcp.ts`. No caller subscribes
+// yet — the Actividad MCP screen that does ships in PR17/PR18.
+export const MCP_ACTIVITY_CHANGED_CHANNEL = 'mcp:activity-changed'

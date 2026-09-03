@@ -3,8 +3,9 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { z } from 'zod'
 import { encodeAck } from '../../shared/mcp/handshake'
-import type { McpAuditEntryInput, McpAuditRepository } from './adapters/sqliteMcpAuditRepository'
+import type { McpAuditEntryInput, McpAuditRepository, StoredMcpAuditEntry } from './adapters/sqliteMcpAuditRepository'
 import { createConnectionState } from './adapters/mcpServerFactory'
+import { MCP_SLICES } from './domain/permissions'
 import type { McpPermissionRepository } from './adapters/sqliteMcpPermissionRepository'
 import { generateToken, hashToken } from './domain/token'
 import type { ToolDescriptor } from './domain/toolDescriptor'
@@ -72,10 +73,16 @@ function createFakePermissions(): McpPermissionRepository {
   }
 }
 
+let nextFakeAuditId = 1
+
 function createFakeAudit(): McpAuditRepository & {
-  insert: ReturnType<typeof vi.fn<(input: McpAuditEntryInput) => void>>
+  insert: ReturnType<typeof vi.fn<(input: McpAuditEntryInput) => { id: number }>>
+  list: ReturnType<typeof vi.fn<(limit?: number) => StoredMcpAuditEntry[]>>
 } {
-  return { insert: vi.fn<(input: McpAuditEntryInput) => void>() }
+  return {
+    insert: vi.fn((_input: McpAuditEntryInput) => ({ id: nextFakeAuditId++ })),
+    list: vi.fn((_limit?: number) => [] as StoredMcpAuditEntry[])
+  }
 }
 
 interface FakeListener extends ListenerPort {
@@ -96,6 +103,11 @@ function createFakeListener(): FakeListener {
     get state() {
       return currentState
     },
+    // Real listener errors are the fake's own subject in `pipeListener.test.ts` —
+    // this fake never enters `state: 'error'`, so `error` is always null here.
+    get error() {
+      return null
+    },
     get handler() {
       return handler
     }
@@ -110,6 +122,7 @@ function buildService(overrides: Partial<CreateMcpServiceDeps> = {}) {
   const audit = createFakeAudit()
   const listener = createFakeListener()
   const connectSocket = vi.fn()
+  const notifyActivityChanged = vi.fn()
   const service = createMcpService({
     settings,
     permissions,
@@ -117,10 +130,12 @@ function buildService(overrides: Partial<CreateMcpServiceDeps> = {}) {
     listener,
     descriptors: NO_DESCRIPTORS,
     endpoint: 'fake-endpoint',
+    shimPath: 'fake-shim-path',
     connectSocket,
+    notifyActivityChanged,
     ...overrides
   })
-  return { service, settings, permissions, audit, listener, connectSocket }
+  return { service, settings, permissions, audit, listener, connectSocket, notifyActivityChanged }
 }
 
 /** Seeds a token + grant and reconciles, so the fake listener is "listening" with a captured `onConnection` handler. */
@@ -553,6 +568,135 @@ describe('audit dispatch (task 9.5)', () => {
     listener.handler!({ socket: createFakeSocket(), hello: { present: false, hash: '' } })
 
     expect(logInfoMock).toHaveBeenCalledWith(expect.stringContaining('auth-failed'))
+  })
+
+  // Task 14.4: `index.ts` fans `MCP_ACTIVITY_CHANGED_CHANNEL` out to every
+  // window from a callback it injects — same shape as `indexadoService.ts`'s
+  // `notifyStatusChanged` — fired with the freshly-inserted row's id so the
+  // renderer can push-invalidate its Actividad MCP query.
+  it('calls notifyActivityChanged with the newly-inserted row id', () => {
+    const { listener, notifyActivityChanged } = authenticatedSetup()
+    listener.handler!({ socket: createFakeSocket(), hello: { present: false, hash: '' } })
+
+    expect(notifyActivityChanged).toHaveBeenCalledTimes(1)
+    expect(notifyActivityChanged).toHaveBeenCalledWith(expect.any(Number))
+  })
+
+  it('never throws when notifyActivityChanged is omitted (optional, defaults to a no-op)', () => {
+    const { listener } = buildService({ notifyActivityChanged: undefined })
+    const token = generateToken()
+    listener.listen('fake-endpoint', () => {})
+    expect(() =>
+      listener.handler?.({ socket: createFakeSocket(), hello: { present: true, hash: hashToken(token) } })
+    ).not.toThrow()
+  })
+})
+
+// --- Task 14.3: getStatus ----------------------------------------------------
+
+describe('getStatus (task 14.3)', () => {
+  it('reports a stopped, unissued, fully-denied status before anything is configured', () => {
+    const { service } = buildService()
+    const status = service.getStatus()
+
+    expect(status.listener).toBe('stopped')
+    expect(status.listenerError).toBeNull()
+    expect(status.tokenIssuedAt).toBeNull()
+    expect(status.shimPath).toBe('fake-shim-path')
+    expect(status.endpoint).toBe('fake-endpoint')
+    // One entry per curated slice, not only the granted ones (design "one
+    // entry per curated slice... so a permissions UI can render every toggle
+    // without a second round trip").
+    expect(status.permissions).toHaveLength(MCP_SLICES.length)
+    expect(status.permissions.every((permission) => !permission.canRead && !permission.canWrite)).toBe(true)
+  })
+
+  it('echoes the issued-at timestamp after a token is issued', () => {
+    const { service } = buildService()
+    const { issuedAt } = service.issueToken()
+
+    expect(service.getStatus().tokenIssuedAt).toBe(issuedAt)
+  })
+
+  it('reflects a granted slice from the permission repository', () => {
+    const { service, permissions } = buildService()
+    vi.mocked(permissions.getMatrix).mockReturnValue({ materias: { canRead: true, canWrite: false } })
+
+    const status = service.getStatus()
+    const materias = status.permissions.find((permission) => permission.slice === 'materias')
+    expect(materias).toEqual({ slice: 'materias', canRead: true, canWrite: false })
+  })
+
+  it('surfaces the listener port error verbatim', () => {
+    const erroredListener: ListenerPort = {
+      listen: vi.fn(),
+      close: vi.fn(),
+      state: 'error',
+      error: 'listen EADDRINUSE: address already in use'
+    }
+    const { service } = buildService({ listener: erroredListener })
+
+    const status = service.getStatus()
+    expect(status.listener).toBe('error')
+    expect(status.listenerError).toBe('listen EADDRINUSE: address already in use')
+  })
+})
+
+// --- Task 14.3: setPermission -------------------------------------------------
+
+describe('setPermission (task 14.3)', () => {
+  it('persists the grant through the permission repository and returns it', () => {
+    const { service, permissions } = buildService()
+    vi.mocked(permissions.setPermission).mockReturnValue({ canRead: true, canWrite: false })
+
+    const result = service.setPermission({ slice: 'carreras', canRead: true, canWrite: false })
+
+    expect(permissions.setPermission).toHaveBeenCalledWith(
+      expect.objectContaining({ slice: 'carreras', canRead: true, canWrite: false })
+    )
+    expect(result).toEqual({ slice: 'carreras', canRead: true, canWrite: false })
+  })
+
+  it('reconciles the listener after granting the first slice (spec: "Listener lifecycle is gated by token and grant state")', () => {
+    const { service, listener, settings, permissions } = buildService()
+    settings.set(TOKEN_HASH_KEY, 'some-hash')
+    vi.mocked(permissions.setPermission).mockReturnValue({ canRead: true, canWrite: false })
+    vi.mocked(permissions.hasAnyGrant).mockReturnValue(false)
+
+    service.setPermission({ slice: 'materias', canRead: true, canWrite: false })
+    expect(listener.listen).not.toHaveBeenCalled()
+
+    vi.mocked(permissions.hasAnyGrant).mockReturnValue(true)
+    service.setPermission({ slice: 'materias', canRead: true, canWrite: false })
+    expect(listener.listen).toHaveBeenCalledTimes(1)
+  })
+})
+
+// --- Task 14.3: listActivity --------------------------------------------------
+
+describe('listActivity (task 14.3)', () => {
+  it('delegates to the audit repository, passing the limit through unchanged', () => {
+    const { service, audit } = buildService()
+    const rows: StoredMcpAuditEntry[] = [
+      {
+        occurredAt: '2026-09-02T12:00:00.000Z',
+        tool: 'materias_list',
+        slice: 'materias',
+        action: 'read',
+        outcome: 'success',
+        summary: 'materias_list -> 3 rows',
+        clientName: null,
+        errorCode: null,
+        id: 7
+      }
+    ]
+    vi.mocked(audit.list).mockReturnValue(rows)
+
+    expect(service.listActivity(10)).toBe(rows)
+    expect(audit.list).toHaveBeenCalledWith(10)
+
+    service.listActivity()
+    expect(audit.list).toHaveBeenCalledWith(undefined)
   })
 })
 

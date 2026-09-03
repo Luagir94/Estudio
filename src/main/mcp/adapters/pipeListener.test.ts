@@ -245,4 +245,24 @@ describe('EADDRINUSE (task 10.3, threat-matrix)', () => {
 
     expect(second.state).toBe('error')
   })
+
+  // Task 14.3: `mcp:status.listenerError` (design "`mcp:*` IPC contract"
+  // table) reads this straight from the port — a bare `state: 'error'` alone
+  // cannot tell the user WHY (a second app instance vs. anything else).
+  it('surfaces the underlying error message, cleared on the next successful listen', async () => {
+    const endpoint = testEndpoint()
+    const first = createPipeListener()
+    openListeners.push(first)
+    expect(first.error).toBeNull()
+    first.listen(endpoint, vi.fn())
+    await waitForState(first, 'listening')
+
+    const second = createPipeListener()
+    openListeners.push(second)
+    second.listen(endpoint, vi.fn())
+    await waitForState(second, 'error')
+
+    expect(second.error).toEqual(expect.any(String))
+    expect(second.error).not.toHaveLength(0)
+  })
 })

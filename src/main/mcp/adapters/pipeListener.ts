@@ -42,6 +42,7 @@ export function createPipeListener(deps: CreatePipeListenerDeps = {}): ListenerP
   const clearScheduledTimeout = deps.clearScheduledTimeout ?? ((handle: TimeoutHandle) => clearTimeout(handle))
 
   let state: ListenerState = 'stopped'
+  let listenerError: string | null = null
   let server: Server | null = null
   let pendingHandshakes = 0
   let consecutiveFailures = 0
@@ -119,12 +120,16 @@ export function createPipeListener(deps: CreatePipeListenerDeps = {}): ListenerP
 
   return {
     listen(endpoint, onConnection) {
+      listenerError = null
       const srv = net.createServer((socket) => handleConnection(socket, onConnection))
       // EADDRINUSE (a second app instance, or a stale pipe from an earlier
       // crash) must surface as listener state `error`, never throw or crash
-      // `bootstrap()` (threat-matrix).
-      srv.on('error', () => {
+      // `bootstrap()` (threat-matrix). The message itself is surfaced
+      // verbatim through `error` (task 14.3) so `mcp:status.listenerError`
+      // can tell the user WHY, not just that something failed.
+      srv.on('error', (err) => {
         state = 'error'
+        listenerError = err.message
       })
       srv.listen(endpoint, () => {
         state = 'listening'
@@ -135,9 +140,13 @@ export function createPipeListener(deps: CreatePipeListenerDeps = {}): ListenerP
       server?.close()
       server = null
       state = 'stopped'
+      listenerError = null
     },
     get state() {
       return state
+    },
+    get error() {
+      return listenerError
     }
   }
 }

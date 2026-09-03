@@ -4,7 +4,7 @@ import path from 'node:path'
 import { app, BrowserWindow, dialog, Menu, nativeTheme } from 'electron'
 import log from 'electron-log'
 import { MENU_EXPORT_REQUESTED_CHANNEL } from '../shared/ipc/app'
-import { INDEXADO_STATUS_CHANGED_CHANNEL } from '../shared/ipc/channels'
+import { INDEXADO_STATUS_CHANGED_CHANNEL, MCP_ACTIVITY_CHANGED_CHANNEL } from '../shared/ipc/channels'
 import { createAttachmentStorage } from './adjuntos/adapters/fileAttachmentStorage'
 import { createSqliteAttachmentRepository } from './adjuntos/adapters/sqliteAttachmentRepository'
 import { createAttachmentService } from './adjuntos/attachmentService'
@@ -57,6 +57,7 @@ import { registerHorarioHandlers } from './horario/ipc/registerHorarioHandlers'
 import { createSqliteMcpAuditRepository } from './mcp/adapters/sqliteMcpAuditRepository'
 import { createSqliteMcpPermissionRepository } from './mcp/adapters/sqliteMcpPermissionRepository'
 import { createPipeListener } from './mcp/adapters/pipeListener'
+import { registerMcpHandlers } from './mcp/ipc/registerMcpHandlers'
 import { createMcpService } from './mcp/mcpService'
 import { createCarrerasTools } from './mcp/tools/carrerasTools'
 import { createClasesTools } from './mcp/tools/clasesTools'
@@ -460,12 +461,31 @@ async function bootstrap(): Promise<void> {
     override: process.env[MCP_ENDPOINT_ENV_VAR]
   })
   const mcpListener = createPipeListener()
+  // Resolved BEFORE `mcpService` below, unlike PR11's original ordering:
+  // `mcp:status` (task 14.3) echoes `shimPath` verbatim through
+  // `mcpService.getStatus()`, so the service needs it at construction time
+  // now, the same way it already needs `mcpEndpoint`.
+  const shimPath = getMcpShimPath()
+  log.info(`mcp: shim path resolved to ${shimPath}`)
+  // Fans `MCP_ACTIVITY_CHANGED_CHANNEL` out to every window on every audit
+  // insert — tool call, denial, or a rejected handshake (design D9) — the
+  // SAME injected-function pattern as `notifyStatusChanged` above, and for
+  // the same reason: `mcpService.ts` never imports Electron. No renderer
+  // subscribes yet (the Actividad MCP screen ships in PR17/PR18), so this is
+  // a genuine no-op audience today, exactly like `reconcileListener()` below.
+  const notifyMcpActivityChanged = (id: number): void => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      window.webContents.send(MCP_ACTIVITY_CHANGED_CHANNEL, { id })
+    }
+  }
   const mcpService = createMcpService({
     settings: appSettingsRepository,
     permissions: mcpPermissionRepository,
     audit: mcpAuditRepository,
     listener: mcpListener,
     endpoint: mcpEndpoint,
+    shimPath,
+    notifyActivityChanged: notifyMcpActivityChanged,
     descriptors: [
       ...createMateriasTools({ repository: subjectRepository, materiasService }),
       ...createMcpHorarioTools({ repository: subjectRepository }),
@@ -479,8 +499,12 @@ async function bootstrap(): Promise<void> {
   })
   mcpService.reconcileListener()
 
-  const shimPath = getMcpShimPath()
-  log.info(`mcp: shim path resolved to ${shimPath}`)
+  // `mcp:*` renderer control plane (task 14.3/14.4) — depends on
+  // `mcpService`, not the repositories above, so it inherits the token
+  // lifecycle, listener reconcile and connection drain those already
+  // implement rather than reaching around them. No caller invokes any of
+  // this yet (Ajustes ships PR15/PR16, Actividad ships PR17/PR18).
+  registerMcpHandlers(mcpService)
 
   // Defect fix (PR11b): a graceful `app.quit()` used to leave an already-
   // open MCP connection with NO disconnect notification for 45+ seconds,

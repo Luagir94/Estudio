@@ -154,4 +154,84 @@ describe('createSqliteMcpAuditRepository', () => {
     expect(nonAuthRows).toHaveLength(MAX_NON_AUTH_AUDIT_ROWS)
     expect(nonAuthRows.some((row) => row.summary === 'seed-success-1000')).toBe(false)
   })
+
+  // Task 14.3: `mcpService.dispatchAudit` needs the freshly-inserted row's id
+  // to fan out `MCP_ACTIVITY_CHANGED_CHANNEL` (design D9, precedent
+  // `notifyStatusChanged` in `indexadoService.ts`) — `insert` returning it is
+  // what makes that possible without a second SELECT.
+  it('returns the id of the row it just inserted', () => {
+    const repository = createSqliteMcpAuditRepository(db)
+
+    const first = repository.insert({
+      occurredAt: occurredAtAt(0),
+      tool: 'materias_list',
+      slice: 'materias',
+      action: 'read',
+      outcome: 'success',
+      summary: 'materias_list -> 3 rows',
+      clientName: null,
+      errorCode: null
+    })
+    const second = repository.insert({
+      occurredAt: occurredAtAt(1),
+      tool: 'materias_list',
+      slice: 'materias',
+      action: 'read',
+      outcome: 'success',
+      summary: 'materias_list -> 3 rows',
+      clientName: null,
+      errorCode: null
+    })
+
+    expect(second.id).toBeGreaterThan(first.id)
+    const rows = allRows(db)
+    expect(rows.find((row) => row.id === first.id)).toBeDefined()
+    expect(rows.find((row) => row.id === second.id)).toBeDefined()
+  })
+
+  // Task 14.3: `mcp:listActivity` (design "`mcp:*` IPC contract" table).
+  describe('list (task 14.3)', () => {
+    it('returns rows newest-first (spec: "Activity trail is visible in-app, newest first")', () => {
+      const repository = createSqliteMcpAuditRepository(db)
+      repository.insert({
+        occurredAt: occurredAtAt(0),
+        tool: 'materias_list',
+        slice: 'materias',
+        action: 'read',
+        outcome: 'success',
+        summary: 'first',
+        clientName: null,
+        errorCode: null
+      })
+      repository.insert({
+        occurredAt: occurredAtAt(1),
+        tool: 'materias_list',
+        slice: 'materias',
+        action: 'read',
+        outcome: 'success',
+        summary: 'second',
+        clientName: null,
+        errorCode: null
+      })
+
+      const rows = repository.list()
+      expect(rows.map((row) => row.summary)).toEqual(['second', 'first'])
+    })
+
+    it('caps the result at the given limit', () => {
+      const repository = createSqliteMcpAuditRepository(db)
+      seedRows(db, 5, 'success', 0)
+
+      const rows = repository.list(2)
+      expect(rows).toHaveLength(2)
+      expect(rows.map((row) => row.summary)).toEqual(['seed-success-4', 'seed-success-3'])
+    })
+
+    it('defaults to every row when no limit is given', () => {
+      const repository = createSqliteMcpAuditRepository(db)
+      seedRows(db, 3, 'success', 0)
+
+      expect(repository.list()).toHaveLength(3)
+    })
+  })
 })

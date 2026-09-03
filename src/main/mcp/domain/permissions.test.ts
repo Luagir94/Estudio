@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { MCP_SLICE_VALUES } from '../../../shared/ipc/mcp'
 import { isAllowed, MCP_SLICES, type PermissionMatrix } from './permissions'
 
 describe('MCP_SLICES', () => {
@@ -13,6 +14,16 @@ describe('MCP_SLICES', () => {
       'finales',
       'horario'
     ])
+  })
+
+  // Task 14.1: `shared/ipc/mcp.ts` duplicates this list as
+  // `MCP_SLICE_VALUES` rather than importing it (that direction would make
+  // `shared/` depend on `src/main/`, inverting this codebase's layering —
+  // see that module's own header comment). This is the OTHER half of the
+  // parity guard: main is free to import shared, so this side can assert
+  // the two never drift apart.
+  it('matches shared/ipc/mcp.ts MCP_SLICE_VALUES exactly, same order', () => {
+    expect(MCP_SLICES).toEqual(MCP_SLICE_VALUES)
   })
 })
 

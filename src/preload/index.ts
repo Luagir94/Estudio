@@ -57,6 +57,7 @@ import {
   ADJUNTOS_READ_CHANNEL,
   ADJUNTOS_WRITE_CHANNEL,
   INDEXADO_STATUS_CHANGED_CHANNEL,
+  MCP_ACTIVITY_CHANGED_CHANNEL,
   MENU_EXPORT_REQUESTED_CHANNEL
 } from '../shared/ipc/channels'
 import type {
@@ -99,6 +100,16 @@ import type {
   SubjectWithStatus,
   UpdateSubjectScheduleInput
 } from '../shared/ipc/materias'
+import type {
+  IssueMcpTokenResult,
+  ListMcpActivityInput,
+  ListMcpActivityResult,
+  McpActivityChangedPayload,
+  McpStatusResult,
+  RevokeMcpTokenResult,
+  SetMcpPermissionInput,
+  SetMcpPermissionResult
+} from '../shared/ipc/mcp'
 import type { Palette, SetPaletteInput, SetThemePreferenceInput, ThemePreference } from '../shared/ipc/theme'
 
 // Per-domain command/query bridges are added here as each domain slice
@@ -229,6 +240,27 @@ const api = {
       const listener = (_event: unknown, payload: IndexStatusChangedPayload) => callback(payload)
       ipcRenderer.on(INDEXADO_STATUS_CHANGED_CHANNEL, listener)
       return () => ipcRenderer.removeListener(INDEXADO_STATUS_CHANGED_CHANNEL, listener)
+    }
+  },
+  // Renderer control plane for the inbound MCP server (mcp-app-control task
+  // 14.5). No caller yet: Ajustes' token/permissions cards ship in
+  // PR15/PR16, and the Actividad MCP screen that calls `listActivity` /
+  // subscribes to `onActivityChanged` ships in PR17/PR18. Forwarding only —
+  // `mcp:issueToken`'s plaintext token is never inspected or logged here.
+  mcp: {
+    status: (): Promise<IpcResult<McpStatusResult>> => ipcRenderer.invoke('mcp:status'),
+    issueToken: (): Promise<IpcResult<IssueMcpTokenResult>> => ipcRenderer.invoke('mcp:issueToken'),
+    revokeToken: (): Promise<IpcResult<RevokeMcpTokenResult>> => ipcRenderer.invoke('mcp:revokeToken'),
+    setPermission: (input: SetMcpPermissionInput): Promise<IpcResult<SetMcpPermissionResult>> =>
+      ipcRenderer.invoke('mcp:setPermission', input),
+    listActivity: (input: ListMcpActivityInput): Promise<IpcResult<ListMcpActivityResult>> =>
+      ipcRenderer.invoke('mcp:listActivity', input),
+    // Pushed on every audit insert (design D9). Same unsubscribe-function
+    // shape as `indexado.onStatusChanged` above.
+    onActivityChanged: (callback: (payload: McpActivityChangedPayload) => void): (() => void) => {
+      const listener = (_event: unknown, payload: McpActivityChangedPayload) => callback(payload)
+      ipcRenderer.on(MCP_ACTIVITY_CHANGED_CHANNEL, listener)
+      return () => ipcRenderer.removeListener(MCP_ACTIVITY_CHANGED_CHANNEL, listener)
     }
   },
   cli: {

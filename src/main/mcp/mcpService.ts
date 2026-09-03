@@ -4,7 +4,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import log from 'electron-log'
 import type { z } from 'zod'
 import { encodeAck, type ParsedHello } from '../../shared/mcp/handshake'
-import type { McpAuditEntryInput, McpAuditRepository } from './adapters/sqliteMcpAuditRepository'
+import type { McpAuditEntryInput, McpAuditRepository, StoredMcpAuditEntry } from './adapters/sqliteMcpAuditRepository'
 import type { McpPermissionRepository } from './adapters/sqliteMcpPermissionRepository'
 import {
   createConnectionMcpServer,
@@ -13,7 +13,7 @@ import {
   type McpServerFactoryDeps
 } from './adapters/mcpServerFactory'
 import { authFailedSummary } from './domain/auditEntry'
-import { isAllowed, type McpAction, type McpSlice } from './domain/permissions'
+import { isAllowed, MCP_SLICES, type McpAction, type McpSlice } from './domain/permissions'
 import {
   generateToken as defaultGenerateToken,
   hashToken as defaultHashToken,
@@ -69,6 +69,8 @@ export interface ListenerPort {
   listen(endpoint: string, onConnection: (connection: ListenerConnection) => void): void
   close(): void
   readonly state: ListenerState
+  /** Non-null only when `state === 'error'` (task 14.3) — surfaced verbatim in `getStatus().listenerError`. */
+  readonly error: string | null
 }
 
 /** The `get`/`set` slice of `AppSettingsRepository` this service needs — same narrow shape as `themeService.ts`'s `ThemeSettingsPort`. */
@@ -80,6 +82,24 @@ export interface McpSettingsPort {
 /** `app_settings` keys (design D7). */
 export const TOKEN_HASH_KEY = 'mcp.tokenHash'
 export const TOKEN_ISSUED_AT_KEY = 'mcp.tokenIssuedAt'
+
+/** One curated slice's grant, as `mcp:status`/`mcp:setPermission` (design "`mcp:*` IPC contract" table) shape it — structurally identical to `shared/ipc/mcp.ts`'s `McpPermission`, duplicated rather than imported for the same layering reason that module's own header documents (main never imports from `shared/ipc/*`'s inferred TYPES the other way around — `mcpService.ts` predates that contract and stays framework-free of it). */
+export interface McpPermissionStatus {
+  slice: McpSlice
+  canRead: boolean
+  canWrite: boolean
+}
+
+/** `mcp:status`'s full result (task 14.3) — everything `registerMcpHandlers.ts` needs, with no repository call of its own. */
+export interface McpStatus {
+  listener: ListenerState
+  listenerError: string | null
+  tokenIssuedAt: string | null
+  shimPath: string
+  endpoint: string
+  /** One entry per curated slice (`domain/permissions.ts`'s `MCP_SLICES`), never only the granted ones — see `getStatus`'s doc comment below. */
+  permissions: McpPermissionStatus[]
+}
 
 export type TimeoutHandle = ReturnType<typeof setTimeout>
 
@@ -143,6 +163,27 @@ export interface McpService {
    * at all — the exact defect this method exists to fix.
    */
   shutdown(): Promise<void>
+  /**
+   * `mcp:status` (task 14.3, design "`mcp:*` IPC contract" table). Reads the
+   * listener port, the settings port and the permission repository — never
+   * the plaintext token (design D7: it is never persisted anywhere this
+   * could read it back), and never the token hash either.
+   */
+  getStatus(): McpStatus
+  /**
+   * `mcp:setPermission` (task 14.3). Persists the grant, then reconciles the
+   * listener (spec "Listener lifecycle is gated by token and grant state") —
+   * granting the FIRST slice while a token already exists is what starts the
+   * listener for the very first time; withdrawing the LAST slice stops it,
+   * the same reconcile `revokeToken`/`issueToken` already trigger.
+   */
+  setPermission(input: { slice: McpSlice; canRead: boolean; canWrite: boolean }): McpPermissionStatus
+  /**
+   * `mcp:listActivity` (task 14.3). A thin pass-through to the audit
+   * repository's own newest-first ordering — this service adds no
+   * projection or filtering of its own.
+   */
+  listActivity(limit?: number): StoredMcpAuditEntry[]
 }
 
 interface TrackedConnection {
@@ -159,6 +200,10 @@ export interface CreateMcpServiceDeps {
   /** The 32-tool catalog (PR5-8), assembled by the caller (PR11's `bootstrap()`) — mcpService owns none of it, only composes it per connection via PR3's factory. */
   descriptors: ToolDescriptor<z.ZodObject, unknown>[]
   endpoint: string
+  /** Absolute path to the built stdio shim (design D2, `bootstrap()`'s `getMcpShimPath()`) — echoed verbatim by `getStatus()`, never resolved here. */
+  shimPath: string
+  /** Fans `MCP_ACTIVITY_CHANGED_CHANNEL` out to every window (task 14.4) — same injected-callback shape as `indexadoService.ts`'s `notifyStatusChanged`, so this module never imports Electron. Optional (default no-op) so PR9's original 29 tests, which predate this hook, keep passing unchanged. */
+  notifyActivityChanged?: (id: number) => void
   now?: () => string
   generateToken?: () => string
   hashToken?: (token: string) => string
@@ -199,6 +244,8 @@ export function createMcpService({
   listener,
   descriptors,
   endpoint,
+  shimPath,
+  notifyActivityChanged = () => {},
   now = () => new Date().toISOString(),
   generateToken = defaultGenerateToken,
   hashToken = defaultHashToken,
@@ -231,8 +278,9 @@ export function createMcpService({
    * or closed-enum text: never a raw payload, never a token, never a hash.
    */
   function dispatchAudit(input: McpAuditEntryInput): void {
-    audit.insert(input)
+    const { id } = audit.insert(input)
     log.info(`mcp ${input.outcome}: ${input.tool ?? 'handshake'} ${input.summary}`)
+    notifyActivityChanged(id)
   }
 
   function toolAudit(record: McpAuditRecord): void {
@@ -359,6 +407,32 @@ export function createMcpService({
     shutdown() {
       listener.close()
       return drainAllConnections(QUIT_DRAIN_CAP_MS)
+    },
+    getStatus() {
+      const matrix = permissions.getMatrix()
+      return {
+        listener: listener.state,
+        listenerError: listener.error,
+        tokenIssuedAt: settings.get(TOKEN_ISSUED_AT_KEY),
+        shimPath,
+        endpoint,
+        // Every curated slice, not only the ones with a row (design: "so a
+        // permissions UI can render every toggle without a second round
+        // trip") — an absent row still means canRead/canWrite false
+        // (default-deny, same rule `isAllowed` already applies).
+        permissions: MCP_SLICES.map((slice) => {
+          const grant = matrix[slice]
+          return { slice, canRead: grant?.canRead ?? false, canWrite: grant?.canWrite ?? false }
+        })
+      }
+    },
+    setPermission(input) {
+      const grant = permissions.setPermission({ ...input, updatedAt: now() })
+      reconcileListener()
+      return { slice: input.slice, canRead: grant.canRead, canWrite: grant.canWrite }
+    },
+    listActivity(limit) {
+      return audit.list(limit)
     }
   }
 }
