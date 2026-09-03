@@ -97,7 +97,14 @@ beforeEach(() => {
       addEntry: vi.fn(),
       removeEntry: vi.fn()
     },
-    mcp: { status: vi.fn(), issueToken: vi.fn(), revokeToken: vi.fn(), setPermission: vi.fn() },
+    mcp: {
+      status: vi.fn(),
+      issueToken: vi.fn(),
+      revokeToken: vi.fn(),
+      setPermission: vi.fn(),
+      listActivity: vi.fn(),
+      onActivityChanged: vi.fn().mockReturnValue(vi.fn())
+    },
     theme: { getPreference: vi.fn(), setPreference: vi.fn(), getPalette: vi.fn(), setPalette: vi.fn() }
   }
 })

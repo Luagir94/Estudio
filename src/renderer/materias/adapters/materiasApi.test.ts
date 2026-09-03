@@ -105,7 +105,15 @@ describe('materiasApi', () => {
           getConversation: vi.fn(),
           deleteConversation: vi.fn()
         },
-        cli: { probe: vi.fn(), setOverride: vi.fn(), preferences: vi.fn(), disconnect: vi.fn(), models: vi.fn() }
+        cli: { probe: vi.fn(), setOverride: vi.fn(), preferences: vi.fn(), disconnect: vi.fn(), models: vi.fn() },
+        mcp: {
+          status: vi.fn(),
+          issueToken: vi.fn(),
+          revokeToken: vi.fn(),
+          setPermission: vi.fn(),
+          listActivity: vi.fn(),
+          onActivityChanged: vi.fn().mockReturnValue(vi.fn())
+        }
       }
     }
   })

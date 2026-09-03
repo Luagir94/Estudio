@@ -70,7 +70,15 @@ describe('ajustesApi', () => {
           createDocument: vi.fn()
         },
         indexado: { sync: vi.fn(), onStatusChanged: vi.fn().mockReturnValue(vi.fn()) },
-        app: { openExternal: vi.fn(), exportJson: vi.fn(), onExportRequested: vi.fn() }
+        app: { openExternal: vi.fn(), exportJson: vi.fn(), onExportRequested: vi.fn() },
+        mcp: {
+          status: vi.fn(),
+          issueToken: vi.fn(),
+          revokeToken: vi.fn(),
+          setPermission: vi.fn(),
+          listActivity: vi.fn(),
+          onActivityChanged: vi.fn().mockReturnValue(vi.fn())
+        }
       }
     }
   })

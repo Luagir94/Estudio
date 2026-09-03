@@ -146,7 +146,9 @@ beforeEach(() => {
       status: vi.fn().mockResolvedValue({ ok: true, data: mcpStoppedStatus }),
       issueToken: vi.fn(),
       revokeToken: vi.fn(),
-      setPermission: vi.fn()
+      setPermission: vi.fn(),
+      listActivity: vi.fn(),
+      onActivityChanged: vi.fn().mockReturnValue(vi.fn())
     }
   }
 })
