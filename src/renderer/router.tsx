@@ -47,6 +47,7 @@ import { PeriodDetailContainer } from './carreras/containers/PeriodDetailContain
 import { EntregasContainer } from './entregas/containers/EntregasContainer'
 import { HorarioContainer } from './horario/containers/HorarioContainer'
 import { HoyContainer } from './hoy/containers/HoyContainer'
+import { ActividadMcpContainer } from './mcp/containers/ActividadMcpContainer'
 import { DEFAULT_CARRERA_TAB, isCarreraTab, type CarreraTab } from './carreras/domain/carreraTab'
 import {
   DEFAULT_SUBJECT_DETAIL_TAB,
@@ -135,7 +136,34 @@ const horarioRoute = createRoute({ getParentRoute: () => rootRoute, path: '/hora
 
 const entregasRoute = createRoute({ getParentRoute: () => rootRoute, path: '/entregas', component: EntregasContainer })
 
-const ajustesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/ajustes', component: AjustesContainer })
+// Thin adapter (same rule as every other route component in this file): the
+// only reason Ajustes needs one at all is `McpPermissionsCard`'s "Ver
+// actividad" button (mcp-app-control task 18.4), which navigates to a screen
+// this container must stay unaware of — the container only knows it was
+// handed a callback.
+function AjustesScreen(): React.JSX.Element {
+  const navigate = useNavigate()
+  return <AjustesContainer onViewMcpActivity={() => void navigate({ to: '/mcp/actividad' })} />
+}
+
+const ajustesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/ajustes', component: AjustesScreen })
+
+// Actividad MCP (mcp-app-control task 18.1) is reached ONLY from that
+// button, deliberately not a Sidebar item — so `onBack` is its one way back,
+// same `useHistoryBack` convention `SubjectDetailScreen` already uses, with
+// the same fallback-to-a-fixed-destination shape for a relaunch or a deep
+// link that has no history entry to walk back to.
+function ActividadMcpScreen(): React.JSX.Element {
+  const navigate = useNavigate()
+  const onBack = useHistoryBack(() => void navigate({ to: '/ajustes' }))
+  return <ActividadMcpContainer onBack={onBack} />
+}
+
+const mcpActividadRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/mcp/actividad',
+  component: ActividadMcpScreen
+})
 
 // ---------------------------------------------------------------- materias
 
@@ -385,7 +413,8 @@ const routeTree = rootRoute.addChildren([
   carrerasRoute,
   carreraDetailRoute,
   periodDetailRoute,
-  ajustesRoute
+  ajustesRoute,
+  mcpActividadRoute
 ])
 
 /**

@@ -23,15 +23,17 @@ const NONE_PERMISSIONS: McpPermission[] = [
 
 function renderCard(overrides: Partial<ComponentProps<typeof McpPermissionsCard>> = {}) {
   const onChangePermission = vi.fn()
+  const onViewActivity = vi.fn()
   render(
     <McpPermissionsCard
       permissions={NONE_PERMISSIONS}
       onChangePermission={onChangePermission}
       pendingSlice={null}
+      onViewActivity={onViewActivity}
       {...overrides}
     />
   )
-  return { onChangePermission }
+  return { onChangePermission, onViewActivity }
 }
 
 describe('McpPermissionsCard', () => {
@@ -158,14 +160,17 @@ describe('McpPermissionsCard', () => {
     ).toBeInTheDocument()
   })
 
-  // PR16 explicitly does NOT ship "Ver actividad" — the /mcp/actividad route
-  // it points to does not exist until PR18. A button to a route that is not
-  // registered is a broken link shipped on purpose.
-  it('renders no "Ver actividad" entry point yet', () => {
-    renderCard()
+  // PR16 shipped this card with "Ver actividad" deliberately absent — the
+  // /mcp/actividad route it points to did not exist yet. PR18 registers that
+  // route and this is the button that reaches it, in the same head-right
+  // pill group the approved `.pen` always drew it in.
+  it('calls onViewActivity when "Ver actividad" is pressed', async () => {
+    const user = userEvent.setup()
+    const { onViewActivity } = renderCard()
 
-    expect(screen.queryByRole('button', { name: /ver actividad/i })).toBeNull()
-    expect(screen.queryByRole('link', { name: /ver actividad/i })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Ver actividad' }))
+
+    expect(onViewActivity).toHaveBeenCalledTimes(1)
   })
 
   it('disables only the pending slice’s own toggles while its mutation is in flight', () => {

@@ -48,7 +48,17 @@ import { McpPermissionsCard } from '../components/McpPermissionsCard'
 import { McpTokenCard } from '../components/McpTokenCard'
 import { PROVIDER_COMMANDS } from '../domain/connectionDisplay'
 
-export function AjustesContainer(): React.JSX.Element {
+interface AjustesContainerProps {
+  /**
+   * Navigates to `/mcp/actividad` (mcp-app-control task 18.4). Optional and
+   * defaulted to a no-op so this container stays constructible with no
+   * props, as every existing test here already does — the router's own
+   * `AjustesScreen` wrapper is the one caller that supplies a real one.
+   */
+  onViewMcpActivity?: () => void
+}
+
+export function AjustesContainer({ onViewMcpActivity = () => {} }: AjustesContainerProps = {}): React.JSX.Element {
   const { t } = useTranslation('ajustes')
   const queryClient = useQueryClient()
 
@@ -296,6 +306,7 @@ export function AjustesContainer(): React.JSX.Element {
             pendingSlice={
               mcpSetPermissionMutation.isPending ? (mcpSetPermissionMutation.variables?.slice ?? null) : null
             }
+            onViewActivity={onViewMcpActivity}
           />
         </>
       )}

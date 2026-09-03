@@ -715,4 +715,17 @@ describe('AjustesContainer — MCP permisos', () => {
     )
     expect(window.api.mcp.status).toHaveBeenCalledTimes(1)
   })
+
+  // Task 18.4 — the entry point PR16 deliberately left off this card, now
+  // wired through the router's own `AjustesScreen` in production; here it is
+  // proven at the container boundary, independent of routing.
+  it('calls onViewMcpActivity when "Ver actividad" is pressed', async () => {
+    const onViewMcpActivity = vi.fn()
+    renderWithClient(<AjustesContainer onViewMcpActivity={onViewMcpActivity} />)
+    await screen.findByRole('heading', { name: 'Permisos MCP' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver actividad' }))
+
+    expect(onViewMcpActivity).toHaveBeenCalledTimes(1)
+  })
 })

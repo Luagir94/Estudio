@@ -18,6 +18,7 @@
     "title": "Permisos MCP",
     "description": "Qué puede tocar un CLI conectado · todo empieza en ninguno",
     "summary": "{{count}} de 8 concedidos",
+    "viewActivity": "Ver actividad",
     "warning": "Con Escribir, un CLI conectado puede crear, editar y BORRAR tus registros sin preguntarte nada. Concedé solo lo que ese CLI necesite.",
     "toggles": {
       "read": "Leer",
@@ -47,6 +48,13 @@
       "authFailed": "Auth fallida",
       "invalid": "Inválido"
     },
-    "footerNote": "Se guardan las últimas 5.000 operaciones y, por separado, los últimos 500 intentos fallidos de autenticación — así una ráfaga de intentos no te borra el historial real."
+    "footerNote": "Se guardan las últimas 5.000 operaciones y, por separado, los últimos 500 intentos fallidos de autenticación — así una ráfaga de intentos no te borra el historial real.",
+    "backToAjustes": "Volver a Ajustes",
+    "empty": "Todavía no hay operaciones registradas.",
+    "noTool": "Conexión rechazada",
+    "card": {
+      "count_one": "{{count}} registro",
+      "count_other": "{{count}} registros"
+    }
   }
 }

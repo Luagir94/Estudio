@@ -21,10 +21,11 @@
 // out. Rendering a toggle for a capability that grants nothing would be
 // dishonest, so this card follows the catalog.
 //
-// The "Ver actividad" entry point the design draws in this card's head is
-// DELIBERATELY absent: it points at `/mcp/actividad`, a route that does not
-// exist until PR18 (task 18.4 adds it). A button to an unregistered route is
-// a broken link shipped on purpose.
+// The "Ver actividad" entry point (task 18.4): navigates to `/mcp/actividad`,
+// the route PR18 registers. PR16 shipped this card with the button
+// deliberately absent — a link to an unregistered route is a broken link
+// shipped on purpose — and this is that gap closed, in the same head-right
+// pill group the approved `.pen` always drew it in, beside the grant summary.
 import {
   Award,
   BookOpen,
@@ -34,6 +35,7 @@ import {
   Eye,
   FilePen,
   GraduationCap,
+  History,
   Pencil,
   Shield,
   ShieldCheck,
@@ -74,6 +76,8 @@ interface McpPermissionsCardProps {
   onChangePermission: (input: { slice: McpSlice; canRead: boolean; canWrite: boolean }) => void
   /** The slice whose `setPermission` mutation is in flight, or `null`. Disables only that row. */
   pendingSlice: McpSlice | null
+  /** Navigates to `/mcp/actividad` (task 18.4). */
+  onViewActivity: () => void
 }
 
 function permissionFor(permissions: McpPermission[], slice: McpSlice): McpPermission {
@@ -83,7 +87,8 @@ function permissionFor(permissions: McpPermission[], slice: McpSlice): McpPermis
 export function McpPermissionsCard({
   permissions,
   onChangePermission,
-  pendingSlice
+  pendingSlice,
+  onViewActivity
 }: McpPermissionsCardProps): React.JSX.Element {
   const { t } = useTranslation('mcp')
 
@@ -103,13 +108,24 @@ export function McpPermissionsCard({
           </div>
         </div>
 
-        {/* `$surface-sunken` group. Only the grant-summary pill lives here in
-            this PR — "Ver actividad" joins it in PR18, same group. */}
+        {/* `$surface-sunken` group holding the grant summary AND (task 18.4)
+            "Ver actividad", exactly as the approved `.pen` always drew it. */}
         <div className="flex shrink-0 items-center gap-2 rounded-lg bg-muted px-1 py-1">
           <div className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-body-sm font-semibold text-foreground">
             <Shield className="h-3.5 w-3.5" aria-hidden="true" />
             {t('mcpPermissionsCard.summary', { count: grantedCount })}
           </div>
+          <button
+            type="button"
+            onClick={onViewActivity}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-body-sm font-semibold text-foreground',
+              interactiveChip
+            )}
+          >
+            <History className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('mcpPermissionsCard.viewActivity')}
+          </button>
         </div>
       </div>
 
