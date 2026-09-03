@@ -1,0 +1,17 @@
+{
+  "mcpTokenCard": {
+    "title": "Conexión MCP",
+    "statusLabel": {
+      "listening": "Escuchando",
+      "stopped": "Detenida",
+      "error": "Error"
+    },
+    "detailLine": "Cualquier CLI que hable MCP puede leer y escribir tu cursada · el token viaja por variable de entorno",
+    "warning": "Se muestra una sola vez. Copialo ahora — después solo queda guardado su hash y no hay forma de volver a verlo.",
+    "buttons": {
+      "copy": "Copiar",
+      "rotate": "Rotar",
+      "revoke": "Revocar"
+    }
+  }
+}

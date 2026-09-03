@@ -26,9 +26,11 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { TFunction } from 'i18next'
 import { Info } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CLI_PROVIDERS, type CliPreference, type CliProvider } from '../../../shared/ipc/cli'
 import type { Palette, ThemePreference } from '../../../shared/ipc/theme'
+import { mcpApi, MCP_STATUS_QUERY_KEY } from '../../mcp/adapters/mcpApi'
 import { applyPalette } from '../../shared/lib/applyPalette'
 import {
   ajustesApi,
@@ -41,6 +43,7 @@ import { AppearanceCard } from '../components/AppearanceCard'
 import { ConnectionStatusCard } from '../components/ConnectionStatusCard'
 import { DetectingProviderCard } from '../components/DetectingProviderCard'
 import { IdleProviderCard } from '../components/IdleProviderCard'
+import { McpTokenCard } from '../components/McpTokenCard'
 import { PROVIDER_COMMANDS } from '../domain/connectionDisplay'
 
 export function AjustesContainer(): React.JSX.Element {
@@ -141,6 +144,36 @@ export function AjustesContainer(): React.JSX.Element {
     }
   })
 
+  // A settings read like the others above, but of a live server, not a saved
+  // preference — it starts no process either way.
+  const { data: mcpStatus } = useQuery({ queryKey: MCP_STATUS_QUERY_KEY, queryFn: mcpApi.status })
+
+  // `mcp:issueToken` returns the plaintext token EXACTLY once (design D7) —
+  // `mcp:status` has no field that could carry it back. This is the only
+  // place it is ever held, and only for this session: a reload of this
+  // screen (or of the app) loses it, by design, not by bug.
+  const [issuedMcpToken, setIssuedMcpToken] = useState<string | null>(null)
+
+  const mcpRotateMutation = useMutation({
+    mutationFn: mcpApi.issueToken,
+    onSuccess: (result) => {
+      setIssuedMcpToken(result.token)
+      // Listener/permissions may also have changed by reconcile (issuing the
+      // FIRST token starts the listener once a slice is granted) — a full
+      // re-read is simpler and safer here than hand-patching individual
+      // fields the card does not otherwise touch.
+      void queryClient.invalidateQueries({ queryKey: MCP_STATUS_QUERY_KEY })
+    }
+  })
+
+  const mcpRevokeMutation = useMutation({
+    mutationFn: mcpApi.revokeToken,
+    onSuccess: () => {
+      setIssuedMcpToken(null)
+      void queryClient.invalidateQueries({ queryKey: MCP_STATUS_QUERY_KEY })
+    }
+  })
+
   return (
     <div className="flex flex-col gap-6">
       {/* The header lost its "Reintentar" (design node `X2Lzy8`, removed):
@@ -216,6 +249,20 @@ export function AjustesContainer(): React.JSX.Element {
           />
         )
       })}
+
+      {/* Approved `.pen` ordering: after the last CLI card, before the
+          policy note. Rendered only once the status read answers — same
+          no-claims-before-the-read rule as `AppearanceCard` above. */}
+      {mcpStatus && (
+        <McpTokenCard
+          status={mcpStatus}
+          issuedToken={issuedMcpToken}
+          onRotate={() => mcpRotateMutation.mutate()}
+          onRevoke={() => mcpRevokeMutation.mutate()}
+          isRotating={mcpRotateMutation.isPending}
+          isRevoking={mcpRevokeMutation.isPending}
+        />
+      )}
 
       <div className="flex items-start gap-2 rounded-lg bg-muted px-4 py-3">
         <Info className="mt-px h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />

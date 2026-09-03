@@ -90,6 +90,7 @@ import type {
   SubjectWithStatus,
   UpdateSubjectScheduleInput
 } from '../../shared/ipc/materias'
+import type { IssueMcpTokenResult, McpStatusResult, RevokeMcpTokenResult } from '../../shared/ipc/mcp'
 import type { Palette, SetPaletteInput, SetThemePreferenceInput, ThemePreference } from '../../shared/ipc/theme'
 
 declare global {
@@ -216,6 +217,12 @@ declare global {
         listConversations: () => Promise<IpcResult<ConversationSummary[]>>
         getConversation: (input: GetConversationInput) => Promise<IpcResult<GetConversationResult>>
         deleteConversation: (input: DeleteConversationInput) => Promise<IpcResult<DeleteConversationResult>>
+      }
+      mcp: {
+        status: () => Promise<IpcResult<McpStatusResult>>
+        /** Issues the FIRST token, or rotates the current one — the SAME call either way (design D7/D8). */
+        issueToken: () => Promise<IpcResult<IssueMcpTokenResult>>
+        revokeToken: () => Promise<IpcResult<RevokeMcpTokenResult>>
       }
     }
   }

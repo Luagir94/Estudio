@@ -97,6 +97,7 @@ beforeEach(() => {
       addEntry: vi.fn(),
       removeEntry: vi.fn()
     },
+    mcp: { status: vi.fn(), issueToken: vi.fn(), revokeToken: vi.fn() },
     theme: { getPreference: vi.fn(), setPreference: vi.fn(), getPalette: vi.fn(), setPalette: vi.fn() }
   }
 })

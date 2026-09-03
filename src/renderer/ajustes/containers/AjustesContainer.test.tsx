@@ -50,6 +50,17 @@ function prefs(connected: readonly string[], overridePath: string | null = null)
   }))
 }
 
+// Fresh install: no token issued, no grants, so the listener has not started
+// (spec "No grants, no listener").
+const mcpStoppedStatus = {
+  listener: 'stopped' as const,
+  listenerError: null,
+  tokenIssuedAt: null,
+  shimPath: 'C:\\app\\resources\\mcp-shim\\index.cjs',
+  endpoint: '\\\\.\\pipe\\course-companion-mcp-abc123',
+  permissions: []
+}
+
 function renderWithClient(ui: ReactNode) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
@@ -130,7 +141,12 @@ beforeEach(() => {
       createDocument: vi.fn()
     },
     indexado: { sync: vi.fn(), onStatusChanged: vi.fn().mockReturnValue(vi.fn()) },
-    app: { openExternal: vi.fn(), exportJson: vi.fn(), onExportRequested: vi.fn() }
+    app: { openExternal: vi.fn(), exportJson: vi.fn(), onExportRequested: vi.fn() },
+    mcp: {
+      status: vi.fn().mockResolvedValue({ ok: true, data: mcpStoppedStatus }),
+      issueToken: vi.fn(),
+      revokeToken: vi.fn()
+    }
   }
 })
 
@@ -597,5 +613,49 @@ describe('AjustesContainer — disconnecting', () => {
 
     expect(await screen.findByRole('button', { name: `${CONNECT_ACTION} Claude Code` })).toBeInTheDocument()
     expect(screen.queryByText('Conectado')).not.toBeInTheDocument()
+  })
+})
+
+// PR15 of mcp-app-control: the FIRST screen an end user can actually enable
+// MCP from. This container is where `mcp:status`, `mcp:issueToken` and
+// `mcp:revokeToken` are wired — `McpTokenCard` itself takes props only.
+describe('AjustesContainer — MCP', () => {
+  it('renders the MCP card once the status read answers, after the CLI rows', async () => {
+    renderWithClient(<AjustesContainer />)
+
+    await screen.findByRole('heading', { name: 'Conexión MCP' })
+    const cardTitles = screen.getAllByRole('heading', { level: 3 })
+    expect(cardTitles[cardTitles.length - 1]).toHaveTextContent('Conexión MCP')
+  })
+
+  // The plaintext token exists nowhere else — `mcp:status` cannot read it
+  // back — so this is the one and only moment it can ever be shown.
+  it('issues a token when "Rotar" is pressed and shows it exactly once', async () => {
+    window.api.mcp.issueToken = vi
+      .fn()
+      .mockResolvedValue({ ok: true, data: { token: 'cc_mcp_freshtoken', issuedAt: '2026-09-03T12:00:00.000Z' } })
+
+    renderWithClient(<AjustesContainer />)
+    await screen.findByRole('heading', { name: 'Conexión MCP' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rotar' }))
+
+    expect(await screen.findByText('cc_mcp_freshtoken')).toBeInTheDocument()
+    expect(window.api.mcp.issueToken).toHaveBeenCalledTimes(1)
+  })
+
+  it('revokes the token when "Revocar" is pressed', async () => {
+    window.api.mcp.status = vi.fn().mockResolvedValue({
+      ok: true,
+      data: { ...mcpStoppedStatus, listener: 'listening' as const, tokenIssuedAt: '2026-09-03T10:00:00.000Z' }
+    })
+    window.api.mcp.revokeToken = vi.fn().mockResolvedValue({ ok: true, data: { revoked: true } })
+
+    renderWithClient(<AjustesContainer />)
+    await screen.findByRole('heading', { name: 'Conexión MCP' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Revocar' }))
+
+    await waitFor(() => expect(window.api.mcp.revokeToken).toHaveBeenCalledTimes(1))
   })
 })

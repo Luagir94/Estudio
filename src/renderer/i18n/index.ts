@@ -19,6 +19,7 @@ import finales from '../locales/es/finales.json'
 import horario from '../locales/es/horario.json'
 import hoy from '../locales/es/hoy.json'
 import materias from '../locales/es/materias.json'
+import mcp from '../locales/es/mcp.json'
 import parciales from '../locales/es/parciales.json'
 import planificador from '../locales/es/planificador.json'
 import validation from '../locales/es/validation.json'
@@ -43,6 +44,7 @@ void i18next.use(initReactI18next).init({
     'adjuntos',
     'ask',
     'ajustes',
+    'mcp',
     'validation',
     'errors'
   ],
@@ -62,6 +64,7 @@ void i18next.use(initReactI18next).init({
       adjuntos,
       ask,
       ajustes,
+      mcp,
       validation,
       errors
     }
