@@ -4,7 +4,7 @@
 // 3.11); the deadline domain/lifecycle (entregas:* commands) still ships in
 // slice 4.
 import { sql } from 'drizzle-orm'
-import { integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 // A Program is a carrera ("Abogacía") or a standalone course ("Curso de
 // Bartender"). `institution` is PLAIN TEXT, not a table: the calendar
@@ -615,3 +615,62 @@ export const appSettings = sqliteTable('app_settings', {
   key: text('key').primaryKey(),
   value: text('value').notNull()
 })
+
+// Per-slice read/write grant for the inbound MCP server (mcp-app-control
+// design D7-D9, spec "Grants default to NONE per slice"). `slice` is the
+// PRIMARY KEY, not a surrogate id: the 8-member closed set lives in
+// `src/main/mcp/domain/permissions.ts` (Zod/TS-owned, no SQL CHECK, same
+// no-constraint policy as every other closed set in this file), and a
+// slice has at most one grant row, ever.
+//
+// ABSENCE OF A ROW IS THE DEFAULT-DENY STATE (design "Drizzle schema"
+// repository rule) — a slice never listed here denies both read and write,
+// identical to an explicit `{ canRead: false, canWrite: false }` row. Rows
+// are written only when the user grants something in Ajustes, so a fresh
+// install has zero rows and zero access, which is what makes "fresh token
+// has no access" true without a seed migration.
+export const mcpSlicePermissions = sqliteTable('mcp_slice_permissions', {
+  slice: text('slice').primaryKey(),
+  canRead: integer('can_read', { mode: 'boolean' }).notNull().default(false),
+  canWrite: integer('can_write', { mode: 'boolean' }).notNull().default(false),
+  updatedAt: text('updated_at').notNull()
+})
+
+// One MCP tool call or handshake attempt, audited (spec "mcp-activity-audit"
+// — every mutation is audited, and a rejected handshake is audited too).
+// Global by construction, no FK to any subject/program — same precedent as
+// `conversations` (design D4): the audit trail is about the MCP boundary,
+// not about one materia.
+//
+// `tool`/`slice`/`action` are NULLABLE: a rejected handshake (`outcome` =
+// 'auth-failed') never reaches tool dispatch, so it has none of the three
+// (design "mcp:* IPC contract", `auditEntry.ts`'s `authFailedSummary`).
+// `outcome` is the closed set 'success' | 'denied' | 'invalid' | 'error' |
+// 'auth-failed', ZOD-OWNED, no CHECK — same policy as `subjects.outcome`.
+// `summary` is built by `domain/auditEntry.ts`, never by truncating a raw
+// payload (spec: audit entries never carry secrets or full payloads);
+// `errorCode` mirrors the tool result's machine error code, nullable for
+// every non-error outcome.
+//
+// No FK, no cascade: an audited call outlives the record it touched, same
+// as `askMessages.model` outliving its model set (design D5 there).
+// Retention is enforced in the repository (two independent caps, design
+// D10 — `domain/auditRetention.ts`), never by a SQL trigger.
+export const mcpAuditEntries = sqliteTable(
+  'mcp_audit_entries',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    occurredAt: text('occurred_at').notNull(),
+    tool: text('tool'),
+    slice: text('slice'),
+    action: text('action'),
+    outcome: text('outcome').notNull(),
+    summary: text('summary').notNull(),
+    clientName: text('client_name'),
+    errorCode: text('error_code')
+  },
+  (t) => [
+    index('mcp_audit_entries_occurred_at_idx').on(t.occurredAt),
+    index('mcp_audit_entries_outcome_idx').on(t.outcome)
+  ]
+)
