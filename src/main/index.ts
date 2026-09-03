@@ -482,11 +482,35 @@ async function bootstrap(): Promise<void> {
   const shimPath = getMcpShimPath()
   log.info(`mcp: shim path resolved to ${shimPath}`)
 
-  // Best-effort on quit, same shape as the askService/warmPromptSession hook
-  // above: release the OS-level pipe/socket handle rather than leaving it
-  // held until the process actually exits.
-  app.on('will-quit', () => {
-    mcpListener.close()
+  // Defect fix (PR11b): a graceful `app.quit()` used to leave an already-
+  // open MCP connection with NO disconnect notification for 45+ seconds,
+  // even after the OS process had fully exited (PR13's finding) — merely
+  // closing the LISTENER (as the old hook here did) never proactively ends
+  // an existing connection the way token rotate/revoke already do (design
+  // D8), and the OS does not always reclaim the pipe handle promptly on a
+  // graceful Electron quit.
+  //
+  // `before-quit` — NOT `will-quit` — stays pending (`event.preventDefault()`)
+  // until `mcpService.shutdown()` (the SAME rotate/revoke drain, reused
+  // rather than reimplemented) has ended or hard-capped every open
+  // connection, then calls `app.quit()` again so the process actually
+  // exits. This MUST be `before-quit`: Electron's `is_quitting_` flag
+  // latches true the moment `before-quit` is NOT prevented, and a second
+  // `app.quit()` call is then a silent no-op regardless of anything a
+  // `will-quit` listener does — confirmed empirically while writing this
+  // fix's e2e test, which hung the whole app indefinitely on `will-quit`
+  // until this was switched. The guard flag is what lets the second pass
+  // through without re-preventing it. `shutdown()` also closes the
+  // listener, so this replaces the previous `will-quit`-based
+  // `mcpListener.close()`-only hook entirely.
+  let mcpShutdownDrained = false
+  app.on('before-quit', (event) => {
+    if (mcpShutdownDrained) return
+    event.preventDefault()
+    void mcpService.shutdown().finally(() => {
+      mcpShutdownDrained = true
+      app.quit()
+    })
   })
 
   // Native File menu (spec: "Export from File menu" — "the same export flow

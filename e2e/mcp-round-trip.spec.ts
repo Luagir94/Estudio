@@ -423,3 +423,91 @@ test('the shim reports a terminal failure to the client, and never opens the dat
     fs.rmSync(userDataDir, { recursive: true, force: true })
   }
 })
+
+test('the shim is notified promptly when the app quits gracefully (defect fix PR11b)', async () => {
+  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'course-companion-e2e-mcp-graceful-quit-'))
+  const token = 'cc_e2e-graceful-quit-token'
+  const endpoint = testEndpoint()
+
+  const migrating = await launchApp(userDataDir, testEndpoint())
+  await (await migrating.firstWindow()).waitForLoadState('domcontentloaded')
+  await migrating.close()
+
+  seedTokenAndGrants(path.join(userDataDir, 'course-companion.db'), token, [
+    { slice: 'materias', canRead: true, canWrite: false }
+  ])
+
+  const appProcess = await launchApp(userDataDir, endpoint)
+  const shim = spawnShim(endpoint, token)
+  const capture = captureJsonRpc(shim.stdout)
+  const stderr = collectStderr(shim)
+
+  try {
+    await (await appProcess.firstWindow()).waitForLoadState('domcontentloaded')
+
+    sendJsonRpc(shim, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: '2025-06-18',
+        capabilities: {},
+        clientInfo: { name: 'graceful-quit-e2e', version: '0.0.0' }
+      }
+    })
+    await capture.waitForResponse(1)
+    sendJsonRpc(shim, { jsonrpc: '2.0', method: 'notifications/initialized' })
+
+    // Prove the session is genuinely live before quitting — same reasoning
+    // as the mid-quit test above.
+    sendJsonRpc(shim, { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'materias_list', arguments: {} } })
+    const liveCallResponse = await capture.waitForResponse(2)
+    expect(liveCallResponse.result?.isError).not.toBe(true)
+
+    // GRACEFUL quit this time — Playwright's own `.close()`, which drives a
+    // real `app.quit()`. This is deliberately NOT `taskkill` (unlike the
+    // mid-quit test above, which simulates a crash on purpose): PR13
+    // reported that, before this fix, a graceful quit left the shim's
+    // socket with no 'error'/'close' notification for 45+ seconds, because
+    // the old `will-quit` hook only closed the LISTENER and never drained
+    // the already-open connection the way token rotate/revoke already did
+    // (design D8's drain, reused here by `mcpService.shutdown()`, called
+    // from `before-quit` — see `src/main/index.ts`'s own comment for why it
+    // cannot be `will-quit`).
+    //
+    // Honesty note (PR11b): re-measuring on THIS machine/session, repeated
+    // runs against the PRE-fix code (`mcpListener.close()` only) also
+    // disconnected fast (~100-130ms) — the original 45+ second gap did not
+    // reproduce here, so this assertion cannot be shown to fail without the
+    // fix in this environment. It is kept anyway as a spec-compliance
+    // guard for the target behavior (exit 1, exact terminal-failure stderr,
+    // prompt notification) and as a permanent regression net should the
+    // platform-dependent stall PR13 observed recur; `QUIT_DRAIN_CAP_MS`
+    // (mcpService.ts) is the fix's own upper bound, so the budget below
+    // stays generous over it rather than over the unreproduced 45s figure.
+    const quitStartedAt = Date.now()
+    const closePromise = appProcess.close()
+
+    const NOTIFICATION_BUDGET_MS = 5_000
+    const exitCode = await Promise.race([
+      waitForExit(shim),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`shim was not notified within ${NOTIFICATION_BUDGET_MS}ms of a graceful app quit`)),
+          NOTIFICATION_BUDGET_MS
+        )
+      )
+    ])
+    const latencyMs = Date.now() - quitStartedAt
+
+    expect(exitCode).toBe(1)
+    expect(stderr()).toBe('Connection closed by Course Companion\n')
+    expect(latencyMs).toBeLessThan(NOTIFICATION_BUDGET_MS)
+
+    await closePromise
+  } finally {
+    if (shim.exitCode === null) shim.kill()
+    await appProcess.close().catch(() => {})
+    fs.rmSync(userDataDir, { recursive: true, force: true })
+  }
+})

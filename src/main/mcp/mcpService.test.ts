@@ -16,6 +16,7 @@ vi.mock('electron-log', () => ({ default: { info: logInfoMock, error: logErrorMo
 import {
   createMcpService,
   DRAIN_HARD_CAP_MS,
+  QUIT_DRAIN_CAP_MS,
   TOKEN_HASH_KEY,
   TOKEN_ISSUED_AT_KEY,
   type CreateMcpServiceDeps,
@@ -403,6 +404,144 @@ describe('revoke drain (task 9.3)', () => {
     connectionState.inFlightCount = 0
     connectionState.settle()
     expect(endSpy).toHaveBeenCalledTimes(1)
+  })
+})
+
+// --- Defect fix (PR11b): app-quit drain -------------------------------------
+
+describe('shutdown (defect fix PR11b)', () => {
+  it('closes the listener', () => {
+    const { service, listener } = authenticatedSetup()
+    void service.shutdown()
+    expect(listener.close).toHaveBeenCalledTimes(1)
+    expect(listener.state).toBe('stopped')
+  })
+
+  it('does NOT clear the persisted token — unlike revokeToken (a shutdown drain, not a revocation)', async () => {
+    const { service, settings } = authenticatedSetup()
+    const hashBefore = settings.store[TOKEN_HASH_KEY]
+
+    await service.shutdown()
+
+    expect(settings.store[TOKEN_HASH_KEY]).toBe(hashBefore)
+    expect(settings.store[TOKEN_HASH_KEY]).not.toBeNull()
+  })
+
+  it('ends a connection with no in-flight calls right away, same as revoke', async () => {
+    const connectionState = createConnectionState()
+    const buildConnectionServer = vi.fn(() => ({ server: {} as McpServer, connection: connectionState }))
+    const { service, listener, hash } = authenticatedSetup({ buildConnectionServer })
+    const socket = createFakeSocket()
+    const endSpy = vi.spyOn(socket, 'end')
+    listener.handler!({ socket, hello: { present: true, hash } })
+
+    await service.shutdown()
+
+    expect(connectionState.stale).toBe(true)
+    expect(endSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('resolves once an in-flight call settles, before the hard cap', async () => {
+    const connectionState = createConnectionState()
+    const buildConnectionServer = vi.fn(() => ({ server: {} as McpServer, connection: connectionState }))
+    const { service, listener, hash } = authenticatedSetup({ buildConnectionServer })
+    const socket = createFakeSocket()
+    const endSpy = vi.spyOn(socket, 'end')
+    listener.handler!({ socket, hello: { present: true, hash } })
+
+    connectionState.inFlightCount = 1
+    let resolved = false
+    const shutdownPromise = service.shutdown().then(() => {
+      resolved = true
+    })
+
+    // Give any pending microtasks a chance to run — must NOT have resolved
+    // while a call is still in flight.
+    await Promise.resolve()
+    expect(resolved).toBe(false)
+    expect(endSpy).not.toHaveBeenCalled()
+
+    connectionState.inFlightCount = 0
+    connectionState.settle()
+    await shutdownPromise
+
+    expect(resolved).toBe(true)
+    expect(endSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses a SHORTER hard cap than rotate/revoke — a closing app has less patience for a stuck call', () => {
+    let capturedTimeoutMs: number | undefined
+    const scheduleTimeout = vi.fn((callback: () => void, ms: number) => {
+      capturedTimeoutMs = ms
+      return 0 as unknown as ReturnType<typeof setTimeout>
+    })
+    const clearScheduledTimeout = vi.fn()
+    const connectionState = createConnectionState()
+    const buildConnectionServer = vi.fn(() => ({ server: {} as McpServer, connection: connectionState }))
+    const { service, listener, hash } = authenticatedSetup({
+      buildConnectionServer,
+      scheduleTimeout,
+      clearScheduledTimeout
+    })
+    const socket = createFakeSocket()
+    listener.handler!({ socket, hello: { present: true, hash } })
+
+    connectionState.inFlightCount = 1
+    void service.shutdown()
+
+    expect(scheduleTimeout).toHaveBeenCalledWith(expect.any(Function), QUIT_DRAIN_CAP_MS)
+    expect(capturedTimeoutMs).toBeLessThan(DRAIN_HARD_CAP_MS)
+  })
+
+  it('destroys a connection that never drains within its own hard cap', async () => {
+    let fireTimeout: () => void = () => {}
+    const scheduleTimeout = vi.fn((callback: () => void) => {
+      fireTimeout = callback
+      return 0 as unknown as ReturnType<typeof setTimeout>
+    })
+    const clearScheduledTimeout = vi.fn()
+    const connectionState = createConnectionState()
+    const buildConnectionServer = vi.fn(() => ({ server: {} as McpServer, connection: connectionState }))
+    const { service, listener, hash } = authenticatedSetup({
+      buildConnectionServer,
+      scheduleTimeout,
+      clearScheduledTimeout
+    })
+    const socket = createFakeSocket()
+    const endSpy = vi.spyOn(socket, 'end')
+    const destroySpy = vi.spyOn(socket, 'destroy')
+    listener.handler!({ socket, hello: { present: true, hash } })
+
+    connectionState.inFlightCount = 1
+    const shutdownPromise = service.shutdown()
+
+    fireTimeout()
+    await shutdownPromise
+
+    expect(destroySpy).toHaveBeenCalledTimes(1)
+    expect(endSpy).not.toHaveBeenCalled()
+  })
+
+  it('drains every open connection, not just one', async () => {
+    const connectionStateA = createConnectionState()
+    const connectionStateB = createConnectionState()
+    let callCount = 0
+    const buildConnectionServer = vi.fn(() => {
+      callCount += 1
+      return { server: {} as McpServer, connection: callCount === 1 ? connectionStateA : connectionStateB }
+    })
+    const { service, listener, hash } = authenticatedSetup({ buildConnectionServer })
+    const socketA = createFakeSocket()
+    const socketB = createFakeSocket()
+    const endSpyA = vi.spyOn(socketA, 'end')
+    const endSpyB = vi.spyOn(socketB, 'end')
+    listener.handler!({ socket: socketA, hello: { present: true, hash } })
+    listener.handler!({ socket: socketB, hello: { present: true, hash } })
+
+    await service.shutdown()
+
+    expect(endSpyA).toHaveBeenCalledTimes(1)
+    expect(endSpyB).toHaveBeenCalledTimes(1)
   })
 })
 

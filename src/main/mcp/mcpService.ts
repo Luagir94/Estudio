@@ -29,14 +29,17 @@ import type { ToolDescriptor } from './domain/toolDescriptor'
 // permission matrix's default-deny `isAllowed`, and the two repositories'
 // own transactional/atomic guarantees.
 //
-// This unit owns exactly four things design D8-D10 assign to it: (1) the
+// This unit owns exactly five things design D8-D10 assign to it: (1) the
 // listener reconcile decision (token + grant, both required), (2) the
 // rotate/revoke connection drain (in-flight settle, `end()`, 10s hard-cap
-// `destroy()`), (3) the handshake decision + ack + auth-failed audit, and
-// (4) dispatching every audit record — tool-driven or handshake-driven — to
-// both the repository and electron-log. It never opens a real socket
-// itself: `ListenerPort` is the seam PR10's `pipeListener.ts` (node:net)
-// satisfies; this unit's own tests satisfy it with a fake.
+// `destroy()`), (3) the handshake decision + ack + auth-failed audit, (4)
+// dispatching every audit record — tool-driven or handshake-driven — to
+// both the repository and electron-log, and (5) the app-quit drain
+// (`shutdown()`, defect fix PR11b): the SAME drain as (2), reused rather
+// than duplicated, on a shorter hard cap and without clearing the token. It
+// never opens a real socket itself: `ListenerPort` is the seam PR10's
+// `pipeListener.ts` (node:net) satisfies; this unit's own tests satisfy it
+// with a fake.
 
 export type ListenerState = 'stopped' | 'listening' | 'error'
 
@@ -83,6 +86,18 @@ export type TimeoutHandle = ReturnType<typeof setTimeout>
 /** A connection that never drains is force-closed after this long (design D8). */
 export const DRAIN_HARD_CAP_MS = 10_000
 
+/**
+ * `shutdown()`'s own hard cap (defect fix, PR11b) — shorter than
+ * `DRAIN_HARD_CAP_MS` on purpose: a token rotation can afford to wait ten
+ * seconds for a stray in-flight call in the background, but an app the user
+ * just asked to close should not hang around that long for one. Every tool
+ * call in this catalog is a single sqlite statement (sub-millisecond), so
+ * three seconds is generous headroom for a call that is genuinely still
+ * running, while keeping quit-time latency something a closing app can
+ * still call "prompt".
+ */
+export const QUIT_DRAIN_CAP_MS = 3_000
+
 export interface McpService {
   /**
    * Starts or stops the listener so it is running iff a token exists AND at
@@ -114,6 +129,20 @@ export interface McpService {
    * opened before the revocation).
    */
   revokeToken(): { revoked: true }
+  /**
+   * App-quit drain (defect fix, PR11b — reuses design D8's rotate/revoke
+   * drain, never a second mechanism): stops the listener and drains every
+   * open connection the same way `revokeToken()` does, but on
+   * `QUIT_DRAIN_CAP_MS` instead of `DRAIN_HARD_CAP_MS`. Unlike
+   * `revokeToken()`, this does NOT clear the persisted token or grants —
+   * it is a connection drain, not a revocation, so the same token still
+   * works on the app's next launch. The caller (`bootstrap()`'s
+   * `will-quit` hook) MUST await the returned promise before letting the
+   * process actually exit, or the drain's `end()`/`destroy()` calls race
+   * process teardown and the client sees no prompt disconnect notification
+   * at all — the exact defect this method exists to fix.
+   */
+  shutdown(): Promise<void>
 }
 
 interface TrackedConnection {
@@ -220,49 +249,55 @@ export function createMcpService({
   }
 
   /**
-   * Design D8's shared rotate/revoke drain: mark the connection stale (so
-   * PR3's wrapper starts returning `SESSION_TERMINATED` for any NEW call on
-   * it), then either end it right away (nothing in flight) or wait for the
-   * in-flight counter to reach zero via the `settle` hook PR3's wrapper
-   * already calls on every completion — with a hard cap so a call that
-   * never returns cannot hold a connection open forever.
+   * Design D8's shared rotate/revoke/shutdown drain: mark the connection
+   * stale (so PR3's wrapper starts returning `SESSION_TERMINATED` for any
+   * NEW call on it), then either end it right away (nothing in flight) or
+   * wait for the in-flight counter to reach zero via the `settle` hook
+   * PR3's wrapper already calls on every completion — with a hard cap so a
+   * call that never returns cannot hold a connection open forever. Returns
+   * a promise so `shutdown()` (defect fix, PR11b) can await every
+   * connection's actual `end()`/`destroy()` before letting the process
+   * exit; rotate/revoke fire this without awaiting, unchanged from before.
+   * `timeoutMs` defaults to the shared rotate/revoke cap and is overridden
+   * only by `shutdown()`'s shorter one.
    */
-  function drainConnection(tracked: TrackedConnection): void {
+  function drainConnection(tracked: TrackedConnection, timeoutMs = drainTimeoutMs): Promise<void> {
     tracked.state.stale = true
 
     if (tracked.state.inFlightCount === 0) {
       connections.delete(tracked)
       tracked.socket.end()
-      return
+      return Promise.resolve()
     }
 
-    let settled = false
-    // `finish` closes over `timer`, but nothing can call it before the
-    // `const timer = scheduleTimeout(...)` line below runs: both callers
-    // are registered after that line, never invoked synchronously above it.
-    const finish = (destroy: boolean): void => {
-      if (settled) return
-      settled = true
-      clearScheduledTimeout(timer)
-      connections.delete(tracked)
-      if (destroy) {
-        tracked.socket.destroy()
-      } else {
-        tracked.socket.end()
+    return new Promise((resolve) => {
+      let settled = false
+      // `finish` closes over `timer`, but nothing can call it before the
+      // `const timer = scheduleTimeout(...)` line below runs: both callers
+      // are registered after that line, never invoked synchronously above it.
+      const finish = (destroy: boolean): void => {
+        if (settled) return
+        settled = true
+        clearScheduledTimeout(timer)
+        connections.delete(tracked)
+        if (destroy) {
+          tracked.socket.destroy()
+        } else {
+          tracked.socket.end()
+        }
+        resolve()
       }
-    }
 
-    tracked.state.settle = () => {
-      if (tracked.state.inFlightCount === 0) finish(false)
-    }
+      tracked.state.settle = () => {
+        if (tracked.state.inFlightCount === 0) finish(false)
+      }
 
-    const timer = scheduleTimeout(() => finish(true), drainTimeoutMs)
+      const timer = scheduleTimeout(() => finish(true), timeoutMs)
+    })
   }
 
-  function drainAllConnections(): void {
-    for (const tracked of [...connections]) {
-      drainConnection(tracked)
-    }
+  function drainAllConnections(timeoutMs = drainTimeoutMs): Promise<void> {
+    return Promise.all([...connections].map((tracked) => drainConnection(tracked, timeoutMs))).then(() => undefined)
   }
 
   function onConnection(connection: ListenerConnection): void {
@@ -310,7 +345,7 @@ export function createMcpService({
       const issuedAt = now()
       settings.set(TOKEN_HASH_KEY, hash)
       settings.set(TOKEN_ISSUED_AT_KEY, issuedAt)
-      drainAllConnections()
+      void drainAllConnections()
       reconcileListener()
       return { token, issuedAt }
     },
@@ -318,8 +353,12 @@ export function createMcpService({
       settings.set(TOKEN_HASH_KEY, null)
       settings.set(TOKEN_ISSUED_AT_KEY, null)
       listener.close()
-      drainAllConnections()
+      void drainAllConnections()
       return { revoked: true }
+    },
+    shutdown() {
+      listener.close()
+      return drainAllConnections(QUIT_DRAIN_CAP_MS)
     }
   }
 }
