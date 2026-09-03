@@ -90,7 +90,13 @@ import type {
   SubjectWithStatus,
   UpdateSubjectScheduleInput
 } from '../../shared/ipc/materias'
-import type { IssueMcpTokenResult, McpStatusResult, RevokeMcpTokenResult } from '../../shared/ipc/mcp'
+import type {
+  IssueMcpTokenResult,
+  McpStatusResult,
+  RevokeMcpTokenResult,
+  SetMcpPermissionInput,
+  SetMcpPermissionResult
+} from '../../shared/ipc/mcp'
 import type { Palette, SetPaletteInput, SetThemePreferenceInput, ThemePreference } from '../../shared/ipc/theme'
 
 declare global {
@@ -223,6 +229,8 @@ declare global {
         /** Issues the FIRST token, or rotates the current one — the SAME call either way (design D7/D8). */
         issueToken: () => Promise<IpcResult<IssueMcpTokenResult>>
         revokeToken: () => Promise<IpcResult<RevokeMcpTokenResult>>
+        /** Sets ONE slice's full grant (both flags together — there is no separate per-flag channel). */
+        setPermission: (input: SetMcpPermissionInput) => Promise<IpcResult<SetMcpPermissionResult>>
       }
     }
   }

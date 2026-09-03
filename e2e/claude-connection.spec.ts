@@ -45,8 +45,14 @@ test('launch -> nothing probed until Conectar -> real probe connects -> the opt-
       // status has been claimed, because no probe ran. `claude` IS installed on
       // this machine, so a "Conectado" here would mean the screen probed on its
       // own.
+      //
+      // `exact: true` is load-bearing here too (mcp-app-control PR16): by
+      // default `getByText` matches case-insensitively AND by substring, and
+      // the approved Permisos MCP card's own verbatim copy ("un CLI
+      // conectado", twice) would otherwise match this locator on a screen
+      // where nothing is actually connected.
       await expect(window.getByRole('button', { name: 'Conectar Claude Code', exact: true })).toBeVisible()
-      await expect(window.getByText('Conectado')).toHaveCount(0)
+      await expect(window.getByText('Conectado', { exact: true })).toHaveCount(0)
 
       await window.getByRole('button', { name: 'Conectar Claude Code', exact: true }).click()
 
@@ -57,8 +63,9 @@ test('launch -> nothing probed until Conectar -> real probe connects -> the opt-
       // "Conectado" is the whole assertion now that the row is one line — the
       // probe service returns it ONLY when a version actually parsed out of a
       // validated executable's stdout, so it carries what the version and path
-      // rows used to assert separately.
-      await expect(window.getByText('Conectado')).toBeVisible({ timeout: 20_000 })
+      // rows used to assert separately. `exact: true` for the same reason as
+      // above — the standalone chip text, not any substring of it.
+      await expect(window.getByText('Conectado', { exact: true })).toBeVisible({ timeout: 20_000 })
 
       // Connecting one CLI must not have started the other two.
       await expect(window.getByRole('button', { name: 'Conectar Antigravity CLI', exact: true })).toBeVisible()
@@ -81,8 +88,9 @@ test('launch -> nothing probed until Conectar -> real probe connects -> the opt-
       // reconnected perfectly.
       // No click this time. Claude re-probes because it was connected before;
       // the other two stay idle, which is what keeps persistence from quietly
-      // becoming "probe everything on open".
-      await expect(window.getByText('Conectado')).toBeVisible({ timeout: 20_000 })
+      // becoming "probe everything on open". `exact: true` for the same
+      // reason as above.
+      await expect(window.getByText('Conectado', { exact: true })).toBeVisible({ timeout: 20_000 })
       await expect(window.getByRole('button', { name: 'Conectar Claude Code', exact: true })).toHaveCount(0)
       await expect(window.getByRole('button', { name: 'Conectar Codex CLI', exact: true })).toBeVisible()
     } finally {

@@ -1,17 +1,21 @@
-// IPC-backed port (mcp-app-control task 15.1): crosses the preload bridge via
-// `window.api.mcp`, then Zod-parses the response before handing typed data to
-// TanStack Query — same two-directional parsing rule as every other adapter
-// (`ajustesApi.ts`). Only the three channels this PR's card calls;
-// `setPermission` (PR16) and `listActivity`/`onActivityChanged` (PR17/18)
-// join this module and `window.d.ts`'s `mcp` entry when their own callers
-// land, same incremental-typing convention as every other domain there.
+// IPC-backed port (mcp-app-control task 15.1/16.2): crosses the preload
+// bridge via `window.api.mcp`, then Zod-parses the response before handing
+// typed data to TanStack Query — same two-directional parsing rule as every
+// other adapter (`ajustesApi.ts`). Four channels now: PR15's
+// status/issueToken/revokeToken plus PR16's setPermission.
+// `listActivity`/`onActivityChanged` (PR17/18) join this module and
+// `window.d.ts`'s `mcp` entry when their own callers land, same
+// incremental-typing convention as every other domain there.
 import {
   issueMcpTokenResultSchema,
   mcpStatusResultSchema,
   revokeMcpTokenResultSchema,
+  setMcpPermissionResultSchema,
   type IssueMcpTokenResult,
   type McpStatusResult,
-  type RevokeMcpTokenResult
+  type RevokeMcpTokenResult,
+  type SetMcpPermissionInput,
+  type SetMcpPermissionResult
 } from '../../../shared/ipc/mcp'
 import { IpcApiError, unwrapIpcResult } from '../../shared/adapters/ipcApiError'
 
@@ -33,6 +37,8 @@ export interface McpApi {
   /** Issues the FIRST token, or rotates the current one — the SAME call either way (design D7/D8). */
   issueToken(): Promise<IssueMcpTokenResult>
   revokeToken(): Promise<RevokeMcpTokenResult>
+  /** Sets ONE slice's full grant (both flags together — there is no separate per-flag channel). */
+  setPermission(input: SetMcpPermissionInput): Promise<SetMcpPermissionResult>
 }
 
 export const mcpApi: McpApi = {
@@ -44,5 +50,8 @@ export const mcpApi: McpApi = {
   },
   async revokeToken() {
     return unwrapIpcResult(await window.api.mcp.revokeToken(), revokeMcpTokenResultSchema, McpApiError)
+  },
+  async setPermission(input) {
+    return unwrapIpcResult(await window.api.mcp.setPermission(input), setMcpPermissionResultSchema, McpApiError)
   }
 }

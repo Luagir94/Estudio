@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider, useQueries } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CLI_PROVIDERS } from '../../../shared/ipc/cli'
@@ -145,7 +145,8 @@ beforeEach(() => {
     mcp: {
       status: vi.fn().mockResolvedValue({ ok: true, data: mcpStoppedStatus }),
       issueToken: vi.fn(),
-      revokeToken: vi.fn()
+      revokeToken: vi.fn(),
+      setPermission: vi.fn()
     }
   }
 })
@@ -625,7 +626,9 @@ describe('AjustesContainer — MCP', () => {
 
     await screen.findByRole('heading', { name: 'Conexión MCP' })
     const cardTitles = screen.getAllByRole('heading', { level: 3 })
-    expect(cardTitles[cardTitles.length - 1]).toHaveTextContent('Conexión MCP')
+    // PR16's Permisos card now renders right after this one (approved `.pen`
+    // ordering) — "Conexión MCP" is second-to-last, not last, as of this PR.
+    expect(cardTitles[cardTitles.length - 2]).toHaveTextContent('Conexión MCP')
   })
 
   // The plaintext token exists nowhere else — `mcp:status` cannot read it
@@ -657,5 +660,57 @@ describe('AjustesContainer — MCP', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Revocar' }))
 
     await waitFor(() => expect(window.api.mcp.revokeToken).toHaveBeenCalledTimes(1))
+  })
+})
+
+// PR16: independent of PR15's card (separate rollback boundary, per tasks
+// obs #576). `McpPermissionsCard` itself takes props only — this container
+// is where `mcp:setPermission` is wired.
+describe('AjustesContainer — MCP permisos', () => {
+  it('renders the permissions card after the token card, with nothing granted on a fresh install', async () => {
+    renderWithClient(<AjustesContainer />)
+
+    await screen.findByRole('heading', { name: 'Permisos MCP' })
+    const cardTitles = screen.getAllByRole('heading', { level: 3 })
+    expect(cardTitles[cardTitles.length - 1]).toHaveTextContent('Permisos MCP')
+    expect(screen.getByText('0 de 8 concedidos')).toBeInTheDocument()
+  })
+
+  it('calls mcp:setPermission with the flipped flag when a toggle is pressed', async () => {
+    window.api.mcp.setPermission = vi.fn().mockResolvedValue({
+      ok: true,
+      data: { slice: 'materias', canRead: true, canWrite: false }
+    })
+
+    renderWithClient(<AjustesContainer />)
+    await screen.findByRole('heading', { name: 'Permisos MCP' })
+
+    const materiasGroup = screen.getByRole('group', { name: 'Materias' })
+    fireEvent.click(within(materiasGroup).getByRole('button', { name: 'Leer' }))
+
+    await waitFor(() =>
+      expect(window.api.mcp.setPermission).toHaveBeenCalledWith({ slice: 'materias', canRead: true, canWrite: false })
+    )
+  })
+
+  // Same write-the-echo pattern as `overrideMutation`: the handler already
+  // returned the persisted grant, so it goes straight into that one slice's
+  // cache entry instead of a second `mcp:status` round trip.
+  it('reflects the granted toggle from the mutation result without a second status read', async () => {
+    window.api.mcp.setPermission = vi.fn().mockResolvedValue({
+      ok: true,
+      data: { slice: 'horario', canRead: true, canWrite: false }
+    })
+
+    renderWithClient(<AjustesContainer />)
+    await screen.findByRole('heading', { name: 'Permisos MCP' })
+
+    const horarioGroup = screen.getByRole('group', { name: 'Horario' })
+    fireEvent.click(within(horarioGroup).getByRole('button', { name: 'Leer' }))
+
+    await waitFor(() =>
+      expect(within(horarioGroup).getByRole('button', { name: 'Leer' })).toHaveAttribute('aria-pressed', 'true')
+    )
+    expect(window.api.mcp.status).toHaveBeenCalledTimes(1)
   })
 })

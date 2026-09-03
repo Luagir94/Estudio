@@ -9,7 +9,9 @@ import type { MateriasService } from '../../materias/materiasService'
 import type { SubjectRepository } from '../../materias/adapters/sqliteSubjectRepository'
 import type { PartialExamRepository } from '../../parciales/adapters/sqlitePartialExamRepository'
 import type { ProgramRepository } from '../../carreras/adapters/sqliteProgramRepository'
+import { MCP_SLICE_CAPABILITIES } from '../../../shared/mcp/sliceCapabilities'
 import { createConnectionMcpServer } from '../adapters/mcpServerFactory'
+import { MCP_SLICES } from '../domain/permissions'
 import { createCarrerasTools } from './carrerasTools'
 import { createClasesTools } from './clasesTools'
 import { createEntregasTools } from './entregasTools'
@@ -156,5 +158,25 @@ describe('MCP tool catalog (PR5-8 combined, task 8.4)', () => {
     const names = buildAllDescriptors().map((tool) => tool.name)
 
     expect(new Set(names).size).toBe(names.length)
+  })
+
+  // The other half of the parity guard `shared/mcp/sliceCapabilities.ts`'s
+  // own header describes (mcp-app-control task 16.1/16.2): that module is
+  // the renderer's single source of truth for which read/write toggle a
+  // permissions-card row may show, pinned to THIS catalog rather than to the
+  // approved `.pen` design's row prose. This test is the guard that keeps
+  // the two from drifting apart — a future catalog change that adds or
+  // removes a slice's only read or write tool fails HERE, not silently in
+  // the renderer.
+  it('MCP_SLICE_CAPABILITIES (renderer-facing) matches which read/write actions each slice actually has', () => {
+    const descriptors = buildAllDescriptors()
+
+    for (const slice of MCP_SLICES) {
+      const sliceTools = descriptors.filter((tool) => tool.slice === slice)
+      expect(MCP_SLICE_CAPABILITIES[slice]).toEqual({
+        hasRead: sliceTools.some((tool) => tool.action === 'read'),
+        hasWrite: sliceTools.some((tool) => tool.action === 'write')
+      })
+    }
   })
 })

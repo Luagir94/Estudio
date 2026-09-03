@@ -29,6 +29,7 @@ import { Info } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CLI_PROVIDERS, type CliPreference, type CliProvider } from '../../../shared/ipc/cli'
+import type { McpStatusResult } from '../../../shared/ipc/mcp'
 import type { Palette, ThemePreference } from '../../../shared/ipc/theme'
 import { mcpApi, MCP_STATUS_QUERY_KEY } from '../../mcp/adapters/mcpApi'
 import { applyPalette } from '../../shared/lib/applyPalette'
@@ -43,6 +44,7 @@ import { AppearanceCard } from '../components/AppearanceCard'
 import { ConnectionStatusCard } from '../components/ConnectionStatusCard'
 import { DetectingProviderCard } from '../components/DetectingProviderCard'
 import { IdleProviderCard } from '../components/IdleProviderCard'
+import { McpPermissionsCard } from '../components/McpPermissionsCard'
 import { McpTokenCard } from '../components/McpTokenCard'
 import { PROVIDER_COMMANDS } from '../domain/connectionDisplay'
 
@@ -174,6 +176,31 @@ export function AjustesContainer(): React.JSX.Element {
     }
   })
 
+  // Writes the returned grant straight into that ONE slice's own cache entry
+  // (same pattern `overrideMutation` above uses for a CLI provider status),
+  // rather than re-reading the whole `mcp:status` payload for a single
+  // toggle flip.
+  const mcpSetPermissionMutation = useMutation({
+    mutationFn: mcpApi.setPermission,
+    onSuccess: (updatedPermission) => {
+      queryClient.setQueryData(MCP_STATUS_QUERY_KEY, (previous: McpStatusResult | undefined) => {
+        if (!previous) {
+          return previous
+        }
+        // Upsert, not a plain map: the contract guarantees one entry per
+        // slice, but nothing here should assume it — a slice this cache
+        // never saw yet must still land on the FIRST grant it receives.
+        const wasPresent = previous.permissions.some((permission) => permission.slice === updatedPermission.slice)
+        const permissions = wasPresent
+          ? previous.permissions.map((permission) =>
+              permission.slice === updatedPermission.slice ? updatedPermission : permission
+            )
+          : [...previous.permissions, updatedPermission]
+        return { ...previous, permissions }
+      })
+    }
+  })
+
   return (
     <div className="flex flex-col gap-6">
       {/* The header lost its "Reintentar" (design node `X2Lzy8`, removed):
@@ -254,14 +281,23 @@ export function AjustesContainer(): React.JSX.Element {
           policy note. Rendered only once the status read answers — same
           no-claims-before-the-read rule as `AppearanceCard` above. */}
       {mcpStatus && (
-        <McpTokenCard
-          status={mcpStatus}
-          issuedToken={issuedMcpToken}
-          onRotate={() => mcpRotateMutation.mutate()}
-          onRevoke={() => mcpRevokeMutation.mutate()}
-          isRotating={mcpRotateMutation.isPending}
-          isRevoking={mcpRevokeMutation.isPending}
-        />
+        <>
+          <McpTokenCard
+            status={mcpStatus}
+            issuedToken={issuedMcpToken}
+            onRotate={() => mcpRotateMutation.mutate()}
+            onRevoke={() => mcpRevokeMutation.mutate()}
+            isRotating={mcpRotateMutation.isPending}
+            isRevoking={mcpRevokeMutation.isPending}
+          />
+          <McpPermissionsCard
+            permissions={mcpStatus.permissions}
+            onChangePermission={(input) => mcpSetPermissionMutation.mutate(input)}
+            pendingSlice={
+              mcpSetPermissionMutation.isPending ? (mcpSetPermissionMutation.variables?.slice ?? null) : null
+            }
+          />
+        </>
       )}
 
       <div className="flex items-start gap-2 rounded-lg bg-muted px-4 py-3">

@@ -14,7 +14,7 @@ const sampleStatus = {
 describe('mcpApi', () => {
   beforeEach(() => {
     // @ts-expect-error test-only global bridge stub, no full Electron preload context
-    window.api = { mcp: { status: vi.fn(), issueToken: vi.fn(), revokeToken: vi.fn() } }
+    window.api = { mcp: { status: vi.fn(), issueToken: vi.fn(), revokeToken: vi.fn(), setPermission: vi.fn() } }
   })
 
   it('status parses and returns the listener status on success', async () => {
@@ -56,5 +56,28 @@ describe('mcpApi', () => {
     })
 
     await expect(mcpApi.revokeToken()).rejects.toBeInstanceOf(McpApiError)
+  })
+
+  it('setPermission returns the updated grant for the slice on success', async () => {
+    vi.mocked(window.api.mcp.setPermission).mockResolvedValue({
+      ok: true,
+      data: { slice: 'materias', canRead: true, canWrite: false }
+    })
+
+    const result = await mcpApi.setPermission({ slice: 'materias', canRead: true, canWrite: false })
+
+    expect(result).toEqual({ slice: 'materias', canRead: true, canWrite: false })
+    expect(window.api.mcp.setPermission).toHaveBeenCalledWith({ slice: 'materias', canRead: true, canWrite: false })
+  })
+
+  it('setPermission throws McpApiError, preserving the envelope code, on failure', async () => {
+    vi.mocked(window.api.mcp.setPermission).mockResolvedValue({
+      ok: false,
+      error: { code: 'MCP_SET_PERMISSION_FAILED', message: 'boom' }
+    })
+
+    await expect(mcpApi.setPermission({ slice: 'clases', canRead: false, canWrite: true })).rejects.toMatchObject({
+      code: 'MCP_SET_PERMISSION_FAILED'
+    })
   })
 })

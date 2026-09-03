@@ -13,5 +13,25 @@
       "rotate": "Rotar",
       "revoke": "Revocar"
     }
+  },
+  "mcpPermissionsCard": {
+    "title": "Permisos MCP",
+    "description": "Qué puede tocar un CLI conectado · todo empieza en ninguno",
+    "summary": "{{count}} de 8 concedidos",
+    "warning": "Con Escribir, un CLI conectado puede crear, editar y BORRAR tus registros sin preguntarte nada. Concedé solo lo que ese CLI necesite.",
+    "toggles": {
+      "read": "Leer",
+      "write": "Escribir"
+    },
+    "rows": {
+      "materias": { "name": "Materias", "description": "6 herramientas · crear, editar, borrar, nota final" },
+      "carreras": { "name": "Carreras", "description": "8 herramientas · carreras y períodos" },
+      "entregas": { "name": "Entregas", "description": "5 herramientas · crear, editar, marcar hecha, borrar" },
+      "fechas": { "name": "Fechas", "description": "4 herramientas · crear, editar, borrar" },
+      "parciales": { "name": "Parciales", "description": "3 herramientas · crear, editar, borrar" },
+      "finales": { "name": "Finales", "description": "3 herramientas · crear, editar, borrar" },
+      "clases": { "name": "Clases", "description": "2 herramientas · solo asistencia" },
+      "horario": { "name": "Horario", "description": "1 herramienta · solo lectura" }
+    }
   }
 }
