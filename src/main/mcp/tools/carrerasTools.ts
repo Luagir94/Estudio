@@ -8,6 +8,7 @@ import {
   updateProgramInputSchema
 } from '../../../shared/ipc/carreras'
 import type { ProgramRepository } from '../../carreras/adapters/sqliteProgramRepository'
+import { pageSummary, paginate, paginationInputSchema } from '../domain/pagination'
 import { defineTool, type ToolDescriptor } from '../domain/toolDescriptor'
 
 // The eight `carreras_*` MCP tools (design "defineTool and schema mapping",
@@ -40,10 +41,11 @@ export function createCarrerasTools({ repository }: CreateCarrerasToolsDeps): To
       name: 'carreras_list',
       slice: 'carreras',
       action: 'read',
-      description: 'Lists every carrera with its periods, subject roll-ups and upcoming timeline markers.',
-      inputSchema: z.object({}),
-      exec: () => repository.list(),
-      summarize: (_input, result) => `carreras_list → ${result?.length ?? 0} rows`
+      description:
+        'Lists carreras with their periods, subject roll-ups and upcoming timeline markers, one page at a time. Returns `total` and `nextOffset`; pass `nextOffset` back as `offset` to continue.',
+      inputSchema: paginationInputSchema,
+      exec: (input) => paginate(repository.list(), input),
+      summarize: (_input, result) => pageSummary('carreras_list', result)
     }),
     defineTool({
       name: 'carreras_detail',

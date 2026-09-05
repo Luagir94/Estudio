@@ -7,6 +7,7 @@ import {
 } from '../../../shared/ipc/materias'
 import type { MateriasService } from '../../materias/materiasService'
 import type { SubjectRepository } from '../../materias/adapters/sqliteSubjectRepository'
+import { pageSummary, paginate, paginationInputSchema } from '../domain/pagination'
 import { defineTool, type ToolDescriptor } from '../domain/toolDescriptor'
 
 // The six `materias_*` MCP tools (design "defineTool and schema mapping",
@@ -40,10 +41,11 @@ export function createMateriasTools({
       name: 'materias_list',
       slice: 'materias',
       action: 'read',
-      description: 'Lists every subject with its schedule, period and status facts.',
-      inputSchema: z.object({}),
-      exec: () => repository.list(),
-      summarize: (_input, result) => `materias_list → ${result?.length ?? 0} rows`
+      description:
+        'Lists subjects with their schedule, period and status facts, one page at a time. Returns `total` and `nextOffset`; pass `nextOffset` back as `offset` to continue.',
+      inputSchema: paginationInputSchema,
+      exec: (input) => paginate(repository.list(), input),
+      summarize: (_input, result) => pageSummary('materias_list', result)
     }),
     defineTool({
       name: 'materias_detail',

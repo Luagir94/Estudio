@@ -6,6 +6,7 @@ import {
   updateDeadlineInputSchema
 } from '../../../shared/ipc/entregas'
 import type { DeadlineRepository } from '../../entregas/adapters/sqliteDeadlineRepository'
+import { pageSummary, paginate, paginationInputSchema } from '../domain/pagination'
 import { defineTool, type ToolDescriptor } from '../domain/toolDescriptor'
 
 // The five `entregas_*` MCP tools (design "defineTool and schema mapping",
@@ -37,10 +38,11 @@ export function createEntregasTools({ repository }: CreateEntregasToolsDeps): To
       name: 'entregas_list',
       slice: 'entregas',
       action: 'read',
-      description: 'Lists every deadline (entrega) with its subject name and color.',
-      inputSchema: z.object({}),
-      exec: () => repository.list(),
-      summarize: (_input, result) => `entregas_list → ${result?.length ?? 0} rows`
+      description:
+        'Lists deadlines (entregas) with their subject name and color, one page at a time. Returns `total` and `nextOffset`; pass `nextOffset` back as `offset` to continue.',
+      inputSchema: paginationInputSchema,
+      exec: (input) => paginate(repository.list(), input),
+      summarize: (_input, result) => pageSummary('entregas_list', result)
     }),
     defineTool({
       name: 'entregas_create',

@@ -42,8 +42,8 @@ describe('createEntregasTools', () => {
     const result = await tool.exec({})
 
     expect(repository.list).toHaveBeenCalledOnce()
-    expect(result).toBe(rows)
-    expect(tool.summarize({}, rows)).toBe('entregas_list → 3 rows')
+    expect(result).toEqual({ items: rows, total: 3, count: 3, offset: 0, hasMore: false, nextOffset: null })
+    expect(tool.summarize({}, result)).toBe(`entregas_list → 3 of 3 rows`)
     expect(tool.name).toBe('entregas_list')
     expect(tool.slice).toBe('entregas')
     expect(tool.action).toBe('read')

@@ -27,10 +27,10 @@ describe('createHorarioTools', () => {
     const result = await tool.exec({})
 
     expect(repository.list).toHaveBeenCalledOnce()
-    expect(result).toBe(rows)
+    expect(result).toEqual({ items: rows, total: 3, count: 3, offset: 0, hasMore: false, nextOffset: null })
     expect(tool.name).toBe('horario_week')
     expect(tool.slice).toBe('horario')
     expect(tool.action).toBe('read')
-    expect(tool.summarize({}, rows)).toBe('horario_week → 3 rows')
+    expect(tool.summarize({}, result)).toBe(`horario_week → 3 of 3 rows`)
   })
 })

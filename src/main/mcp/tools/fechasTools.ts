@@ -5,6 +5,7 @@ import {
   updateAcademicDateInputSchema
 } from '../../../shared/ipc/fechas'
 import type { AcademicDateRepository } from '../../fechas/adapters/sqliteAcademicDateRepository'
+import { pageSummary, paginate, paginationInputSchema } from '../domain/pagination'
 import { defineTool, type ToolDescriptor } from '../domain/toolDescriptor'
 
 // The four `fechas_*` MCP tools (design "defineTool and schema mapping",
@@ -42,10 +43,11 @@ export function createFechasTools({ repository }: CreateFechasToolsDeps): ToolDe
       name: 'fechas_list',
       slice: 'fechas',
       action: 'read',
-      description: 'Lists every administrative date (fecha) across every carrera, chronologically.',
-      inputSchema: z.object({}),
-      exec: () => repository.list(),
-      summarize: (_input, result) => `fechas_list → ${result?.length ?? 0} rows`
+      description:
+        'Lists administrative dates (fechas) across every carrera, chronologically, one page at a time. Returns `total` and `nextOffset`; pass `nextOffset` back as `offset` to continue.',
+      inputSchema: paginationInputSchema,
+      exec: (input) => paginate(repository.list(), input),
+      summarize: (_input, result) => pageSummary('fechas_list', result)
     }),
     defineTool({
       name: 'fechas_create',

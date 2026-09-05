@@ -52,8 +52,8 @@ describe('createFechasTools', () => {
     const result = await tool.exec({})
 
     expect(repository.list).toHaveBeenCalledOnce()
-    expect(result).toBe(rows)
-    expect(tool.summarize({}, rows)).toBe('fechas_list → 2 rows')
+    expect(result).toEqual({ items: rows, total: 2, count: 2, offset: 0, hasMore: false, nextOffset: null })
+    expect(tool.summarize({}, result)).toBe(`fechas_list → 2 of 2 rows`)
     expect(tool.name).toBe('fechas_list')
     expect(tool.slice).toBe('fechas')
     expect(tool.action).toBe('read')

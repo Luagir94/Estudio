@@ -203,6 +203,40 @@ describe('MCP tool catalog (PR5-8 combined, task 8.4)', () => {
     }
   })
 
+  // A list tool that returned a page without SAYING so would be worse than
+  // one that returned everything: the caller would read the first 25 rows as
+  // the whole truth. These two pin the advertisement and the envelope.
+  it('advertises optional limit/offset on every list tool a client can see', async () => {
+    const { tools } = await listCatalogTools()
+    const listTools = tools.filter((tool) => tool.name.endsWith('_list') || tool.name === 'horario_week')
+
+    expect(listTools).toHaveLength(5)
+    for (const tool of listTools) {
+      const schema = tool.inputSchema as { properties?: Record<string, unknown>; required?: string[] }
+      expect(Object.keys(schema.properties ?? {}), tool.name).toEqual(expect.arrayContaining(['limit', 'offset']))
+      // Optional, so an existing caller passing `{}` keeps working.
+      expect(schema.required ?? [], tool.name).not.toContain('limit')
+      expect(schema.required ?? [], tool.name).not.toContain('offset')
+    }
+  })
+
+  it('returns a paged envelope, not a bare array, from every list tool', () => {
+    const descriptors = buildAllDescriptors()
+    const listTools = descriptors.filter((tool) => tool.name.endsWith('_list') || tool.name === 'horario_week')
+
+    for (const tool of listTools) {
+      const result = tool.exec({})
+      expect(result, tool.name).toMatchObject({
+        items: expect.any(Array),
+        total: expect.any(Number),
+        count: expect.any(Number),
+        offset: 0,
+        hasMore: false,
+        nextOffset: null
+      })
+    }
+  })
+
   it('advertises the hand-written expectations for one tool of every kind', async () => {
     const { tools } = await listCatalogTools()
     const byName = new Map(tools.map((tool) => [tool.name, tool.annotations]))

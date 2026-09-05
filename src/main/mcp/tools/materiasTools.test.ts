@@ -55,11 +55,29 @@ describe('createMateriasTools', () => {
     const result = await tool.exec({})
 
     expect(repository.list).toHaveBeenCalledOnce()
-    expect(result).toBe(rows)
-    expect(tool.summarize({}, rows)).toBe('materias_list → 2 rows')
+    expect(result).toEqual({ items: rows, total: 2, count: 2, offset: 0, hasMore: false, nextOffset: null })
+    expect(tool.summarize({}, result)).toBe(`materias_list → 2 of 2 rows`)
     expect(tool.name).toBe('materias_list')
     expect(tool.slice).toBe('materias')
     expect(tool.action).toBe('read')
+  })
+
+  it('materias_list walks the whole collection through nextOffset, with no gap and no repeat', async () => {
+    // The behaviour a paging contract actually promises: feed `nextOffset`
+    // back as `offset` and you eventually see every row exactly once, and the
+    // last page says so.
+    const rows = Array.from({ length: 7 }, (_, index) => ({ id: index + 1 })) as unknown as SubjectWithStatus[]
+    const repository = fakeRepository({ list: vi.fn(() => rows) })
+    const [tool] = createMateriasTools({ repository, materiasService: fakeMateriasService() })
+
+    const first = (await tool!.exec({ limit: 3 })) as { items: unknown[]; nextOffset: number | null; total: number }
+    const second = (await tool!.exec({ limit: 3, offset: first.nextOffset! })) as typeof first
+    const third = (await tool!.exec({ limit: 3, offset: second.nextOffset! })) as typeof first
+
+    expect([...first.items, ...second.items, ...third.items]).toEqual(rows)
+    expect(first.total).toBe(7)
+    expect(third.nextOffset).toBeNull()
+    expect(tool!.summarize({ limit: 3 }, third)).toBe('materias_list → 1 of 7 rows')
   })
 
   it('materias_detail reads through repository.detail and reports NOT_FOUND identifiers only', async () => {
