@@ -45,6 +45,7 @@ export function createClasesTools({ repository }: CreateClasesToolsDeps): ToolDe
       name: 'clases_set_attendance',
       slice: 'clases',
       action: 'write',
+      effect: 'update',
       description: 'Records or corrects the attendance mark for one class, addressed by subject and day.',
       inputSchema: setAttendanceInputSchema,
       exec: (input) => repository.setAttendance(input),
@@ -54,6 +55,7 @@ export function createClasesTools({ repository }: CreateClasesToolsDeps): ToolDe
       name: 'clases_clear_attendance',
       slice: 'clases',
       action: 'write',
+      effect: 'delete',
       description: 'Clears the attendance mark for one class, back to unmarked.',
       inputSchema: classDayInputSchema,
       exec: (input) => {

@@ -46,6 +46,7 @@ export function createEntregasTools({ repository }: CreateEntregasToolsDeps): To
       name: 'entregas_create',
       slice: 'entregas',
       action: 'write',
+      effect: 'create',
       description: 'Creates a deadline (entrega) for a subject.',
       inputSchema: createDeadlineInputSchema,
       exec: (input) => repository.create(input),
@@ -55,6 +56,7 @@ export function createEntregasTools({ repository }: CreateEntregasToolsDeps): To
       name: 'entregas_update',
       slice: 'entregas',
       action: 'write',
+      effect: 'update',
       description: 'Corrects an existing deadline (entrega) in place.',
       inputSchema: updateDeadlineInputSchema,
       exec: (input) => repository.update(input),
@@ -65,7 +67,11 @@ export function createEntregasTools({ repository }: CreateEntregasToolsDeps): To
       name: 'entregas_set_done',
       slice: 'entregas',
       action: 'write',
-      description: 'Toggles a deadline (entrega) between done and pending.',
+      effect: 'update',
+      // Not a toggle: the caller states the value it wants, which is what
+      // makes this tool idempotent (`effect: 'update'`). A description that
+      // said "toggles" would advertise the opposite.
+      description: 'Marks a deadline (entrega) as done or pending, as stated by the caller.',
       inputSchema: setDeadlineDoneInputSchema,
       exec: (input) => repository.setDone(input.id, input.done),
       summarize: (input, result) =>
@@ -75,6 +81,7 @@ export function createEntregasTools({ repository }: CreateEntregasToolsDeps): To
       name: 'entregas_delete',
       slice: 'entregas',
       action: 'write',
+      effect: 'delete',
       description: 'Deletes a deadline (entrega) entirely; it never marks it done.',
       inputSchema: deadlineIdInputSchema,
       exec: (input) => (repository.remove(input.id) ? { id: input.id } : null),

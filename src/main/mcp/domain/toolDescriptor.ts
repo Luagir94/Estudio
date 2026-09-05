@@ -1,5 +1,6 @@
 import type { z } from 'zod'
 import type { McpAction, McpSlice } from './permissions'
+import type { McpToolEffect } from './toolAnnotations'
 
 // Tool naming rule (design "defineTool and schema mapping": naming
 // `^[a-zA-Z0-9_-]{1,64}$`, e.g. `materias_create`, `carreras_update_period`)
@@ -29,10 +30,9 @@ export function isValidToolName(name: string): boolean {
 // unknown>[]` array. An arrow-typed property would be checked
 // contravariantly under `strict`/`strictFunctionTypes` and reject that
 // assignment outright.
-export interface ToolDescriptor<S extends z.ZodObject, R> {
+interface ToolDescriptorBase<S extends z.ZodObject, R> {
   name: string
   slice: McpSlice
-  action: McpAction
   description: string
   inputSchema: S
   /**
@@ -53,6 +53,23 @@ export interface ToolDescriptor<S extends z.ZodObject, R> {
   exec(input: z.output<S>): Promise<R | null> | R | null
   summarize(input: z.output<S>, result: R | null): string
 }
+
+/**
+ * A descriptor is a UNION on `action`, not a flat interface with an optional
+ * `effect`, so that declaring a `write` tool without saying what it does to
+ * the row is a COMPILE error rather than a tool that quietly advertises the
+ * protocol's conservative default hints. `read` tools carry no `effect`:
+ * there is nothing for them to declare, and an excess-property check rejects
+ * one that tries.
+ *
+ * `action` is spelled with literals rather than `McpAction` because that is
+ * what makes it the discriminant; the two members still cover exactly
+ * `McpAction`'s own members, and `permissions.ts` stays the single source of
+ * that vocabulary.
+ */
+export type ToolDescriptor<S extends z.ZodObject, R> =
+  | (ToolDescriptorBase<S, R> & { action: Extract<McpAction, 'read'> })
+  | (ToolDescriptorBase<S, R> & { action: Extract<McpAction, 'write'>; effect: McpToolEffect })
 
 /**
  * Identity factory: returns its argument unchanged. Its only job is to let

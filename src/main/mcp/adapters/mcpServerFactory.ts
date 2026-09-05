@@ -6,6 +6,7 @@ import { parsePayload } from '../../../shared/ipc/materias'
 import type { AuditOutcome } from '../domain/auditEntry'
 import { denialSummary, invalidSummary } from '../domain/auditEntry'
 import type { McpAction, McpSlice } from '../domain/permissions'
+import { annotationsFor } from '../domain/toolAnnotations'
 import type { ToolDescriptor } from '../domain/toolDescriptor'
 
 // Per-connection state that mcpService (PR9) reads and mutates from OUTSIDE
@@ -147,7 +148,16 @@ export function createConnectionMcpServer(
       : descriptor.inputSchema.shape
     server.registerTool(
       descriptor.name,
-      { description: descriptor.description, inputSchema: advertisedShape },
+      {
+        description: descriptor.description,
+        inputSchema: advertisedShape,
+        // Derived, never hand-written per tool (`domain/toolAnnotations.ts`):
+        // a client reads these to decide what it may run without asking the
+        // user, and all four are emitted explicitly so no tool here inherits
+        // the protocol's conservative `destructiveHint`/`openWorldHint`
+        // defaults by accident.
+        annotations: annotationsFor(descriptor)
+      },
       createToolHandler(descriptor, connection, deps)
     )
   }

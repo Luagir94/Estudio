@@ -12,6 +12,7 @@ import type { ProgramRepository } from '../../carreras/adapters/sqliteProgramRep
 import { MCP_SLICE_CAPABILITIES } from '../../../shared/mcp/sliceCapabilities'
 import { createConnectionMcpServer } from '../adapters/mcpServerFactory'
 import { MCP_SLICES } from '../domain/permissions'
+import { annotationsFor } from '../domain/toolAnnotations'
 import { createCarrerasTools } from './carrerasTools'
 import { createClasesTools } from './clasesTools'
 import { createEntregasTools } from './entregasTools'
@@ -115,7 +116,32 @@ function buildAllDescriptors() {
   ]
 }
 
+async function listCatalogTools(descriptors = buildAllDescriptors()) {
+  const { server } = createConnectionMcpServer(descriptors, { authorize: () => true, audit: vi.fn() })
+  const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair()
+  const client = new Client({ name: 'catalog-test-client', version: '0.0.0' })
+
+  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)])
+  return client.listTools()
+}
+
 const OUT_OF_SCOPE_PREFIXES = ['adjuntos_', 'indexado_', 'ask_', 'cli_', 'theme_', 'app_', 'planificador_', 'hoy_']
+
+/**
+ * One tool per annotation kind, written out by hand rather than derived, so
+ * this file still fails if `annotationsFor`'s own table is changed to
+ * something wrong — a test that only compared the catalog against that same
+ * function would happily agree with it either way.
+ */
+const EXPECTED_ANNOTATIONS = {
+  materias_list: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  horario_week: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  materias_create: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  carreras_update: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  carreras_delete: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  entregas_set_done: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  clases_clear_attendance: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false }
+}
 
 describe('MCP tool catalog (PR5-8 combined, task 8.4)', () => {
   it('the combined descriptor array totals exactly 32 tools: 7 read + 25 write', () => {
@@ -127,14 +153,63 @@ describe('MCP tool catalog (PR5-8 combined, task 8.4)', () => {
   })
 
   it('a connecting client sees exactly 32 tools via a real tools/list round trip', async () => {
-    const { server } = createConnectionMcpServer(buildAllDescriptors(), { authorize: () => true, audit: vi.fn() })
-    const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair()
-    const client = new Client({ name: 'catalog-test-client', version: '0.0.0' })
-
-    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)])
-    const { tools } = await client.listTools()
+    const { tools } = await listCatalogTools()
 
     expect(tools).toHaveLength(32)
+  })
+
+  // Annotations are what a client reads to decide whether it may run a tool
+  // without stopping to ask the user. These three tests cover the whole
+  // chain: that the derivation is applied at all, that it survives the trip
+  // to `tools/list`, and — against a table written out by hand here, not by
+  // calling the same function under test — that it says the right thing.
+  it('advertises all four annotation hints on every tool a client can see', async () => {
+    const { tools } = await listCatalogTools()
+
+    for (const tool of tools) {
+      expect(tool.annotations, `${tool.name} advertises no annotations`).toEqual({
+        readOnlyHint: expect.any(Boolean),
+        destructiveHint: expect.any(Boolean),
+        idempotentHint: expect.any(Boolean),
+        openWorldHint: expect.any(Boolean)
+      })
+    }
+  })
+
+  it('advertises exactly the annotations each tool declares through its action and effect', async () => {
+    const descriptors = buildAllDescriptors()
+    const byName = new Map(descriptors.map((tool) => [tool.name, tool]))
+    const { tools } = await listCatalogTools(descriptors)
+
+    for (const tool of tools) {
+      expect(tool.annotations, tool.name).toEqual(annotationsFor(byName.get(tool.name)!))
+    }
+  })
+
+  it('never advertises a write tool as read-only, and marks every delete destructive', async () => {
+    // The failure this rules out is the expensive one: a client auto-running
+    // `carreras_delete` because the tool advertised itself as read-only.
+    const descriptors = buildAllDescriptors()
+    const byName = new Map(descriptors.map((tool) => [tool.name, tool]))
+    const { tools } = await listCatalogTools(descriptors)
+
+    for (const tool of tools) {
+      const descriptor = byName.get(tool.name)!
+      expect(tool.annotations?.readOnlyHint, tool.name).toBe(descriptor.action === 'read')
+      expect(tool.annotations?.openWorldHint, tool.name).toBe(false)
+      if (descriptor.action === 'write' && descriptor.effect === 'delete') {
+        expect(tool.annotations?.destructiveHint, tool.name).toBe(true)
+      }
+    }
+  })
+
+  it('advertises the hand-written expectations for one tool of every kind', async () => {
+    const { tools } = await listCatalogTools()
+    const byName = new Map(tools.map((tool) => [tool.name, tool.annotations]))
+
+    for (const [name, expected] of Object.entries(EXPECTED_ANNOTATIONS)) {
+      expect(byName.get(name), name).toEqual(expected)
+    }
   })
 
   it('contains no tool for an out-of-scope slice (adjuntos, indexado, ask, cli, theme, app, planificador, hoy)', () => {
