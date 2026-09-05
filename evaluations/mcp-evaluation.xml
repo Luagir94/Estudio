@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Evaluation suite for the Course Companion MCP server.
+
+  Every answer below was derived from the reproducible fixture described in
+  evaluations/README.md, NOT written from memory. Rebuild that fixture before
+  running these; the questions are meaningless against a different dataset.
+
+  No question requires a write, and none depends on another's answer.
+-->
+<evaluation>
+  <qa_pair>
+    <question>Two subjects in this academic history needed a make-up sitting after failing a mid-term exam. Only one of those two also needed more than one attempt at its final exam. What numeric grade did that subject earn on the final it eventually passed?</question>
+    <answer>7</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Exactly one subject has finished its coursework but is still waiting on its final exam. The person teaching it also teaches one other subject. Give the name of that other subject and nothing else.</question>
+    <answer>Análisis Matemático I</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Some coursework has already been handed in. Exactly one of the subjects with handed-in coursework has a first mid-term that already has a date but still has no grade recorded. Name that subject.</question>
+    <answer>Gestión de Datos</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>The student is enrolled at two different institutions. One of them does not record numeric grades at all. What is the name of that institution?</question>
+    <answer>Cultural Inglesa</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>In the weekly class timetable there is more than one pair of classes whose times overlap. One subject takes part in every single one of those clashes. Which subject is it?</question>
+    <answer>Inglés B2</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>One administrative item on the calendar involves handing a physical document in at the registrar's office, and it falls before the window for signing up to final exams opens. How many days separate the day the document is due from the day that sign-up window opens? Answer with a number only.</question>
+    <answer>22</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Among the subjects the student has already passed, exactly one was passed without ever sitting a final exam and also holds the highest grade in the whole history. Name that subject.</question>
+    <answer>Sistemas y Organizaciones</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>How many subjects in the engineering degree have not been placed in any academic period yet? Answer with a number only.</question>
+    <answer>5</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>One subject in the term currently under way depends on another subject that the student has not fully passed yet. Give the name of the subject that is depended on, not the one currently being taken.</question>
+    <answer>Análisis Matemático II</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Attendance has been recorded for several subjects. For exactly one of them the student has never been marked absent. Which subject?</question>
+    <answer>Probabilidad y Estadística</answer>
+  </qa_pair>
+</evaluation>

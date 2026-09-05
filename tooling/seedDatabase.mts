@@ -1020,9 +1020,48 @@ function defaultDatabasePath(): string {
   return path.join(process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), '.config'), appName, `${appName}.db`)
 }
 
+const ISO_DAY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
+
+/**
+ * The day the dataset is anchored to: `--today <YYYY-MM-DD>` when given, the
+ * real current day otherwise.
+ *
+ * The flag exists so a REPRODUCIBLE dataset can be built on demand. Every
+ * date in this seed is derived from `today`, which is what keeps a dev
+ * database looking alive — and what would make the MCP evaluation suite
+ * (`evaluations/`) go stale a month after it was written, since its answers
+ * are only verifiable against a dataset that does not move.
+ *
+ * Parsed field by field into a LOCAL date rather than through `new
+ * Date(string)`: the one-argument string form is treated as UTC midnight,
+ * which lands on the previous day west of Greenwich — the same shift
+ * `toIsoDate` above refuses to make.
+ */
+export function resolveSeedDay(argv: string[]): Date {
+  const flag = argv.indexOf('--today')
+  if (flag === -1) {
+    return new Date()
+  }
+
+  const raw = argv[flag + 1]
+  const match = raw === undefined ? null : ISO_DAY_PATTERN.exec(raw)
+  if (match === null) {
+    throw new Error(`--today expects a YYYY-MM-DD day, got ${raw ?? '(nothing)'}`)
+  }
+
+  const [, year, month, day] = match
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day))
+  // Rejects a well-shaped but impossible day (2026-13-02, 2026-02-31), which
+  // JavaScript would otherwise roll over into a neighbouring month.
+  if (parsed.getMonth() !== Number(month) - 1 || parsed.getDate() !== Number(day)) {
+    throw new Error(`--today is not a real calendar day: ${raw}`)
+  }
+  return parsed
+}
+
 function main(argv: string[]): void {
   if (argv.includes('--help') || argv.includes('-h')) {
-    console.log('Usage: npm run db:seed -- [--reset] [--db <path>]')
+    console.log('Usage: npm run db:seed -- [--reset] [--db <path>] [--today <YYYY-MM-DD>]')
     return
   }
 
@@ -1045,12 +1084,13 @@ function main(argv: string[]): void {
     resetSeededTables(raw)
   }
 
-  const data = buildSeedData(new Date())
+  const today = resolveSeedDay(argv)
+  const data = buildSeedData(today)
   raw.transaction(() => writeSeedData(db, data))()
   raw.close()
 
   const subjects = data.programs.reduce((total, program) => total + program.subjects.length, 0)
-  console.log(`Seeded ${dbPath}`)
+  console.log(`Seeded ${dbPath} (anchored to ${toIsoDate(today)})`)
   console.log(`  ${data.programs.length} programs, ${subjects} subjects`)
   if (!reset) {
     console.log('  (append mode — pass `--reset` to start from a clean database)')

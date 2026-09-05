@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { collectRequirementsOf } from '../src/shared/domain/prerequisiteGraph'
-import { buildSeedData, type SeedData, type SeedProgram, type SeedSubject } from './seedDatabase.mts'
+import { buildSeedData, resolveSeedDay, type SeedData, type SeedProgram, type SeedSubject } from './seedDatabase.mts'
 
 // A fixed Wednesday, so weekday-derived assertions (attendance, slots) are
 // stable regardless of when the suite runs.
@@ -188,5 +188,44 @@ describe('buildSeedData', () => {
       }
       for (const code of requirements.keys()) walk(code)
     }
+  })
+})
+
+// `--today` exists so a REPRODUCIBLE dataset can be built on demand: the MCP
+// evaluation suite (evaluations/mcp-evaluation.xml) needs answers that stay
+// true next month, and every date in this dataset is anchored to the day the
+// seed runs. Parsing is split out from `main()` so it can be checked without
+// touching the filesystem or a database.
+describe('resolveSeedDay', () => {
+  it('defaults to the day the seed is run when no --today is given', () => {
+    const before = Date.now()
+    const resolved = resolveSeedDay(['--reset'])
+
+    expect(resolved.getTime()).toBeGreaterThanOrEqual(before)
+    expect(resolved.getTime()).toBeLessThanOrEqual(Date.now())
+  })
+
+  it('reads --today as a LOCAL calendar day, never shifted into UTC', () => {
+    const resolved = resolveSeedDay(['--today', '2026-09-02'])
+
+    expect(resolved.getFullYear()).toBe(2026)
+    // Month is zero-based: 8 is September. A UTC parse would land this on
+    // September 1 west of Greenwich, which is exactly the bug every date
+    // helper in this file exists to avoid.
+    expect(resolved.getMonth()).toBe(8)
+    expect(resolved.getDate()).toBe(2)
+  })
+
+  it('produces the identical dataset for the same --today, run twice', () => {
+    const first = buildSeedData(resolveSeedDay(['--today', '2026-09-02']))
+    const second = buildSeedData(resolveSeedDay(['--today', '2026-09-02']))
+
+    expect(JSON.stringify(first)).toBe(JSON.stringify(second))
+  })
+
+  it('rejects a malformed day instead of silently seeding an Invalid Date', () => {
+    expect(() => resolveSeedDay(['--today', 'yesterday'])).toThrow()
+    expect(() => resolveSeedDay(['--today', '2026-13-02'])).toThrow()
+    expect(() => resolveSeedDay(['--today'])).toThrow()
   })
 })

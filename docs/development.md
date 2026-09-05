@@ -82,11 +82,12 @@ Rules:
 
 `npm run db:seed` fills the dev database with a realistic academic history — two programs (one `numerico` carrera, one `binario` course), five períodos, nineteen materias across cursadas past and present, correlativas, horarios, entregas, parciales, finales, asistencia and a próximo-período draft — so every screen has something true-to-life to render.
 
-| Command                          | Effect                                                   |
-| -------------------------------- | -------------------------------------------------------- |
-| `npm run db:seed`                | Appends the dataset to the dev database in `userData`.   |
-| `npm run db:seed -- --reset`     | Clears the academic tables first (see the caveat below). |
-| `npm run db:seed -- --db <path>` | Targets another database file, e.g. a scratch copy.      |
+| Command                                   | Effect                                                                           |
+| ----------------------------------------- | -------------------------------------------------------------------------------- |
+| `npm run db:seed`                         | Appends the dataset to the dev database in `userData`.                           |
+| `npm run db:seed -- --reset`              | Clears the academic tables first (see the caveat below).                         |
+| `npm run db:seed -- --db <path>`          | Targets another database file, e.g. a scratch copy.                              |
+| `npm run db:seed -- --today <YYYY-MM-DD>` | Anchors the dataset to a fixed day instead of today, for a reproducible fixture. |
 
 - The dataset is anchored to **the day the seed runs**, not to hardcoded years: a cursada is always in progress, parciales were just taken, and some entregas are due this week. `buildSeedData(today)` is pure and unit-tested (`tooling/seedDatabase.test.ts`).
 - The seed runs the production migrator first, so it also works against a database file that does not exist yet.
@@ -150,6 +151,12 @@ The shim never launches the app on your behalf, never opens the database itself,
 | The client reports the server exited immediately and no tools appear | Course Companion is not running, or MCP is not enabled (no token issued, or no slice granted)                                          |
 | Same symptom, but the app _is_ running                               | The token in the client's `env` does not match the one currently issued — reissue or rotate it in Ajustes and update the client config |
 | The client was working, then the connection dropped mid-session      | The app was closed or restarted; reconnect once it is running again                                                                    |
+
+### Evaluating the tool surface
+
+Unit and e2e tests prove the server behaves. They cannot tell you whether a model with no other context can actually get an answer out of it — that depends on the tool descriptions and on what a call returns, which no assertion here checks.
+
+`evaluations/mcp-evaluation.xml` holds ten questions for that, each answerable only through the MCP tools and each verified against a reproducible fixture. See `evaluations/README.md` for how to rebuild the fixture (`--today` pins the seed so the answers stay true) and how to run the suite.
 
 ## Conventions
 
