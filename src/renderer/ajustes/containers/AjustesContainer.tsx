@@ -379,22 +379,29 @@ export function AjustesContainer({ onViewMcpActivity = () => {} }: AjustesContai
                 onRevoke={() => mcpRevokeMutation.mutate()}
                 isRotating={mcpRotateMutation.isPending}
                 isRevoking={mcpRevokeMutation.isPending}
-              />
-              <McpClientTargetsCard
-                targets={mcpClientTargets ?? []}
-                // The SAME gate the copy button uses: no plaintext this session,
-                // nothing to write.
-                canRegister={issuedMcpToken !== null}
-                onRegister={(target) => mcpRegisterMutation.mutate({ target, token: issuedMcpToken ?? '' })}
-                onUnregister={(target) => mcpUnregisterMutation.mutate({ target })}
-                pendingTarget={
-                  mcpRegisterMutation.isPending
-                    ? (mcpRegisterMutation.variables?.target ?? null)
-                    : mcpUnregisterMutation.isPending
-                      ? (mcpUnregisterMutation.variables?.target ?? null)
-                      : null
-                }
-              />
+              >
+                {/* NESTED, not a sibling card (approved `.pen`, node `eRwDu`).
+                    The token and the clients holding it are one subject: a
+                    rotation above rewrites every config below, and a
+                    revocation tears them all down — see `mcpRotateMutation`
+                    and `mcpRevokeMutation`, which do exactly that. Two cards
+                    drew a boundary the code does not have. */}
+                <McpClientTargetsCard
+                  targets={mcpClientTargets ?? []}
+                  // The SAME gate the copy button uses: no plaintext this session,
+                  // nothing to write.
+                  canRegister={issuedMcpToken !== null}
+                  onRegister={(target) => mcpRegisterMutation.mutate({ target, token: issuedMcpToken ?? '' })}
+                  onUnregister={(target) => mcpUnregisterMutation.mutate({ target })}
+                  pendingTarget={
+                    mcpRegisterMutation.isPending
+                      ? (mcpRegisterMutation.variables?.target ?? null)
+                      : mcpUnregisterMutation.isPending
+                        ? (mcpUnregisterMutation.variables?.target ?? null)
+                        : null
+                  }
+                />
+              </McpTokenCard>
             </>
           )}
 

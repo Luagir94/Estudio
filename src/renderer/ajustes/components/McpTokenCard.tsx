@@ -9,6 +9,7 @@
 // No container, no react-query, no IPC here — same rule as every other card
 // on this screen.
 import { Ban, Copy, EyeOff, PlugZap, RefreshCw } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { McpListenerState, McpStatusResult } from '../../../shared/ipc/mcp'
 import { buildClientConfig } from '../../mcp/domain/buildClientConfig'
@@ -31,6 +32,16 @@ const BUTTON_CLASS =
   'inline-flex items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-body-sm font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-60'
 
 interface McpTokenCardProps {
+  /**
+   * The clients holding this token, rendered below a divider inside this same
+   * card (approved `.pen`, node `eRwDu`).
+   *
+   * They were a separate card until the redesign, which said the token and the
+   * clients that hold it were two subjects. They are one: rotating here
+   * rewrites every config written there, and revoking tears them all down. The
+   * card boundary was hiding that.
+   */
+  children?: ReactNode
   status: McpStatusResult
   /** The plaintext token from the MOST RECENT issue/rotate this session — `null` before any this session, or once revoked. */
   issuedToken: string | null
@@ -42,6 +53,7 @@ interface McpTokenCardProps {
 }
 
 export function McpTokenCard({
+  children,
   status,
   issuedToken,
   onRotate,
@@ -131,6 +143,16 @@ export function McpTokenCard({
             <EyeOff className="h-3.5 w-3.5 shrink-0 text-warn" aria-hidden="true" />
             <p className="text-body-sm font-medium text-warn">{t('mcpTokenCard.warning')}</p>
           </div>
+        </>
+      )}
+
+      {/* The hairline is the whole of the boundary between the token above and
+          the clients holding it below — one card, two halves, because the two
+          are one subject (approved `.pen`, node `p3QEln` "Card Divider"). */}
+      {children && (
+        <>
+          <div className="h-px w-full bg-border" />
+          {children}
         </>
       )}
     </div>

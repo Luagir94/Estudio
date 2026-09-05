@@ -1,6 +1,12 @@
-// Presentational (approved `.pen`, design node `WNQCK` "Card — Clientes MCP"):
-// registers this app inside another MCP client's own config file, one row per
-// enabled client.
+// Presentational (approved `.pen`, the "Clientes MCP" half of node `eRwDu`
+// "Card — Conexión MCP"): registers this app inside another MCP client's own
+// config file, one row per enabled client.
+//
+// A SECTION, not a card. It used to be its own card sitting under the token
+// card, which said these were two subjects; they are one — the token, and who
+// is holding it. Rotating the token here rewrites every config written there,
+// which is exactly the coupling a card boundary was hiding. It renders below
+// that card's divider now and carries no surface of its own.
 //
 // No container, no react-query, no IPC here — same rule as every other card on
 // this screen. It also holds no token: `onRegister` carries only the target,
@@ -55,11 +61,11 @@ export function McpClientTargetsCard({
   const { t } = useTranslation('mcp')
 
   return (
-    <div className="flex w-full flex-col gap-2.5 rounded-xl border border-border bg-card px-5 py-3.5">
+    <div className="flex w-full flex-col gap-2.5">
       <div className="flex w-full items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <AppWindow className="h-[18px] w-[18px] shrink-0 text-secondary-foreground" aria-hidden="true" />
-          <h3 className="text-body-lg font-semibold text-foreground">{t('mcpClientTargetsCard.title')}</h3>
+          <h4 className="text-body-lg font-semibold text-foreground">{t('mcpClientTargetsCard.title')}</h4>
         </div>
       </div>
 

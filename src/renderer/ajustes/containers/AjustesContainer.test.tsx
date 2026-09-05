@@ -661,18 +661,20 @@ describe('AjustesContainer — disconnecting', () => {
 // MCP from. This container is where `mcp:status`, `mcp:issueToken` and
 // `mcp:revokeToken` are wired — `McpTokenCard` itself takes props only.
 describe('AjustesContainer — MCP', () => {
-  it('renders the MCP card once the status read answers, after the CLI rows', async () => {
+  it('renders the MCP card once the status read answers, after the CLI card', async () => {
     renderWithClient(<AjustesContainer />)
     showSection('integraciones')
 
     await screen.findByRole('heading', { name: 'Conexión MCP' })
-    const cardTitles = screen.getAllByRole('heading', { level: 3 })
-    // The approved `.pen` order of the two MCP cards this section holds,
-    // tail-anchored so the CLI rows above them stay free to change: Conexión
-    // MCP, then Clientes MCP (design node `WNQCK`). Permisos MCP is no longer
-    // the third of a stack — it is the whole of its own section, and the test
-    // for that lives in the "MCP permisos" block.
-    expect(cardTitles.slice(-2).map((title) => title.textContent)).toEqual(['Conexión MCP', 'Clientes MCP'])
+    // The approved `.pen` shape of this section: TWO cards, the CLIs then the
+    // MCP connection. "Clientes MCP" is no longer one of them — it is a half
+    // of the connection card, below its divider, which is why it is an `h4`
+    // here and asserted separately just under this.
+    expect(screen.getAllByRole('heading', { level: 3 }).map((title) => title.textContent)).toEqual([
+      'CLIs detectados',
+      'Conexión MCP'
+    ])
+    expect(screen.getByRole('heading', { level: 4, name: 'Clientes MCP' })).toBeInTheDocument()
   })
 
   // The plaintext token exists nowhere else — `mcp:status` cannot read it
