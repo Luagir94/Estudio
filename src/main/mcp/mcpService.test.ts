@@ -288,6 +288,82 @@ describe('handshake (task 9.4)', () => {
   })
 })
 
+// --- Defect fix: transport start failure -------------------------------------
+
+describe('transport start failure', () => {
+  // `connectSocket` is deliberately not awaited by `onConnection` — nothing
+  // there needs to block on the SDK transport handshake. But the connection
+  // is already tracked by then, so a rejection that goes nowhere leaves a
+  // dead socket in the tracked set until the next rotate/revoke drain, on
+  // top of surfacing as an unhandled rejection in main.
+  async function flushRejection(): Promise<void> {
+    await new Promise((resolve) => setImmediate(resolve))
+    await new Promise((resolve) => setImmediate(resolve))
+  }
+
+  function setupFailingTransport() {
+    const connectionState = createConnectionState()
+    const buildConnectionServer = vi.fn(() => ({ server: {} as McpServer, connection: connectionState }))
+    const connectSocket = vi.fn(() => Promise.reject(new Error('transport already closed')))
+    const built = authenticatedSetup({ buildConnectionServer, connectSocket })
+    const socket = createFakeSocket()
+    const endSpy = vi.spyOn(socket, 'end')
+    const destroySpy = vi.spyOn(socket, 'destroy')
+    built.listener.handler!({ socket, hello: { present: true, hash: built.hash } })
+    return { ...built, socket, endSpy, destroySpy }
+  }
+
+  it('destroys the socket and logs when the transport fails to start', async () => {
+    const { destroySpy } = setupFailingTransport()
+
+    await flushRejection()
+
+    expect(destroySpy).toHaveBeenCalledTimes(1)
+    expect(logErrorMock).toHaveBeenCalled()
+  })
+
+  it('drops the connection from the tracked set instead of leaving it for the next drain', async () => {
+    const { service, endSpy } = setupFailingTransport()
+
+    await flushRejection()
+    service.issueToken()
+
+    // Nothing left to drain: the failed connection was already removed, so
+    // the rotate never touches its socket.
+    expect(endSpy).not.toHaveBeenCalled()
+  })
+
+  it('never lets the rejection escape as an unhandled rejection', async () => {
+    const unhandled = vi.fn()
+    process.on('unhandledRejection', unhandled)
+    try {
+      setupFailingTransport()
+      await flushRejection()
+    } finally {
+      process.off('unhandledRejection', unhandled)
+    }
+
+    expect(unhandled).not.toHaveBeenCalled()
+  })
+
+  it('leaves a successful transport start tracked and drainable', async () => {
+    const connectionState = createConnectionState()
+    const buildConnectionServer = vi.fn(() => ({ server: {} as McpServer, connection: connectionState }))
+    const connectSocket = vi.fn(() => Promise.resolve())
+    const built = authenticatedSetup({ buildConnectionServer, connectSocket })
+    const socket = createFakeSocket()
+    const endSpy = vi.spyOn(socket, 'end')
+    const destroySpy = vi.spyOn(socket, 'destroy')
+
+    built.listener.handler!({ socket, hello: { present: true, hash: built.hash } })
+    await flushRejection()
+
+    expect(destroySpy).not.toHaveBeenCalled()
+    built.service.issueToken()
+    expect(endSpy).toHaveBeenCalledTimes(1)
+  })
+})
+
 // --- Task 9.2: rotate drain --------------------------------------------------
 
 describe('rotate drain (task 9.2)', () => {

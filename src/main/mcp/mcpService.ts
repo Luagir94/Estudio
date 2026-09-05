@@ -370,10 +370,22 @@ export function createMcpService({
 
     connection.socket.write(encodeAck(true))
     const { server, connection: state } = buildConnectionServer(descriptors, { authorize, audit: toolAudit })
-    connections.add({ socket: connection.socket, state })
+    const tracked: TrackedConnection = { socket: connection.socket, state }
+    connections.add(tracked)
     // Fire-and-forget: registering the connection is synchronous, wiring the
-    // SDK transport is not, and nothing here needs to block on it.
-    void connectSocket(server, connection.socket)
+    // SDK transport is not, and nothing here needs to block on it. It still
+    // needs its OWN rejection handler, though — the connection is already in
+    // `connections` by this point, so a bare `void` on a rejected
+    // `server.connect()` (the socket dying between the ack and the transport
+    // start) would both surface as an unhandled rejection in main AND leave a
+    // dead entry in the tracked set until the next rotate/revoke drain got
+    // around to ending it. `Promise.resolve` wraps it because `connectSocket`
+    // is allowed to be synchronous (this unit's own tests inject a no-op).
+    void Promise.resolve(connectSocket(server, connection.socket)).catch((error: unknown) => {
+      log.error('mcp transport failed to start', error)
+      connections.delete(tracked)
+      connection.socket.destroy()
+    })
   }
 
   function reconcileListener(): void {
