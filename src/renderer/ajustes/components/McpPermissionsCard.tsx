@@ -36,6 +36,7 @@ import {
   FilePen,
   GraduationCap,
   History,
+  Info,
   Pencil,
   Shield,
   ShieldCheck,
@@ -176,6 +177,22 @@ export function McpPermissionsCard({
       <div className="flex items-center gap-2 rounded-lg bg-warn-soft px-3 py-2">
         <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-warn" aria-hidden="true" />
         <p className="text-body-sm font-medium text-warn">{t('mcpPermissionsCard.warning')}</p>
+      </div>
+
+      {/* Approved `.pen` node `T1MB5` "Read Scope Note": the rows above show no
+          Leer toggle for parciales, finales and clases, which is true about the
+          TOOLS and misleading about the DATA — `materias_detail` carries each
+          subject's parciales, finales, attendance and correlativas, so a
+          materias read grant reaches all of it.
+
+          Informational styling (`$surface-sunken`), NOT the destructive-write
+          warning's `$warn-soft` above it: this is scope, not danger, and two
+          identical alarm bars would train the reader to skip both.
+          `leading-[1.45]` is at the call site because the type scale pins
+          line-height only on the display steps (globals.css). */}
+      <div className="flex items-start gap-2 rounded-lg bg-muted px-4 py-3">
+        <Info className="mt-px h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <p className="text-body-sm leading-[1.45] text-secondary-foreground">{t('mcpPermissionsCard.readScopeNote')}</p>
       </div>
     </div>
   )

@@ -20,6 +20,7 @@
     "summary": "{{count}} de 8 concedidos",
     "viewActivity": "Ver actividad",
     "warning": "Con Escribir, un CLI conectado puede crear, editar y BORRAR tus registros sin preguntarte nada. Concedé solo lo que ese CLI necesite.",
+    "readScopeNote": "Parciales, Finales y Clases no tienen herramienta de lectura propia, pero sus datos viajan dentro del detalle de una materia: con Materias → Leer, un CLI conectado también ve tus notas de parciales y finales, tu asistencia y tus correlativas.",
     "toggles": {
       "read": "Leer",
       "write": "Escribir"

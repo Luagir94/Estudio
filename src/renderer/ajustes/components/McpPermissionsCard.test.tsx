@@ -160,6 +160,36 @@ describe('McpPermissionsCard', () => {
     ).toBeInTheDocument()
   })
 
+  // The card lists parciales, finales and clases with no Leer toggle, because
+  // those slices genuinely expose no read tool. That is true about the TOOLS
+  // and misleading about the DATA: `materias_detail` returns each subject's
+  // parciales, finales, attendance and correlativas, so a materias read grant
+  // reaches all of it. Found while writing the MCP evaluation suite. The card
+  // has to say so, or it promises a granularity the catalog does not have.
+  it('discloses that a materias read grant also exposes parciales, finales and asistencia', () => {
+    renderCard()
+
+    expect(
+      screen.getByText(
+        'Parciales, Finales y Clases no tienen herramienta de lectura propia, pero sus datos viajan dentro del detalle de una materia: con Materias → Leer, un CLI conectado también ve tus notas de parciales y finales, tu asistencia y tus correlativas.'
+      )
+    ).toBeInTheDocument()
+  })
+
+  // The write warning is about destruction; this one is about scope. They are
+  // styled apart on purpose (approved `.pen`: `$warn-soft` vs
+  // `$surface-sunken`) — two identical alarm bars would train the reader to
+  // skip both.
+  it('keeps the scope disclosure visually distinct from the destructive-write warning', () => {
+    renderCard()
+
+    const scopeNote = screen.getByText(/no tienen herramienta de lectura propia/).closest('div')
+    const writeWarning = screen.getByText(/puede crear, editar y BORRAR/).closest('div')
+
+    expect(scopeNote).toHaveClass('bg-muted')
+    expect(writeWarning).toHaveClass('bg-warn-soft')
+  })
+
   // PR16 shipped this card with "Ver actividad" deliberately absent — the
   // /mcp/actividad route it points to did not exist yet. PR18 registers that
   // route and this is the button that reaches it, in the same head-right
