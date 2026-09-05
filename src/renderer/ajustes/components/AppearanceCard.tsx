@@ -76,8 +76,13 @@ export function AppearanceCard({ value, onChange, palette, onPaletteChange }: Ap
                   interactiveChip
                 )}
               >
+                {/* `text-foreground` on the active segment, matching the
+                    `.pen` (node `aU8vU`, icon fill `$text-primary`) and the
+                    section tabs, which resolve to the same values. The code
+                    had drifted to `text-secondary-foreground`, which left the
+                    pressed icon a shade dimmer than its own label. */}
                 <Icon
-                  className={cn('h-3.5 w-3.5', isActive ? 'text-secondary-foreground' : 'text-muted-foreground')}
+                  className={cn('h-3.5 w-3.5', isActive ? 'text-foreground' : 'text-muted-foreground')}
                   aria-hidden="true"
                 />
                 {t(`appearanceCard.option.${preference}`)}
