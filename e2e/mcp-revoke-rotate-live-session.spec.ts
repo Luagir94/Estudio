@@ -256,6 +256,10 @@ test('revoking the token through the real Ajustes UI terminates an already-authe
     await window.getByRole('button', { name: 'Ajustes' }).click()
     await expect(window.getByRole('heading', { name: 'Ajustes' })).toBeVisible({ timeout: 20_000 })
 
+    // The MCP connection card sits behind the Integraciones tab since Ajustes
+    // was split into three sections (approved `.pen`, node `PQXon`).
+    await window.getByRole('button', { name: 'Integraciones' }).click()
+
     const revokeButton = window.getByRole('button', { name: 'Revocar', exact: true })
     await expect(revokeButton).toBeEnabled({ timeout: 20_000 })
     await revokeButton.click()
@@ -321,6 +325,8 @@ test('rotating the token through the real Ajustes UI terminates the established 
 
     await window.getByRole('button', { name: 'Ajustes' }).click()
     await expect(window.getByRole('heading', { name: 'Ajustes' })).toBeVisible({ timeout: 20_000 })
+
+    await window.getByRole('button', { name: 'Integraciones' }).click()
 
     const rotateButton = window.getByRole('button', { name: 'Rotar', exact: true })
     await rotateButton.click()

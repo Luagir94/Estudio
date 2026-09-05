@@ -66,6 +66,20 @@ function renderWithClient(ui: ReactNode) {
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
 }
 
+/**
+ * Switches to a section (approved `.pen`, node `PQXon`).
+ *
+ * The screen used to be one column with every card on it, so most of the
+ * assertions below start by opening the section their subject now lives in.
+ * Clicking the real tab rather than seeding state keeps these tests on the
+ * path a student actually takes.
+ */
+const SECTION_LABELS = { apariencia: 'Apariencia', integraciones: 'Integraciones', permisos: 'Permisos' } as const
+
+function showSection(section: keyof typeof SECTION_LABELS): void {
+  fireEvent.click(screen.getByRole('button', { name: SECTION_LABELS[section] }))
+}
+
 /** Presses the "Conectar" button of one card — the only thing that starts a probe. */
 function connect(cliLabel: string): void {
   fireEvent.click(screen.getByRole('button', { name: `${CONNECT_ACTION} ${cliLabel}` }))
@@ -161,6 +175,7 @@ describe('AjustesContainer', () => {
   // processes for CLIs the student may not have installed.
   it('probes nothing on mount', async () => {
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
 
     expect(await screen.findAllByRole('button', { name: new RegExp('^' + CONNECT_ACTION) })).toHaveLength(
       CLI_PROVIDERS.length
@@ -171,6 +186,7 @@ describe('AjustesContainer', () => {
   // The absence of a background refetch is a requirement, not an accident.
   it('starts every provider query disabled, with no refetchInterval', () => {
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
 
     const { queries } = vi.mocked(useQueries).mock.calls[0]![0] as {
       queries: { enabled: boolean; staleTime: number }[]
@@ -186,6 +202,7 @@ describe('AjustesContainer', () => {
 
   it('renders one idle card per supported CLI, each naming its own connect button', () => {
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
 
     for (const label of ['Claude Code', 'Antigravity CLI', 'Codex CLI']) {
       expect(screen.getByRole('heading', { name: label })).toBeInTheDocument()
@@ -199,6 +216,7 @@ describe('AjustesContainer', () => {
   // of leaving a saved path silently in force.
   it('connects only the CLI whose "Conectar" was pressed', async () => {
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
 
     connect('Claude Code')
 
@@ -211,6 +229,7 @@ describe('AjustesContainer', () => {
   // idle, still unclaimed, still unprobed.
   it('leaves the other cards idle when one is connected', async () => {
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
 
     connect('Claude Code')
 
@@ -232,6 +251,7 @@ describe('AjustesContainer', () => {
     )
 
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
     connect('Claude Code')
 
     expect(await screen.findByText(DETECTING_LABEL)).toBeInTheDocument()
@@ -251,6 +271,7 @@ describe('AjustesContainer', () => {
   // say that work is in flight.
   it('re-probes only its own CLI from the card\u2019s "Reintentar", and marks that button busy', async () => {
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
     connect('Claude Code')
     await screen.findByText('Conectado')
 
@@ -277,6 +298,7 @@ describe('AjustesContainer', () => {
 
   it('renders the page title and subtitle', () => {
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
 
     expect(screen.getByRole('heading', { name: 'Ajustes' })).toBeInTheDocument()
     expect(screen.getByText('La app nunca ejecuta nada por su cuenta · todo queda en tu máquina')).toBeInTheDocument()
@@ -286,6 +308,7 @@ describe('AjustesContainer', () => {
   // at once, which is precisely the fan-out this screen no longer does.
   it('offers no screen-wide retry control', () => {
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
 
     expect(screen.queryByRole('button', { name: RETRY_ACTION })).not.toBeInTheDocument()
   })
@@ -294,6 +317,7 @@ describe('AjustesContainer', () => {
   // the user did not ask about.
   it('renders the connected row as a single line', async () => {
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
 
     connect('Claude Code')
 
@@ -312,6 +336,7 @@ describe('AjustesContainer', () => {
     })
 
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
 
     expect(await screen.findByDisplayValue('C:\\bin\\claude.cmd')).toBeInTheDocument()
   })
@@ -325,6 +350,7 @@ describe('AjustesContainer', () => {
     })
 
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
 
     const input = screen.getByLabelText('Ruta manual del ejecutable de Claude Code')
     fireEvent.change(input, { target: { value: 'C:\\bin\\claude.cmd' } })
@@ -351,6 +377,7 @@ describe('AjustesContainer', () => {
       .mockResolvedValue({ ok: true, data: prefsWithPath('antigravity', 'C:\\agy\\agy.exe') })
 
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
 
     const input = await screen.findByDisplayValue('C:\\agy\\agy.exe')
     fireEvent.change(input, { target: { value: '   ' } })
@@ -364,6 +391,7 @@ describe('AjustesContainer', () => {
 
   it('renders the policy note with the exact disclosed copy', () => {
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
 
     expect(
       screen.getByText(
@@ -396,6 +424,7 @@ describe('AjustesContainer', () => {
     window.api.cli.preferences = vi.fn().mockResolvedValue({ ok: true, data: prefs(['claude']) })
 
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
     await screen.findByText('No encontrado')
 
     const input = screen.getAllByLabelText('Ruta manual del ejecutable de Claude Code')[0]!
@@ -423,14 +452,16 @@ describe('AjustesContainer — apariencia', () => {
     expect(screen.getByRole('button', { name: 'Sistema' })).toHaveAttribute('aria-pressed', 'false')
   })
 
-  // The card renders FIRST, right after the header block and before the CLI
-  // provider cards (approved `.pen` ordering).
-  it('renders the appearance card before every provider card', async () => {
+  // The card is the WHOLE of its section now (approved `.pen`, screen
+  // "Ajustes · Apariencia"). It used to sit first in one long column above the
+  // CLI rows; the ordering assertion that guarded that has become an
+  // is-it-alone assertion, which is the property the redesign actually has.
+  it('is the only card in the apariencia section', async () => {
     renderWithClient(<AjustesContainer />)
 
     await screen.findByRole('heading', { name: 'Apariencia' })
     const cardTitles = screen.getAllByRole('heading', { level: 3 })
-    expect(cardTitles[0]).toHaveTextContent('Apariencia')
+    expect(cardTitles.map((title) => title.textContent)).toEqual(['Apariencia', 'Paleta'])
   })
 
   // The card claims nothing until the settings read answers — a default
@@ -563,6 +594,7 @@ describe('AjustesContainer — the opt-in persists', () => {
     window.api.cli.preferences = vi.fn().mockResolvedValue({ ok: true, data: prefs(['claude']) })
 
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
 
     expect(await screen.findByText('Conectado')).toBeInTheDocument()
     expect(window.api.cli.probe).toHaveBeenCalledWith({ provider: 'claude' })
@@ -575,6 +607,7 @@ describe('AjustesContainer — the opt-in persists', () => {
     window.api.cli.preferences = vi.fn().mockResolvedValue({ ok: true, data: prefs(['claude']) })
 
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
 
     await screen.findByText('Conectado')
     expect(window.api.cli.probe).not.toHaveBeenCalledWith({ provider: 'codex' })
@@ -586,6 +619,7 @@ describe('AjustesContainer — the opt-in persists', () => {
     window.api.cli.preferences = vi.fn().mockReturnValue(new Promise(() => {}))
 
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
 
     expect(window.api.cli.probe).not.toHaveBeenCalled()
   })
@@ -597,6 +631,7 @@ describe('AjustesContainer — disconnecting', () => {
   async function connectClaude(): Promise<void> {
     window.api.cli.preferences = vi.fn().mockResolvedValue({ ok: true, data: prefs(['claude']) })
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
     await screen.findByText('Conectado')
   }
 
@@ -628,17 +663,16 @@ describe('AjustesContainer — disconnecting', () => {
 describe('AjustesContainer — MCP', () => {
   it('renders the MCP card once the status read answers, after the CLI rows', async () => {
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
 
     await screen.findByRole('heading', { name: 'Conexión MCP' })
     const cardTitles = screen.getAllByRole('heading', { level: 3 })
-    // The approved `.pen` order of the three MCP cards, tail-anchored so the
-    // CLI rows above them stay free to change: Conexión MCP, then Clientes MCP
-    // (design node `WNQCK`), then Permisos MCP last.
-    expect(cardTitles.slice(-3).map((title) => title.textContent)).toEqual([
-      'Conexión MCP',
-      'Clientes MCP',
-      'Permisos MCP'
-    ])
+    // The approved `.pen` order of the two MCP cards this section holds,
+    // tail-anchored so the CLI rows above them stay free to change: Conexión
+    // MCP, then Clientes MCP (design node `WNQCK`). Permisos MCP is no longer
+    // the third of a stack — it is the whole of its own section, and the test
+    // for that lives in the "MCP permisos" block.
+    expect(cardTitles.slice(-2).map((title) => title.textContent)).toEqual(['Conexión MCP', 'Clientes MCP'])
   })
 
   // The plaintext token exists nowhere else — `mcp:status` cannot read it
@@ -649,6 +683,7 @@ describe('AjustesContainer — MCP', () => {
       .mockResolvedValue({ ok: true, data: { token: 'cc_mcp_freshtoken', issuedAt: '2026-09-03T12:00:00.000Z' } })
 
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
     await screen.findByRole('heading', { name: 'Conexión MCP' })
 
     fireEvent.click(screen.getByRole('button', { name: 'Rotar' }))
@@ -665,6 +700,7 @@ describe('AjustesContainer — MCP', () => {
     window.api.mcp.revokeToken = vi.fn().mockResolvedValue({ ok: true, data: { revoked: true } })
 
     renderWithClient(<AjustesContainer />)
+    showSection('integraciones')
     await screen.findByRole('heading', { name: 'Conexión MCP' })
 
     fireEvent.click(screen.getByRole('button', { name: 'Revocar' }))
@@ -677,12 +713,16 @@ describe('AjustesContainer — MCP', () => {
 // obs #576). `McpPermissionsCard` itself takes props only — this container
 // is where `mcp:setPermission` is wired.
 describe('AjustesContainer — MCP permisos', () => {
-  it('renders the permissions card after the token card, with nothing granted on a fresh install', async () => {
+  // Alone in its own section now (approved `.pen`, screen "Ajustes ·
+  // Permisos") rather than last in one long column. The old assertion pinned
+  // it to the bottom of a stack that no longer exists; this pins the property
+  // that replaced it — nothing else shares the page with the grants.
+  it('is the only card in the permisos section, with nothing granted on a fresh install', async () => {
     renderWithClient(<AjustesContainer />)
+    showSection('permisos')
 
     await screen.findByRole('heading', { name: 'Permisos MCP' })
-    const cardTitles = screen.getAllByRole('heading', { level: 3 })
-    expect(cardTitles[cardTitles.length - 1]).toHaveTextContent('Permisos MCP')
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(1)
     expect(screen.getByText('0 de 8 concedidos')).toBeInTheDocument()
   })
 
@@ -693,6 +733,7 @@ describe('AjustesContainer — MCP permisos', () => {
     })
 
     renderWithClient(<AjustesContainer />)
+    showSection('permisos')
     await screen.findByRole('heading', { name: 'Permisos MCP' })
 
     const materiasGroup = screen.getByRole('group', { name: 'Materias' })
@@ -713,6 +754,7 @@ describe('AjustesContainer — MCP permisos', () => {
     })
 
     renderWithClient(<AjustesContainer />)
+    showSection('permisos')
     await screen.findByRole('heading', { name: 'Permisos MCP' })
 
     const horarioGroup = screen.getByRole('group', { name: 'Horario' })
@@ -730,10 +772,61 @@ describe('AjustesContainer — MCP permisos', () => {
   it('calls onViewMcpActivity when "Ver actividad" is pressed', async () => {
     const onViewMcpActivity = vi.fn()
     renderWithClient(<AjustesContainer onViewMcpActivity={onViewMcpActivity} />)
+    showSection('permisos')
     await screen.findByRole('heading', { name: 'Permisos MCP' })
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver actividad' }))
 
     expect(onViewMcpActivity).toHaveBeenCalledTimes(1)
+  })
+})
+
+// The screen is three sections, not one 1618px column (approved `.pen`, node
+// `PQXon`). What matters here is not that a tab exists but that a section the
+// student is NOT looking at renders nothing — the whole point of the split.
+describe('AjustesContainer — secciones', () => {
+  it('opens on Apariencia, showing neither the CLIs nor the grants', async () => {
+    renderWithClient(<AjustesContainer />)
+
+    expect(await screen.findByText('Apariencia')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: `${CONNECT_ACTION} Claude Code` })).not.toBeInTheDocument()
+    expect(screen.queryByText('Permisos MCP')).not.toBeInTheDocument()
+  })
+
+  it('swaps to the CLIs and drops the appearance card when Integraciones is pressed', async () => {
+    renderWithClient(<AjustesContainer />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Integraciones' }))
+
+    expect(await screen.findByRole('button', { name: `${CONNECT_ACTION} Claude Code` })).toBeInTheDocument()
+    expect(screen.queryByText('Claro, oscuro o lo que diga el sistema')).not.toBeInTheDocument()
+    expect(screen.queryByText('Permisos MCP')).not.toBeInTheDocument()
+  })
+
+  it('shows only the grants when Permisos is pressed', async () => {
+    renderWithClient(<AjustesContainer />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Permisos' }))
+
+    expect(await screen.findByText('Permisos MCP')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: `${CONNECT_ACTION} Claude Code` })).not.toBeInTheDocument()
+  })
+
+  it('keeps the title and the tabs on every section', async () => {
+    renderWithClient(<AjustesContainer />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Permisos' }))
+
+    expect(screen.getByRole('heading', { name: 'Ajustes' })).toBeInTheDocument()
+    expect(await screen.findByRole('group', { name: 'Secciones de ajustes' })).toBeInTheDocument()
+  })
+
+  it('spawns no probe just by opening the CLI section', async () => {
+    renderWithClient(<AjustesContainer />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Integraciones' }))
+
+    await screen.findByRole('button', { name: `${CONNECT_ACTION} Claude Code` })
+    expect(window.api.cli.probe).not.toHaveBeenCalled()
   })
 })

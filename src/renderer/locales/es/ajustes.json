@@ -71,6 +71,12 @@
     "title": "Ajustes",
     "subtitle": "La app nunca ejecuta nada por su cuenta · todo queda en tu máquina",
     "policyNote": "Esta pantalla solo detecta los CLI que conectes y corre {{commands}}, más su página de ayuda para ver qué opciones acepta la versión instalada. No envía tus materias, tus adjuntos ni tus notas a ningún lado, y no ejecuta ningún otro comando.",
-    "commandsJoiner": "y"
+    "commandsJoiner": "y",
+    "sections": {
+      "label": "Secciones de ajustes",
+      "apariencia": "Apariencia",
+      "integraciones": "Integraciones",
+      "permisos": "Permisos"
+    }
   }
 }

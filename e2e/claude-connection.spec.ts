@@ -41,10 +41,18 @@ test('launch -> nothing probed until Conectar -> real probe connects -> the opt-
       await window.getByRole('button', { name: 'Ajustes' }).click()
       await expect(window.getByRole('heading', { name: 'Ajustes' })).toBeVisible({ timeout: 20_000 })
 
+      // The CLIs moved behind their own tab when Ajustes was split into three
+      // sections (approved `.pen`, node `PQXon`). Opening that tab is now part
+      // of the real path a student walks, so the test walks it.
+      await window.getByRole('button', { name: 'Integraciones' }).click()
+
       // The opt-in gate, against the real app: every CLI sits idle and no
       // status has been claimed, because no probe ran. `claude` IS installed on
       // this machine, so a "Conectado" here would mean the screen probed on its
       // own.
+      //
+      // Opening the tab must not change that: the probe gate is the persisted
+      // opt-in list, never which section is on screen.
       //
       // `exact: true` is load-bearing here too (mcp-app-control PR16): by
       // default `getByText` matches case-insensitively AND by substring, and
@@ -81,6 +89,8 @@ test('launch -> nothing probed until Conectar -> real probe connects -> the opt-
       await window.waitForLoadState('domcontentloaded')
       await window.getByRole('button', { name: 'Ajustes' }).click()
       await expect(window.getByRole('heading', { name: 'Ajustes' })).toBeVisible({ timeout: 20_000 })
+
+      await window.getByRole('button', { name: 'Integraciones' }).click()
 
       // `exact` is load-bearing: Playwright matches an accessible name by
       // SUBSTRING, and the connected row's "Desconectar Claude Code" contains

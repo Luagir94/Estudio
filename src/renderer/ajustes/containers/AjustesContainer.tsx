@@ -40,6 +40,7 @@ import {
   PALETTE_QUERY_KEY,
   THEME_PREFERENCE_QUERY_KEY
 } from '../adapters/ajustesApi'
+import { AjustesSectionTabs } from '../components/AjustesSectionTabs'
 import { AppearanceCard } from '../components/AppearanceCard'
 import { ConnectionStatusCard } from '../components/ConnectionStatusCard'
 import { DetectingProviderCard } from '../components/DetectingProviderCard'
@@ -47,6 +48,7 @@ import { IdleProviderCard } from '../components/IdleProviderCard'
 import { McpClientTargetsCard } from '../components/McpClientTargetsCard'
 import { McpPermissionsCard } from '../components/McpPermissionsCard'
 import { McpTokenCard } from '../components/McpTokenCard'
+import { DEFAULT_AJUSTES_SECTION, type AjustesSection } from '../domain/ajustesSections'
 import { PROVIDER_COMMANDS } from '../domain/connectionDisplay'
 
 interface AjustesContainerProps {
@@ -62,6 +64,15 @@ interface AjustesContainerProps {
 export function AjustesContainer({ onViewMcpActivity = () => {} }: AjustesContainerProps = {}): React.JSX.Element {
   const { t } = useTranslation('ajustes')
   const queryClient = useQueryClient()
+
+  // Which of the three sections is on screen (approved `.pen`, node `PQXon`).
+  //
+  // It gates RENDERING ONLY — never a query. The probe gate stays exactly
+  // where it was, on the persisted opt-in list below: tying a spawn to which
+  // tab is open would mean a CLI the student connected gets re-probed every
+  // time they wander through this section, and one they never opted in to
+  // would still be safe for the wrong reason.
+  const [section, setSection] = useState<AjustesSection>(DEFAULT_AJUSTES_SECTION)
 
   // A settings read, not a probe: it starts no process, which is the only
   // reason it may run on mount at all. It answers both questions this screen
@@ -257,18 +268,28 @@ export function AjustesContainer({ onViewMcpActivity = () => {} }: AjustesContai
     <div className="flex flex-col gap-6">
       {/* The header lost its "Reintentar" (design node `X2Lzy8`, removed):
           one button that re-probed every CLI is exactly the fan-out this
-          screen no longer does. Retrying is per row now. */}
-      <div className="flex flex-col gap-1">
-        <h1 className="font-display text-display-lg font-bold text-foreground">{t('ajustesContainer.title')}</h1>
-        <p className="text-body text-secondary-foreground">{t('ajustesContainer.subtitle')}</p>
+          screen no longer does. Retrying is per row now.
+
+          It gained the section tabs (node `PQXon`) on the right. This screen
+          was ONE column 1618px tall — two full viewports of stacked cards,
+          mixing appearance with CLI connections with MCP grants. The tabs are
+          what cut it into three sections that each fit a viewport. The title
+          and the tabs are the only things every section shares. */}
+      <div className="flex w-full items-center justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="font-display text-display-lg font-bold text-foreground">{t('ajustesContainer.title')}</h1>
+          <p className="text-body text-secondary-foreground">{t('ajustesContainer.subtitle')}</p>
+        </div>
+
+        <AjustesSectionTabs value={section} onChange={setSection} />
       </div>
 
-      {/* First card of the screen (approved `.pen` ordering), before the CLI
-          rows. Rendered only once BOTH persisted values have answered — the
-          same no-claims-before-the-read rule the provider rows follow. Waiting
-          on both rather than rendering each row as it arrives keeps the card
-          from changing height under the cursor on every open. */}
-      {themePreference && palette && (
+      {/* The whole of section one (approved `.pen`, screen "Ajustes ·
+          Apariencia"). Rendered only once BOTH persisted values have answered
+          — the same no-claims-before-the-read rule the provider rows follow.
+          Waiting on both rather than rendering each row as it arrives keeps
+          the card from changing height under the cursor on every open. */}
+      {section === 'apariencia' && themePreference && palette && (
         <AppearanceCard
           value={themePreference}
           onChange={(preference) => themeMutation.mutate(preference)}
@@ -277,103 +298,118 @@ export function AjustesContainer({ onViewMcpActivity = () => {} }: AjustesContai
         />
       )}
 
-      {/* One row per CLI (approved `.pen`), in one of three honest states:
-            idle      — not connected, so nothing is claimed;
-            detecting — this row's probe is running for the FIRST time;
-            answered  — the main process observed something.
-          A re-probe stays in the answered state on purpose: the previous
-          values are still the last thing actually observed, and the busy
-          chip is what says work is in flight. */}
-      {CLI_PROVIDERS.map((provider, index) => {
-        // useQueries maps over the same CLI_PROVIDERS list, so the row exists.
-        const probe = probes[index]!
+      {/* Section two (approved `.pen`, screen "Ajustes · Integraciones"):
+          everything about a process outside this app — which CLIs are
+          connected, the MCP token, and which clients hold it. The policy note
+          closes it because it is that section's disclosure, not the screen's:
+          it describes what detecting a CLI executes. */}
+      {section === 'integraciones' && (
+        <>
+          {/* One row per CLI (approved `.pen`), in one of three honest states:
+                idle      — not connected, so nothing is claimed;
+                detecting — this row's probe is running for the FIRST time;
+                answered  — the main process observed something.
+              A re-probe stays in the answered state on purpose: the previous
+              values are still the last thing actually observed, and the busy
+              chip is what says work is in flight. */}
+          {CLI_PROVIDERS.map((provider, index) => {
+            // useQueries maps over the same CLI_PROVIDERS list, so the row exists.
+            const probe = probes[index]!
 
-        if (probe.data) {
-          return (
-            <ConnectionStatusCard
-              key={provider}
-              status={probe.data}
-              isReprobing={probe.isFetching}
-              onReprobe={() => void probe.refetch()}
-              onDisconnect={() => disconnectMutation.mutate(provider)}
-              onCommitPath={(path) => overrideMutation.mutate({ provider, path })}
-            />
-          )
-        }
+            if (probe.data) {
+              return (
+                <ConnectionStatusCard
+                  key={provider}
+                  status={probe.data}
+                  isReprobing={probe.isFetching}
+                  onReprobe={() => void probe.refetch()}
+                  onDisconnect={() => disconnectMutation.mutate(provider)}
+                  onCommitPath={(path) => overrideMutation.mutate({ provider, path })}
+                />
+              )
+            }
 
-        // Work in flight is work in flight, whichever hook is carrying it. A
-        // first connect runs through the MUTATION (it commits the field before
-        // probing), so reading only the query's `isFetching` would leave the
-        // pressed row sitting there looking untouched while a process boots.
-        const connecting =
-          probe.isFetching || (overrideMutation.isPending && overrideMutation.variables?.provider === provider)
+            // Work in flight is work in flight, whichever hook is carrying it. A
+            // first connect runs through the MUTATION (it commits the field before
+            // probing), so reading only the query's `isFetching` would leave the
+            // pressed row sitting there looking untouched while a process boots.
+            const connecting =
+              probe.isFetching || (overrideMutation.isPending && overrideMutation.variables?.provider === provider)
 
-        return connecting ? (
-          <DetectingProviderCard key={provider} provider={provider} />
-        ) : (
-          <IdleProviderCard
-            key={provider}
-            provider={provider}
-            // Pressing Conectar always COMMITS the field, whatever is in it.
-            // One route for both cases, because clearing a saved path is a
-            // statement too: an empty field means "autodetect on the PATH", and
-            // a branch that only wrote non-empty values would leave the row
-            // showing empty while a saved path stayed in force.
-            //
-            // `setOverride` writes the path, records the opt-in and probes, all
-            // in one — which is also why nothing here has to sequence the probe
-            // against the preferences re-read.
-            overridePath={preferenceFor(provider)?.overridePath ?? null}
-            onConnect={(path) => overrideMutation.mutate({ provider, path })}
-          />
-        )
-      })}
+            return connecting ? (
+              <DetectingProviderCard key={provider} provider={provider} />
+            ) : (
+              <IdleProviderCard
+                key={provider}
+                provider={provider}
+                // Pressing Conectar always COMMITS the field, whatever is in it.
+                // One route for both cases, because clearing a saved path is a
+                // statement too: an empty field means "autodetect on the PATH", and
+                // a branch that only wrote non-empty values would leave the row
+                // showing empty while a saved path stayed in force.
+                //
+                // `setOverride` writes the path, records the opt-in and probes, all
+                // in one — which is also why nothing here has to sequence the probe
+                // against the preferences re-read.
+                overridePath={preferenceFor(provider)?.overridePath ?? null}
+                onConnect={(path) => overrideMutation.mutate({ provider, path })}
+              />
+            )
+          })}
 
-      {/* Approved `.pen` ordering: after the last CLI card, before the
+          {/* Approved `.pen` ordering: after the last CLI card, before the
           policy note. Rendered only once the status read answers — same
           no-claims-before-the-read rule as `AppearanceCard` above. */}
-      {mcpStatus && (
-        <>
-          <McpTokenCard
-            status={mcpStatus}
-            issuedToken={issuedMcpToken}
-            onRotate={() => mcpRotateMutation.mutate()}
-            onRevoke={() => mcpRevokeMutation.mutate()}
-            isRotating={mcpRotateMutation.isPending}
-            isRevoking={mcpRevokeMutation.isPending}
-          />
-          <McpClientTargetsCard
-            targets={mcpClientTargets ?? []}
-            // The SAME gate the copy button uses: no plaintext this session,
-            // nothing to write.
-            canRegister={issuedMcpToken !== null}
-            onRegister={(target) => mcpRegisterMutation.mutate({ target, token: issuedMcpToken ?? '' })}
-            onUnregister={(target) => mcpUnregisterMutation.mutate({ target })}
-            pendingTarget={
-              mcpRegisterMutation.isPending
-                ? (mcpRegisterMutation.variables?.target ?? null)
-                : mcpUnregisterMutation.isPending
-                  ? (mcpUnregisterMutation.variables?.target ?? null)
-                  : null
-            }
-          />
-          <McpPermissionsCard
-            permissions={mcpStatus.permissions}
-            onChangePermission={(input) => mcpSetPermissionMutation.mutate(input)}
-            pendingSlice={
-              mcpSetPermissionMutation.isPending ? (mcpSetPermissionMutation.variables?.slice ?? null) : null
-            }
-            onViewActivity={onViewMcpActivity}
-          />
+          {mcpStatus && (
+            <>
+              <McpTokenCard
+                status={mcpStatus}
+                issuedToken={issuedMcpToken}
+                onRotate={() => mcpRotateMutation.mutate()}
+                onRevoke={() => mcpRevokeMutation.mutate()}
+                isRotating={mcpRotateMutation.isPending}
+                isRevoking={mcpRevokeMutation.isPending}
+              />
+              <McpClientTargetsCard
+                targets={mcpClientTargets ?? []}
+                // The SAME gate the copy button uses: no plaintext this session,
+                // nothing to write.
+                canRegister={issuedMcpToken !== null}
+                onRegister={(target) => mcpRegisterMutation.mutate({ target, token: issuedMcpToken ?? '' })}
+                onUnregister={(target) => mcpUnregisterMutation.mutate({ target })}
+                pendingTarget={
+                  mcpRegisterMutation.isPending
+                    ? (mcpRegisterMutation.variables?.target ?? null)
+                    : mcpUnregisterMutation.isPending
+                      ? (mcpUnregisterMutation.variables?.target ?? null)
+                      : null
+                }
+              />
+            </>
+          )}
+
+          <div className="flex items-start gap-2 rounded-lg bg-muted px-4 py-3">
+            <Info className="mt-px h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <p className="text-body-sm text-muted-foreground">
+              {t('ajustesContainer.policyNote', { commands: formatCommands(t) })}
+            </p>
+          </div>
         </>
       )}
 
-      <div className="flex items-start gap-2 rounded-lg bg-muted px-4 py-3">
-        <Info className="mt-px h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <p className="text-body-sm text-muted-foreground">
-          {t('ajustesContainer.policyNote', { commands: formatCommands(t) })}
-        </p>
-      </div>
+      {/* Section three (approved `.pen`, screen "Ajustes · Permisos"): the
+          eight grants, alone. It is LAST in the tab order and alone on its
+          section for the same reason — this is the only page in the app that
+          hands another process write access to the student's records, and it
+          should never share a scroll with a colour picker. */}
+      {section === 'permisos' && mcpStatus && (
+        <McpPermissionsCard
+          permissions={mcpStatus.permissions}
+          onChangePermission={(input) => mcpSetPermissionMutation.mutate(input)}
+          pendingSlice={mcpSetPermissionMutation.isPending ? (mcpSetPermissionMutation.variables?.slice ?? null) : null}
+          onViewActivity={onViewMcpActivity}
+        />
+      )}
     </div>
   )
 }
