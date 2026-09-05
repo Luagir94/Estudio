@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import net, { type Socket } from 'node:net'
+import net, { type Server, type Socket } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -264,5 +264,71 @@ describe('EADDRINUSE (task 10.3, threat-matrix)', () => {
 
     expect(second.error).toEqual(expect.any(String))
     expect(second.error).not.toHaveLength(0)
+  })
+
+  // Defect fix: `mcpService.reconcileListener` only `close()`s a listener
+  // whose state is 'listening', and calls `listen()` again on every
+  // setPermission/issueToken while the state is anything else. A listener
+  // parked in 'error' therefore gets a fresh `listen()` per reconcile, and
+  // each one used to overwrite the previous `net.Server` reference without
+  // closing it.
+  it('closes the server left behind by a failed bind before creating another one', async () => {
+    const endpoint = testEndpoint()
+    const occupier = createPipeListener()
+    openListeners.push(occupier)
+    occupier.listen(endpoint, vi.fn())
+    await waitForState(occupier, 'listening')
+
+    const realCreateServer = net.createServer.bind(net)
+    const closed: boolean[] = []
+    const createServerSpy = vi.spyOn(net, 'createServer').mockImplementation(((
+      onSocket: (socket: Socket) => void
+    ): Server => {
+      const server = realCreateServer(onSocket)
+      const index = closed.push(false) - 1
+      const realClose = server.close.bind(server)
+      server.close = ((callback?: (error?: Error) => void) => {
+        closed[index] = true
+        return realClose(callback)
+      }) as Server['close']
+      return server
+    }) as typeof net.createServer)
+
+    try {
+      const retrying = createPipeListener()
+      openListeners.push(retrying)
+
+      retrying.listen(endpoint, vi.fn())
+      await waitForState(retrying, 'error')
+
+      retrying.listen(endpoint, vi.fn())
+      await waitForState(retrying, 'error')
+
+      expect(createServerSpy).toHaveBeenCalledTimes(2)
+      expect(closed[0]).toBe(true)
+    } finally {
+      createServerSpy.mockRestore()
+    }
+  })
+
+  it('recovers to listening once the endpoint is free again', async () => {
+    const endpoint = testEndpoint()
+    const occupier = createPipeListener()
+    openListeners.push(occupier)
+    occupier.listen(endpoint, vi.fn())
+    await waitForState(occupier, 'listening')
+
+    const retrying = createPipeListener()
+    openListeners.push(retrying)
+    retrying.listen(endpoint, vi.fn())
+    await waitForState(retrying, 'error')
+
+    occupier.close()
+    await waitUntil(() => occupier.state === 'stopped')
+
+    retrying.listen(endpoint, vi.fn())
+    await waitForState(retrying, 'listening')
+
+    expect(retrying.error).toBeNull()
   })
 })

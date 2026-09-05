@@ -118,8 +118,25 @@ export function createPipeListener(deps: CreatePipeListenerDeps = {}): ListenerP
     const timer = scheduleTimeout(fail, PREAMBLE_TIMEOUT_MS)
   }
 
+  /**
+   * Drops whatever server this port currently holds. Split out because
+   * `listen` needs it too, not just `close`: a bind that failed leaves a
+   * `net.Server` behind that never entered `listening`, and
+   * `mcpService.reconcileListener` only ever calls `close()` on a listener
+   * whose state IS `listening` — so without this, every reconcile while the
+   * endpoint stays busy would overwrite `server` with a fresh one and leak
+   * the previous. `close()` on a server that never bound is safe: its handle
+   * is already gone, and Node only reports "not running" through a callback,
+   * which is deliberately not passed here.
+   */
+  function dropServer(): void {
+    server?.close()
+    server = null
+  }
+
   return {
     listen(endpoint, onConnection) {
+      dropServer()
       listenerError = null
       const srv = net.createServer((socket) => handleConnection(socket, onConnection))
       // EADDRINUSE (a second app instance, or a stale pipe from an earlier
@@ -137,8 +154,7 @@ export function createPipeListener(deps: CreatePipeListenerDeps = {}): ListenerP
       server = srv
     },
     close() {
-      server?.close()
-      server = null
+      dropServer()
       state = 'stopped'
       listenerError = null
     },
