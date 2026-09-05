@@ -18,6 +18,7 @@ const logErrorMock = vi.hoisted(() => vi.fn())
 vi.mock('electron', () => ({ ipcMain: ipcMainMock }))
 vi.mock('electron-log', () => ({ default: { error: logErrorMock } }))
 
+import type { ClientConfigWriter } from '../adapters/clientConfigWriter'
 import { registerMcpHandlers } from './registerMcpHandlers'
 
 function invoke(channel: string, payload?: unknown) {
@@ -35,10 +36,29 @@ const sampleStatus: McpStatus = {
   permissions: [{ slice: 'materias', canRead: false, canWrite: false }]
 }
 
+const sampleTargetStatus = {
+  target: 'claude-code' as const,
+  configPath: 'C:\\Users\\lucia\\.claude.json',
+  detected: true,
+  connected: false
+}
+
 describe('registerMcpHandlers', () => {
   let service: McpService
+  let writer: ClientConfigWriter
 
   beforeEach(() => {
+    writer = {
+      list: vi.fn().mockResolvedValue([sampleTargetStatus]),
+      write: vi.fn().mockResolvedValue({
+        ok: true,
+        result: { target: 'claude-code', configPath: sampleTargetStatus.configPath, changed: true, backupPath: null }
+      }),
+      remove: vi.fn().mockResolvedValue({
+        ok: true,
+        result: { target: 'claude-code', configPath: sampleTargetStatus.configPath, changed: true, backupPath: null }
+      })
+    }
     ipcMainMock.handlers.clear()
     ipcMainMock.handle.mockClear()
     logErrorMock.mockClear()
@@ -51,17 +71,20 @@ describe('registerMcpHandlers', () => {
       setPermission: vi.fn().mockReturnValue({ slice: 'materias', canRead: true, canWrite: false }),
       listActivity: vi.fn().mockReturnValue([])
     }
-    registerMcpHandlers(service)
+    registerMcpHandlers(service, writer)
   })
 
-  it('registers exactly the five mcp:* channels', () => {
-    expect(ipcMainMock.handle).toHaveBeenCalledTimes(5)
+  it('registers exactly the eight mcp:* channels', () => {
+    expect(ipcMainMock.handle).toHaveBeenCalledTimes(8)
     for (const channel of [
       'mcp:status',
       'mcp:issueToken',
       'mcp:revokeToken',
       'mcp:setPermission',
-      'mcp:listActivity'
+      'mcp:listActivity',
+      'mcp:listClientTargets',
+      'mcp:writeClientConfig',
+      'mcp:removeClientConfig'
     ]) {
       expect(ipcMainMock.handle).toHaveBeenCalledWith(channel, expect.any(Function))
     }
@@ -94,7 +117,7 @@ describe('registerMcpHandlers', () => {
       service.getStatus = vi.fn().mockImplementation(() => {
         throw new Error('settings unavailable')
       })
-      registerMcpHandlers(service)
+      registerMcpHandlers(service, writer)
 
       expect(invoke('mcp:status')).toEqual({
         ok: false,
@@ -116,7 +139,7 @@ describe('registerMcpHandlers', () => {
       service.issueToken = vi.fn().mockImplementation(() => {
         throw new Error('database is locked')
       })
-      registerMcpHandlers(service)
+      registerMcpHandlers(service, writer)
 
       expect(invoke('mcp:issueToken')).toEqual({
         ok: false,
@@ -134,7 +157,7 @@ describe('registerMcpHandlers', () => {
       service.revokeToken = vi.fn().mockImplementation(() => {
         throw new Error('database is locked')
       })
-      registerMcpHandlers(service)
+      registerMcpHandlers(service, writer)
 
       expect(invoke('mcp:revokeToken')).toEqual({
         ok: false,
@@ -162,7 +185,7 @@ describe('registerMcpHandlers', () => {
       service.setPermission = vi.fn().mockImplementation(() => {
         throw new Error('database is locked')
       })
-      registerMcpHandlers(service)
+      registerMcpHandlers(service, writer)
 
       const result = invoke('mcp:setPermission', { slice: 'materias', canRead: true, canWrite: false })
 
@@ -195,7 +218,7 @@ describe('registerMcpHandlers', () => {
         }
       ]
       service.listActivity = vi.fn().mockReturnValue(rows)
-      registerMcpHandlers(service)
+      registerMcpHandlers(service, writer)
 
       expect(invoke('mcp:listActivity', {})).toEqual({ ok: true, data: rows })
       expect(service.listActivity).toHaveBeenCalledWith(undefined)
@@ -218,11 +241,101 @@ describe('registerMcpHandlers', () => {
       service.listActivity = vi.fn().mockImplementation(() => {
         throw new Error('database is locked')
       })
-      registerMcpHandlers(service)
+      registerMcpHandlers(service, writer)
 
       expect(invoke('mcp:listActivity', {})).toEqual({
         ok: false,
         error: { code: 'LIST_ACTIVITY_FAILED', message: 'database is locked' }
+      })
+    })
+  })
+
+  describe('mcp:listClientTargets', () => {
+    it('returns what the writer observed on disk', async () => {
+      expect(await invoke('mcp:listClientTargets')).toEqual({ ok: true, data: [sampleTargetStatus] })
+    })
+
+    it('returns LIST_CLIENT_TARGETS_FAILED when the writer throws', async () => {
+      writer.list = vi.fn().mockRejectedValue(new Error('home directory is gone'))
+      registerMcpHandlers(service, writer)
+
+      expect(await invoke('mcp:listClientTargets')).toEqual({
+        ok: false,
+        error: { code: 'LIST_CLIENT_TARGETS_FAILED', message: 'home directory is gone' }
+      })
+    })
+  })
+
+  describe('mcp:writeClientConfig', () => {
+    // The entry is main's to build: a renderer that could name `command` or
+    // `args` could point a client at any executable on the machine.
+    it('builds the entry from the service shim path and the caller token', async () => {
+      await invoke('mcp:writeClientConfig', { target: 'claude-code', token: 'cc_mcp_abc123' })
+
+      expect(writer.write).toHaveBeenCalledWith('claude-code', {
+        command: 'node',
+        args: [sampleStatus.shimPath],
+        env: { COURSE_COMPANION_MCP_TOKEN: 'cc_mcp_abc123' }
+      })
+    })
+
+    it('rejects a target this build does not enable, without touching the writer', async () => {
+      const result = await invoke('mcp:writeClientConfig', { target: 'cursor', token: 'cc_mcp_abc123' })
+
+      expect(writer.write).not.toHaveBeenCalled()
+      expect(result).toMatchObject({ ok: false, error: { code: 'VALIDATION_ERROR' } })
+    })
+
+    it('rejects an empty token without touching the writer', async () => {
+      const result = await invoke('mcp:writeClientConfig', { target: 'claude-code', token: '' })
+
+      expect(writer.write).not.toHaveBeenCalled()
+      expect(result).toMatchObject({ ok: false, error: { code: 'VALIDATION_ERROR' } })
+    })
+
+    // A refusal is the channel earning its keep: the alternative to reporting
+    // "not valid JSON" is silently destroying the file that held it.
+    it('surfaces the writer own refusal code rather than a generic failure', async () => {
+      writer.write = vi.fn().mockResolvedValue({ ok: false, code: 'CONFIG_NOT_UNDERSTOOD', message: 'not valid JSON' })
+      registerMcpHandlers(service, writer)
+
+      expect(await invoke('mcp:writeClientConfig', { target: 'claude-code', token: 'cc_mcp_abc123' })).toEqual({
+        ok: false,
+        error: { code: 'CONFIG_NOT_UNDERSTOOD', message: 'not valid JSON' }
+      })
+    })
+
+    it('returns WRITE_CLIENT_CONFIG_FAILED when the writer throws', async () => {
+      writer.write = vi.fn().mockRejectedValue(new Error('disk full'))
+      registerMcpHandlers(service, writer)
+
+      expect(await invoke('mcp:writeClientConfig', { target: 'claude-code', token: 'cc_mcp_abc123' })).toEqual({
+        ok: false,
+        error: { code: 'WRITE_CLIENT_CONFIG_FAILED', message: 'disk full' }
+      })
+    })
+  })
+
+  describe('mcp:removeClientConfig', () => {
+    it('asks the writer to drop the entry for the named target', async () => {
+      expect(await invoke('mcp:removeClientConfig', { target: 'claude-code' })).toMatchObject({ ok: true })
+      expect(writer.remove).toHaveBeenCalledWith('claude-code')
+    })
+
+    it('rejects a target this build does not enable', async () => {
+      const result = await invoke('mcp:removeClientConfig', { target: 'claude-desktop' })
+
+      expect(writer.remove).not.toHaveBeenCalled()
+      expect(result).toMatchObject({ ok: false, error: { code: 'VALIDATION_ERROR' } })
+    })
+
+    it('returns REMOVE_CLIENT_CONFIG_FAILED when the writer throws', async () => {
+      writer.remove = vi.fn().mockRejectedValue(new Error('read-only filesystem'))
+      registerMcpHandlers(service, writer)
+
+      expect(await invoke('mcp:removeClientConfig', { target: 'claude-code' })).toEqual({
+        ok: false,
+        error: { code: 'REMOVE_CLIENT_CONFIG_FAILED', message: 'read-only filesystem' }
       })
     })
   })

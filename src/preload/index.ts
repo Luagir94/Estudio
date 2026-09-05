@@ -104,11 +104,15 @@ import type {
   IssueMcpTokenResult,
   ListMcpActivityInput,
   ListMcpActivityResult,
+  ListMcpClientTargetsResult,
   McpActivityChangedPayload,
+  McpClientConfigWriteResult,
   McpStatusResult,
+  RemoveMcpClientConfigInput,
   RevokeMcpTokenResult,
   SetMcpPermissionInput,
-  SetMcpPermissionResult
+  SetMcpPermissionResult,
+  WriteMcpClientConfigInput
 } from '../shared/ipc/mcp'
 import type { Palette, SetPaletteInput, SetThemePreferenceInput, ThemePreference } from '../shared/ipc/theme'
 
@@ -255,6 +259,14 @@ const api = {
       ipcRenderer.invoke('mcp:setPermission', input),
     listActivity: (input: ListMcpActivityInput): Promise<IpcResult<ListMcpActivityResult>> =>
       ipcRenderer.invoke('mcp:listActivity', input),
+    listClientTargets: (): Promise<IpcResult<ListMcpClientTargetsResult>> =>
+      ipcRenderer.invoke('mcp:listClientTargets'),
+    // Forwarding only, exactly like `issueToken` above: the plaintext token in
+    // this payload is never inspected, logged or retained here.
+    writeClientConfig: (input: WriteMcpClientConfigInput): Promise<IpcResult<McpClientConfigWriteResult>> =>
+      ipcRenderer.invoke('mcp:writeClientConfig', input),
+    removeClientConfig: (input: RemoveMcpClientConfigInput): Promise<IpcResult<McpClientConfigWriteResult>> =>
+      ipcRenderer.invoke('mcp:removeClientConfig', input),
     // Pushed on every audit insert (design D9). Same unsubscribe-function
     // shape as `indexado.onStatusChanged` above.
     onActivityChanged: (callback: (payload: McpActivityChangedPayload) => void): (() => void) => {

@@ -94,11 +94,15 @@ import type {
   IssueMcpTokenResult,
   ListMcpActivityInput,
   ListMcpActivityResult,
+  ListMcpClientTargetsResult,
   McpActivityChangedPayload,
+  McpClientConfigWriteResult,
   McpStatusResult,
+  RemoveMcpClientConfigInput,
   RevokeMcpTokenResult,
   SetMcpPermissionInput,
-  SetMcpPermissionResult
+  SetMcpPermissionResult,
+  WriteMcpClientConfigInput
 } from '../../shared/ipc/mcp'
 import type { Palette, SetPaletteInput, SetThemePreferenceInput, ThemePreference } from '../../shared/ipc/theme'
 
@@ -236,6 +240,12 @@ declare global {
         setPermission: (input: SetMcpPermissionInput) => Promise<IpcResult<SetMcpPermissionResult>>
         /** Newest-first audit rows, capped by `input.limit` (design D9/D10). */
         listActivity: (input: ListMcpActivityInput) => Promise<IpcResult<ListMcpActivityResult>>
+        /** One row per ENABLED MCP client, each reporting whether it is installed and whether this app is registered in it. */
+        listClientTargets: () => Promise<IpcResult<ListMcpClientTargetsResult>>
+        /** Merges this app's entry into one client's own config file. Carries the plaintext token, which main never persists. */
+        writeClientConfig: (input: WriteMcpClientConfigInput) => Promise<IpcResult<McpClientConfigWriteResult>>
+        /** Drops this app's entry from one client's config file, leaving every other server untouched. */
+        removeClientConfig: (input: RemoveMcpClientConfigInput) => Promise<IpcResult<McpClientConfigWriteResult>>
         /** Pushed on every audit insert. Returns an unsubscribe function. */
         onActivityChanged: (callback: (payload: McpActivityChangedPayload) => void) => () => void
       }
