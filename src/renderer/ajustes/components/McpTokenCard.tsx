@@ -8,8 +8,8 @@
 //
 // No container, no react-query, no IPC here — same rule as every other card
 // on this screen.
-import { Ban, Copy, EyeOff, PlugZap, RefreshCw } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { Ban, Copy, Eye, EyeOff, PlugZap, RefreshCw } from 'lucide-react'
+import { type ReactNode, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { McpListenerState, McpStatusResult } from '../../../shared/ipc/mcp'
 import { buildClientConfig } from '../../mcp/domain/buildClientConfig'
@@ -30,6 +30,49 @@ const CHIP_STYLES: Record<McpListenerState, string> = {
 
 const BUTTON_CLASS =
   'inline-flex items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-body-sm font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-60'
+
+/**
+ * What stands in for the token while it is hidden.
+ *
+ * A FIXED count, not `'•'.repeat(token.length)`: the length of a secret is
+ * itself a fact about it, and this field exists to say nothing about the token
+ * until asked. It matches the 32 bullets in the approved `.pen` (node `Qfl1z`).
+ */
+const TOKEN_MASK = '•'.repeat(32)
+
+/**
+ * The token field from the approved `.pen` (node `zQ5iG` "Path Input"), with
+ * its reveal toggle (node `LTQfx`).
+ *
+ * Its own component purely so the reveal state can be reset by remounting it
+ * on a new token — see the `key` at the call site. Hiding is by ABSENCE, not by
+ * styling: the plaintext is never in the DOM until the student asks for it, so
+ * a screenshot or a shared screen of this card cannot leak what was never
+ * rendered.
+ */
+function TokenField({ token }: { token: string }): React.JSX.Element {
+  const { t } = useTranslation('mcp')
+  const [revealed, setRevealed] = useState(false)
+
+  return (
+    <div className="flex w-[350px] items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
+      <p className="min-w-0 flex-1 truncate font-mono text-body-sm text-foreground">{revealed ? token : TOKEN_MASK}</p>
+      <button
+        type="button"
+        onClick={() => setRevealed((current) => !current)}
+        aria-pressed={revealed}
+        aria-label={t(`mcpTokenCard.buttons.${revealed ? 'hideToken' : 'showToken'}`)}
+        className={cn('shrink-0 text-secondary-foreground', interactive)}
+      >
+        {revealed ? (
+          <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+        ) : (
+          <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+        )}
+      </button>
+    </div>
+  )
+}
 
 interface McpTokenCardProps {
   /**
@@ -91,6 +134,13 @@ export function McpTokenCard({
             {t(`mcpTokenCard.statusLabel.${status.listener}`)}
           </div>
 
+          {/* Between the status chip and "Copiar", per the approved `.pen`
+              (node `zQ5iG` inside `SARBT` "Head Right"). The `key` is what
+              resets the reveal on a rotation: a new token is a different
+              secret, and carrying the revealed state across would put it on
+              screen the instant it is minted. */}
+          {issuedToken && <TokenField key={issuedToken} token={issuedToken} />}
+
           <button
             type="button"
             onClick={copyClientConfig}
@@ -134,16 +184,10 @@ export function McpTokenCard({
       )}
 
       {issuedToken && (
-        <>
-          <div className="w-[350px] rounded-lg border border-border bg-background px-3 py-2">
-            <p className="break-all font-mono text-body-sm text-foreground">{issuedToken}</p>
-          </div>
-
-          <div className="flex items-center gap-2 rounded-lg bg-warn-soft px-3 py-2">
-            <EyeOff className="h-3.5 w-3.5 shrink-0 text-warn" aria-hidden="true" />
-            <p className="text-body-sm font-medium text-warn">{t('mcpTokenCard.warning')}</p>
-          </div>
-        </>
+        <div className="flex items-center gap-2 rounded-lg bg-warn-soft px-3 py-2">
+          <EyeOff className="h-3.5 w-3.5 shrink-0 text-warn" aria-hidden="true" />
+          <p className="text-body-sm font-medium text-warn">{t('mcpTokenCard.warning')}</p>
+        </div>
       )}
 
       {/* The hairline is the whole of the boundary between the token above and

@@ -11,7 +11,9 @@
     "buttons": {
       "copy": "Copiar",
       "rotate": "Rotar",
-      "revoke": "Revocar"
+      "revoke": "Revocar",
+      "showToken": "Mostrar token",
+      "hideToken": "Ocultar token"
     }
   },
   "mcpClientTargetsCard": {

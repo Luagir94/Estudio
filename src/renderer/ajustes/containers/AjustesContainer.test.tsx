@@ -678,8 +678,10 @@ describe('AjustesContainer — MCP', () => {
   })
 
   // The plaintext token exists nowhere else — `mcp:status` cannot read it
-  // back — so this is the one and only moment it can ever be shown.
-  it('issues a token when "Rotar" is pressed and shows it exactly once', async () => {
+  // back — so this is the one and only moment it can ever be reached. It
+  // arrives MASKED: the card holds it, and the student decides whether it
+  // goes on screen.
+  it('issues a token when "Rotar" is pressed and holds it, masked, behind the eye', async () => {
     window.api.mcp.issueToken = vi
       .fn()
       .mockResolvedValue({ ok: true, data: { token: 'cc_mcp_freshtoken', issuedAt: '2026-09-03T12:00:00.000Z' } })
@@ -690,7 +692,12 @@ describe('AjustesContainer — MCP', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Rotar' }))
 
-    expect(await screen.findByText('cc_mcp_freshtoken')).toBeInTheDocument()
+    const reveal = await screen.findByRole('button', { name: 'Mostrar token' })
+    expect(screen.queryByText('cc_mcp_freshtoken')).not.toBeInTheDocument()
+
+    fireEvent.click(reveal)
+
+    expect(screen.getByText('cc_mcp_freshtoken')).toBeInTheDocument()
     expect(window.api.mcp.issueToken).toHaveBeenCalledTimes(1)
   })
 
