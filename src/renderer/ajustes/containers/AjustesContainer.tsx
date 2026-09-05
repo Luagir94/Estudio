@@ -42,6 +42,7 @@ import {
 } from '../adapters/ajustesApi'
 import { AjustesSectionTabs } from '../components/AjustesSectionTabs'
 import { AppearanceCard } from '../components/AppearanceCard'
+import { CliProvidersCard } from '../components/CliProvidersCard'
 import { ConnectionStatusCard } from '../components/ConnectionStatusCard'
 import { DetectingProviderCard } from '../components/DetectingProviderCard'
 import { IdleProviderCard } from '../components/IdleProviderCard'
@@ -305,57 +306,66 @@ export function AjustesContainer({ onViewMcpActivity = () => {} }: AjustesContai
           it describes what detecting a CLI executes. */}
       {section === 'integraciones' && (
         <>
-          {/* One row per CLI (approved `.pen`), in one of three honest states:
+          {/* ONE card, one row per CLI (approved `.pen`, "Card — CLIs
+              detectados"). Each row is in one of three honest states:
                 idle      — not connected, so nothing is claimed;
                 detecting — this row's probe is running for the FIRST time;
                 answered  — the main process observed something.
               A re-probe stays in the answered state on purpose: the previous
               values are still the last thing actually observed, and the busy
-              chip is what says work is in flight. */}
-          {CLI_PROVIDERS.map((provider, index) => {
-            // useQueries maps over the same CLI_PROVIDERS list, so the row exists.
-            const probe = probes[index]!
+              chip is what says work is in flight.
 
-            if (probe.data) {
-              return (
-                <ConnectionStatusCard
+              The count in the head is derived from the SAME probe results the
+              rows render, so the head cannot claim a connection no row shows. */}
+          <CliProvidersCard
+            connectedCount={probes.filter((probe) => probe.data?.status === 'connected').length}
+            totalCount={CLI_PROVIDERS.length}
+          >
+            {CLI_PROVIDERS.map((provider, index) => {
+              // useQueries maps over the same CLI_PROVIDERS list, so the row exists.
+              const probe = probes[index]!
+
+              if (probe.data) {
+                return (
+                  <ConnectionStatusCard
+                    key={provider}
+                    status={probe.data}
+                    isReprobing={probe.isFetching}
+                    onReprobe={() => void probe.refetch()}
+                    onDisconnect={() => disconnectMutation.mutate(provider)}
+                    onCommitPath={(path) => overrideMutation.mutate({ provider, path })}
+                  />
+                )
+              }
+
+              // Work in flight is work in flight, whichever hook is carrying it. A
+              // first connect runs through the MUTATION (it commits the field before
+              // probing), so reading only the query's `isFetching` would leave the
+              // pressed row sitting there looking untouched while a process boots.
+              const connecting =
+                probe.isFetching || (overrideMutation.isPending && overrideMutation.variables?.provider === provider)
+
+              return connecting ? (
+                <DetectingProviderCard key={provider} provider={provider} />
+              ) : (
+                <IdleProviderCard
                   key={provider}
-                  status={probe.data}
-                  isReprobing={probe.isFetching}
-                  onReprobe={() => void probe.refetch()}
-                  onDisconnect={() => disconnectMutation.mutate(provider)}
-                  onCommitPath={(path) => overrideMutation.mutate({ provider, path })}
+                  provider={provider}
+                  // Pressing Conectar always COMMITS the field, whatever is in it.
+                  // One route for both cases, because clearing a saved path is a
+                  // statement too: an empty field means "autodetect on the PATH", and
+                  // a branch that only wrote non-empty values would leave the row
+                  // showing empty while a saved path stayed in force.
+                  //
+                  // `setOverride` writes the path, records the opt-in and probes, all
+                  // in one — which is also why nothing here has to sequence the probe
+                  // against the preferences re-read.
+                  overridePath={preferenceFor(provider)?.overridePath ?? null}
+                  onConnect={(path) => overrideMutation.mutate({ provider, path })}
                 />
               )
-            }
-
-            // Work in flight is work in flight, whichever hook is carrying it. A
-            // first connect runs through the MUTATION (it commits the field before
-            // probing), so reading only the query's `isFetching` would leave the
-            // pressed row sitting there looking untouched while a process boots.
-            const connecting =
-              probe.isFetching || (overrideMutation.isPending && overrideMutation.variables?.provider === provider)
-
-            return connecting ? (
-              <DetectingProviderCard key={provider} provider={provider} />
-            ) : (
-              <IdleProviderCard
-                key={provider}
-                provider={provider}
-                // Pressing Conectar always COMMITS the field, whatever is in it.
-                // One route for both cases, because clearing a saved path is a
-                // statement too: an empty field means "autodetect on the PATH", and
-                // a branch that only wrote non-empty values would leave the row
-                // showing empty while a saved path stayed in force.
-                //
-                // `setOverride` writes the path, records the opt-in and probes, all
-                // in one — which is also why nothing here has to sequence the probe
-                // against the preferences re-read.
-                overridePath={preferenceFor(provider)?.overridePath ?? null}
-                onConnect={(path) => overrideMutation.mutate({ provider, path })}
-              />
-            )
-          })}
+            })}
+          </CliProvidersCard>
 
           {/* Approved `.pen` ordering: after the last CLI card, before the
           policy note. Rendered only once the status read answers — same

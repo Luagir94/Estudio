@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest'
 import type { CliProbeFailureReason } from '../../../shared/ipc/cli'
 import {
   describeCliFailureReason,
-  executionWarningCopy,
+  EXECUTION_WARNING,
   unusableFriendlyMessage,
   resolveConnectionTone
 } from './connectionDisplay'
 
 // Both strings now name the CLI they belong to — an Antigravity card carrying
 // a Claude warning would be worse than no warning at all.
-const EXECUTION_WARNING_COPY = executionWarningCopy('claude')
+const EXECUTION_WARNING_COPY = EXECUTION_WARNING
 const UNUSABLE_FRIENDLY_MESSAGE = unusableFriendlyMessage('claude')
 
 describe('resolveConnectionTone', () => {
@@ -30,8 +30,16 @@ describe('EXECUTION_WARNING_COPY', () => {
   it('is a non-empty Spanish string matching the approved .pen design copy exactly', () => {
     expect(EXECUTION_WARNING_COPY.length).toBeGreaterThan(0)
     expect(EXECUTION_WARNING_COPY).toBe(
-      'La app va a EJECUTAR el archivo que indiques acá. Apuntá solo a un ejecutable de Claude Code en el que confíes.'
+      'Si indicás una ruta a mano, la app va a EJECUTAR ese archivo. Apuntá solo a un ejecutable en el que confíes.'
     )
+  })
+
+  // It names NO provider, and that is load-bearing rather than an omission.
+  // The three CLIs share one card now, so one sentence covers all of them —
+  // and a sentence that named one vendor while sitting under three rows would
+  // be worse than no warning at all.
+  it('names no CLI', () => {
+    expect(EXECUTION_WARNING_COPY).not.toMatch(/Claude|Codex|Antigravity/)
   })
 })
 

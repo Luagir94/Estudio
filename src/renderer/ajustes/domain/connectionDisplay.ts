@@ -113,17 +113,21 @@ export const PROVIDER_COMMANDS: Record<CliProvider, string> = {
 /**
  * Trust-boundary control (design D9), not decoration: the ONLY user-facing
  * compensating control for a boundary that admits no allowlist. Value is
- * exact per the approved `.pen` design (node `kLczV`, frame "Grupo —
- * Ajustes" › "Card — Ruta manual" › "Warning Note"), generalized from
- * "un ejecutable de Claude" to name whichever CLI the card belongs to —
- * pointing an Antigravity card at a Claude warning would be worse than no
- * warning.
- * Rendered UNCONDITIONALLY whenever the manual-path card renders — never
- * gated on status, override presence, or focus.
+ * exact per the approved `.pen` (node `xKqpC` "Execution Warning", inside
+ * "Card — CLIs detectados").
+ *
+ * It NAMES NO PROVIDER any more, and that is the redesign, not a regression.
+ * The three CLIs used to be three cards, so each carried its own copy of this
+ * sentence with its own vendor name in it — three identical warnings stacked
+ * in one viewport, which is how a warning becomes wallpaper. They are one card
+ * of rows now, so this is one line at its foot, and it holds for every row
+ * because the boundary it describes is the same one in all three: a path the
+ * student typed is a path this app will execute.
+ *
+ * Rendered UNCONDITIONALLY by that card — never gated on status, override
+ * presence, or focus. Any row in it can be given a path.
  */
-export function executionWarningCopy(provider: CliProvider): string {
-  return i18n.t('ajustes:connectionDisplay.executionWarning', { provider: PROVIDER_LABELS[provider] })
-}
+export const EXECUTION_WARNING = i18n.t('ajustes:connectionDisplay.executionWarning')
 
 /**
  * Friendly Spanish message for the `unusable` state (spec "Unusable Detail

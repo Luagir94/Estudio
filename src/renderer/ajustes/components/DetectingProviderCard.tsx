@@ -24,12 +24,12 @@ interface DetectingProviderCardProps {
 
 export function DetectingProviderCard({ provider }: DetectingProviderCardProps): React.JSX.Element {
   return (
-    <div className="flex w-full items-center justify-between gap-4 rounded-xl border border-border bg-card px-5 py-3.5">
+    <div className="flex w-full items-center justify-between gap-4">
       <div className="flex items-center gap-3">
         {/* The mark is drawn even while detecting: WHICH CLI a row is about is
             known before its probe answers — only its state is not. */}
         <ProviderMark provider={provider} className="h-[18px] w-[18px] text-secondary-foreground" />
-        <h3 className="text-body-lg font-semibold text-foreground">{PROVIDER_LABELS[provider]}</h3>
+        <h4 className="text-body-lg font-semibold text-foreground">{PROVIDER_LABELS[provider]}</h4>
       </div>
 
       {/* `role="status"` for the same reason `AskStateCard` uses it: a spinner

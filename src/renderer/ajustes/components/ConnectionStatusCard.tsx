@@ -1,5 +1,10 @@
-// Presentational (design nodes "Card — Claude Code" / "Card — Codex CLI (no
-// funciona)", frame "Grupo — Ajustes"): one ROW per CLI, in one of two shapes.
+// Presentational (approved `.pen`, rows "CLI Row — Claude Code" / "CLI Row —
+// Codex CLI" inside "Card — CLIs detectados"): one ROW per CLI, in one of two
+// shapes.
+//
+// A ROW, not a card — no border and no surface of its own. Its execution
+// warning moved out too: the card owns ONE for all three rows, because the
+// boundary is the same one in each. See `ExecutionWarning.tsx`.
 //
 // A HEALTHY, autodetected CLI collapses to a single line: mark, name, green
 // chip, nothing else. The version, the resolved path, the origin and the three
@@ -35,7 +40,6 @@ import {
   unusableFriendlyMessage,
   type ConnectionTone
 } from '../domain/connectionDisplay'
-import { ExecutionWarning } from './ExecutionWarning'
 import { InlinePathInput } from './InlinePathInput'
 import { ProviderMark } from './ProviderMark'
 
@@ -77,9 +81,10 @@ export function ConnectionStatusCard({
 }: ConnectionStatusCardProps): React.JSX.Element {
   const { t } = useTranslation('ajustes')
   const tone = resolveConnectionTone(status.status)
-  // ONE boolean drives the path field AND its execution warning, so the two can
-  // never drift apart — see `ConnectionStatusCard.test.tsx`, which asserts that
-  // the warning is present wherever the field is.
+  // Drives the path field only. It used to drive this row's own execution
+  // warning too, so the two could not drift apart; the warning is the card's
+  // now and is unconditional, which keeps the guarantee the old pairing gave —
+  // no field ever appears without it — without three copies of the sentence.
   const showsPath = shouldShowManualPath(status)
   // Only the caveats of capabilities the binary does NOT have. `structuredOutput`
   // is dropped when inert because `INERT_MESSAGE` above already says it, at
@@ -89,11 +94,11 @@ export function ConnectionStatusCard({
     .map((row) => row.caveat)
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-card px-5 py-3.5">
+    <div className="flex w-full flex-col gap-1.5">
       <div className="flex w-full items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <ProviderMark provider={status.provider} className="h-[18px] w-[18px] text-secondary-foreground" />
-          <h3 className="text-body-lg font-semibold text-foreground">{PROVIDER_LABELS[status.provider]}</h3>
+          <h4 className="text-body-lg font-semibold text-foreground">{PROVIDER_LABELS[status.provider]}</h4>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -164,10 +169,6 @@ export function ConnectionStatusCard({
           {unusableFriendlyMessage(status.provider)} · {describeCliFailureReason(status.failureReason)}
         </p>
       )}
-
-      {/* Tied to the SAME boolean as the field above. Design D9: the app
-          EXECUTES whatever that field points at. */}
-      {showsPath && <ExecutionWarning provider={status.provider} />}
     </div>
   )
 }

@@ -1,6 +1,10 @@
-// Presentational (design node "Card — Antigravity CLI (sin conectar)", frame
-// "Grupo — Ajustes"): the state a provider row is in when the screen opens —
-// nothing probed, because connecting a CLI is opt-in.
+// Presentational (approved `.pen`, row "CLI Row — Antigravity CLI" inside
+// "Card — CLIs detectados"): the state a provider row is in when the screen
+// opens — nothing probed, because connecting a CLI is opt-in.
+//
+// A ROW, not a card. It carries no border and no surface of its own since the
+// redesign: the three providers share one card, and three nested cards inside
+// it would draw a box around every line of a list.
 //
 // ONE ROW: mark, name, the optional path field, and the button that starts the
 // probe. It makes NO claim about the CLI — not that it is installed, not that
@@ -15,7 +19,6 @@ import { Plug } from 'lucide-react'
 import { useState } from 'react'
 import type { CliProvider } from '../../../shared/ipc/cli'
 import { CONNECT_ACTION, PROVIDER_LABELS } from '../domain/connectionDisplay'
-import { ExecutionWarning } from './ExecutionWarning'
 import { InlinePathInput } from './InlinePathInput'
 import { ProviderMark } from './ProviderMark'
 
@@ -43,34 +46,27 @@ export function IdleProviderCard({ provider, overridePath, onConnect }: IdleProv
   const [path, setPath] = useState<string | null>(overridePath)
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-card px-5 py-3.5">
-      <div className="flex w-full items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <ProviderMark provider={provider} className="h-[18px] w-[18px] text-secondary-foreground" />
-          <h3 className="text-body-lg font-semibold text-foreground">{PROVIDER_LABELS[provider]}</h3>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <InlinePathInput provider={provider} overridePath={overridePath} onCommit={setPath} />
-          {/* The accessible name carries the CLI: three identical "Conectar"
-              buttons on one screen are indistinguishable to anyone navigating
-              by control. */}
-          <button
-            type="button"
-            onClick={() => onConnect(path)}
-            aria-label={`${CONNECT_ACTION} ${PROVIDER_LABELS[provider]}`}
-            className="flex items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-body-sm font-semibold text-foreground transition-colors duration-150 ease-out hover:bg-muted/70 active:bg-muted/50"
-          >
-            <Plug className="h-3.5 w-3.5 text-secondary-foreground" aria-hidden="true" />
-            {CONNECT_ACTION}
-          </button>
-        </div>
+    <div className="flex w-full items-center justify-between gap-4">
+      <div className="flex items-center gap-3">
+        <ProviderMark provider={provider} className="h-[18px] w-[18px] text-secondary-foreground" />
+        <h4 className="text-body-lg font-semibold text-foreground">{PROVIDER_LABELS[provider]}</h4>
       </div>
 
-      {/* Unconditional, because the path field above it is unconditional here.
-          Design D9: the app EXECUTES whatever that field points at, and this is
-          the only compensating control that boundary has. */}
-      <ExecutionWarning provider={provider} />
+      <div className="flex shrink-0 items-center gap-2">
+        <InlinePathInput provider={provider} overridePath={overridePath} onCommit={setPath} />
+        {/* The accessible name carries the CLI: three identical "Conectar"
+            buttons on one screen are indistinguishable to anyone navigating
+            by control. */}
+        <button
+          type="button"
+          onClick={() => onConnect(path)}
+          aria-label={`${CONNECT_ACTION} ${PROVIDER_LABELS[provider]}`}
+          className="flex items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-body-sm font-semibold text-foreground transition-colors duration-150 ease-out hover:bg-muted/70 active:bg-muted/50"
+        >
+          <Plug className="h-3.5 w-3.5 text-secondary-foreground" aria-hidden="true" />
+          {CONNECT_ACTION}
+        </button>
+      </div>
     </div>
   )
 }

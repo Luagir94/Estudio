@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { CONNECT_ACTION, executionWarningCopy, PATH_INPUT_PLACEHOLDER } from '../domain/connectionDisplay'
+import { CONNECT_ACTION, PATH_INPUT_PLACEHOLDER } from '../domain/connectionDisplay'
 import { IdleProviderCard } from './IdleProviderCard'
 
 describe('IdleProviderCard', () => {
@@ -72,22 +72,5 @@ describe('IdleProviderCard', () => {
     render(<IdleProviderCard overridePath={null} provider="claude" onConnect={vi.fn()} />)
 
     expect(screen.getByPlaceholderText(PATH_INPUT_PLACEHOLDER)).toBeInTheDocument()
-  })
-
-  // Design D9. The app EXECUTES whatever that field points at, and this warning
-  // is the only compensating control that boundary has. There is no status, no
-  // override presence and no focus state that may hide it.
-  it('renders the execution warning wherever the path field renders', () => {
-    render(<IdleProviderCard overridePath={null} provider="antigravity" onConnect={vi.fn()} />)
-
-    expect(screen.getByPlaceholderText(PATH_INPUT_PLACEHOLDER)).toBeInTheDocument()
-    expect(screen.getByText(executionWarningCopy('antigravity'))).toBeInTheDocument()
-  })
-
-  it('names the CLI in the warning, never another one', () => {
-    render(<IdleProviderCard overridePath={null} provider="codex" onConnect={vi.fn()} />)
-
-    expect(screen.getByText(executionWarningCopy('codex'))).toBeInTheDocument()
-    expect(screen.queryByText(executionWarningCopy('claude'))).not.toBeInTheDocument()
   })
 })

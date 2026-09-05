@@ -11,7 +11,7 @@
     "disconnectAction": "Desconectar",
     "pathInputPlaceholder": "Ruta del ejecutable (opcional)",
     "inertMessage": "Encontramos este CLI, pero la versión instalada no acepta las opciones que la app necesita. Todavía no se puede preguntar con él.",
-    "executionWarning": "La app va a EJECUTAR el archivo que indiques acá. Apuntá solo a un ejecutable de {{provider}} en el que confíes.",
+    "executionWarning": "Si indicás una ruta a mano, la app va a EJECUTAR ese archivo. Apuntá solo a un ejecutable en el que confíes.",
     "unusableFriendlyMessage": "Encontramos {{provider}}, pero no pudimos usarlo.",
     "failureReason": {
       "invalidExecutable": "La ruta {{path}} no es un ejecutable válido. Revisá la ruta en Ajustes.",
@@ -78,5 +78,10 @@
       "integraciones": "Integraciones",
       "permisos": "Permisos"
     }
+  },
+  "cliProvidersCard": {
+    "title": "CLIs detectados",
+    "description_one": "Course Companion los detecta solos · {{count}} de {{total}} conectado",
+    "description_other": "Course Companion los detecta solos · {{count}} de {{total}} conectados"
   }
 }

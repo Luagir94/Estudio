@@ -3,7 +3,6 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { CliProviderStatus } from '../../../shared/ipc/cli'
 import {
-  executionWarningCopy,
   INERT_MESSAGE,
   PATH_INPUT_PLACEHOLDER,
   RETRY_ACTION,
@@ -65,14 +64,14 @@ describe('ConnectionStatusCard — healthy row collapses to one line', () => {
     expect(screen.queryByText('Respuestas estructuradas')).not.toBeInTheDocument()
   })
 
-  // Design D9's converse: no field, no warning. The warning exists to disclose
-  // an execution the field invites, so showing it with nothing to type would be
-  // alarming the user about a risk this row does not carry.
-  it('shows neither the path field nor the execution warning', () => {
+  // A healthy autodetected row has nothing a path could fix, so it offers no
+  // field. The execution warning is no longer this component's to show or hide
+  // — it belongs to the card that holds every row (`CliProvidersCard`), which
+  // is where the D9 invariant is now tested.
+  it('shows no path field', () => {
     renderCard({ status: 'connected', capabilities: ALL_CAPABLE })
 
     expect(screen.queryByPlaceholderText(PATH_INPUT_PLACEHOLDER)).not.toBeInTheDocument()
-    expect(screen.queryByText(executionWarningCopy('claude'))).not.toBeInTheDocument()
   })
 })
 
@@ -255,11 +254,10 @@ describe('ConnectionStatusCard — path field and execution warning move togethe
       }
     ],
     ['connected but inert', { status: 'connected' as const, capabilities: { ...ALL_CAPABLE, structuredOutput: false } }]
-  ])('shows both when %s', (_label, overrides) => {
+  ])('shows the path field when %s', (_label, overrides) => {
     renderCard(overrides)
 
     expect(screen.getByPlaceholderText(PATH_INPUT_PLACEHOLDER)).toBeInTheDocument()
-    expect(screen.getByText(executionWarningCopy('claude'))).toBeInTheDocument()
   })
 
   it('shows the persisted override in the field so the user can see and clear it', () => {
