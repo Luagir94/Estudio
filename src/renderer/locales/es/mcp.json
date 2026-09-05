@@ -29,6 +29,7 @@
     "targets": {
       "claude-code": "Claude Code",
       "antigravity": "Antigravity CLI",
+      "codex": "Codex CLI",
       "claude-desktop": "Claude Desktop",
       "cursor": "Cursor"
     }

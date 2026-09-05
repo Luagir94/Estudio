@@ -12,6 +12,8 @@ const ENTRY = buildServerEntry('C:\\app\\resources\\mcp-shim\\index.cjs', 'cc_mc
 
 const AGY_CONFIG = path.join(HOME, '.gemini', 'config', 'mcp_config.json')
 const AGY_DIR = path.join(HOME, '.gemini', 'antigravity-cli')
+const CODEX_CONFIG = path.join(HOME, '.codex', 'config.toml')
+const CODEX_DIR = path.join(HOME, '.codex')
 
 const enoent = (): NodeJS.ErrnoException => Object.assign(new Error('not found'), { code: 'ENOENT' })
 
@@ -62,7 +64,7 @@ const rowFor = async (fs: ReturnType<typeof makeFs>, target: string): Promise<Re
 
 describe('clientConfigWriter.list', () => {
   it('lists every enabled target, in the order the contract enables them', async () => {
-    expect((await build(makeFs()).list()).map((row) => row.target)).toEqual(['claude-code', 'antigravity'])
+    expect((await build(makeFs()).list()).map((row) => row.target)).toEqual(['claude-code', 'antigravity', 'codex'])
   })
 
   it('reports a detected client with our entry already present as connected', async () => {
@@ -103,6 +105,26 @@ describe('clientConfigWriter.list', () => {
       detected: true,
       connected: false
     })
+  })
+
+  it('reads Codex connection out of its TOML file rather than trying to parse it as JSON', async () => {
+    const fs = makeFs(
+      { [CODEX_CONFIG]: `model = "gpt-5.6-sol"\n\n[mcp_servers.${COURSE_COMPANION_SERVER_KEY}]\ncommand = "node"\n` },
+      [CODEX_DIR]
+    )
+
+    expect(await rowFor(fs, 'codex')).toEqual({
+      target: 'codex',
+      configPath: CODEX_CONFIG,
+      detected: true,
+      connected: true
+    })
+  })
+
+  it('reports Codex as not connected when only other servers are in its file', async () => {
+    const fs = makeFs({ [CODEX_CONFIG]: '[mcp_servers.engram]\ncommand = "engram"\n' }, [CODEX_DIR])
+
+    expect(await rowFor(fs, 'codex')).toMatchObject({ detected: true, connected: false })
   })
 })
 
@@ -225,6 +247,86 @@ describe('clientConfigWriter.remove', () => {
 
     expect(await build(empty).remove('claude-code')).toMatchObject({ ok: true, result: { changed: false } })
     expect(empty.writeFile).not.toHaveBeenCalled()
+  })
+})
+
+// Codex is the one TOML target, and the whole reason it is served by a
+// surgical block edit rather than by the JSON merge: these assert at the
+// WRITER level what `mergeTomlClientConfig.test.ts` asserts purely — that the
+// student's own file comes back with our table added and nothing else moved.
+describe('clientConfigWriter on a TOML client', () => {
+  const CODEX_BACKUP = `${CODEX_CONFIG}.course-companion-backup`
+  const CODEX_TEMP = `${CODEX_CONFIG}.course-companion.tmp`
+
+  const existing = [
+    '# my own notes',
+    'model = "gpt-5.6-sol"',
+    '',
+    '[mcp_servers.engram]',
+    'command = "engram"',
+    'args = [ "mcp", "--tools=agent" ]',
+    ''
+  ].join('\n')
+
+  it('adds our table and leaves the comments and the other servers untouched', async () => {
+    const fs = makeFs({ [CODEX_CONFIG]: existing }, [CODEX_DIR])
+
+    const outcome = await build(fs).write('codex', ENTRY)
+
+    expect(outcome).toMatchObject({ ok: true, result: { changed: true, configPath: CODEX_CONFIG } })
+    const written = fs.files.get(CODEX_CONFIG) as string
+    expect(written.startsWith(existing)).toBe(true)
+    expect(written).toContain(`[mcp_servers.${COURSE_COMPANION_SERVER_KEY}]`)
+    expect(written).toContain('cc_mcp_abc123')
+  })
+
+  it('creates the file when Codex has no config yet', async () => {
+    const fs = makeFs({}, [CODEX_DIR])
+
+    const outcome = await build(fs).write('codex', ENTRY)
+
+    expect(outcome).toMatchObject({ ok: true, result: { changed: true, backupPath: null } })
+    expect(fs.files.get(CODEX_CONFIG)).toContain(`[mcp_servers.${COURSE_COMPANION_SERVER_KEY}]`)
+  })
+
+  it('backs up and writes through a temporary file, same as the JSON path', async () => {
+    const fs = makeFs({ [CODEX_CONFIG]: existing }, [CODEX_DIR])
+
+    await build(fs).write('codex', ENTRY)
+
+    expect(fs.copyFile).toHaveBeenCalledWith(CODEX_CONFIG, CODEX_BACKUP)
+    expect(fs.rename).toHaveBeenCalledWith(CODEX_TEMP, CODEX_CONFIG)
+  })
+
+  it('does not rewrite the file when it already says exactly this', async () => {
+    const fs = makeFs({ [CODEX_CONFIG]: existing }, [CODEX_DIR])
+    await build(fs).write('codex', ENTRY)
+    const settled = fs.files.get(CODEX_CONFIG) as string
+
+    const second = makeFs({ [CODEX_CONFIG]: settled }, [CODEX_DIR])
+    const outcome = await build(second).write('codex', ENTRY)
+
+    expect(outcome).toMatchObject({ ok: true, result: { changed: false, backupPath: null } })
+    expect(second.writeFile).not.toHaveBeenCalled()
+  })
+
+  it('register then unregister lands back on the original bytes', async () => {
+    const fs = makeFs({ [CODEX_CONFIG]: existing }, [CODEX_DIR])
+
+    await build(fs).write('codex', ENTRY)
+    await build(fs).remove('codex')
+
+    expect(fs.files.get(CODEX_CONFIG)).toBe(existing)
+  })
+
+  // Fail closed: a shape we cannot edit surgically would take every OTHER
+  // server in the file down with it if we appended anyway.
+  it('refuses, without writing, when the servers map is one flat table', async () => {
+    const fs = makeFs({ [CODEX_CONFIG]: '[mcp_servers]\nengram = { command = "engram" }\n' }, [CODEX_DIR])
+
+    expect(await build(fs).write('codex', ENTRY)).toMatchObject({ ok: false, code: 'CONFIG_NOT_UNDERSTOOD' })
+    expect(fs.writeFile).not.toHaveBeenCalled()
+    expect(fs.copyFile).not.toHaveBeenCalled()
   })
 })
 

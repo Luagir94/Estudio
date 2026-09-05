@@ -11,9 +11,10 @@
 //
 // Formatting is NOT preserved: the output is re-serialised at two-space indent.
 // That is acceptable for JSON precisely because JSON carries no comments to
-// lose — and it is the reason the enabled-target table stays JSON-only. A TOML
-// client (Codex) would lose the user's own comments on a round trip, so it is
-// deliberately left on the copy-to-clipboard path instead.
+// lose. A TOML client would lose the user's own comments on the same round
+// trip, which is why Codex is NOT served from here: it goes through
+// `mergeTomlClientConfig`, which never parses the file and edits only the byte
+// range of the one table this app owns.
 
 /** The single key this app owns inside a client's server map. Never a name derived from user input. */
 export const COURSE_COMPANION_SERVER_KEY = 'course-companion'
@@ -28,8 +29,12 @@ export interface McpServerEntry {
 /**
  * Why a merge refused. Each one means "this app did not understand the file",
  * never "the file is wrong" — the user's config is not this app's to correct.
+ *
+ * `servers-not-tables` is raised only by the TOML sibling, and lives here
+ * because both merges answer on the same `MergeResult` and the writer maps
+ * every reason from one table.
  */
-export type MergeRefusal = 'unparseable' | 'not-an-object' | 'servers-not-an-object'
+export type MergeRefusal = 'unparseable' | 'not-an-object' | 'servers-not-an-object' | 'servers-not-tables'
 
 export type MergeResult =
   | {

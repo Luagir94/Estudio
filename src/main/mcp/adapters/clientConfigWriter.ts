@@ -10,13 +10,15 @@ import path from 'node:path'
 import log from 'electron-log'
 import type { McpClientTarget, McpClientTargetStatus, McpClientConfigWriteResult } from '../../../shared/ipc/mcp'
 import { ENABLED_MCP_CLIENT_TARGETS } from '../../../shared/ipc/mcp'
-import { targetSpec } from '../domain/clientTargetSpec'
+import { type ClientConfigFormat, targetSpec } from '../domain/clientTargetSpec'
 import {
   COURSE_COMPANION_SERVER_KEY,
   type McpServerEntry,
   mergeClientConfig,
+  type MergeResult,
   removeClientConfig
 } from '../domain/mergeClientConfig'
+import { mergeTomlClientConfig, removeTomlClientConfig } from '../domain/mergeTomlClientConfig'
 
 // The only module in this feature that touches a filesystem — and the only one
 // that touches a file this app does NOT own. Everything it writes goes through
@@ -71,8 +73,27 @@ const message = (error: unknown): string => (error instanceof Error ? error.mess
 const REFUSAL_MESSAGES = {
   unparseable: 'the client config file is not valid JSON',
   'not-an-object': 'the client config file does not hold a JSON object',
-  'servers-not-an-object': 'the client config file holds an unexpected shape under its servers key'
+  'servers-not-an-object': 'the client config file holds an unexpected shape under its servers key',
+  'servers-not-tables': 'the client config file states its MCP servers in a shape this app cannot edit safely'
 } as const
+
+/**
+ * The merge that understands this client's file.
+ *
+ * Branching on the format the SPEC declares, never on the target's name: a
+ * fourth client arriving with a TOML config is a row in that table, not a
+ * branch added here.
+ */
+const MERGES: Record<
+  ClientConfigFormat,
+  {
+    write: (raw: string | null, key: string, entry: McpServerEntry) => MergeResult
+    remove: (raw: string | null, key: string) => MergeResult
+  }
+> = {
+  json: { write: mergeClientConfig, remove: removeClientConfig },
+  toml: { write: mergeTomlClientConfig, remove: removeTomlClientConfig }
+}
 
 export function createClientConfigWriter({
   readFile = (filePath) => fsReadFile(filePath, 'utf8'),
@@ -119,7 +140,7 @@ export function createClientConfigWriter({
     target: McpClientTarget,
     configPath: string,
     hadFile: boolean,
-    merged: ReturnType<typeof mergeClientConfig>
+    merged: MergeResult
   ): Promise<ClientConfigOutcome> {
     if (!merged.ok) {
       logger.error(`mcp client config: target=${target} refused — ${REFUSAL_MESSAGES[merged.reason]}`)
@@ -153,7 +174,7 @@ export function createClientConfigWriter({
   async function open(
     target: McpClientTarget
   ): Promise<
-    | { ok: true; configPath: string; serversKey: string; raw: string | null }
+    | { ok: true; configPath: string; serversKey: string; format: ClientConfigFormat; raw: string | null }
     | { ok: false; code: ClientConfigFailureCode; message: string }
   > {
     const spec = targetSpec(target)
@@ -167,7 +188,7 @@ export function createClientConfigWriter({
       return read
     }
 
-    return { ok: true, configPath, serversKey: spec.serversKey, raw: read.raw }
+    return { ok: true, configPath, serversKey: spec.serversKey, format: spec.format, raw: read.raw }
   }
 
   return {
@@ -185,7 +206,7 @@ export function createClientConfigWriter({
             target,
             configPath,
             detected,
-            connected: spec ? await isConnected(configPath, spec.serversKey) : false
+            connected: spec ? await isConnected(configPath, spec.serversKey, spec.format) : false
           }
         })
       )
@@ -201,7 +222,7 @@ export function createClientConfigWriter({
         target,
         opened.configPath,
         opened.raw !== null,
-        mergeClientConfig(opened.raw, opened.serversKey, entry)
+        MERGES[opened.format].write(opened.raw, opened.serversKey, entry)
       )
     },
 
@@ -211,7 +232,12 @@ export function createClientConfigWriter({
         return opened
       }
 
-      return commit(target, opened.configPath, opened.raw !== null, removeClientConfig(opened.raw, opened.serversKey))
+      return commit(
+        target,
+        opened.configPath,
+        opened.raw !== null,
+        MERGES[opened.format].remove(opened.raw, opened.serversKey)
+      )
     }
   }
 
@@ -221,9 +247,21 @@ export function createClientConfigWriter({
    * did, and the file is the only thing the client actually obeys — a user who
    * edited it by hand must see the truth, not our memory of it.
    */
-  async function isConnected(configPath: string, serversKey: string): Promise<boolean> {
+  async function isConnected(configPath: string, serversKey: string, format: ClientConfigFormat): Promise<boolean> {
     try {
-      const parsed: unknown = JSON.parse(await readFile(configPath))
+      const raw = await readFile(configPath)
+
+      // For TOML the question "is our block in there" is answered by the
+      // removal itself: `changed` is true exactly when there was a block of
+      // ours to take out. Asking the merge rather than a second regex here
+      // means the listing and the write can never disagree about what counts
+      // as our entry.
+      if (format === 'toml') {
+        const removal = removeTomlClientConfig(raw, serversKey)
+        return removal.ok && removal.changed
+      }
+
+      const parsed: unknown = JSON.parse(raw)
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
         return false
       }

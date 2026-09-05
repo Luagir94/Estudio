@@ -37,7 +37,8 @@ describe('MCP_TARGET_SPECS', () => {
     expect(targetSpec('claude-code')).toMatchObject({
       configSegments: ['.claude.json'],
       detectSegments: ['.claude'],
-      serversKey: 'mcpServers'
+      serversKey: 'mcpServers',
+      format: 'json'
     })
   })
 
@@ -49,7 +50,8 @@ describe('MCP_TARGET_SPECS', () => {
   it('points the Antigravity CLI at the config file agy itself reads', () => {
     expect(targetSpec('antigravity')).toMatchObject({
       configSegments: ['.gemini', 'config', 'mcp_config.json'],
-      serversKey: 'mcpServers'
+      serversKey: 'mcpServers',
+      format: 'json'
     })
   })
 
@@ -57,6 +59,30 @@ describe('MCP_TARGET_SPECS', () => {
   // offer to register a client that is not installed.
   it('detects Antigravity on its own state directory rather than on the shared .gemini root', () => {
     expect(targetSpec('antigravity')?.detectSegments).toEqual(['.gemini', 'antigravity-cli'])
+  })
+
+  it('points Codex at its TOML config and declares the format that says so', () => {
+    expect(targetSpec('codex')).toMatchObject({
+      configSegments: ['.codex', 'config.toml'],
+      detectSegments: ['.codex'],
+      serversKey: 'mcp_servers',
+      format: 'toml'
+    })
+  })
+
+  // The format is what the writer branches on. A row claiming `json` for a file
+  // that is not JSON would send the student's config through a parse-and-
+  // re-serialise that strips every comment in it.
+  it('declares toml only for a config file that is one', () => {
+    for (const target of MCP_CLIENT_TARGET_VALUES) {
+      const spec = MCP_TARGET_SPECS[target]
+      if (!spec) continue
+
+      const isTomlFile = spec.configSegments[spec.configSegments.length - 1]?.endsWith('.toml') === true
+      expect(spec.format === 'toml', `${target} declares ${spec.format} for ${spec.configSegments.join('/')}`).toBe(
+        isTomlFile
+      )
+    }
   })
 
   it('resolves nothing for a target this build does not offer', () => {

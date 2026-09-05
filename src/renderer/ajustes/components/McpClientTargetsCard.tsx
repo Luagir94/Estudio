@@ -28,6 +28,7 @@ import { ProviderMark } from './ProviderMark'
 const TARGET_MARK: Record<McpClientTarget, CliProvider | null> = {
   'claude-code': 'claude',
   antigravity: 'antigravity',
+  codex: 'codex',
   'claude-desktop': 'claude',
   cursor: null
 }

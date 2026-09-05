@@ -10,6 +10,9 @@
 // somewhere no client will ever read. A target earns a row by being run.
 import type { McpClientTarget } from '../../../shared/ipc/mcp'
 
+/** How a client states its server map on disk — read at the write site, never inferred from the target's name. */
+export type ClientConfigFormat = 'json' | 'toml'
+
 export interface McpTargetSpec {
   /** Config file to merge into, as path segments under the user's home directory. */
   configSegments: readonly string[]
@@ -21,8 +24,13 @@ export interface McpTargetSpec {
    * anything. Some of these clients are GUI apps that are not on `PATH` at all.
    */
   detectSegments: readonly string[]
-  /** Key holding the client's server map. `mcpServers` for every JSON client verified so far. */
+  /**
+   * Key holding the client's server map: an object key for a `json` target, the
+   * table prefix for a `toml` one.
+   */
   serversKey: string
+  /** Which merge understands this client's file. */
+  format: ClientConfigFormat
   /** Human label for the settings screen. */
   label: string
   /** What was actually run to earn this row — the honest half of the table. */
@@ -44,6 +52,7 @@ export const MCP_TARGET_SPECS: Readonly<Record<McpClientTarget, McpTargetSpec | 
     configSegments: ['.claude.json'],
     detectSegments: ['.claude'],
     serversKey: 'mcpServers',
+    format: 'json',
     label: 'Claude Code',
     verified: 'claude 2.x on Windows, 2026-09-05 — read back with `claude mcp list`'
   },
@@ -65,10 +74,31 @@ export const MCP_TARGET_SPECS: Readonly<Record<McpClientTarget, McpTargetSpec | 
     configSegments: ['.gemini', 'config', 'mcp_config.json'],
     detectSegments: ['.gemini', 'antigravity-cli'],
     serversKey: 'mcpServers',
+    format: 'json',
     label: 'Antigravity CLI',
     verified:
       'agy.exe on Windows, 2026-09-05 — wrote `{command,args,env}` with no `disabled` field into ' +
       '~/.gemini/config/mcp_config.json and `agy mcp list` reported it enabled'
+  },
+
+  // The only TOML target, and the reason `mergeTomlClientConfig` exists. Codex
+  // reads `~/.codex/config.toml`, a file students edit by hand: a parse-and-
+  // re-serialise round trip would hand it back with every comment gone, so this
+  // target is served by a surgical block edit instead.
+  //
+  // Nothing here shells out to `codex mcp add`, even though that subcommand
+  // exists and would be the obvious route. It takes the environment as
+  // `--env KEY=value`, which would put the plaintext token on a command line —
+  // exactly what this feature's threat model forbids by construction.
+  codex: {
+    configSegments: ['.codex', 'config.toml'],
+    detectSegments: ['.codex'],
+    serversKey: 'mcp_servers',
+    format: 'toml',
+    label: 'Codex CLI',
+    verified:
+      'codex-cli 0.148.0-alpha.15 on Windows, 2026-09-05 — `[mcp_servers.<name>]` + ' +
+      '`[mcp_servers.<name>.env]` is the shape `codex mcp add` writes and `codex mcp list` reads back'
   },
 
   'claude-desktop': undefined,

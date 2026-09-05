@@ -169,11 +169,11 @@ export type McpActivityChangedPayload = z.infer<typeof mcpActivityChangedPayload
 // --- MCP client targets ------------------------------------------------------
 
 // The clients this app can register ITSELF in, by writing their own config
-// file. Deliberately NOT `CliProvider` from `cli.ts`, even though some of the
+// file. Deliberately NOT `CliProvider` from `cli.ts`, even though three of the
 // names now overlap exactly: that enum answers "who can this app send a
 // question to" (outbound, spawned), and this one answers "who may read this
-// student's data through the shim" (inbound, never spawned). Names coinciding
-// is a coincidence of which tools a student happens to have, not a
+// student's data through the shim" (inbound, never spawned). The two lists
+// coinciding is a coincidence of which tools a student happens to have, not a
 // relationship — Claude Desktop and Cursor are never spawned at all and could
 // not appear there, and a client could perfectly well be registrable here while
 // this app has no way to ask it anything.
@@ -182,7 +182,7 @@ export type McpActivityChangedPayload = z.infer<typeof mcpActivityChangedPayload
 // `cli.ts`'s `cliProviderSchema`/`enabledCliProviderSchema` uses, and for the
 // same reason: a persisted row naming a target still parses instead of
 // throwing, while only a verified target may cross the bridge in a write.
-export const MCP_CLIENT_TARGET_VALUES = ['claude-code', 'antigravity', 'claude-desktop', 'cursor'] as const
+export const MCP_CLIENT_TARGET_VALUES = ['claude-code', 'antigravity', 'codex', 'claude-desktop', 'cursor'] as const
 
 export const mcpClientTargetSchema = z.enum(MCP_CLIENT_TARGET_VALUES)
 
@@ -196,11 +196,11 @@ export type McpClientTarget = z.infer<typeof mcpClientTargetSchema>
  * real client, not transcribed from documentation. `clientTargetSpec.ts` states
  * per row exactly what was run.
  *
- * `claude-desktop` and `cursor` use the same `mcpServers` shape as the two
+ * `claude-desktop` and `cursor` use the same `mcpServers` shape as the three
  * below and are expected to work, but expected is not verified, so they stay
  * inert until someone runs them.
  */
-export const ENABLED_MCP_CLIENT_TARGETS: readonly McpClientTarget[] = ['claude-code', 'antigravity']
+export const ENABLED_MCP_CLIENT_TARGETS: readonly McpClientTarget[] = ['claude-code', 'antigravity', 'codex']
 
 export function isClientTargetEnabled(target: McpClientTarget): boolean {
   return ENABLED_MCP_CLIENT_TARGETS.includes(target)
