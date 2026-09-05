@@ -165,3 +165,105 @@ export type ListMcpActivityResult = z.infer<typeof listMcpActivityResultSchema>
 export const mcpActivityChangedPayloadSchema = z.object({ id: z.number().int() })
 
 export type McpActivityChangedPayload = z.infer<typeof mcpActivityChangedPayloadSchema>
+
+// --- MCP client targets ------------------------------------------------------
+
+// The clients this app can register ITSELF in, by writing their own config
+// file. Deliberately NOT `CliProvider` from `cli.ts`, even though the names
+// overlap: that enum answers "who can this app send a question to" (outbound,
+// spawned), and this one answers "who may read this student's data through the
+// shim" (inbound, never spawned). Claude Desktop and Cursor are never spawned
+// at all, so they could not appear there; Antigravity is spawned but its MCP
+// config contract has never been verified, so it does not appear here.
+//
+// Wide read-side enum, narrow write-side gate — the same split
+// `cli.ts`'s `cliProviderSchema`/`enabledCliProviderSchema` uses, and for the
+// same reason: a persisted row naming a target still parses instead of
+// throwing, while only a verified target may cross the bridge in a write.
+export const MCP_CLIENT_TARGET_VALUES = ['claude-code', 'claude-desktop', 'cursor'] as const
+
+export const mcpClientTargetSchema = z.enum(MCP_CLIENT_TARGET_VALUES)
+
+export type McpClientTarget = z.infer<typeof mcpClientTargetSchema>
+
+/**
+ * The targets this build actually offers.
+ *
+ * Only `claude-code` is enabled, and the bar it cleared is the one
+ * `providerSpec.ts`'s `verified` field sets for the outbound CLIs: its config
+ * file was written and read back against the real client, not transcribed from
+ * documentation. `claude-desktop` and `cursor` use the same `mcpServers` shape
+ * and are expected to work, but expected is not verified, so they stay inert
+ * until someone runs them.
+ */
+export const ENABLED_MCP_CLIENT_TARGETS: readonly McpClientTarget[] = ['claude-code']
+
+export function isClientTargetEnabled(target: McpClientTarget): boolean {
+  return ENABLED_MCP_CLIENT_TARGETS.includes(target)
+}
+
+export const enabledMcpClientTargetSchema = mcpClientTargetSchema.refine(isClientTargetEnabled, {
+  message: 'this MCP client target is not enabled in this build'
+})
+
+/**
+ * Builds the `{ command, args, env }` entry both consumers need, so the shape
+ * exists in ONE place: the renderer serialises it for the clipboard, and main
+ * hands the same object to `mergeClientConfig` for the write. Two builders
+ * would be two chances to drift, and the drift would only surface as a client
+ * that silently stopped connecting.
+ */
+export function buildServerEntry(
+  shimPath: string,
+  token: string
+): { command: string; args: string[]; env: Record<string, string> } {
+  return { command: 'node', args: [shimPath], env: { COURSE_COMPANION_MCP_TOKEN: token } }
+}
+
+// --- mcp:listClientTargets ---------------------------------------------------
+
+export const mcpClientTargetStatusSchema = z.object({
+  target: mcpClientTargetSchema,
+  /** Absolute path of the config file this app would write — shown to the user BEFORE they consent to the write. */
+  configPath: z.string(),
+  /** The client's own config directory exists on this machine. Presence of a directory, never a PATH lookup: these clients are not all executables. */
+  detected: z.boolean(),
+  /** This app's entry is in that file right now. Read from the FILE, never from a settings row — the file is the only thing a client actually obeys. */
+  connected: z.boolean()
+})
+
+export type McpClientTargetStatus = z.infer<typeof mcpClientTargetStatusSchema>
+
+export const listMcpClientTargetsResultSchema = z.array(mcpClientTargetStatusSchema)
+
+export type ListMcpClientTargetsResult = z.infer<typeof listMcpClientTargetsResultSchema>
+
+// --- mcp:writeClientConfig / mcp:removeClientConfig --------------------------
+
+// The token travels DOWN on this channel rather than being read from main's
+// own state, because main does not have it: only the token's hash is persisted
+// (design D7), and the plaintext exists solely in the renderer state that
+// `mcp:issueToken` returned. This is not a new exposure — it is the exact same
+// string the card already puts on the clipboard, gated by the exact same
+// `issuedToken` check.
+export const writeMcpClientConfigInputSchema = z.object({
+  target: enabledMcpClientTargetSchema,
+  token: z.string().min(1)
+})
+
+export type WriteMcpClientConfigInput = z.infer<typeof writeMcpClientConfigInputSchema>
+
+export const removeMcpClientConfigInputSchema = z.object({ target: enabledMcpClientTargetSchema })
+
+export type RemoveMcpClientConfigInput = z.infer<typeof removeMcpClientConfigInputSchema>
+
+export const mcpClientConfigWriteResultSchema = z.object({
+  target: mcpClientTargetSchema,
+  configPath: z.string(),
+  /** `false` when the file already said exactly this — no backup was taken and nothing was rewritten. */
+  changed: z.boolean(),
+  /** Where the previous contents were copied before this write, or `null` when there was nothing to back up. */
+  backupPath: z.string().nullable()
+})
+
+export type McpClientConfigWriteResult = z.infer<typeof mcpClientConfigWriteResultSchema>
