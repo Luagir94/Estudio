@@ -27,6 +27,7 @@ import { ProviderMark } from './ProviderMark'
 // mark of its own renders the generic icon.
 const TARGET_MARK: Record<McpClientTarget, CliProvider | null> = {
   'claude-code': 'claude',
+  antigravity: 'antigravity',
   'claude-desktop': 'claude',
   cursor: null
 }

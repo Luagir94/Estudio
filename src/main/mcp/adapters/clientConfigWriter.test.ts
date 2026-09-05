@@ -10,6 +10,9 @@ const BACKUP = `${CONFIG}.course-companion-backup`
 const TEMP = `${CONFIG}.course-companion.tmp`
 const ENTRY = buildServerEntry('C:\\app\\resources\\mcp-shim\\index.cjs', 'cc_mcp_abc123')
 
+const AGY_CONFIG = path.join(HOME, '.gemini', 'config', 'mcp_config.json')
+const AGY_DIR = path.join(HOME, '.gemini', 'antigravity-cli')
+
 const enoent = (): NodeJS.ErrnoException => Object.assign(new Error('not found'), { code: 'ENOENT' })
 
 /** In-memory disk: file path to contents. A missing key is a missing file. */
@@ -53,23 +56,34 @@ const build = (fs: ReturnType<typeof makeFs>) =>
     logger: { info: vi.fn(), error: vi.fn() }
   })
 
+/** The row for one target out of a listing, so a test can assert on the client it is about. */
+const rowFor = async (fs: ReturnType<typeof makeFs>, target: string): Promise<Record<string, unknown> | undefined> =>
+  (await build(fs).list()).find((row) => row.target === target) as Record<string, unknown> | undefined
+
 describe('clientConfigWriter.list', () => {
+  it('lists every enabled target, in the order the contract enables them', async () => {
+    expect((await build(makeFs()).list()).map((row) => row.target)).toEqual(['claude-code', 'antigravity'])
+  })
+
   it('reports a detected client with our entry already present as connected', async () => {
     const fs = makeFs({ [CONFIG]: JSON.stringify({ mcpServers: { [COURSE_COMPANION_SERVER_KEY]: ENTRY } }) })
 
-    expect(await build(fs).list()).toEqual([
-      { target: 'claude-code', configPath: CONFIG, detected: true, connected: true }
-    ])
+    expect(await rowFor(fs, 'claude-code')).toEqual({
+      target: 'claude-code',
+      configPath: CONFIG,
+      detected: true,
+      connected: true
+    })
   })
 
   it('reports detected-but-not-connected when the client is installed and we are not in it', async () => {
     const fs = makeFs({ [CONFIG]: JSON.stringify({ mcpServers: { engram: {} } }) })
 
-    expect(await build(fs).list()).toMatchObject([{ detected: true, connected: false }])
+    expect(await rowFor(fs, 'claude-code')).toMatchObject({ detected: true, connected: false })
   })
 
   it('reports a client that is not installed at all', async () => {
-    expect(await build(makeFs({}, [])).list()).toMatchObject([{ detected: false, connected: false }])
+    expect(await rowFor(makeFs({}, []), 'claude-code')).toMatchObject({ detected: false, connected: false })
   })
 
   // Listing must never throw: the settings screen has to render even when the
@@ -77,7 +91,18 @@ describe('clientConfigWriter.list', () => {
   it('reports not-connected rather than failing when the file cannot be parsed', async () => {
     const fs = makeFs({ [CONFIG]: 'not json at all' })
 
-    expect(await build(fs).list()).toMatchObject([{ detected: true, connected: false }])
+    expect(await rowFor(fs, 'claude-code')).toMatchObject({ detected: true, connected: false })
+  })
+
+  it('resolves the Antigravity CLI at its own config file, not at the Gemini CLI directory', async () => {
+    const fs = makeFs({}, [AGY_DIR])
+
+    expect(await rowFor(fs, 'antigravity')).toEqual({
+      target: 'antigravity',
+      configPath: AGY_CONFIG,
+      detected: true,
+      connected: false
+    })
   })
 })
 
@@ -200,5 +225,47 @@ describe('clientConfigWriter.remove', () => {
 
     expect(await build(empty).remove('claude-code')).toMatchObject({ ok: true, result: { changed: false } })
     expect(empty.writeFile).not.toHaveBeenCalled()
+  })
+})
+
+describe('clientConfigWriter on the Antigravity CLI', () => {
+  it('writes the exact entry shape agy reads back, into its own config file', async () => {
+    const fs = makeFs({}, [AGY_DIR])
+
+    const outcome = await build(fs).write('antigravity', ENTRY)
+
+    expect(outcome).toMatchObject({ ok: true, result: { changed: true, configPath: AGY_CONFIG } })
+    expect(JSON.parse(fs.files.get(AGY_CONFIG) as string)).toEqual({
+      mcpServers: { [COURSE_COMPANION_SERVER_KEY]: ENTRY }
+    })
+  })
+
+  it('keeps the servers the student registered by hand', async () => {
+    const fs = makeFs({ [AGY_CONFIG]: JSON.stringify({ mcpServers: { context7: { serverUrl: 'https://x' } } }) }, [
+      AGY_DIR
+    ])
+
+    await build(fs).write('antigravity', ENTRY)
+
+    expect(JSON.parse(fs.files.get(AGY_CONFIG) as string)).toEqual({
+      mcpServers: { context7: { serverUrl: 'https://x' }, [COURSE_COMPANION_SERVER_KEY]: ENTRY }
+    })
+  })
+
+  it('drops only our entry on remove', async () => {
+    const fs = makeFs(
+      {
+        [AGY_CONFIG]: JSON.stringify({
+          mcpServers: { context7: { serverUrl: 'https://x' }, [COURSE_COMPANION_SERVER_KEY]: ENTRY }
+        })
+      },
+      [AGY_DIR]
+    )
+
+    await build(fs).remove('antigravity')
+
+    expect(JSON.parse(fs.files.get(AGY_CONFIG) as string)).toEqual({
+      mcpServers: { context7: { serverUrl: 'https://x' } }
+    })
   })
 })

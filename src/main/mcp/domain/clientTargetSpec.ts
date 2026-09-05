@@ -47,6 +47,30 @@ export const MCP_TARGET_SPECS: Readonly<Record<McpClientTarget, McpTargetSpec | 
     label: 'Claude Code',
     verified: 'claude 2.x on Windows, 2026-09-05 — read back with `claude mcp list`'
   },
+
+  // The path here is the one observation the documentation would NOT have
+  // given, and getting it wrong would have written a file nothing ever reads:
+  // `~/.gemini/` holds THREE `mcp_config.json` files on a machine that has run
+  // both the Antigravity CLI and the IDE — `config/`, `antigravity/` and
+  // `antigravity-cli/`. Only `config/` is the CLI's: `agy mcp add` wrote there
+  // and `agy mcp list` read it back, while the two servers sitting in
+  // `antigravity-cli/mcp_config.json` were invisible to both. They are leftovers
+  // from an older layout and from the IDE, and this comment exists so nobody
+  // "corrects" the segments below to point at one of them.
+  //
+  // `.gemini` alone would be the wrong detect directory — the Gemini CLI owns
+  // it too, so it would report Antigravity as installed on a machine that only
+  // ever ran Gemini. `.gemini/antigravity-cli` is agy's own state directory.
+  antigravity: {
+    configSegments: ['.gemini', 'config', 'mcp_config.json'],
+    detectSegments: ['.gemini', 'antigravity-cli'],
+    serversKey: 'mcpServers',
+    label: 'Antigravity CLI',
+    verified:
+      'agy.exe on Windows, 2026-09-05 — wrote `{command,args,env}` with no `disabled` field into ' +
+      '~/.gemini/config/mcp_config.json and `agy mcp list` reported it enabled'
+  },
+
   'claude-desktop': undefined,
   cursor: undefined
 }

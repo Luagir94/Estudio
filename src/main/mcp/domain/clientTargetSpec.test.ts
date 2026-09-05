@@ -41,6 +41,24 @@ describe('MCP_TARGET_SPECS', () => {
     })
   })
 
+  // `~/.gemini/` holds three `mcp_config.json` files on a machine that has run
+  // both the Antigravity CLI and the IDE, and only `config/` is the one `agy`
+  // reads. This test is the guard on that: pointing at either of the other two
+  // would write a file the CLI never opens, and nothing else in the suite would
+  // notice.
+  it('points the Antigravity CLI at the config file agy itself reads', () => {
+    expect(targetSpec('antigravity')).toMatchObject({
+      configSegments: ['.gemini', 'config', 'mcp_config.json'],
+      serversKey: 'mcpServers'
+    })
+  })
+
+  // `.gemini` alone belongs to the Gemini CLI too, so detecting on it would
+  // offer to register a client that is not installed.
+  it('detects Antigravity on its own state directory rather than on the shared .gemini root', () => {
+    expect(targetSpec('antigravity')?.detectSegments).toEqual(['.gemini', 'antigravity-cli'])
+  })
+
   it('resolves nothing for a target this build does not offer', () => {
     expect(targetSpec('cursor' as McpClientTarget)).toBeUndefined()
   })

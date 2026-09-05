@@ -169,18 +169,20 @@ export type McpActivityChangedPayload = z.infer<typeof mcpActivityChangedPayload
 // --- MCP client targets ------------------------------------------------------
 
 // The clients this app can register ITSELF in, by writing their own config
-// file. Deliberately NOT `CliProvider` from `cli.ts`, even though the names
-// overlap: that enum answers "who can this app send a question to" (outbound,
-// spawned), and this one answers "who may read this student's data through the
-// shim" (inbound, never spawned). Claude Desktop and Cursor are never spawned
-// at all, so they could not appear there; Antigravity is spawned but its MCP
-// config contract has never been verified, so it does not appear here.
+// file. Deliberately NOT `CliProvider` from `cli.ts`, even though some of the
+// names now overlap exactly: that enum answers "who can this app send a
+// question to" (outbound, spawned), and this one answers "who may read this
+// student's data through the shim" (inbound, never spawned). Names coinciding
+// is a coincidence of which tools a student happens to have, not a
+// relationship — Claude Desktop and Cursor are never spawned at all and could
+// not appear there, and a client could perfectly well be registrable here while
+// this app has no way to ask it anything.
 //
 // Wide read-side enum, narrow write-side gate — the same split
 // `cli.ts`'s `cliProviderSchema`/`enabledCliProviderSchema` uses, and for the
 // same reason: a persisted row naming a target still parses instead of
 // throwing, while only a verified target may cross the bridge in a write.
-export const MCP_CLIENT_TARGET_VALUES = ['claude-code', 'claude-desktop', 'cursor'] as const
+export const MCP_CLIENT_TARGET_VALUES = ['claude-code', 'antigravity', 'claude-desktop', 'cursor'] as const
 
 export const mcpClientTargetSchema = z.enum(MCP_CLIENT_TARGET_VALUES)
 
@@ -189,14 +191,16 @@ export type McpClientTarget = z.infer<typeof mcpClientTargetSchema>
 /**
  * The targets this build actually offers.
  *
- * Only `claude-code` is enabled, and the bar it cleared is the one
- * `providerSpec.ts`'s `verified` field sets for the outbound CLIs: its config
- * file was written and read back against the real client, not transcribed from
- * documentation. `claude-desktop` and `cursor` use the same `mcpServers` shape
- * and are expected to work, but expected is not verified, so they stay inert
- * until someone runs them.
+ * The bar each one cleared is the one `providerSpec.ts`'s `verified` field sets
+ * for the outbound CLIs: its config file was written and read back against the
+ * real client, not transcribed from documentation. `clientTargetSpec.ts` states
+ * per row exactly what was run.
+ *
+ * `claude-desktop` and `cursor` use the same `mcpServers` shape as the two
+ * below and are expected to work, but expected is not verified, so they stay
+ * inert until someone runs them.
  */
-export const ENABLED_MCP_CLIENT_TARGETS: readonly McpClientTarget[] = ['claude-code']
+export const ENABLED_MCP_CLIENT_TARGETS: readonly McpClientTarget[] = ['claude-code', 'antigravity']
 
 export function isClientTargetEnabled(target: McpClientTarget): boolean {
   return ENABLED_MCP_CLIENT_TARGETS.includes(target)
