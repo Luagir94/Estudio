@@ -8,6 +8,14 @@ import { denialSummary, invalidSummary } from '../domain/auditEntry'
 import type { McpAction, McpSlice } from '../domain/permissions'
 import { annotationsFor } from '../domain/toolAnnotations'
 import type { ToolDescriptor } from '../domain/toolDescriptor'
+import {
+  invalidInputError,
+  notFoundError,
+  permissionDeniedError,
+  sessionTerminatedError,
+  toolFailedError,
+  type McpToolError
+} from '../domain/toolErrors'
 
 // Per-connection state that mcpService (PR9) reads and mutates from OUTSIDE
 // this wrapper: `stale` is flipped true on rotate/revoke (design D8), and
@@ -42,12 +50,14 @@ function okResult(data: unknown): CallToolResult {
   return { content: [{ type: 'text', text: JSON.stringify(data) }] }
 }
 
-function errorResult(code: string, message?: string): CallToolResult {
-  return { content: [{ type: 'text', text: JSON.stringify({ code, message: message ?? code }) }], isError: true }
-}
-
-function toErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+/**
+ * Envelopes an error the domain already built. Deliberately takes the whole
+ * `McpToolError` rather than loose strings: `domain/toolErrors.ts` is the
+ * only place a client-facing message is composed, which is what keeps a raw
+ * exception from ever being handed in here by a later caller.
+ */
+function errorResult(error: McpToolError): CallToolResult {
+  return { content: [{ type: 'text', text: JSON.stringify(error) }], isError: true }
 }
 
 /**
@@ -69,13 +79,17 @@ export function createToolHandler<S extends z.ZodObject, R>(
 
     if (connection.stale) {
       return audited(
-        errorResult('SESSION_TERMINATED'),
+        errorResult(sessionTerminatedError()),
         'denied',
         denialSummary(descriptor.slice, descriptor.action, 'session')
       )
     }
     if (!deps.authorize(descriptor.slice, descriptor.action)) {
-      return audited(errorResult('PERMISSION_DENIED'), 'denied', denialSummary(descriptor.slice, descriptor.action))
+      return audited(
+        errorResult(permissionDeniedError(descriptor.slice, descriptor.action)),
+        'denied',
+        denialSummary(descriptor.slice, descriptor.action)
+      )
     }
 
     // SECOND, full-schema parse — NOT redundant with the SDK's own
@@ -99,22 +113,25 @@ export function createToolHandler<S extends z.ZodObject, R>(
       if (failure.ok) {
         throw new Error('unreachable: parsePayload failure was ok')
       }
-      return audited(errorResult(failure.error.code, failure.error.message), 'invalid', invalidSummary(descriptor.name))
+      return audited(
+        errorResult(invalidInputError(failure.error.code, failure.error.message)),
+        'invalid',
+        invalidSummary(descriptor.name)
+      )
     }
 
     connection.inFlightCount += 1
     try {
       const result = await descriptor.exec(parsed.data)
       return result === null
-        ? audited(errorResult('NOT_FOUND'), 'error', descriptor.summarize(parsed.data, null))
+        ? audited(errorResult(notFoundError(descriptor.name)), 'error', descriptor.summarize(parsed.data, null))
         : audited(okResult(result), 'success', descriptor.summarize(parsed.data, result))
     } catch (error) {
+      // The thrown error is logged HERE and nowhere else on this path: the
+      // envelope below is built from the tool name alone, so nothing the
+      // repository put in that message can reach the client.
       log.error(`mcp tool ${descriptor.name} failed`, error)
-      return audited(
-        errorResult('TOOL_FAILED', toErrorMessage(error)),
-        'error',
-        descriptor.summarize(parsed.data, null)
-      )
+      return audited(errorResult(toolFailedError(descriptor.name)), 'error', descriptor.summarize(parsed.data, null))
     } finally {
       connection.inFlightCount -= 1
       connection.settle()

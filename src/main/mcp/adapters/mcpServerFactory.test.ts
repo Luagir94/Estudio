@@ -6,6 +6,7 @@ import { SUPPORTED_PROTOCOL_VERSIONS } from '@modelcontextprotocol/sdk/types.js'
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { defineTool } from '../domain/toolDescriptor'
+import { permissionDeniedError, sessionTerminatedError, toolFailedError } from '../domain/toolErrors'
 
 const logErrorMock = vi.hoisted(() => vi.fn())
 vi.mock('electron-log', () => ({ default: { error: logErrorMock } }))
@@ -97,10 +98,7 @@ describe('createToolHandler — stale -> authorize -> parse -> exec -> envelope 
     expect(authorize).not.toHaveBeenCalled()
     expect(exec).not.toHaveBeenCalled()
     expect(result.isError).toBe(true)
-    expect(JSON.parse((result.content[0] as { text: string }).text)).toEqual({
-      code: 'SESSION_TERMINATED',
-      message: 'SESSION_TERMINATED'
-    })
+    expect(JSON.parse((result.content[0] as { text: string }).text)).toEqual(sessionTerminatedError())
     expect(audit).toHaveBeenCalledWith({
       tool: 'materias_detail',
       slice: 'materias',
@@ -210,12 +208,46 @@ describe('createToolHandler — stale -> authorize -> parse -> exec -> envelope 
 
     const result = await handler({ id: 1 })
 
-    expect(JSON.parse((result.content[0] as { text: string }).text)).toEqual({
-      code: 'TOOL_FAILED',
-      message: 'repository unavailable'
-    })
+    expect(JSON.parse((result.content[0] as { text: string }).text)).toEqual(toolFailedError('materias_detail'))
     expect(logErrorMock).toHaveBeenCalledWith('mcp tool materias_detail failed', expect.any(Error))
     expect(audit).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'error' }))
+  })
+
+  it('never puts the thrown error text on the wire, however revealing it is', async () => {
+    // The failure this rules out: a driver message like the one below —
+    // table names, column names, a file path — reaching whichever local
+    // process holds a token, because it was cheaper to forward `error.message`
+    // than to write a sentence.
+    const leaky = 'SQLITE_CONSTRAINT: UNIQUE constraint failed: subjects.id (C:\\Users\\someone\\app.db)'
+    const audit = vi.fn()
+    const connection = createConnectionState()
+    const handler = createToolHandler(
+      buildDetailDescriptor(() => {
+        throw new Error(leaky)
+      }),
+      connection,
+      { authorize: () => true, audit }
+    )
+
+    const result = await handler({ id: 1 })
+    const wire = (result.content[0] as { text: string }).text
+
+    expect(wire).not.toContain(leaky)
+    expect(wire).not.toMatch(/SQLITE|constraint|subjects\.id|C:\\/i)
+    // Still recorded where it belongs: the app's own log.
+    expect(logErrorMock).toHaveBeenCalledWith('mcp tool materias_detail failed', expect.any(Error))
+  })
+
+  it('tells a denied caller which slice and action to grant, and that no reconnect is needed', async () => {
+    const connection = createConnectionState()
+    const handler = createToolHandler(buildDetailDescriptor(vi.fn()), connection, {
+      authorize: () => false,
+      audit: vi.fn()
+    })
+
+    const result = await handler({ id: 1 })
+
+    expect(JSON.parse((result.content[0] as { text: string }).text)).toEqual(permissionDeniedError('materias', 'read'))
   })
 
   it('returns the success envelope and audits outcome=success on a successful call', async () => {
