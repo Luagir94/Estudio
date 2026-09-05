@@ -122,7 +122,14 @@ Course Companion runs an inbound [MCP](https://modelcontextprotocol.io) server s
 
 ### Client configuration
 
-Point your MCP client at the shim with the same `{ command, args, env }` shape most stdio-based clients use:
+For **Claude Code**, Ajustes can write this configuration for you: the app merges its own entry into `~/.claude.json` under `mcpServers`, leaving every other key and every other server in that file untouched. It backs the file up to `~/.claude.json.course-companion-backup` first, and it refuses outright — writing nothing — if it cannot parse what is already there.
+
+Two properties of that path are worth knowing before using it:
+
+- **The token lands in plaintext**, in a file this app does not own. That is the same exposure as pasting the snippet below by hand; the difference is only who types it.
+- **Rotating or revoking the token rewrites every connected client**, because a rotation would otherwise break them silently — the client keeps a token that no longer validates and simply stops listing tools.
+
+Every other client is configured by hand. Point it at the shim with the same `{ command, args, env }` shape most stdio-based clients use:
 
 ```json
 {

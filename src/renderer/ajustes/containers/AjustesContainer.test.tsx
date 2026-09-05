@@ -148,7 +148,10 @@ beforeEach(() => {
       revokeToken: vi.fn(),
       setPermission: vi.fn(),
       listActivity: vi.fn(),
-      onActivityChanged: vi.fn().mockReturnValue(vi.fn())
+      onActivityChanged: vi.fn().mockReturnValue(vi.fn()),
+      listClientTargets: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+      writeClientConfig: vi.fn(),
+      removeClientConfig: vi.fn()
     }
   }
 })
@@ -628,9 +631,14 @@ describe('AjustesContainer — MCP', () => {
 
     await screen.findByRole('heading', { name: 'Conexión MCP' })
     const cardTitles = screen.getAllByRole('heading', { level: 3 })
-    // PR16's Permisos card now renders right after this one (approved `.pen`
-    // ordering) — "Conexión MCP" is second-to-last, not last, as of this PR.
-    expect(cardTitles[cardTitles.length - 2]).toHaveTextContent('Conexión MCP')
+    // The approved `.pen` order of the three MCP cards, tail-anchored so the
+    // CLI rows above them stay free to change: Conexión MCP, then Clientes MCP
+    // (design node `WNQCK`), then Permisos MCP last.
+    expect(cardTitles.slice(-3).map((title) => title.textContent)).toEqual([
+      'Conexión MCP',
+      'Clientes MCP',
+      'Permisos MCP'
+    ])
   })
 
   // The plaintext token exists nowhere else — `mcp:status` cannot read it

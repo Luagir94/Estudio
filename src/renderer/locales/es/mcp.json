@@ -14,6 +14,24 @@
       "revoke": "Revocar"
     }
   },
+  "mcpClientTargetsCard": {
+    "title": "Clientes MCP",
+    "detailLine": "Course Companion escribe su propia entrada en el archivo del cliente y no toca nada más · el resto se configura a mano",
+    "warning": "Al registrar, tu token queda escrito en texto plano en ese archivo. Rotarlo o revocarlo reescribe los clientes registrados.",
+    "state": {
+      "connected": "Registrado",
+      "absent": "Sin registrar"
+    },
+    "buttons": {
+      "register": "Registrar",
+      "unregister": "Quitar"
+    },
+    "targets": {
+      "claude-code": "Claude Code",
+      "claude-desktop": "Claude Desktop",
+      "cursor": "Cursor"
+    }
+  },
   "mcpPermissionsCard": {
     "title": "Permisos MCP",
     "description": "Qué puede tocar un CLI conectado · todo empieza en ninguno",

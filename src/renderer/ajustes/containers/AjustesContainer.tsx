@@ -29,9 +29,9 @@ import { Info } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CLI_PROVIDERS, type CliPreference, type CliProvider } from '../../../shared/ipc/cli'
-import type { McpStatusResult } from '../../../shared/ipc/mcp'
+import type { ListMcpClientTargetsResult, McpStatusResult } from '../../../shared/ipc/mcp'
 import type { Palette, ThemePreference } from '../../../shared/ipc/theme'
-import { mcpApi, MCP_STATUS_QUERY_KEY } from '../../mcp/adapters/mcpApi'
+import { mcpApi, MCP_CLIENT_TARGETS_QUERY_KEY, MCP_STATUS_QUERY_KEY } from '../../mcp/adapters/mcpApi'
 import { applyPalette } from '../../shared/lib/applyPalette'
 import {
   ajustesApi,
@@ -44,6 +44,7 @@ import { AppearanceCard } from '../components/AppearanceCard'
 import { ConnectionStatusCard } from '../components/ConnectionStatusCard'
 import { DetectingProviderCard } from '../components/DetectingProviderCard'
 import { IdleProviderCard } from '../components/IdleProviderCard'
+import { McpClientTargetsCard } from '../components/McpClientTargetsCard'
 import { McpPermissionsCard } from '../components/McpPermissionsCard'
 import { McpTokenCard } from '../components/McpTokenCard'
 import { PROVIDER_COMMANDS } from '../domain/connectionDisplay'
@@ -166,6 +167,35 @@ export function AjustesContainer({ onViewMcpActivity = () => {} }: AjustesContai
   // screen (or of the app) loses it, by design, not by bug.
   const [issuedMcpToken, setIssuedMcpToken] = useState<string | null>(null)
 
+  // Read from the client's own config FILE, not from anything this app
+  // persists, so a user who edited it by hand sees the truth rather than our
+  // memory of it. Separate query key from `mcp:status`: a write here changes
+  // no token and no grant.
+  const { data: mcpClientTargets } = useQuery({
+    queryKey: MCP_CLIENT_TARGETS_QUERY_KEY,
+    queryFn: mcpApi.listClientTargets
+  })
+
+  const mcpRegisterMutation = useMutation({
+    mutationFn: mcpApi.writeClientConfig,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: MCP_CLIENT_TARGETS_QUERY_KEY })
+    }
+  })
+
+  const mcpUnregisterMutation = useMutation({
+    mutationFn: mcpApi.removeClientConfig,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: MCP_CLIENT_TARGETS_QUERY_KEY })
+    }
+  })
+
+  /** The targets this app has actually written itself into, per the last read of their files. */
+  const connectedMcpTargets = (): ListMcpClientTargetsResult =>
+    (queryClient.getQueryData<ListMcpClientTargetsResult>(MCP_CLIENT_TARGETS_QUERY_KEY) ?? []).filter(
+      (target) => target.connected
+    )
+
   const mcpRotateMutation = useMutation({
     mutationFn: mcpApi.issueToken,
     onSuccess: (result) => {
@@ -175,6 +205,13 @@ export function AjustesContainer({ onViewMcpActivity = () => {} }: AjustesContai
       // re-read is simpler and safer here than hand-patching individual
       // fields the card does not otherwise touch.
       void queryClient.invalidateQueries({ queryKey: MCP_STATUS_QUERY_KEY })
+      // A rotation invalidates the token every registered client is holding.
+      // Rewriting them is not a convenience: a client left on the old token
+      // simply stops listing tools, with nothing on screen to say why — the
+      // one failure mode this whole feature exists to avoid creating.
+      for (const target of connectedMcpTargets()) {
+        mcpRegisterMutation.mutate({ target: target.target, token: result.token })
+      }
     }
   })
 
@@ -183,6 +220,11 @@ export function AjustesContainer({ onViewMcpActivity = () => {} }: AjustesContai
     onSuccess: () => {
       setIssuedMcpToken(null)
       void queryClient.invalidateQueries({ queryKey: MCP_STATUS_QUERY_KEY })
+      // Same obligation in the other direction: a revoked token must not leave
+      // a dead server behind for the user to clean up by hand.
+      for (const target of connectedMcpTargets()) {
+        mcpUnregisterMutation.mutate({ target: target.target })
+      }
     }
   })
 
@@ -299,6 +341,21 @@ export function AjustesContainer({ onViewMcpActivity = () => {} }: AjustesContai
             onRevoke={() => mcpRevokeMutation.mutate()}
             isRotating={mcpRotateMutation.isPending}
             isRevoking={mcpRevokeMutation.isPending}
+          />
+          <McpClientTargetsCard
+            targets={mcpClientTargets ?? []}
+            // The SAME gate the copy button uses: no plaintext this session,
+            // nothing to write.
+            canRegister={issuedMcpToken !== null}
+            onRegister={(target) => mcpRegisterMutation.mutate({ target, token: issuedMcpToken ?? '' })}
+            onUnregister={(target) => mcpUnregisterMutation.mutate({ target })}
+            pendingTarget={
+              mcpRegisterMutation.isPending
+                ? (mcpRegisterMutation.variables?.target ?? null)
+                : mcpUnregisterMutation.isPending
+                  ? (mcpUnregisterMutation.variables?.target ?? null)
+                  : null
+            }
           />
           <McpPermissionsCard
             permissions={mcpStatus.permissions}
